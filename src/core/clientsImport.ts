@@ -42,6 +42,9 @@ export const TEMPLATE_COLUMNS: TemplateColumn[] = [
   { field: "note", title: "Заметка", hint: "Любые пометки — попадут в историю клиента", examples: ["Корпоратив, 30 гостей", "", "Хочет НГ в декабре"], width: 28 },
 ];
 
+/** Пометка «нет данных» в ячейке телефона или ника. */
+const PLACEHOLDER = /^(?:[-–—_.?!\s]+|нет|не знаю|неизвестно|n\/?a|none|null)$/i;
+
 export const CONTACT_CHOICES = ["Telegram", "WhatsApp", "Звонок"];
 /** Сколько строк клиентов за одну загрузку. */
 export const IMPORT_MAX_ROWS = 2000;
@@ -89,11 +92,14 @@ const norm = (s: string) =>
     .trim();
 
 /** Название колонки → поле. Порядок важен: «Способ связи» раньше «Telegram», «Ссылка телеграм» — Telegram. */
+/** Не наши колонки, хоть и похожи: «Номер п/п», «Номер заказа», «Ссылка на Instagram», «ВКонтакте» — не телефон и не Telegram. */
+const NOT_OURS = /(^номер (п п|по порядку|строки|заказа|договора|счета|брони)|^n п п$|instagram|инстаграм|инста|^vk|вконтакт|^вк( |$)|facebook|фейсбук|почта|email|e mail)/;
+
 const HEADERS: Array<[RegExp, ImportField]> = [
   [/^(способ связи|связь|как связаться|канал связи|канал|мессенджер)$/, "contact"],
-  [/(телефон|^номер|номер телефона|^тел$|phone|мобильн|whatsapp|ватсап)/, "phone"],
+  [/(телефон|^номер|номер телефона|^тел$|phone|мобильн|whatsapp|ватсап|^контакты?$)/, "phone"],
   [/(telegram|телеграм|^тг$|^tg$|^ник|ссылка|username)/, "telegram"],
-  [/^(имя|фио|имя клиента|клиент|name|кто|контакт)$/, "name"],
+  [/^(имя|фио|имя клиента|клиент|name|кто)$/, "name"],
   [/(мероприят|интерактив|повод|^игра|формат|что проводили|событие|услуга)/, "event"],
   [/^(дата|когда|date|дата мероприятия|дата проведения)$/, "date"],
   [/^(статус|status|этап)$/, "status"],
@@ -102,7 +108,7 @@ const HEADERS: Array<[RegExp, ImportField]> = [
 
 export function fieldOfHeader(title: string): ImportField | null {
   const t = norm(title);
-  if (!t) return null;
+  if (!t || NOT_OURS.test(t)) return null;
   for (const [re, field] of HEADERS) if (re.test(t)) return field;
   return null;
 }
@@ -117,9 +123,15 @@ export interface HeaderMap {
 export function findHeader(rows: string[][]): HeaderMap | null {
   for (let r = 0; r < Math.min(rows.length, 15); r++) {
     const columns: Partial<Record<ImportField, number>> = {};
+    // Просто «Номер» — слабая подсказка: если дальше есть явный «Телефон», телефон — он.
+    let weakPhone = false;
     (rows[r] ?? []).forEach((cell, c) => {
       const f = fieldOfHeader(cell);
-      if (f && columns[f] === undefined) columns[f] = c;
+      const weak = f === "phone" && /^номер$/.test(norm(cell));
+      if (f && (columns[f] === undefined || (f === "phone" && weakPhone && !weak))) {
+        columns[f] = c;
+        if (f === "phone") weakPhone = weak;
+      }
     });
     if (Object.keys(columns).length >= 2 && (columns.phone !== undefined || columns.telegram !== undefined)) return { line: r + 1, columns };
   }
@@ -133,7 +145,9 @@ export function nickOf(value: string): string {
     .replace(/^(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\//i, "")
     .replace(/^@/, "")
     .replace(/[/?#].*$/, "");
-  return /^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(v) ? `@${v}` : "";
+  // Ник Telegram — от 5 до 32 знаков; служебные адреса t.me (joinchat, addstickers…) — не ник.
+  if (/^(joinchat|addstickers|addemoji|share|proxy|socks|setlanguage|iv|c|s)$/i.test(v)) return "";
+  return /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(v) ? `@${v}` : "";
 }
 
 /** Похоже на номер: только цифры, пробелы, «+», скобки, тире (и «wa.me/…»), цифр не меньше 7. */
@@ -246,13 +260,16 @@ export function parseClientRows(
     // Телефон и ник — из своих колонок, но в «Ссылке телеграм» часто номер, а в «Телефоне» — ник.
     let phone = "";
     let nick = "";
+    // Что не поняли: есть другой способ связи — только предупреждение (строку добавить можно), нет — ошибка.
+    const unclear: string[] = [];
     for (const v of [phoneCell, tgCell]) {
-      if (!v) continue;
+      // «-», «—», «нет», «?» — пусто: так часто помечают, что номера или ника нет.
+      if (!v || PLACEHOLDER.test(v)) continue;
       const asPhone = phoneLike(v);
       const asNick = nickOf(v);
       if (asPhone && !phone) phone = asPhone;
       else if (asNick && !nick) nick = asNick;
-      else if (!asPhone && !asNick) errors.push(v === phoneCell ? `Не поняли телефон «${v}».` : `Не поняли ник Telegram «${v}» — нужен @ник или t.me/ник.`);
+      else if (!asPhone && !asNick) unclear.push(v === phoneCell ? `Не поняли телефон «${v}».` : `Не поняли ник Telegram «${v}» — нужен @ник или t.me/ник.`);
     }
     const name = cleanLine(get(row, "name"), CLIENT_LIMITS.name);
     const event = get(row, "event");
@@ -266,13 +283,17 @@ export function parseClientRows(
     let key = "";
     if (phone) {
       const k = phoneKey(phone);
-      if (!k) errors.push(`Телефон «${phone}»: ${phoneIssueText(phone) || "не похож на номер."}`);
-      else {
+      if (!k) {
+        unclear.push(`Телефон «${phone}»: ${phoneIssueText(phone) || "не похож на номер."}`);
+        phone = "";
+      } else {
         key = k;
         // Российский — «+7 915 241-59-99», другой страны — «+972536921872» (как набрали — «972 53 …» — не храним).
         phone = k.length === 11 && k.startsWith("7") ? phoneLabel(phone) : `+${k}`;
       }
     }
+    if (phone || nick) warnings.push(...unclear.map((u) => `${u} Добавим по ${phone ? "телефону" : "нику"}.`));
+    else errors.push(...unclear);
     if (!phone && !nick && errors.length === 0) errors.push("Нет телефона и ника Telegram — связаться не с кем.");
     if (!key && nick) key = nick.toLowerCase();
     let contact = contactOf(get(row, "contact"));

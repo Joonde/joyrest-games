@@ -190,7 +190,11 @@ export async function readXlsx(bytes: Uint8Array): Promise<string[][]> {
   for (const rm of sheet.matchAll(/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g)) {
     const r = Number(attr(rm[1] ?? "", "r")) || next;
     next = r + 1;
-    if (r > MAX_ROWS) throw new XlsxError("too-big");
+    // Пустая строка далеко внизу (Excel оставляет её, если строку оформили) — не повод отказать: пропускаем.
+    if (r > MAX_ROWS) {
+      if (/<v\b|<is\b/.test(rm[2] ?? "")) throw new XlsxError("too-big");
+      continue;
+    }
     const row: string[] = [];
     let col = 1;
     for (const cm of (rm[2] ?? "").matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
@@ -235,9 +239,14 @@ export function readCsv(bytes: Uint8Array): string[][] {
     }
   }
   text = text.replace(/^﻿/, "");
-  const first = text.split(/\r?\n/, 1)[0] ?? "";
-  const counts: Array<[string, number]> = [";", ",", "\t"].map((d) => [d, first.split(d).length - 1]);
-  const delim = counts.sort((a, b) => b[1] - a[1])[0]?.[0] ?? ";";
+  // Разделитель — по первым 20 строкам: первой бывает заголовок без разделителей («Клиенты 2025»).
+  const head = text.split(/\r?\n/, 20);
+  // Разделитель есть почти в каждой строке, а запятые в заметке — в немногих: решает число строк, где он есть, потом — сколько раз.
+  const score = (d: string): [number, number] => [head.filter((l) => l.includes(d)).length, Math.max(0, ...head.map((l) => l.split(d).length - 1))];
+  const delim =
+    [";", ",", "\t"]
+      .map((d) => [d, ...score(d)] as const)
+      .sort((a, b) => b[1] - a[1] || b[2] - a[2])[0]?.[0] ?? ";";
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";

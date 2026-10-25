@@ -186,3 +186,55 @@ describe("способ связи клиента", () => {
     expect(contactTitle({ ...phoneOnly, contact: "" })).toBe("");
   });
 });
+
+describe("загрузка клиентов: находки тестировщика 25 октября 2026", () => {
+  it("«-», «—», «нет» в ячейке — пусто; непонятный телефон при живом нике (и наоборот) — предупреждение, строку добавить можно", () => {
+    const r = ok(
+      parseClientRows([
+        ["Имя", "Телефон", "Telegram"],
+        ["Анна", "89151234567", "-"],
+        ["Боря", "89151234568", "нет"],
+        ["Вера", "—", "@vera_test"],
+        ["Галя", "915123", "@galya_test"],
+        ["Дима", "915123", ""],
+      ]),
+    );
+    const by = Object.fromEntries(r.rows.map((x) => [x.name, x]));
+    expect(by["Анна"]).toMatchObject({ phone: "+7 915 123-45-67", errors: [], warnings: [] });
+    expect(by["Боря"]).toMatchObject({ errors: [], warnings: [] });
+    expect(by["Вера"]).toMatchObject({ phone: "", nick: "@vera_test", errors: [], warnings: [] });
+    expect(by["Галя"]).toMatchObject({ phone: "", nick: "@galya_test", errors: [] });
+    expect(by["Галя"]?.warnings[0]).toContain("Добавим по нику");
+    expect(by["Дима"]?.errors[0]).toContain("915123");
+    expect(r.rows.filter(canImport).map((x) => x.name)).toEqual(["Анна", "Боря", "Вера", "Галя"]);
+  });
+
+  it("«Номер п/п», «№», «Ссылка на Instagram» — не телефон и не Telegram; явный «Телефон» сильнее простого «Номер»; «Контакт» — телефон или ник", () => {
+    const pp = findHeader([["Номер п/п", "Имя", "Телефон", "Ссылка на Instagram", "Ник"]]);
+    expect(pp?.columns).toEqual({ name: 1, phone: 2, telegram: 4 });
+    expect(findHeader([["Номер", "Имя", "Телефон"]])?.columns.phone).toBe(2);
+    expect(findHeader([["Имя", "Номер"]])?.columns.phone).toBe(1);
+    const r = ok(parseClientRows([["Имя", "Контакт"], ["Анна", "89151234567"], ["Боря", "@borya_test"]]));
+    expect(r.rows.map((x) => [x.phone, x.nick])).toEqual([["+7 915 123-45-67", ""], ["", "@borya_test"]]);
+  });
+
+  it("ник Telegram — от 5 знаков, служебные адреса t.me — не ник", () => {
+    expect(nickOf("abcd")).toBe("");
+    expect(nickOf("abcde")).toBe("@abcde");
+    expect(nickOf("https://t.me/joinchat/AAAA")).toBe("");
+    expect(nickOf("t.me/addstickers/pack")).toBe("");
+  });
+
+  it("CSV: первая строка — заголовок без разделителей, запятые в заметке не путают «;»", () => {
+    const enc = new TextEncoder();
+    expect(readCsv(enc.encode("Клиенты 2025\nИмя,Телефон\nАнна,89151234567\n"))).toEqual([["Клиенты 2025"], ["Имя", "Телефон"], ["Анна", "89151234567"]]);
+    expect(readCsv(enc.encode("Имя;Телефон;Заметка\nАнна;8915;квиз, мафия, лото, шоу\nБоря;8916;\n"))[1]).toEqual(["Анна", "8915", "квиз, мафия, лото, шоу"]);
+  });
+
+  it("Excel: пустая оформленная строка далеко внизу не мешает, строка с данными ниже 20 000 — «слишком большая»", async () => {
+    // Файлы сделаны openpyxl (как Google Таблицы и другие программы): строка 30000 только с высотой, без ячеек.
+    const rows = await readXlsx(fixture("clients-far-row.xlsx"));
+    expect(rows).toEqual([["Имя", "Телефон", "Дата"], ["Анна", "89151234567", "06.04.2026"]]);
+    await expect(readXlsx(fixture("clients-too-big.xlsx"))).rejects.toMatchObject({ problem: "too-big" });
+  });
+});

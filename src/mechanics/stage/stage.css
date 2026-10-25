@@ -290,6 +290,17 @@
   position: relative;
 }
 
+/* «9–16 из 25» — над полоской справа, места команд не занимает. */
+.stage-teams__page {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 0.4cqh;
+  font-size: 1.9cqh;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Больше четырёх команд — по четыре в ряд: длинное имя видно, а не только смайлик и «…». */
 .stage-teams:has(> :nth-child(5)) .stage-teams__one {
   flex: 1 1 calc(25% - 1cqw);

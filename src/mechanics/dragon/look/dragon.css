@@ -962,6 +962,33 @@
 .dg-teams.is-compact .dg-team__dm b {
   font-weight: 700;
 }
+/* Одна строка (11–25 команд): значок · имя · «♥ 3 ⚔ 1 200». Не мельче 1,35 --u. */
+.dg-teams.is-tiny .dg-team {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  align-items: center;
+  padding-block: 0;
+  column-gap: calc(0.5 * var(--u));
+}
+.dg-teams.is-tiny .dg-team__em {
+  grid-row: auto;
+  width: calc(1.9 * var(--u));
+  height: calc(1.9 * var(--u));
+  font-size: calc(1.1 * var(--u));
+}
+.dg-teams.is-tiny .dg-team__nm,
+.dg-stage--adult .dg-teams.is-tiny .dg-team__nm {
+  font-size: calc(1.45 * var(--u));
+  line-height: 1.25;
+}
+.dg-teams.is-tiny .dg-hearts,
+.dg-teams.is-tiny .dg-team__dm {
+  font-size: calc(1.35 * var(--u));
+  line-height: 1.2;
+}
+.dg-teams.is-tiny .dg-team__row {
+  gap: calc(0.5 * var(--u));
+}
 .dg-stage--adult .dg-team {
   background: rgba(20, 12, 9, 0.74);
   border: calc(0.1 * var(--u)) solid #4a2e19;

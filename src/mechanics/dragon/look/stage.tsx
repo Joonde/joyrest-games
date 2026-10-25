@@ -410,6 +410,8 @@ export function DragonStage({ session, content }: ViewProps<DragonContent>) {
   const rowH = Math.min(9.6, (38 - 0.8 * (rows - 1)) / rows);
   // Полная карточка (имя, герой, жизни и урон крупным шрифтом) помещается от ~8.2 --u; ниже — без строки героя.
   const compact = rowH < 8.2;
+  // Больше 10 команд (до 25 в большом зале): карточка в одну строку — значок, имя, ♥ и урон.
+  const tiny = rowH < 5.2;
   const colStyle = { "--row": rowH } as CSSProperties;
 
   const intent = useMemo(() => {
@@ -461,7 +463,7 @@ export function DragonStage({ session, content }: ViewProps<DragonContent>) {
         </div>
 
         {columns.map((col, ci) => (
-          <ul key={ci} className={`dg-teams dg-teams--${ci === 0 ? "l" : "r"}${compact ? " is-compact" : ""}`} style={colStyle} aria-label={ci === 0 ? "Команды слева" : "Команды справа"}>
+          <ul key={ci} className={`dg-teams dg-teams--${ci === 0 ? "l" : "r"}${compact ? " is-compact" : ""}${tiny ? " is-tiny" : ""}`} style={colStyle} aria-label={ci === 0 ? "Команды слева" : "Команды справа"}>
             {col.map((p) => {
               const h = r.heroes[p];
               const hero = heroOf(h?.hero);

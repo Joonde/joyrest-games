@@ -53,7 +53,7 @@ function deadRole(r: MafiaResult, pid: string): RoleId | null {
 /** Места за столом: живые, выбывшие (с ролью, если она открыта), кандидаты, кто говорит. */
 function Seats({ session, r, size = "screen" }: { session: Session; r: MafiaResult; size?: "screen" | "phone" }) {
   return (
-    <ol className={`mf-seats mf-seats--${size}`} style={size === "screen" ? { gridTemplateColumns: `repeat(${r.seats.length <= 8 ? 4 : r.seats.length <= 12 ? 6 : 8}, minmax(0, 1fr))` } : undefined}>
+    <ol className={`mf-seats mf-seats--${size}`} style={size === "screen" ? { gridTemplateColumns: `repeat(${r.seats.length <= 8 ? 4 : r.seats.length <= 12 ? 6 : r.seats.length <= 30 ? 6 : 8}, minmax(0, 1fr))` } : undefined}>
       {r.seats.map((p, i) => {
         const dead = !r.alive.includes(p);
         const role = dead ? deadRole(r, p) : null;
@@ -235,13 +235,18 @@ export function MafiaScreenView({ session, content }: ViewProps<MafiaContent>) {
           {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="10cqh" />}
         </span>
         <h2 className="mf-title">Кого город выгоняет?</h2>
-        <ul className="mf-nominees">
-          {r.nominees.map((p) => (
-            <li key={p}>
-              <Who session={session} r={r} pid={p} />
-            </li>
-          ))}
-        </ul>
+        {r.nominees.length > 8 ? (
+          // Против любого живого (в большой игре — 20–30 человек): номера и имена — на столе внизу, второй список не нужен.
+          <p className="mf-note mf-note--big">Можно голосовать против любого живого игрока — номера внизу</p>
+        ) : (
+          <ul className="mf-nominees">
+            {r.nominees.map((p) => (
+              <li key={p}>
+                <Who session={session} r={r} pid={p} />
+              </li>
+            ))}
+          </ul>
+        )}
         <p className="mf-note">
           Голосуйте тайно на телефоне · проголосовали {Math.min(session.state.answered, alive)} из {alive}
         </p>

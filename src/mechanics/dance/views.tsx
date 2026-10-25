@@ -387,12 +387,13 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
     const voters = r.order.filter((p) => canVote(r, card, p) && session.leaderboard[p]);
     const timer = left === null ? (stage === "question" ? null : "Голосование закрыто") : left === 0 ? "Голосование закрыто" : `${left} с`;
     if (card.kind === "battle") {
-      const sides = r.order.filter((p) => session.leaderboard[p]).slice(0, 8);
+      // Все команды: в большом зале (до 25) — плотной сеткой в 4–5 колонок, имя в одну строку.
+      const sides = r.order.filter((p) => session.leaderboard[p]);
       return (
         <div className="dance-screen db-stage db-vote db-vote--battle">
           <h2 className="db-h">Батл: кто победил?</h2>
           {/* «VS» — только когда команд ровно две; больше — сетка карточек команд. */}
-          <div className={sides.length === 2 ? "db-versus" : `db-versus db-versus--grid${sides.length === 4 ? "" : " db-versus--3"}`}>
+          <div className={sides.length === 2 ? "db-versus" : `db-versus db-versus--grid${sides.length === 4 ? "" : sides.length > 16 ? " db-versus--many db-versus--5" : sides.length > 9 ? " db-versus--many" : " db-versus--3"}`}>
             {sides.map((p, i) => (
               <span key={p} className="db-versus__item">
                 {i > 0 && sides.length === 2 && <span className="db-vs">VS</span>}

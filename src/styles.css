@@ -8271,7 +8271,22 @@ ul.chips {
 
 /* ---------- Экран зала: гонка и несколько картинок ---------- */
 .quiz-screen--race {
+  /* Столбиком: заголовок, строка ответа и дорожки; дорожки сжимаются под высоту экрана (16:10, 4:3, много игроков). */
+  display: flex;
+  flex-direction: column;
   gap: 1.6cqh;
+}
+
+.quiz-screen--race > .race {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.quiz-screen--race .race__lane {
+  height: auto;
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 7.4cqh;
 }
 
 .quiz-screen__race-answer {

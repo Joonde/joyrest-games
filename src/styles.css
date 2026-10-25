@@ -8277,12 +8277,15 @@ ul.chips {
 .quiz-screen__race-answer {
   margin: 0;
   font-size: 2.2cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .quiz-screen__finish {
-  display: inline-block;
-  margin: 0 0 0 1cqw;
-  font-size: 0.85em;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 2cqw;
   font-weight: 600;
   padding: 0.8cqh 2cqw;
   border-radius: 999px;

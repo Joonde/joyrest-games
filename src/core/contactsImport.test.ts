@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanName, dateIn, matchContact, parseVcf, pastClientMessage, scanContacts } from "./contactsImport";
+import { cleanName, dateIn, greetName, matchContact, messageVariant, parseVcf, pastClientMessage, scanContacts } from "./contactsImport";
 
 const VCF = [
   "BEGIN:VCARD",
@@ -103,11 +103,47 @@ describe("загрузка контактов с телефона", () => {
     expect(dateIn("Оля 9 мая")).toBe("9 мая");
   });
 
-  it("сообщение прежнему клиенту — без цен и скидок, с вопросом о согласии", () => {
-    const text = pastClientMessage("Михаил", { channel: "t.me/JoyRest", calc: "joy-rest.ru/calc/", avito: "avito.ru/brands/x" });
-    expect(text).toContain("Это Михаил, ведущий.");
-    expect(text).toContain("я или мой коллега");
-    expect(text).toContain("можно иногда присылать вам новости?");
-    expect(text).not.toMatch(/скидк|₽|%/);
+  it("сообщение прежнему клиенту — 5 вариантов от команды JoyRest: имя, обновились, извинение, вопрос о согласии, без цен и скидок", () => {
+    const links = { channel: "t.me/JoyRest", calc: "joy-rest.ru/calc/", avito: "avito.ru/brands/x" };
+    const texts = [1, 2, 3, 4, 5].map((v) => pastClientMessage("Юлия Вота 27 В 19 00", links, v));
+    expect(new Set(texts).size).toBe(5);
+    for (const text of texts) {
+      expect(text).toContain("Юлия");
+      expect(text).not.toMatch(/Вота|19 00/);
+      expect(text).toContain("✨ JoyRest ✨");
+      expect(text).toMatch(/ведущ/);
+      expect(text).toMatch(/обновил/);
+      expect(text).toMatch(/ошиб|перепута|не туда/);
+      expect(text).toMatch(/присылать вам (наши )?новости\?/);
+      expect(text).toContain("t.me/JoyRest");
+      expect(text).toContain("joy-rest.ru/calc/");
+      expect(text).toContain("avito.ru/brands/x");
+      expect(text).not.toMatch(/скидк|₽|%|undefined|\{n\}/);
+    }
+    // Вне диапазона — по кругу, не падает.
+    expect(pastClientMessage("Анна", links, 6)).toBe(pastClientMessage("Анна", links, 1));
+    expect(pastClientMessage("Анна", links, 0)).toBe(pastClientMessage("Анна", links, 5));
+  });
+
+  it("имя для обращения: первое слово-имя подписи, роли и даты пропускаются; нет имени — без обращения", () => {
+    expect(greetName("Юлия Вота 27 В 19 00")).toBe("Юлия");
+    expect(greetName("29 Мария")).toBe("Мария");
+    expect(greetName("МАРИЯ")).toBe("Мария");
+    expect(greetName("23 с 17 00 Ксения")).toBe("Ксения");
+    expect(greetName("Наталья Ведущий + Каиз+угадай Мелодию 17 30")).toBe("Наталья");
+    expect(greetName("Ведущий 20 30")).toBe("");
+    expect(greetName("Марина")).toBe("Марина");
+    expect(greetName("Елена 22 Дек 2 улице Измайловского зверинца д 2")).toBe("Елена");
+    expect(greetName("Анастасия 28 Дек")).toBe("Анастасия");
+    expect(greetName("")).toBe("");
+    const links = { channel: "c", calc: "k", avito: "a" };
+    expect(pastClientMessage("Ведущий 20 30", links, 1).startsWith("Добрый день! 👋")).toBe(true);
+    expect(pastClientMessage("", links, 3).startsWith("Привет от ✨ JoyRest ✨!")).toBe(true);
+  });
+
+  it("вариант сообщения — один и тот же для клиента, все 5 встречаются", () => {
+    expect(messageVariant("c-abc")).toBe(messageVariant("c-abc"));
+    const seen = new Set(Array.from({ length: 200 }, (_, i) => messageVariant(`c${i}x`)));
+    expect([...seen].sort()).toEqual([1, 2, 3, 4, 5]);
   });
 });

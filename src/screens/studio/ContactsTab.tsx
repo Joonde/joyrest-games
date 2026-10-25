@@ -7,8 +7,8 @@
  */
 import { useMemo, useRef, useState } from "react";
 import { contactTitle, linkTitle, phoneKey, phoneLabel, telegramLinkOf, writeChannels } from "../../core/clients";
-import { cleanName, pastClientMessage, pastClientYesMessage, scanContacts, type ContactMatch } from "../../core/contactsImport";
-import { clientsRepo, useLoad, type ClientRecord, type UserProfile } from "../../data";
+import { cleanName, messageVariant, pastClientMessage, pastClientYesMessage, scanContacts, type ContactMatch } from "../../core/contactsImport";
+import { clientsRepo, useLoad, type ClientRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
@@ -59,7 +59,7 @@ function dayLabel(ms: number): string {
   return new Date(ms).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
-export function ContactsTab({ profile }: { profile: UserProfile }) {
+export function ContactsTab() {
   const [state, retry, update] = useLoad(async () => {
     if (!clientsRepo) return [] as ClientRecord[];
     const [active, archived] = await Promise.all([clientsRepo.list(false), clientsRepo.list(true)]);
@@ -75,7 +75,6 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
   const [toast, showToast] = useToast(4000);
   const [confirm, ask] = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
-  const sender = profile.name.trim().split(/\s+/)[0] ?? "";
 
   /** Номера, которые уже есть в «Клиентах» (с архивом) — их второй раз не добавляем. */
   const known = useMemo(() => new Set((clients ?? []).map((c) => phoneKey(c.phone)).filter(Boolean)), [clients]);
@@ -208,7 +207,13 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
     });
   }
 
-  const message = pastClientMessage(sender, { channel: CHANNEL_URL, calc: SITE_CALC_URL, avito: AVITO_URL });
+  const links = { channel: CHANNEL_URL, calc: SITE_CALC_URL, avito: AVITO_URL };
+  // Сколько написали сегодня (по Москве — по часам этого телефона): больше 15 в день мессенджеры принимают за спам.
+  const todayKey = new Date().toDateString();
+  const sentToday = Object.values(sent).filter((t) => new Date(t).toDateString() === todayKey).length;
+  // Сначала те, кому ещё не писали, потом — кому написали (давно — выше).
+  const ordered = [...past].sort((a, b) => (sent[a.id] ?? 0) - (sent[b.id] ?? 0));
+  const notYet = past.filter((c) => !sent[c.id]).length;
   const yesMessage = pastClientYesMessage(SITE_CALC_URL);
 
   return (
@@ -304,10 +309,18 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
 
       <h2 className="clients-section">Прежние клиенты · написать</h2>
       <p className="muted small">
-        Касание «WhatsApp» или «Telegram» откроет чат с готовым сообщением (оно же копируется — если не вставилось само, вставьте): спасибо, ссылки на канал, калькулятор и Авито и вопрос «можно
-        присылать новости?». Цен и скидок в нём нет. Отправляйте по одному — не массовой рассылкой. Ответил «да» — нажмите «Ответил «да»»:
-        отметим согласие, и кнопки откроют сообщение со скидкой 10%.
+        Касание «Telegram» или «WhatsApp» откроет чат с готовым сообщением от команды JoyRest с именем клиента (оно же копируется — если не
+        вставилось само, вставьте): один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
+        извинение, если ошиблись, и вопрос «можно присылать новости?». Пять вариантов текста чередуются. Цен и скидок нет. Отправляйте по
+        одному и не больше 15 в день — иначе мессенджер может принять это за спам. Ответил «да» — нажмите «Ответил «да»»: отметим согласие, и
+        кнопки откроют сообщение со скидкой 10%.
       </p>
+      {past.length > 0 && (
+        <p className={sentToday >= 15 ? "error small" : "small"} role="status">
+          Сегодня написали: <strong>{sentToday}</strong> из 15 · ещё не писали: <strong>{notYet}</strong> из {past.length}
+          {sentToday >= 15 ? " — на сегодня хватит, продолжите завтра." : ""}
+        </p>
+      )}
       {state.status === "loading" && !clients ? (
         <ListSkeleton />
       ) : state.status === "error" && !clients ? (
@@ -316,10 +329,10 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
         <p className="muted">Пока никого. Добавьте прежних клиентов таблицей Excel или из контактов — они появятся здесь.</p>
       ) : (
         <ul className="contacts-list">
-          {past.map((c) => {
+          {ordered.map((c) => {
             // Согласился на новости — сообщение со скидкой, иначе — первое сообщение (спасибо, ссылки, вопрос о новостях).
             const yes = c.marketing === "yes";
-            const text = yes ? yesMessage : message;
+            const text = yes ? yesMessage : pastClientMessage(c.name, links, messageVariant(c.id));
             return (
               <li key={c.id} className="card contacts-past">
                 <span className="contacts-row__name">{c.name || "Без имени"}</span>

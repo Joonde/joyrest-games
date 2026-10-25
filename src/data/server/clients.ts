@@ -33,6 +33,7 @@ function parseClient(value: unknown): ClientRecord {
     takenAt: typeof d.takenAt === "number" ? d.takenAt : null,
     takenMs: typeof d.takenMs === "number" ? d.takenMs : null,
     takenBy: asText(d.takenBy),
+    contact: asText(d.contact),
   };
 }
 

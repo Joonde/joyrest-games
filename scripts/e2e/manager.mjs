@@ -15,6 +15,7 @@
 //     открыта после «до»), ⚪ «Прошло — отметьте» → ведущий «Проведено» → 🔵 и клиент «Провели», ⚫ «Отменено» → «Вернуть».
 //  8. «По цвету»: порядок «сначала срочное», фильтр по цвету, счётчики; «Рабочее место» показывает, что требует внимания.
 //  9. Вставка расчёта прямо в новую форму: заполняет только пустые поля; «Создать похожее»; права менеджера и ведущего.
+// 12. Владелец: «Мои контакты» → «Таблица Excel» — шаблон на странице и файлом, своя таблица CSV, клиент без номера, повтор.
 // Снимки каждого шага — в E2E_SHOTS (workflow кладёт их в ветку e2e-shots, папка manager/). Всё созданное — убирается.
 import { createServer } from "node:http";
 import { appendFileSync, mkdirSync, readFileSync, existsSync, statSync } from "node:fs";
@@ -712,6 +713,69 @@ try {
     await mp.getByRole("button", { name: "Отмена", exact: true }).click();
   }
   await mp.setViewportSize(PHONE.viewport);
+
+  // ================= 12. Владелец: клиенты таблицей Excel =================
+  section("12. Владелец: «Мои контакты» → «Таблица Excel» (шаблон, загрузка, клиенты без номера)");
+  await mp.goto(`${BASE}/studio/clients?tab=contacts`);
+  await until(async () => (await mp.getByRole("button", { name: "+ Клиент" }).count()) > 0, WAIT, "клиенты менеджера");
+  check((await mp.getByText("Таблица Excel").count()) === 0, "Менеджеру «Мои контакты» и загрузка таблицы не видны (даже по прямой ссылке)");
+  const ap = await newPage(browser, admin.token, "Владелец");
+  await ap.goto(`${BASE}/studio/clients?tab=contacts`);
+  const pickBtn = ap.getByRole("button", { name: /Выбрать заполненную таблицу/ });
+  await pickBtn.waitFor({ timeout: WAIT });
+  await ap.getByRole("button", { name: /Открыть шаблон здесь/ }).click();
+  const tpl = ap.getByRole("region", { name: "Шаблон таблицы клиентов" });
+  const tplHead = ((await tpl.locator("thead").textContent()) ?? "").replace(/\s+/g, " ");
+  check(["Имя", "Телефон", "Telegram", "Способ связи", "Мероприятие", "Дата", "Статус", "Заметка"].every((t) => tplHead.includes(t)), "Шаблон открывается на странице: все 8 колонок", `Шаблон: «${tplHead}»`);
+  await shot(ap, "excel-шаблон");
+  const [dl] = await Promise.all([ap.waitForEvent("download", { timeout: WAIT }), ap.getByRole("button", { name: /Скачать шаблон Excel/ }).click()]);
+  const dlPath = await dl.path();
+  const dlBytes = dlPath ? readFileSync(dlPath) : Buffer.alloc(0);
+  check(dl.suggestedFilename() === "Шаблон клиентов JoyRest.xlsx" && dlBytes[0] === 0x50 && dlBytes[1] === 0x4b && dlBytes.length > 1000, "«Скачать шаблон Excel» — файл .xlsx", `Шаблон: «${dl.suggestedFilename()}», ${dlBytes.length} байт`);
+  // Своя таблица в CSV: заголовок, «Номер п/п», прочерк вместо ника, клиент без номера, повтор номера, строка без связи.
+  const u = String(Date.now() % 10_000_000).padStart(7, "0");
+  const nick = `chk_${u}`;
+  const csv = [
+    "Клиенты проверки",
+    "Номер п/п;Имя;Телефон;Telegram;Способ связи;Мероприятие;Дата",
+    `1;Ольга ${TAG};+7 999 ${u};-;WhatsApp;Квиз;06.04.2026`,
+    `2;Пётр ${TAG};—;@${nick};;Мафия;`,
+    `3;Нина ${TAG};8 999 ${u};;;;`,
+    `4;Без связи ${TAG};;;;Квиз;`,
+  ].join("\r\n");
+  const upload = async () => {
+    await ap.locator("#clients-excel-file").setInputFiles({ name: "клиенты.csv", mimeType: "text/csv", buffer: Buffer.from("﻿" + csv, "utf8") });
+    await until(async () => (await ap.getByLabel("Строки таблицы").count()) > 0, WAIT, "строки таблицы");
+    return ((await ap.getByLabel("Строки таблицы").locator("p").first().textContent()) ?? "").replace(/\s+/g, " ");
+  };
+  const summary = await upload();
+  check(summary.includes("строк с клиентами — 4") && summary.includes("Можно добавить — 2") && summary.includes("с ошибками — 2"), "Таблица прочитана: 4 клиента, 2 можно добавить, 2 с ошибками (повтор номера, нет связи)", `Итог: «${summary}»`);
+  const rowsText = ((await ap.getByLabel("Строки таблицы").textContent()) ?? "").replace(/\s+/g, " ");
+  check(rowsText.includes("Повтор: тот же телефон, что в строке 3") && rowsText.includes("Нет телефона и ника Telegram"), "Ошибки по строкам: повтор номера (8… и +7…) и «связаться не с кем»", `Строки: «${rowsText.slice(0, 300)}»`);
+  await shot(ap, "excel-строки");
+  await ap.getByRole("button", { name: "Добавить отмеченных в «Клиенты» (2)" }).click();
+  await ap.getByRole("dialog").getByRole("button", { name: "Добавить" }).click();
+  check(await soft(async () => (await ap.getByText("Добавлено в «Клиенты»: 2").count()) > 0, WAIT, "добавлено"), "«Добавлено в «Клиенты»: 2»");
+  const xlClients = (await api("GET", "/api/clients", admin.cookie)).data?.clients ?? [];
+  const olga = xlClients.find((c) => c.name === `Ольга ${TAG}`);
+  const petr = xlClients.find((c) => c.name === `Пётр ${TAG}`);
+  check(olga?.phone === `+7 999 ${u.slice(0, 3)}-${u.slice(3, 5)}-${u.slice(5)}` && olga?.contact === "whatsapp" && olga?.origin === "past" && olga?.status === "held", "Клиент по телефону: номер, связь WhatsApp, «Прежний клиент», «Провели»", `Ольга: ${JSON.stringify(olga ?? null).slice(0, 200)}`);
+  check(petr?.phone === "" && (petr?.links ?? []).includes(`https://t.me/${nick}`) && petr?.contact === "telegram", "Клиент без номера: только ник Telegram, связь Telegram", `Пётр: ${JSON.stringify(petr ?? null).slice(0, 200)}`);
+  const petrCard = ap.locator("li.contacts-past", { hasText: `Пётр ${TAG}` });
+  check(await soft(async () => (await petrCard.count()) > 0, WAIT, "прежний клиент без номера"), "«Прежние клиенты · написать»: клиент без номера есть в списке");
+  const petrHref = (await petrCard.locator("a", { hasText: "Telegram" }).first().getAttribute("href").catch(() => "")) ?? "";
+  check(petrHref.startsWith(`https://t.me/${nick}?text=`), "Кнопка Telegram у клиента без номера — чат по нику с готовым текстом", `Ссылка: «${petrHref.slice(0, 80)}»`);
+  await shot(ap, "excel-добавлены");
+  // Тот же файл ещё раз — никого нового, двойников нет.
+  const again = await upload();
+  check(again.includes("уже в «Клиентах» — 2") && again.includes("Можно добавить — 0"), "Повторная загрузка: «уже в «Клиентах» — 2», добавить некого", `Повтор: «${again}»`);
+  const twins = ((await api("GET", "/api/clients", admin.cookie)).data?.clients ?? []).filter((c) => c.name === `Пётр ${TAG}` || c.name === `Ольга ${TAG}`);
+  check(twins.length === 2, "Двойников нет: по одной карточке на клиента", `Карточек: ${twins.length}`);
+  // Сервер: тот же ник у другого клиента без номера — 409.
+  const twin = await api("POST", "/api/clients", admin.cookie, { id: `e2etw${u}`, name: `Двойник ${TAG}`, phone: "", links: [`https://t.me/${nick.toUpperCase()}`], status: "held", marketing: "unknown", notes: "" });
+  check(twin.status === 409, "API: тот же ник другим регистром — 409, двойник не создаётся", `API: ${twin.status}`);
+  await ap.setViewportSize({ width: 360, height: 780 });
+  await shot(ap, "excel-360");
 } catch (e) {
   bad(`Проверка остановилась: ${String(e?.message ?? e).slice(0, 300)}`);
   for (const [who, page] of pages) await shot(page, `ошибка-${who}`).catch(() => undefined);

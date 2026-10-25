@@ -647,6 +647,8 @@ export interface ClientRecord {
   takenAt?: number | null;
   takenMs?: number | null;
   takenBy?: string;
+  /** Способ связи: telegram, whatsapp, call (`CLIENT_CONTACT_TITLES`); пусто — не указан. */
+  contact?: string;
 }
 
 /** Один ответ на новую заявку: сколько ждала, кто взял, когда (среднее время ответа). */

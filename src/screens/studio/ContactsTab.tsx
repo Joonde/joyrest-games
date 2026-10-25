@@ -6,7 +6,7 @@
  * Telegram с готовым сообщением) и «Ответил «да»» (согласие на новости, дальше кнопки — сообщение со скидкой).
  */
 import { useMemo, useRef, useState } from "react";
-import { phoneKey, phoneLabel, telegramPhoneHref, whatsappHref } from "../../core/clients";
+import { contactTitle, linkTitle, phoneKey, phoneLabel, telegramLinkOf, writeChannels } from "../../core/clients";
 import { cleanName, pastClientMessage, pastClientYesMessage, scanContacts, type ContactMatch } from "../../core/contactsImport";
 import { clientsRepo, useLoad, type ClientRecord, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -16,6 +16,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { AVITO_URL, SITE_CALC_URL } from "../../components/live/Finale";
 import { brand } from "../../themes/brand";
 import { newId, Pill, useLastReady } from "./calendarParts";
+import { ExcelImport } from "./ExcelImport";
 
 const CHANNEL_URL = "https://t.me/JoyRest";
 const SENT_KEY = "jr-past-sent";
@@ -35,6 +36,22 @@ function writeSent(value: Record<string, number>): void {
     localStorage.setItem(SENT_KEY, JSON.stringify(value));
   } catch {
     // Не запомнилось — не страшно: отметка только для удобства.
+  }
+}
+
+/** Телефон, а без него — ник Telegram: «+7 915 241-59-99», «Telegram @anna». */
+function who(c: ClientRecord): string {
+  if (phoneKey(c.phone)) return phoneLabel(c.phone);
+  const tg = telegramLinkOf(c.links);
+  return tg ? linkTitle(tg) : "";
+}
+
+/** Текст сообщения — ещё и в буфер: Telegram по нику на части телефонов открывает чат без готового текста. */
+function copyText(text: string): void {
+  try {
+    void navigator.clipboard?.writeText(text).catch(() => undefined);
+  } catch {
+    // Нет доступа к буферу — не страшно, текст и так в ссылке.
   }
 }
 
@@ -62,7 +79,8 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
 
   /** Номера, которые уже есть в «Клиентах» (с архивом) — их второй раз не добавляем. */
   const known = useMemo(() => new Set((clients ?? []).map((c) => phoneKey(c.phone)).filter(Boolean)), [clients]);
-  const past = useMemo(() => (clients ?? []).filter((c) => c.origin === "past" && !c.archived && phoneKey(c.phone)), [clients]);
+  // Прежние клиенты, которым есть куда написать: телефон или ник Telegram (из таблицы Excel можно и без номера).
+  const past = useMemo(() => (clients ?? []).filter((c) => c.origin === "past" && !c.archived && (phoneKey(c.phone) || telegramLinkOf(c.links))), [clients]);
 
   const keyOf = (m: ContactMatch) => phoneKey(m.phone);
   // Уже есть в «Клиентах» (с архивом и проведёнными мероприятиями) — не показываем: повторная загрузка — только новые.
@@ -155,7 +173,7 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
   /** Лишний контакт — в архив: из списка пропадает, при следующей загрузке контактов не добавится снова. */
   function removePast(c: ClientRecord) {
     ask({
-      title: `Убрать «${c.name || phoneLabel(c.phone)}» из прежних клиентов?`,
+      title: `Убрать «${c.name || who(c)}» из прежних клиентов?`,
       text: "Карточка уйдёт в архив «Клиентов» — ничего не стирается, вернуть можно из «Архива». При следующей загрузке контактов этот номер не добавится снова.",
       confirmLabel: "Убрать",
       run: async () => {
@@ -169,7 +187,7 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
 
   function answeredYes(c: ClientRecord) {
     ask({
-      title: `${c.name || phoneLabel(c.phone)} ответил(а) «да»?`,
+      title: `${c.name || who(c)} ответил(а) «да»?`,
       text: "Отметим согласие на новости («Рассылка: да»). Потом появятся кнопки с сообщением про скидку 10% на первое мероприятие.",
       confirmLabel: "Да, ответил(а)",
       run: async () => {
@@ -195,6 +213,9 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
 
   return (
     <>
+      <ExcelImport clients={clients} onAdded={(saved) => update((data) => [...saved, ...data])} notify={showToast} />
+
+      <h2 className="clients-section">Контакты телефона</h2>
       <p className="muted">
         Найдём в контактах вашего телефона тех, кому вы уже проводили праздники: в подписи есть «квиз», «ДР», «корпоратив», «игры» или дата
         («17.10», «17 октября», «20-е»). Файл читается прямо здесь, на телефоне, — в базу попадут только те, кого вы отметите.
@@ -283,7 +304,7 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
 
       <h2 className="clients-section">Прежние клиенты · написать</h2>
       <p className="muted small">
-        Касание «WhatsApp» или «Telegram» откроет чат с готовым сообщением: спасибо, ссылки на канал, калькулятор и Авито и вопрос «можно
+        Касание «WhatsApp» или «Telegram» откроет чат с готовым сообщением (оно же копируется — если не вставилось само, вставьте): спасибо, ссылки на канал, калькулятор и Авито и вопрос «можно
         присылать новости?». Цен и скидок в нём нет. Отправляйте по одному — не массовой рассылкой. Ответил «да» — нажмите «Ответил «да»»:
         отметим согласие, и кнопки откроют сообщение со скидкой 10%.
       </p>
@@ -292,7 +313,7 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
       ) : state.status === "error" && !clients ? (
         <LoadFailedInline onRetry={retry} />
       ) : past.length === 0 ? (
-        <p className="muted">Пока никого. Добавьте прежних клиентов из контактов — они появятся здесь.</p>
+        <p className="muted">Пока никого. Добавьте прежних клиентов таблицей Excel или из контактов — они появятся здесь.</p>
       ) : (
         <ul className="contacts-list">
           {past.map((c) => {
@@ -303,18 +324,31 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
               <li key={c.id} className="card contacts-past">
                 <span className="contacts-row__name">{c.name || "Без имени"}</span>
                 <span className="muted small">
-                  {phoneLabel(c.phone)}
+                  {who(c)}
+                  {contactTitle(c) ? ` · связь: ${contactTitle(c)}` : ""}
                   {sent[c.id] ? ` · написали ${dayLabel(sent[c.id] ?? 0)}` : ""}
                   {yes ? " · согласие на новости ✓" : ""}
                 </span>
                 {yes && <span className="small">Сообщение со скидкой 10%:</span>}
                 <div className="contacts-past__actions" role="group" aria-label={`Написать: ${c.name}`}>
-                  <a className="btn btn--secondary" href={whatsappHref(c.phone, text)} target="_blank" rel="noopener noreferrer" onClick={() => !yes && markSent(c.id)}>
-                    WhatsApp
-                  </a>
-                  <a className="btn btn--secondary" href={telegramPhoneHref(c.phone, text)} target="_blank" rel="noopener noreferrer" onClick={() => !yes && markSent(c.id)}>
-                    Telegram
-                  </a>
+                  {/* Удобный клиенту способ — первым; без телефона — только Telegram по нику. */}
+                  {writeChannels(c, text)
+                    .filter((w) => w.kind !== "call")
+                    .map((w) => (
+                      <a
+                        key={w.kind}
+                        className="btn btn--secondary"
+                        href={w.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          copyText(text);
+                          if (!yes) markSent(c.id);
+                        }}
+                      >
+                        {w.label}
+                      </a>
+                    ))}
                   {!yes && (
                     <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => answeredYes(c)}>
                       Ответил «да»

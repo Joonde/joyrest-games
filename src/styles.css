@@ -24458,6 +24458,56 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+/* Строка таблицы Excel, которую нельзя добавить (ошибка или уже в «Клиентах»): галочки нет, текст ошибки виден. */
+.contacts-row.is-off {
+  cursor: default;
+}
+.contacts-row.is-off .contacts-row__name {
+  color: var(--color-text-muted);
+}
+
+/* «Таблица Excel» (25 октября 2026): шаблон листа «Клиенты» прямо на странице — листается вбок, как таблица. */
+.xlsx-template {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  max-width: 100%;
+}
+.xlsx-template table {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 960px;
+}
+.xlsx-template th,
+.xlsx-template td {
+  border: 1px solid var(--color-border);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 96px;
+}
+.xlsx-template thead th {
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-control-checked) 18%, transparent);
+}
+.xlsx-template__letter {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.xlsx-template .xlsx-template__n {
+  min-width: 28px;
+  width: 28px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.xlsx-template__hint td {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
 
 /* «Команда JoyRest» → «Инструкции» (21 октября 2026). */
 .guides-list {

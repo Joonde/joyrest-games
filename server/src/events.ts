@@ -8,7 +8,7 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
-import { bookingId, bookingNote, contactLinks, eventSpan, parseEventInput, type EventInput } from "../../src/core/events";
+import { bookingId, bookingNote, contactLinks, eventSpan, parseContact, parseEventInput, type EventInput } from "../../src/core/events";
 import { cleanProgram, sameProgram } from "../../src/core/eventProgram";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
@@ -275,6 +275,11 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           ref: saved.id,
           promote: !saved.cancelled,
           by: { id: user.id, name: user.name },
+          // Где писать клиенту мероприятия — и в его карточку «Клиентов», если там способ связи ещё не указан.
+          contact: (() => {
+            const kind = parseContact(saved.clientContact ?? "").kind;
+            return kind === "telegram" || kind === "whatsapp" || kind === "call" ? kind : "";
+          })(),
         };
         let stored = false;
         let clientId: string | null = null;

@@ -1,29 +1,6 @@
 # Проверка пути менеджера
 
-**Замечаний: 20**
-
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=upcoming
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/time
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/notices
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?from=2026-10-01&to=2026-11-01
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=cancelled
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=past
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=upcoming
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/calendar/team?from=2026-10-25&to=2026-10-26
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=past
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ После «Telegram» сверху — «Получилось отправить?»
-- ❌ Проверка остановилась: locator.click: Timeout 30000ms exceeded.
-Call log:
-  - waiting for locator('.contacts-last').getByRole('button', { name: /Не получилось/ })
+**Всё работает.**
 
 
 - ℹ️ Менеджер: sales-check@joy-rest.ru (роль «Менеджер по продажам»), ведущий: Нагрузка, праздник клиента: 2026-12-08
@@ -126,30 +103,12 @@ Call log:
 
 ## 10. 🟣 «Сверх плана»: игра ведущего открыта после «до»
 
-- ℹ️ Ждём «до» 13:45 — 738 с
+- ℹ️ Ждём «до» 14:00 — 295 с
 - ✅ 🟣 «Сверх плана · N мин» — после «до» игра ещё открыта
 - ✅ Игру завершили — ⚪ «Прошло — отметьте»
 
 ## 11. Раскладка: 360 px и планшет
 
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=upcoming
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/time
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/notices
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?from=2026-10-01&to=2026-11-01
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=cancelled
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=past
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=upcoming
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/calendar/team?from=2026-10-25&to=2026-10-26
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
-- ❌ Менеджер: сервер ответил 502 на GET /api/events?scope=past
-- ❌ Менеджер: ошибка в консоли — Failed to load resource: the server responded with a status of 502 ()
 
 ## 12. Владелец: «Мои контакты» → «Таблица Excel» (шаблон, загрузка, клиенты без номера)
 
@@ -164,9 +123,13 @@ Call log:
 - ✅ «Прежние клиенты · написать»: клиент без номера есть в списке
 - ✅ Кнопка Telegram у клиента без номера — чат по нику с готовым текстом
 - ✅ Прежние клиенты: после «Telegram» порядок списка не меняется
-- ❌ После «Telegram» сверху — «Получилось отправить?»
+- ✅ После «Telegram» сверху — «Получилось отправить?»
 - ✅ Пока не ответили «Да» — «написали» не ставится
-- ❌ Проверка остановилась: locator.click: Timeout 30000ms exceeded.
-Call log:
-  - waiting for locator('.contacts-last').getByRole('button', { name: /Не получилось/ })
-- Замечаний: 20
+- ✅ «Не получилось» — на карточке «Telegram: не получилось», не отмечен
+- ✅ «✓ Написал» — карточка на месте, отмечена
+- ✅ «Снять «написали»» убирает отметку
+- ✅ Порядок списка так и не менялся
+- ✅ Повторная загрузка: «уже в «Клиентах» — 2», добавить некого
+- ✅ Двойников нет: по одной карточке на клиента
+- ✅ API: тот же ник другим регистром — 409, двойник не создаётся
+- Путь менеджера работает от сайта до «Проведено».

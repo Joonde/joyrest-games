@@ -11,6 +11,11 @@ import {
   CLIENT_STATUS_TITLES,
   CLIENT_STATUSES,
   linkTitle,
+  CLIENT_CONTACTS,
+  CLIENT_CONTACT_TITLES,
+  contactProblem,
+  contactTitle,
+  isClientContact,
   MARKETING_TITLES,
   parseLinks,
   phoneKey,
@@ -284,14 +289,16 @@ function ClientBase({ profile }: { profile: UserProfile }) {
   }
 
   /** Тот же телефон уже есть в базе — открыть его карточку (в списке; нет — поиском по номеру). */
-  function openExisting(phone: string) {
+  /** Тот же телефон, а без телефона — та же ссылка (ник Telegram, без регистра) у другого клиента: открыть его карточку. */
+  function openExisting(phone: string, links: string[] = []) {
     const key = phoneKey(phone);
-    const other = (shown ?? []).find((c) => phoneKey(c.phone) === key);
+    const mine = new Set(links.map((l) => l.toLowerCase()));
+    const other = (shown ?? []).find((c) => (key ? phoneKey(c.phone) === key : c.links.some((l) => mine.has(l.toLowerCase()))));
     setForm(null);
     if (other) setParams({ id: other.id }, { replace: true });
     else {
       setFilter("all");
-      setQuery(phone);
+      setQuery(key ? phone : (links[0] ?? "").replace(/^https:\/\/t\.me\//i, "@"));
     }
   }
 
@@ -703,6 +710,12 @@ function ClientCard({
               </span>
             </span>
           )}
+          {contactTitle(c) && (
+            <span className="clients-facts__row">
+              <span className="clients-facts__label">Связь</span>
+              <span className="clients-facts__value">{contactTitle(c)}</span>
+            </span>
+          )}
           {c.marketing === "yes" && (
             <span className="clients-facts__row">
               <span className="clients-facts__label">Рассылка</span>
@@ -918,7 +931,7 @@ function ClientForm({
   canConsent: boolean;
   onSaved: (c: ClientRecord) => void;
   onCancel: () => void;
-  onOpenExisting: (phone: string) => void;
+  onOpenExisting: (phone: string, links?: string[]) => void;
 }) {
   const [id] = useState(() => initial?.id ?? newId());
   const [name, setName] = useState(initial?.name ?? "");
@@ -938,6 +951,7 @@ function ClientForm({
   };
   const notes = wishTouched ? composeWish(wish).slice(0, CLIENT_LIMITS.notes) : (initial?.notes ?? "");
   const [origin, setOrigin] = useState(initial?.origin ?? "");
+  const [contact, setContact] = useState(isClientContact(initial?.contact) ? initial.contact : "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Что пошло не так при сохранении: тот же телефон у другого клиента или карточку только что изменил другой.
@@ -948,7 +962,9 @@ function ClientForm({
   const phoneBad = phone.trim() !== "" && key === "";
   // Новый клиент — нужен телефон или ссылка; у старых карточек (бывают только с именем) хватит имени.
   const reachableNow = key !== "" || parsedLinks.length > 0;
-  const ready = !phoneBad && (initial ? reachableNow || name.trim() !== "" : reachableNow);
+  // Способ связи без нужного (WhatsApp без телефона, Telegram без телефона и ника) — подсказка, сохранить нельзя.
+  const contactBad = contactProblem(isClientContact(contact) ? contact : "", { phone, links: parsedLinks });
+  const ready = !phoneBad && !contactBad && (initial ? reachableNow || name.trim() !== "" : reachableNow);
   const dirty =
     name !== (initial?.name ?? "") ||
     phone !== (initial?.phone ?? "") ||
@@ -956,7 +972,8 @@ function ClientForm({
     status !== (initial?.status ?? "work") ||
     marketing !== (initial?.marketing ?? "unknown") ||
     notes !== (initial?.notes ?? "") ||
-    origin !== (initial?.origin ?? "");
+    origin !== (initial?.origin ?? "") ||
+    contact !== (isClientContact(initial?.contact) ? initial.contact : "");
 
   /**
    * Сохранить. «Мои правки поверх» (`force`): карточку за это время изменил другой — берём свежую версию, и статус с
@@ -986,6 +1003,7 @@ function ClientForm({
           marketing: chosen.marketing,
           notes,
           origin,
+          contact,
           // Одно поле «Что хочет клиент»: в заметку карточки и первой записью в историю (как заявка с сайта).
           ...(initial ? {} : { request: notes.trim() }),
           ...(initial && version ? { expect: version } : {}),
@@ -1099,6 +1117,23 @@ function ClientForm({
       </label>
       {parsedLinks.length > 0 && <p className="muted small">Распознано: {parsedLinks.map(linkTitle).join(", ")}</p>}
       {links.trim() !== "" && parsedLinks.length === 0 && <p className="error small">Ссылку не распознали: вставьте @ник Telegram или ссылку vk.com/…, instagram.com/…, wa.me/…</p>}
+      {!initial && key === "" && parsedLinks.length === 0 && (
+        <p className="muted small">Нужен телефон или соцсеть. Можно без номера — только с ником Telegram (@nick).</p>
+      )}
+      <fieldset className="stack stack--tight">
+        <legend>Способ связи — где клиенту удобно</legend>
+        <div className="plan-quick" role="group" aria-label="Способ связи">
+          <button type="button" className={contact === "" ? "seg__btn is-on" : "seg__btn"} aria-pressed={contact === ""} onClick={() => setContact("")}>
+            Не указан
+          </button>
+          {CLIENT_CONTACTS.map((k) => (
+            <button key={k} type="button" className={contact === k ? "seg__btn is-on" : "seg__btn"} aria-pressed={contact === k} onClick={() => setContact(k)}>
+              {CLIENT_CONTACT_TITLES[k]}
+            </button>
+          ))}
+        </div>
+        {contactBad && <p className="error small">{contactBad}</p>}
+      </fieldset>
       <fieldset className="stack stack--tight client-wish">
         <legend>Что хочет клиент</legend>
         <div className="client-wish__row">
@@ -1209,9 +1244,9 @@ function ClientForm({
       {problem === "duplicate" && (
         <div className="card stack stack--tight clients-conflict" role="alert">
           <p className="small">
-            <b>Клиент с этим телефоном уже есть.</b> Один человек — одна карточка: откройте его и допишите заметку там.
+            <b>{key ? "Клиент с этим телефоном уже есть." : "Клиент с этим ником уже есть."}</b> Один человек — одна карточка: откройте его и допишите заметку там.
           </p>
-          <button type="button" className="btn btn--block" onClick={() => onOpenExisting(phone)}>
+          <button type="button" className="btn btn--block" onClick={() => onOpenExisting(phone, parsedLinks)}>
             Открыть его карточку
           </button>
         </div>

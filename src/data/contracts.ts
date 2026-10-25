@@ -339,6 +339,8 @@ export interface ClientsRepository {
     marketing: ClientRecord["marketing"];
     notes: string;
     origin?: string;
+    /** Способ связи: telegram, whatsapp, call или пусто; не прислали — не трогаем. */
+    contact?: string;
     /** Только для нового клиента: что хочет («Свадьба, 12 июня, 60 гостей») — первая запись истории. */
     request?: string;
     expect?: number;

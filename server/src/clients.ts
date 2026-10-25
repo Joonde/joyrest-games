@@ -28,6 +28,9 @@ import {
   REOPEN_STATUSES,
   type ClientOrigin,
   type ClientStatus,
+  contactProblem,
+  isClientContact,
+  type ClientContactKind,
 } from "../../src/core/clients";
 import { contactQuery, matchesContact, queryLabel, type ContactQuery } from "../../src/core/privacy";
 import { contactLinks, parseContact } from "../../src/core/events";
@@ -55,6 +58,8 @@ export interface ClientInput {
   origin?: ClientOrigin | null;
   /** Кто записал (мероприятие в планировщике) — в историю и в «кто взял клиента». */
   by?: { id: string | null; name: string };
+  /** Способ связи (мероприятие: «Telegram», «WhatsApp», «Звонок»): ставится, только если у клиента ещё не указан. */
+  contact?: ClientContactKind | "";
 }
 
 /**
@@ -140,6 +145,7 @@ interface Row {
   taken_at: Date | null;
   taken_ms: string | number | null;
   taken_by: string;
+  contact: string | null;
 }
 
 function recordOf(row: Row): ClientRecord {
@@ -167,6 +173,7 @@ function recordOf(row: Row): ClientRecord {
     takenAt: row.taken_at ? row.taken_at.getTime() : null,
     takenMs: row.taken_ms === null ? null : Number(row.taken_ms),
     takenBy: row.taken_by ?? "",
+    contact: isClientContact(row.contact) ? row.contact : "",
   };
 }
 
@@ -200,6 +207,7 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
   if (!key && links.length === 0) return null;
   const summary = cleanSummary(input.summary);
   const origin = isOrigin(input.origin) ? input.origin : "";
+  const contact = isClientContact(input.contact) ? input.contact : "";
   const by = input.by ?? { id: null, name: "" };
   const eventLine = `Клиент · мероприятие записано${by.name ? ` · ${by.name}` : ""}`;
   return sql.begin(async (tx) => {
@@ -219,8 +227,8 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     if (!found) {
       // Новый клиент — сразу «Новый», таймер ответа пошёл. Мероприятие записано сразу — «Клиент», таймера нет.
       const asClient = input.promote === true;
-      const made = await t<{ id: string }[]>`insert into clients (id, name, phone, phone_key, links, origin, status, new_since)
-        values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}, ${origin}, ${asClient ? "client" : "new"}, ${asClient ? null : new Date()})
+      const made = await t<{ id: string }[]>`insert into clients (id, name, phone, phone_key, links, origin, status, new_since, contact)
+        values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}, ${origin}, ${asClient ? "client" : "new"}, ${asClient ? null : new Date()}, ${contact})
         on conflict do nothing returning id`;
       created = made.length > 0;
       // Одновременная заявка с тем же телефоном уже создала клиента — пишем обращение ему.
@@ -255,6 +263,7 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
           ${legacyKey ? t`phone_key = ${key},` : t`phone_key = case when phone_key = '' and ${key} <> '' then ${key} else phone_key end,`}
           links = ${t.json(merged)},
           origin = case when origin = '' then ${origin} else origin end,
+          contact = case when contact = '' then ${contact} else contact end,
           updated_at = now()
           ${knownRef ? t`` : t`, last_contact_at = now(), archived_at = null`}
         where id = ${id}`;
@@ -333,7 +342,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         coalesce((select h.source from client_contacts h where h.client_id = c.id and h.source <> 'status' order by h.created_at desc limit 1), 'status') as last_source,
         -- С какого времени клиент ждёт ответа в Telegram (бот в Telegram для бизнеса).
         (select min(t.waiting_since) from tg_chats t where t.client_id = c.id) as tg_waiting,
-        c.new_since, c.taken_at, c.taken_ms, c.taken_by
+        c.new_since, c.taken_at, c.taken_ms, c.taken_by, c.contact
       from clients c`;
 
     async function details(id: string): Promise<ClientDetails | null> {
@@ -413,10 +422,20 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       const notes = cleanNotes(b.notes);
       // Откуда пришёл — вручную в карточке; не прислали — не трогаем (пустое — «не указан»).
       const origin = b.origin === "" || isOrigin(b.origin) ? b.origin : null;
+      // Способ связи: не прислали — не трогаем; WhatsApp и звонок без телефона, Telegram без телефона и ника — пусто.
+      const askedContact = b.contact === "" || isClientContact(b.contact) ? b.contact : null;
+      const contact = askedContact && contactProblem(askedContact, { phone, links }) ? "" : askedContact;
       if (!id || (!key && links.length === 0 && !name)) return fail(reply, 400, "invalid-argument");
       const keys = phoneKeyVariants(key);
       if (key) {
         const [other] = await sql<{ id: string }[]>`select id from clients where phone_key in ${sql(keys)} and id <> ${id} limit 1`;
+        if (other) return reply.code(409).send({ error: "already-exists", id: other.id });
+      } else if (links.length > 0) {
+        // Без телефона клиент узнаётся по ссылке (ник Telegram из таблицы Excel): тот же ник у другого — 409, не плодим двойников
+        // (таблицу загрузили дважды или с двух телефонов). Ник без учёта регистра: t.me/Anna и t.me/anna — один человек.
+        const lower = links.map((l) => l.toLowerCase());
+        const [other] = await sql<{ id: string }[]>`select id from clients c where id <> ${id}
+          and exists (select 1 from jsonb_array_elements_text(c.links) l where lower(l) in ${sql(lower)}) limit 1`;
         if (other) return reply.code(409).send({ error: "already-exists", id: other.id });
       }
       const expect = typeof b.expect === "number" ? b.expect : null;
@@ -440,13 +459,14 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
           const status: ClientStatus = askedStatus ?? (existing && isClientStatus(existing.status) ? existing.status : "new");
           // Статус существующего меняет `changeStatus` (таймер ответа, история), здесь — только поля карточки.
           await t`
-            insert into clients (id, name, phone, phone_key, links, status, marketing, marketing_at, marketing_source, notes, origin, new_since)
+            insert into clients (id, name, phone, phone_key, links, status, marketing, marketing_at, marketing_source, notes, origin, new_since, contact)
             values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}, ${status}, ${marketing},
               ${marketing === "yes" ? new Date() : null}, ${marketing === "yes" ? "вручную владельцем" : ""}, ${notes}, ${origin ?? ""},
-              ${status === "new" ? new Date() : null})
+              ${status === "new" ? new Date() : null}, ${contact ?? ""})
             on conflict (id) do update set name = excluded.name, phone = excluded.phone, phone_key = excluded.phone_key,
               links = excluded.links, notes = excluded.notes, updated_at = now()
               ${origin !== null ? t`, origin = excluded.origin` : t``}
+              ${contact !== null ? t`, contact = excluded.contact` : t``}
               ${marketingChanged ? t`, marketing = excluded.marketing, marketing_at = excluded.marketing_at, marketing_source = excluded.marketing_source` : t``}`;
           if (!existing) {
             await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual',

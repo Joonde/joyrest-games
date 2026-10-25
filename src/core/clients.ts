@@ -424,6 +424,68 @@ export function reachable(c: { phone: string; links: string[] }): boolean {
   return phoneKey(c.phone) !== "" || c.links.length > 0;
 }
 
+/**
+ * Способ связи с клиентом (решение владельца 25 октября 2026): где ему удобно — Telegram, WhatsApp или звонок. Клиент может
+ * быть и без телефона — только с ником Telegram. Пусто — не указан. WhatsApp и звонок — только с телефоном.
+ */
+export type ClientContactKind = "telegram" | "whatsapp" | "call";
+export const CLIENT_CONTACTS: ClientContactKind[] = ["telegram", "whatsapp", "call"];
+export const CLIENT_CONTACT_TITLES: Record<ClientContactKind, string> = { telegram: "Telegram", whatsapp: "WhatsApp", call: "Звонок" };
+
+export function isClientContact(value: unknown): value is ClientContactKind {
+  return typeof value === "string" && (CLIENT_CONTACTS as string[]).includes(value);
+}
+
+/** Ссылка Telegram клиента (https://t.me/ник или tg://user?id=…), нет — пусто. */
+export function telegramLinkOf(links: string[]): string {
+  return links.find((l) => /^https:\/\/t\.me\/[A-Za-z0-9_]+$/i.test(l) || /^tg:\/\/user\?id=\d+$/i.test(l)) ?? "";
+}
+
+/** Почему этот способ связи не подходит: «WhatsApp — нужен телефон»; пусто — подходит. */
+export function contactProblem(kind: ClientContactKind | "", c: { phone: string; links: string[] }): string {
+  if (kind === "whatsapp" && !phoneKey(c.phone)) return "Для WhatsApp нужен телефон.";
+  if (kind === "call" && !phoneKey(c.phone)) return "Для звонка нужен телефон.";
+  if (kind === "telegram" && !phoneKey(c.phone) && !telegramLinkOf(c.links)) return "Для Telegram нужен телефон или ник.";
+  return "";
+}
+
+/** Чат Telegram с готовым текстом: по нику (t.me/ник?text=), без ника — по номеру; нечем — пусто. */
+export function telegramHref(c: { phone: string; links: string[] }, text = ""): string {
+  const link = telegramLinkOf(c.links);
+  if (link.startsWith("https://")) return `${link}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+  const byPhone = telegramPhoneHref(c.phone, text);
+  return byPhone || link;
+}
+
+export interface WriteChannel {
+  kind: ClientContactKind;
+  label: string;
+  href: string;
+}
+
+/** Куда написать клиенту (с готовым текстом): удобный ему способ — первым, дальше остальные, что есть. */
+export function writeChannels(c: { phone: string; links: string[]; contact?: string }, text = ""): WriteChannel[] {
+  const all: WriteChannel[] = [];
+  const tg = telegramHref(c, text);
+  if (tg) all.push({ kind: "telegram", label: "Telegram", href: tg });
+  const wa = whatsappHref(c.phone, text);
+  if (wa) all.push({ kind: "whatsapp", label: "WhatsApp", href: wa });
+  const tel = telHref(c.phone);
+  if (tel && phoneKey(c.phone)) all.push({ kind: "call", label: "📞 Позвонить", href: tel });
+  const preferred = isClientContact(c.contact) ? c.contact : null;
+  return preferred ? [...all.filter((w) => w.kind === preferred), ...all.filter((w) => w.kind !== preferred)] : all;
+}
+
+/** Подпись способа связи: «Telegram @anna», «WhatsApp», «Звонок»; не указан — пусто. */
+export function contactTitle(c: { links: string[]; contact?: string }): string {
+  if (!isClientContact(c.contact)) return "";
+  if (c.contact === "telegram") {
+    const link = telegramLinkOf(c.links);
+    return link.startsWith("https://") ? `Telegram ${link.replace(/^https:\/\/t\.me\//i, "@")}` : "Telegram";
+  }
+  return CLIENT_CONTACT_TITLES[c.contact];
+}
+
 function csvCell(value: string): string {
   // Формулы в ячейках Excel не выполняем: =, +, -, @ в начале — с апострофом.
   const safe = /^[=+\-@]/.test(value) && !/^\+\d/.test(value) ? `'${value}` : value;
@@ -438,15 +500,17 @@ export interface ClientCsvRow {
   marketing: Marketing;
   marketingAt: number | null;
   lastContactAt: number;
+  /** Способ связи (`ClientContactKind`); пусто — не указан. */
+  contact?: string;
 }
 
 const dateLabel = (ms: number | null) => (ms ? new Date(ms + 3 * 3_600_000).toISOString().slice(0, 10) : "");
 
 /** Таблица для рассылки (Excel, Google Таблицы): «;», UTF-8 с BOM. */
 export function clientsCsv(rows: ClientCsvRow[]): string {
-  const head = ["Имя", "Телефон", "Ссылки", "Статус", "Рассылка", "Согласие с", "Последнее обращение"];
+  const head = ["Имя", "Телефон", "Ссылки", "Статус", "Рассылка", "Согласие с", "Последнее обращение", "Связь"];
   const lines = rows.map((r) =>
-    [r.name, phoneLabel(r.phone), r.links.join(" "), CLIENT_STATUS_TITLES[r.status], MARKETING_TITLES[r.marketing], dateLabel(r.marketingAt), dateLabel(r.lastContactAt)]
+    [r.name, phoneLabel(r.phone), r.links.join(" "), CLIENT_STATUS_TITLES[r.status], MARKETING_TITLES[r.marketing], dateLabel(r.marketingAt), dateLabel(r.lastContactAt), isClientContact(r.contact) ? CLIENT_CONTACT_TITLES[r.contact] : ""]
       .map(csvCell)
       .join(";"),
   );

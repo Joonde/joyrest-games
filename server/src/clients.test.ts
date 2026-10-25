@@ -598,6 +598,38 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     await sql`delete from sessions where id = 'slive1'`;
   });
 
+  it("способ связи: клиент без номера — по нику Telegram; WhatsApp без телефона не сохраняется; не прислали — не трогаем", async () => {
+    const base = { links: [], status: "held", marketing: "unknown", notes: "", origin: "past" };
+    const nick = await post("/api/clients", owner, { ...base, id: "kcontact1", name: "Ника", phone: "", links: ["https://t.me/nika_test"], contact: "telegram", request: "Из таблицы Excel: Квиз" });
+    expect(nick.statusCode).toBe(200);
+    expect(nick.json()).toMatchObject({ phone: "", links: ["https://t.me/nika_test"], contact: "telegram", status: "held", origin: "past" });
+    expect((nick.json().history as Array<{ summary: string }>)[0]?.summary).toContain("Из таблицы Excel: Квиз");
+    // Тот же ник ещё раз (таблицу загрузили повторно, ник другим регистром) — 409 с id первого, двойника нет.
+    const twin = await post("/api/clients", owner, { ...base, id: "kcontact9", name: "Ника", phone: "", links: ["https://t.me/Nika_Test"], contact: "telegram" });
+    expect(twin.statusCode).toBe(409);
+    expect(twin.json()).toMatchObject({ error: "already-exists", id: "kcontact1" });
+    // WhatsApp без телефона — пусто (связаться так нельзя); мусор — тоже не пишется.
+    const wa = await post("/api/clients", owner, { ...base, id: "kcontact2", name: "Вася", phone: "", links: ["https://t.me/vasya_test"], contact: "whatsapp" });
+    expect(wa.json().contact).toBe("");
+    const junk = await post("/api/clients", owner, { ...base, id: "kcontact3", name: "Петя", phone: "+7 999 333-44-55", contact: "<script>" });
+    expect(junk.json().contact).toBe("");
+    const call = await post("/api/clients", owner, { ...base, id: "kcontact3", name: "Петя", phone: "+7 999 333-44-55", contact: "call", expect: junk.json().updatedAt });
+    expect(call.json().contact).toBe("call");
+    // Правка без поля (например «Ответил «да»») способ связи не стирает.
+    const again = await post("/api/clients", owner, { ...base, id: "kcontact3", name: "Петя", phone: "+7 999 333-44-55", marketing: "yes", expect: call.json().updatedAt });
+    expect(again.json()).toMatchObject({ contact: "call", marketing: "yes" });
+    // Выгрузка — с колонкой «Связь».
+    const csv = (await get("/api/clients/export?all=1", owner)).body;
+    expect(csv).toContain(";Связь\r\n");
+    expect(csv).toMatch(/Петя;\+7 999 333-44-55;[^\r]*;Звонок\r\n/);
+    // Мероприятие с «Связь: WhatsApp» ставит её клиенту, у которого пусто, и не меняет указанную.
+    await upsertClient(sql, { phone: "+7 999 333-44-66", name: "Рома", source: "event", summary: "Квиз", contact: "whatsapp" });
+    await upsertClient(sql, { phone: "+7 999 333-44-66", source: "event", summary: "Квиз 2", contact: "telegram" });
+    const [roma] = await sql<{ contact: string }[]>`select contact from clients where phone_key = '79993334466'`;
+    expect(roma?.contact).toBe("whatsapp");
+    await sql`delete from clients where id in ('kcontact1', 'kcontact2', 'kcontact3') or phone_key = '79993334466'`;
+  });
+
   it("Telegram: без бота подключение недоступно, ответ понятный", async () => {
     expect((await get("/api/telegram/me", anna)).json()).toEqual({ available: false, linked: false, username: "" });
     expect((await post("/api/telegram/link", anna)).statusCode).toBe(503);

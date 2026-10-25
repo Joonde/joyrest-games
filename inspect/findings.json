@@ -13,25 +13,25 @@
    "finished": true
   },
   {
-   "name": "quiz-0-solo-laptop",
-   "views": 40,
-   "findings": 0,
-   "finished": true
-  },
-  {
    "name": "quiz-0-teams-tv",
    "views": 38,
    "findings": 0,
    "finished": true
   },
   {
-   "name": "quiz-1-solo-projector",
-   "views": 26,
+   "name": "quiz-0-solo-laptop",
+   "views": 40,
    "findings": 0,
    "finished": true
   },
   {
    "name": "quiz-1-solo-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-projector",
    "views": 26,
    "findings": 0,
    "finished": true
@@ -55,13 +55,13 @@
    "finished": true
   },
   {
-   "name": "quiz-1-teams-tv",
+   "name": "quiz-1-teams-projector",
    "views": 26,
    "findings": 0,
    "finished": true
   },
   {
-   "name": "quiz-1-teams-projector",
+   "name": "quiz-1-teams-tv",
    "views": 26,
    "findings": 0,
    "finished": true
@@ -73,13 +73,13 @@
    "finished": true
   },
   {
-   "name": "quiz-2-solo-projector",
+   "name": "quiz-2-solo-tv",
    "views": 26,
    "findings": 0,
    "finished": true
   },
   {
-   "name": "quiz-2-solo-tv",
+   "name": "quiz-2-solo-projector",
    "views": 26,
    "findings": 0,
    "finished": true
@@ -123,7 +123,7 @@
   {
    "name": "quiz-3-solo-laptop",
    "views": 48,
-   "findings": 9,
+   "findings": 10,
    "finished": true
   },
   {
@@ -134,7 +134,7 @@
   },
   {
    "name": "quiz-3-teams-projector",
-   "views": 53,
+   "views": 54,
    "findings": 0,
    "finished": true
   },
@@ -147,6 +147,74 @@
  ],
  "findings": [
   {
+   "key": "экран зала|обрезан текст|div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 38 px (p.quiz-screen__race-answer)",
+   "path": "div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer",
+   "text": "Верно — :",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-1.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 38 px (p.quiz-screen__race-answer)",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.name-emoji",
+   "text": "🐺",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-2.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 38 px (p.quiz-screen__race-answer)",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span",
+   "text": "Владимир Преображенский",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-3.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > strong|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 38 px (p.quiz-screen__race-answer)",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > strong",
+   "text": "Песня",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-4.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
    "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer|",
    "area": "экран зала",
    "kind": "закрыт другим элементом",
@@ -155,7 +223,7 @@
    "text": "Верно — :",
    "at": "playing/8/reveal/",
    "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-1.jpg",
+   "shot": "shots/quiz-3-solo-laptop-hall-5.jpg",
    "where": [
     "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
    ],
@@ -172,7 +240,7 @@
    "text": "🐺",
    "at": "playing/8/reveal/",
    "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-2.jpg",
+   "shot": "shots/quiz-3-solo-laptop-hall-6.jpg",
    "where": [
     "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
    ],
@@ -189,7 +257,7 @@
    "text": "Владимир Преображенский",
    "at": "playing/8/reveal/",
    "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-3.jpg",
+   "shot": "shots/quiz-3-solo-laptop-hall-7.jpg",
    "where": [
     "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
    ],
@@ -206,41 +274,7 @@
    "text": "Песня",
    "at": "playing/8/reveal/",
    "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-4.jpg",
-   "where": [
-    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "quiz"
-   ]
-  },
-  {
-   "key": "экран зала|надписи наезжают|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.quiz-screen__finish|",
-   "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«🏁 Финиш! +200 очков за победу» и «Владимир Преображенский» друг на друге",
-   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.quiz-screen__finish",
-   "text": "🏁 Финиш! +200 очков за победу в гонке | Владимир Преображенский",
-   "at": "playing/8/reveal/",
-   "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-5.jpg",
-   "where": [
-    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "quiz"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.quiz-screen__finish|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«🏁 Финиш! +200 очков за победу в гонке» закрыт элементом span",
-   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.quiz-screen__finish",
-   "text": "🏁 Финиш! +200 очков за победу в гонке",
-   "at": "playing/8/reveal/",
-   "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-6.jpg",
+   "shot": "shots/quiz-3-solo-laptop-hall-8.jpg",
    "where": [
     "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
    ],
@@ -252,12 +286,12 @@
    "key": "экран зала|надписи наезжают|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > div.race > p.race__more|",
    "area": "экран зала",
    "kind": "надписи наезжают",
-   "message": "«и ещё 10» и «Вход: localhost:37887/j · код » друг на друге",
+   "message": "«и ещё 10» и «Вход: localhost:37205/j · код » друг на друге",
    "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > div.race > p.race__more",
-   "text": "и ещё 10 | Вход: localhost:37887/j · код 123 456",
+   "text": "и ещё 10 | Вход: localhost:37205/j · код 123 456",
    "at": "playing/8/reveal/",
    "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-7.jpg",
+   "shot": "shots/quiz-3-solo-laptop-hall-9.jpg",
    "where": [
     "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
    ],
@@ -274,24 +308,7 @@
    "text": "и ещё 10",
    "at": "playing/8/reveal/",
    "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-8.jpg",
-   "where": [
-    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "quiz"
-   ]
-  },
-  {
-   "key": "экран зала|бледный текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.quiz-screen__finish|",
-   "area": "экран зала",
-   "kind": "бледный текст",
-   "message": "контраст 1.00 (нужно от 4.5)",
-   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.quiz-screen__finish",
-   "text": "🏁 Финиш! +200 очков за победу в гонке",
-   "at": "playing/8/reveal/",
-   "count": 1,
-   "shot": "shots/quiz-3-solo-laptop-hall-9.jpg",
+   "shot": "shots/quiz-3-solo-laptop-hall-10.jpg",
    "where": [
     "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
    ],

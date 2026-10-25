@@ -143,6 +143,11 @@ export interface QuizSettings {
   phoneImages: boolean;
   /** Гонка «Кто быстрее»: сколько делений до финиша. */
   raceTarget: number;
+  /**
+   * Гонка: бонус тому, кто первым дошёл до финиша (решение владельца 25 октября 2026 — гонка влияет на итог). Нет — 200,
+   * 0 — без бонуса.
+   */
+  raceBonus?: number;
   /** «Аукцион»: чем тянуть жребий при равных ставках. Нет — монетка (игры до 23 октября 2026). */
   drawEffect?: DrawEffect;
   /**
@@ -175,6 +180,13 @@ export function quizArtOf(content: QuizContent): string {
   const art = settingsOf(content).art ?? "auto";
   if (art !== "auto") return art;
   return isMelodyQuiz(content) ? "melody-notes" : "quiz-office";
+}
+
+/** Бонус за финиш гонки по умолчанию и границы. */
+export const RACE_BONUS = { def: 200, max: 2000 } as const;
+
+export function raceBonusOf(content: QuizContent): number {
+  return settingsOf(content).raceBonus ?? RACE_BONUS.def;
 }
 
 export const DEFAULT_SETTINGS: QuizSettings = { intro: true, board: "each", phoneImages: false, raceTarget: 5 };
@@ -597,6 +609,7 @@ export function parseSettings(raw: unknown): QuizSettings {
     board: data.board === "rounds" || data.board === "manual" ? data.board : "each",
     phoneImages: data.phoneImages === true,
     raceTarget: int(data.raceTarget, DEFAULT_SETTINGS.raceTarget, LIMITS.minRace, LIMITS.maxRace),
+    ...(typeof data.raceBonus === "number" ? { raceBonus: int(data.raceBonus, RACE_BONUS.def, 0, RACE_BONUS.max) } : {}),
     ...(typeof data.drawEffect === "string" ? { drawEffect: parseDrawEffect(data.drawEffect) } : {}),
     ...(data.art !== undefined && parseQuizArt(data.art) !== "auto" ? { art: parseQuizArt(data.art) } : {}),
   };

@@ -41,6 +41,8 @@ export interface QuizResult {
   auction?: AuctionState;
   /** Суперигра: ведущий включил трек уровня на экране зала (новый `n` — сыграть заново). */
   superPlay?: { level: number; n: number };
+  /** Гонка: на этом шаге участник первым дошёл до финиша и получил бонус. */
+  raceFinish?: { pid: string; bonus: number };
 }
 
 /**
@@ -106,6 +108,10 @@ export function parseResult(raw: unknown): QuizResult {
   if (typeof r.superPlay === "object" && r.superPlay !== null && !Array.isArray(r.superPlay)) {
     const p = r.superPlay as Record<string, unknown>;
     if (typeof p.level === "number" && Number.isInteger(p.level) && p.level >= 0 && p.level < 4 && typeof p.n === "number") result.superPlay = { level: p.level, n: p.n };
+  }
+  if (typeof r.raceFinish === "object" && r.raceFinish !== null && !Array.isArray(r.raceFinish)) {
+    const f = r.raceFinish as Record<string, unknown>;
+    if (typeof f.pid === "string" && typeof f.bonus === "number" && Number.isFinite(f.bonus)) result.raceFinish = { pid: f.pid, bonus: f.bonus };
   }
   if (typeof r.guesses === "object" && r.guesses !== null && !Array.isArray(r.guesses)) {
     const guesses: Record<string, number> = {};

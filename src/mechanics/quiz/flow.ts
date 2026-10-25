@@ -5,7 +5,7 @@ import { leaderboardAdditions } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone, podiumLabel } from "../../core/podium";
 import { placeMoves, startRoundEntries } from "../../core/rounds";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
-import { quizRounds, roundAt, settingsOf, type QuizContent, type QuizQuestion } from "./content";
+import { quizRounds, raceBonusOf, roundAt, settingsOf, type QuizContent, type QuizQuestion } from "./content";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, syncBuzz } from "../../core/buzz";
 import { auctionAnswers, emptyResult, parseResult, resultOf, score, startResult, steps } from "./logic";
 import { auctionBackToBets, isAuctionDraw, openBets } from "./auction";
@@ -390,16 +390,29 @@ export function reveal(
   const before = parseResult(session.state.result);
   // Гонка: победитель проходит деления к финишу (супер-трек — больше).
   const winner = step.question.kind === "buzz" ? (before.buzz?.winner ?? null) : null;
+  let raceFinish: { pid: string; bonus: number } | null = null;
   if (winner) {
     const entry = leaderboard[winner] ?? after[winner];
-    if (entry) leaderboard[winner] = { ...entry, race: (entry.race ?? 0) + (step.question.steps ?? 1) };
+    if (entry) {
+      const race = (entry.race ?? 0) + (step.question.steps ?? 1);
+      // Первый дошедший до финиша получает бонус (один раз за игру). Бонус входит в «last» — «Назад» снимет его вместе с очками.
+      const target = settingsOf(content).raceTarget;
+      const bonus = raceBonusOf(content);
+      const finishedBefore = Object.values(board).some((e) => (e.race ?? 0) >= target);
+      if (!finishedBefore && race >= target && bonus > 0) {
+        raceFinish = { pid: winner, bonus };
+        leaderboard[winner] = { ...entry, race, score: entry.score + bonus, last: (entry.last ?? 0) + bonus };
+      } else {
+        leaderboard[winner] = { ...entry, race };
+      }
+    }
   }
   return {
     state: {
       stage: "reveal",
       revealed: true,
       answered: own.length,
-      result: { ...resultOf(step.question, own, before.accepted, before.buzz), ...(before.auction ? { auction: before.auction } : {}), ...carry(session) },
+      result: { ...resultOf(step.question, own, before.accepted, before.buzz), ...(before.auction ? { auction: before.auction } : {}), ...(raceFinish ? { raceFinish } : {}), ...carry(session) },
     },
     leaderboard,
   };

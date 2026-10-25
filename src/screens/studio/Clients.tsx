@@ -204,7 +204,7 @@ function ClientsTabs({ profile }: { profile: UserProfile }) {
         ]}
       />
       <div id={`clients-panel-${tab}`} role="tabpanel" className="stack">
-        {tab === "contacts" ? <ContactsTab profile={profile} /> : <ClientBase profile={profile} />}
+        {tab === "contacts" ? <ContactsTab /> : <ClientBase profile={profile} />}
       </div>
     </>
   );

@@ -13,26 +13,14 @@
    "finished": true
   },
   {
-   "name": "quiz-0-teams-tv",
-   "views": 38,
-   "findings": 0,
-   "finished": true
-  },
-  {
    "name": "quiz-0-solo-laptop",
    "views": 40,
    "findings": 0,
    "finished": true
   },
   {
-   "name": "quiz-1-solo-tv",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-solo-projector",
-   "views": 26,
+   "name": "quiz-0-teams-tv",
+   "views": 38,
    "findings": 0,
    "finished": true
   },
@@ -49,8 +37,38 @@
    "finished": true
   },
   {
+   "name": "quiz-1-solo-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-solo-crowd",
+   "views": 34,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-crowd",
+   "views": 28,
+   "findings": 0,
+   "finished": true
+  },
+  {
    "name": "quiz-1-solo-laptop",
    "views": 28,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-tv",
+   "views": 26,
    "findings": 0,
    "finished": true
   },
@@ -61,7 +79,7 @@
    "finished": true
   },
   {
-   "name": "quiz-1-teams-tv",
+   "name": "quiz-1-solo-crowd",
    "views": 26,
    "findings": 0,
    "finished": true
@@ -73,13 +91,19 @@
    "finished": true
   },
   {
-   "name": "quiz-2-solo-tv",
-   "views": 26,
+   "name": "quiz-1-teams-crowd",
+   "views": 28,
    "findings": 0,
    "finished": true
   },
   {
    "name": "quiz-2-solo-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-tv",
    "views": 26,
    "findings": 0,
    "finished": true
@@ -109,14 +133,26 @@
    "finished": true
   },
   {
+   "name": "quiz-2-solo-crowd",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
    "name": "quiz-3-solo-tv",
    "views": 45,
    "findings": 0,
    "finished": true
   },
   {
+   "name": "quiz-2-teams-crowd",
+   "views": 36,
+   "findings": 0,
+   "finished": true
+  },
+  {
    "name": "quiz-3-solo-projector",
-   "views": 45,
+   "views": 46,
    "findings": 0,
    "finished": true
   },
@@ -134,7 +170,7 @@
   },
   {
    "name": "quiz-3-teams-projector",
-   "views": 52,
+   "views": 54,
    "findings": 0,
    "finished": true
   },
@@ -143,7 +179,37 @@
    "views": 46,
    "findings": 0,
    "finished": true
+  },
+  {
+   "name": "quiz-3-teams-crowd",
+   "views": 54,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-crowd",
+   "views": 50,
+   "findings": 0,
+   "finished": true
   }
  ],
- "findings": []
+ "findings": [
+  {
+   "key": "пульт|бледный текст|section.stack.stack--tight > ol.buzz-queue > li > span.buzz-queue__state|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 2.83 (нужно от 4.5)",
+   "path": "section.stack.stack--tight > ol.buzz-queue > li > span.buzz-queue__state",
+   "text": "мимо ✕",
+   "at": "playing/9/board/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-crowd-phones-1.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quiz"
+   ]
+  }
+ ]
 }

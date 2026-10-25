@@ -31,3 +31,13 @@ export function splitEmoji(full: string): { emoji: string | null; name: string }
   }
   return { emoji: null, name: full };
 }
+
+/**
+ * Короткое имя для очень большого зала (60+ гостей в списке): смайлик и первое слово — «🦊 Александра»
+ * вместо «🦊 Александра Константинова». Имя без пробелов остаётся как есть.
+ */
+export function shortName(full: string): string {
+  const { emoji, name } = splitEmoji(full.trim());
+  const first = name.trim().split(/\s+/)[0] ?? "";
+  return emoji ? `${emoji} ${first}` : first;
+}

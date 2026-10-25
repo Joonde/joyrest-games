@@ -3181,6 +3181,17 @@ kbd {
   list-style: none;
 }
 
+/* 10–24 ставок (большой зал): плашки мельче — раньше видно было только первые девять, остальные срезались. */
+.quiz-auction__placed:has(> li:nth-child(10)) {
+  gap: 0.7cqh 0.8cqw;
+  max-height: 30cqh;
+}
+.quiz-auction__placed:has(> li:nth-child(10)) li {
+  max-width: 17cqw;
+  padding: 0.3cqh 1cqw;
+  border-width: 0.2cqh;
+  font-size: 2.2cqh;
+}
 .quiz-auction__placed li {
   max-width: 26cqw;
   padding: 0.6cqh 1.6cqw;
@@ -5383,6 +5394,11 @@ kbd {
 .podium--final .podium__names:has(> .podium__name + .podium__name + .podium__name) > .podium__name:not(.podium__name--team) {
   font-size: min(2.8cqh, 2.3cqw);
 }
+/* Три команды на ступени финала (ничья в большом зале): плашки ниже — верхнюю срезало на 15 px (Ревизор, зал на 50). */
+.podium--final .podium__names:has(> .podium__name + .podium__name + .podium__name) > .podium__name--team {
+  font-size: min(2.6cqh, 2cqw);
+  padding: 0.1cqh 1.2cqw;
+}
 
 .podium__step {
   flex: none;
@@ -6983,6 +6999,15 @@ ul.chips {
 .lobby-joined__list.is-dense .chip {
   padding: 4px 8px;
   font-size: clamp(11px, 0.85vw, 16px);
+}
+
+.lobby-joined__list.is-tiny {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.lobby-joined__list.is-tiny .chip {
+  padding: 2px 6px;
 }
 
 .screen--lobby .big-code {
@@ -10504,6 +10529,18 @@ button.dance-card:active {
   font-size: calc(1.6 * var(--u));
 }
 
+/* Больше шести команд оценивают: плашки мельче — подпись карточки внизу наезжала на строку «Вход» (Ревизор, зал на 50 и 100). */
+.db-chips:has(> :nth-child(7)) {
+  gap: calc(0.5 * var(--u));
+  font-size: calc(1.3 * var(--u));
+}
+.db-chips:has(> :nth-child(7)) .db-chip {
+  padding: 0.25em 0.7em;
+  max-width: calc(24 * var(--u));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .db-foot {
   margin: 0;
   font-size: calc(1.35 * var(--u));

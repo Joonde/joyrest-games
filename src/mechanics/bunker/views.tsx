@@ -244,7 +244,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
           <div className="bk-stage__text">
             <p className="bk-kicker">Ничья</p>
             {/* Ничья у многих (большая игра) — заголовок мельче: список имён в 6 строк ложился на досье (Ревизор). */}
-            <h2 className={r.candidates.length > 3 ? "bk-title bk-title--many" : "bk-title"}>
+            <h2 className={r.candidates.length > 3 || (r.candidates.length > 1 && r.seats.length > 8) ? "bk-title bk-title--many" : "bk-title"}>
               Оправдательная речь:{" "}
               {r.candidates.map((p, i) => (
                 <span key={p}>

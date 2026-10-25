@@ -5,7 +5,7 @@ import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { correctSet, drawEffectOfSettings, KIND_TITLES, roundAt, roundTitle, settingsOf, usesAnswers, usesOptions, type QuizContent } from "./content";
+import { correctSet, drawEffectOfSettings, raceBonusOf, KIND_TITLES, roundAt, roundTitle, settingsOf, usesAnswers, usesOptions, type QuizContent } from "./content";
 import { clock } from "../../data";
 import { resultKey } from "../../core/session";
 import type { DrawEffect } from "../../core/draw";
@@ -523,6 +523,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
       {q.kind === "buzz" && (
         <p className="muted small">
           Гонка до {settingsOf(content).raceTarget} · этот вопрос даёт {q.steps ?? 1} {(q.steps ?? 1) === 1 ? "деление" : "деления"}
+          {raceBonusOf(content) > 0 ? ` · первому на финише +${raceBonusOf(content)} очков` : ""}
         </p>
       )}
 

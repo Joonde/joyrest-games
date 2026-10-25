@@ -250,7 +250,8 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
   if (q.kind === "buzz") {
     const target = settingsOf(content).raceTarget;
     const winner = buzz?.winner ? session.leaderboard[buzz.winner] : null;
-    const finished = winner && (winner.race ?? 0) >= target;
+    const finish = revealed ? (result.raceFinish ?? null) : null;
+    const finisher = finish ? session.leaderboard[finish.pid] : null;
     return (
       <div className="quiz-screen quiz-screen--race">
         {confetti}
@@ -282,9 +283,9 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
             )}
           </p>
         )}
-        {finished && winner && (
+        {finish && finisher && (
           <p className="quiz-screen__finish">
-            Финиш! <NameText name={winner.name} /> выигрывает гонку
+            Финиш! <NameText name={finisher.name} /> выигрывает гонку · +{finish.bonus} очков
           </p>
         )}
         <RaceLanes leaderboard={session.leaderboard} buzz={buzz ?? EMPTY_BUZZ} target={target} />
@@ -627,6 +628,9 @@ export function QuizPlayerView({
           <p>
             Правильный ответ: <strong>{correctText(q) || "—"}</strong>
           </p>
+        )}
+        {stage === "reveal" && parseResult(session.state.result).raceFinish?.pid === pid && (
+          <p className="quiz-phone__verdict is-right">Финиш! +{parseResult(session.state.result).raceFinish?.bonus} очков за победу в гонке</p>
         )}
         {scoreLine}
       </div>

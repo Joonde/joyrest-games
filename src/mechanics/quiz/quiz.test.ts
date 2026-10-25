@@ -18,7 +18,7 @@ import { IMPORT_EXAMPLE, parseImport } from "./importText";
 import { DEMO_QUIZ_FORMATS } from "./demo";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
-import type { Session, SessionState } from "../../data/types";
+import type { LeaderboardEntry, Session, SessionState } from "../../data/types";
 import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, closeSuperVote, extraAction, nextQuestion, openSuperVote, overrideSuperVote, primaryAction, reveal, showBoard, showQuestion, showTotal, skipSuper, superSkipped, superSync, superVoteOf, superVoteSync, toggleAccepted } from "./flow";
 import { acceptKey } from "../../core/supergame";
 import { QUESTION_FORMATS } from "./content";
@@ -594,6 +594,40 @@ describe("гонка «кто первый» и несколько картин�
     expect(s.state.stage).toBe("question");
     expect(s.leaderboard.b).toMatchObject({ score: 0, race: 0 });
     expect(parseResult(s.state.result).buzz).toMatchObject({ current: "b", winner: null, out: ["a"] });
+  });
+
+  it("финиш гонки: первому — бонус один раз, «Назад» снимает, 0 — без бонуса", () => {
+    const content: QuizContent = { questions: [buzzQ(), { ...buzzQ(), id: "b2" }], settings: { ...DEFAULT_SETTINGS, raceTarget: 2 } };
+    let s = base(content.questions);
+    s = applyChange(s, showQuestion(s, content), 1);
+    const answers = [press("a", 10)];
+    const sync = buzzSync(s, answers);
+    if (!sync) throw new Error("нет записи");
+    s = applyChange(s, sync, 2);
+    s = applyChange(s, buzzRightAnswer(s, content, answers, []), 3);
+    expect(s.leaderboard.a).toMatchObject({ score: 300, race: 2, last: 300 });
+    expect(parseResult(s.state.result).raceFinish).toEqual({ pid: "a", bonus: 200 });
+    const plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    const undone = applyChange(s, plan.change, 4);
+    expect(undone.leaderboard.a).toMatchObject({ score: 0, race: 0 });
+    expect(parseResult(undone.state.result).raceFinish).toBeUndefined();
+    // Второй дошедший до финиша бонуса не получает.
+    const later = { ...s, leaderboard: { ...s.leaderboard, b: { ...(s.leaderboard.b as LeaderboardEntry), race: 0, score: 0, last: 0 } } };
+    const second = { ...later, state: { ...later.state, step: 1, stage: "question" as const, result: { buzz: { order: ["b"], out: [], current: "b", winner: null } } } };
+    const r2 = applyChange(second, buzzRightAnswer(second, content, [], []), 5);
+    expect(r2.leaderboard.b).toMatchObject({ score: 100, race: 2 });
+    expect(parseResult(r2.state.result).raceFinish).toBeUndefined();
+    // Бонус выключен.
+    const off: QuizContent = { ...content, settings: { ...DEFAULT_SETTINGS, raceTarget: 2, raceBonus: 0 } };
+    let o = base(off.questions);
+    o = applyChange(o, showQuestion(o, off), 1);
+    const os = buzzSync(o, answers);
+    if (!os) throw new Error("нет записи");
+    o = applyChange(o, os, 2);
+    o = applyChange(o, buzzRightAnswer(o, off, answers, []), 3);
+    expect(o.leaderboard.a).toMatchObject({ score: 100, race: 2 });
+    expect(parseContent({ settings: { raceBonus: 50000 } }).settings?.raceBonus).toBe(2000);
   });
 
   it("никто не угадал — «Показать ответ» без очков", () => {

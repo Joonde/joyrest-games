@@ -37,6 +37,7 @@ import {
   type QuizQuestion,
   type QuizSettings,
   QUIZ_ARTS,
+  RACE_BONUS,
 } from "./content";
 import { ImportSheet } from "./ImportSheet";
 import { RoundHeader, RoundMap, roundColor, roundName } from "./RoundBlocks";
@@ -800,6 +801,13 @@ function SettingsCard({ settings, hasRace, hasAuction, onChange }: { settings: Q
           Гонка «Кто первый»: делений до финиша
           <ClampedNumber value={settings.raceTarget} min={QUIZ_LIMITS.minRace} max={QUIZ_LIMITS.maxRace} fallback={5} onChange={(raceTarget) => onChange({ ...settings, raceTarget })} />
           <span className="muted small">Настройка видна, потому что в игре есть вопросы формата «Гонка: кто первый» ({hasRace} шт.): гости жмут кнопку, кто первый угадал трек — двигается на деление вперёд. Кто первым наберёт столько делений (супер-трек — 2–3 деления), выигрывает гонку. Остальных вопросов это не касается.</span>
+        </label>
+      )}
+      {hasRace > 0 && (
+        <label className="field">
+          Бонус за победу в гонке, очков
+          <ClampedNumber value={settings.raceBonus ?? RACE_BONUS.def} min={0} max={RACE_BONUS.max} fallback={RACE_BONUS.def} onChange={(raceBonus) => onChange({ ...settings, raceBonus })} />
+          <span className="muted small">Кто первым дошёл до финиша, получает эти очки сверху — гонка влияет на итог игры. Один раз за игру. 0 — без бонуса.</span>
         </label>
       )}
       {hasAuction && (

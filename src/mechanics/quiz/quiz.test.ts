@@ -619,7 +619,7 @@ describe("гонка «кто первый» и несколько картин�
     expect(r2.leaderboard.b).toMatchObject({ score: 100, race: 2 });
     expect(parseResult(r2.state.result).raceFinish).toBeUndefined();
     // Бонус выключен.
-    const off: QuizContent = { ...content, settings: { ...content.settings, raceBonus: 0 } };
+    const off: QuizContent = { ...content, settings: { ...DEFAULT_SETTINGS, raceTarget: 2, raceBonus: 0 } };
     let o = base(off.questions);
     o = applyChange(o, showQuestion(o, off), 1);
     const os = buzzSync(o, answers);
@@ -627,7 +627,7 @@ describe("гонка «кто первый» и несколько картин�
     o = applyChange(o, os, 2);
     o = applyChange(o, buzzRightAnswer(o, off, answers, []), 3);
     expect(o.leaderboard.a).toMatchObject({ score: 100, race: 2 });
-    expect(parseContent({ settings: { raceBonus: 50000 } }).settings.raceBonus).toBe(2000);
+    expect(parseContent({ settings: { raceBonus: 50000 } }).settings?.raceBonus).toBe(2000);
   });
 
   it("никто не угадал — «Показать ответ» без очков", () => {

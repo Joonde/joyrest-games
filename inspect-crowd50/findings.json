@@ -2,386 +2,336 @@
  "runs": [
   {
    "name": "quiz-1-teams-crowd50",
-   "views": 26,
+   "views": 10,
    "findings": 0,
    "finished": true
   },
   {
    "name": "quiz-1-solo-crowd50",
-   "views": 24,
+   "views": 10,
    "findings": 0,
    "finished": true
   },
   {
    "name": "quiz-0-teams-crowd50",
-   "views": 38,
+   "views": 18,
    "findings": 0,
    "finished": true
   },
   {
    "name": "quiz-2-teams-crowd50",
-   "views": 36,
+   "views": 18,
    "findings": 0,
    "finished": true
   },
   {
    "name": "quiz-0-solo-crowd50",
-   "views": 38,
+   "views": 17,
    "findings": 0,
    "finished": true
   },
   {
    "name": "quiz-2-solo-crowd50",
-   "views": 34,
+   "views": 18,
    "findings": 0,
    "finished": true
   },
   {
    "name": "quiz-3-teams-crowd50",
-   "views": 38,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-solo-crowd50",
-   "views": 43,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "lotto-0-teams-crowd50",
-   "views": 32,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "lotto-0-solo-crowd50",
-   "views": 38,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "dance-0-teams-crowd50",
-   "views": 28,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "checkers-0-teams-crowd50",
-   "views": 56,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "board-0-teams-crowd50",
-   "views": 74,
-   "findings": 0,
-   "finished": false
-  },
-  {
-   "name": "stage-0-teams-crowd50",
-   "views": 40,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "stage-1-teams-crowd50",
-   "views": 40,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "millionaire-0-teams-crowd50",
-   "views": 36,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "millionaire-0-solo-crowd50",
    "views": 26,
-   "findings": 7,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "board-0-solo-crowd50",
-   "views": 82,
-   "findings": 1,
+   "views": 4,
+   "findings": 0,
    "finished": false
   },
   {
-   "name": "quest-0-teams-crowd50",
-   "views": 45,
+   "name": "board-0-teams-crowd50",
+   "views": 4,
    "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quest-1-teams-crowd50",
-   "views": 51,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "hundred-0-teams-crowd50",
-   "views": 68,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "hundred-0-solo-crowd50",
-   "views": 54,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-solo-crowd50",
-   "views": 54,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-teams-crowd50",
-   "views": 68,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-2-solo-crowd50",
-   "views": 54,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-2-teams-crowd50",
-   "views": 68,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-3-teams-crowd50",
-   "views": 38,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "dragon-0-teams-crowd50",
-   "views": 28,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "dragon-1-teams-crowd50",
-   "views": 28,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "survival-0-teams-crowd50",
-   "views": 50,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "hundred-3-solo-crowd50",
-   "views": 44,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "durak-0-solo-crowd50",
-   "views": 48,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "spy-0-solo-crowd50",
-   "views": 50,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "bunker-0-solo-crowd50",
-   "views": 82,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "mafia-0-solo-crowd50",
-   "views": 77,
-   "findings": 2,
    "finished": false
   },
   {
-   "name": "truth-0-teams-crowd50",
-   "views": 60,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "truth-0-solo-crowd50",
-   "views": 40,
-   "findings": 1,
-   "finished": false
-  },
-  {
-   "name": "perudo-0-solo-crowd50",
-   "views": 43,
+   "name": "quiz-3-solo-crowd50",
+   "views": 27,
    "findings": 0,
    "finished": true
   },
   {
-   "name": "perudo-0-teams-crowd50",
-   "views": 48,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "wager-0-teams-crowd50",
-   "views": 22,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "wine-0-solo-crowd50",
+   "name": "lotto-0-teams-crowd50",
    "views": 16,
    "findings": 0,
    "finished": true
   },
   {
+   "name": "lotto-0-solo-crowd50",
+   "views": 16,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dance-0-teams-crowd50",
+   "views": 16,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "checkers-0-teams-crowd50",
+   "views": 18,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "stage-0-teams-crowd50",
+   "views": 18,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "stage-1-teams-crowd50",
+   "views": 18,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-teams-crowd50",
+   "views": 14,
+   "findings": 6,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-teams-crowd50",
+   "views": 10,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "millionaire-0-solo-crowd50",
+   "views": 16,
+   "findings": 9,
+   "finished": true
+  },
+  {
+   "name": "quest-1-teams-crowd50",
+   "views": 18,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-solo-crowd50",
+   "views": 10,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "quest-0-teams-crowd50",
+   "views": 18,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-teams-crowd50",
+   "views": 10,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "hundred-1-solo-crowd50",
+   "views": 10,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "hundred-2-teams-crowd50",
+   "views": 10,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "hundred-2-solo-crowd50",
+   "views": 10,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "hundred-3-teams-crowd50",
+   "views": 10,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dragon-0-teams-crowd50",
+   "views": 10,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "dragon-1-teams-crowd50",
+   "views": 18,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "survival-0-teams-crowd50",
+   "views": 18,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-solo-crowd50",
+   "views": 10,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "durak-0-solo-crowd50",
+   "views": 6,
+   "findings": 0,
+   "finished": false
+  },
+  {
+   "name": "mafia-0-solo-crowd50",
+   "views": 16,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "spy-0-solo-crowd50",
+   "views": 8,
+   "findings": 0,
+   "finished": false
+  },
+  {
+   "name": "bunker-0-solo-crowd50",
+   "views": 20,
+   "findings": 0,
+   "finished": false
+  },
+  {
+   "name": "truth-0-solo-crowd50",
+   "views": 6,
+   "findings": 0,
+   "finished": false
+  },
+  {
+   "name": "truth-0-teams-crowd50",
+   "views": 12,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-solo-crowd50",
+   "views": 6,
+   "findings": 0,
+   "finished": false
+  },
+  {
+   "name": "truth-1-teams-crowd50",
+   "views": 12,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-teams-crowd50",
+   "views": 6,
+   "findings": 0,
+   "finished": false
+  },
+  {
+   "name": "wager-0-teams-crowd50",
+   "views": 14,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "wine-0-solo-crowd50",
+   "views": 8,
+   "findings": 0,
+   "finished": true
+  },
+  {
    "name": "wine-0-teams-crowd50",
-   "views": 22,
+   "views": 8,
    "findings": 0,
    "finished": true
   },
   {
    "name": "wager-0-solo-crowd50",
-   "views": 38,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "truth-1-teams-crowd50",
-   "views": 60,
+   "views": 14,
    "findings": 1,
    "finished": true
   },
   {
    "name": "story-0-teams-crowd50",
-   "views": 50,
+   "views": 20,
    "findings": 0,
    "finished": true
   },
   {
    "name": "truth-1-solo-crowd50",
-   "views": 42,
-   "findings": 1,
-   "finished": false
+   "views": 14,
+   "findings": 0,
+   "finished": true
   },
   {
    "name": "story-0-solo-crowd50",
-   "views": 42,
+   "views": 19,
    "findings": 0,
    "finished": true
   }
  ],
  "findings": [
   {
-   "key": "экран зала|обрезан текст|div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 5 px (p.quiz-screen__race-answer)",
-   "path": "div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer",
-   "text": "Верно — :",
-   "at": "playing/8/reveal/",
-   "count": 1,
-   "shot": "shots/quiz-3-solo-crowd50-hall-1.jpg",
+   "area": "пульт",
+   "kind": "тупик",
+   "message": "пульт: Ставка на знания · раунд 1 из 2 · сыграно 0 из 20Таблица очков на экранКоснитесь клетки, чтобы открыть вопрос. Метки ♪, фото и «кот» видите только вы.Кино100200300400кот500География100200300400500Праздники100200300400500котЕда100200300400500Назад | кнопки: Таблица очков на экран / 100 / 200 / 300 / 400кот / 500 / 100 / 200 / 300 / 400 / 500 / 100 / 200 / 300 / 400 / 500кот / 100 / 200 / 300 / 400 / 500",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 4,
    "where": [
-    "quiz 4-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+    "board 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
+    "board 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
    "games": [
-    "quiz"
+    "board"
    ]
   },
   {
-   "key": "экран зала|обрезан текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.name-emoji|",
+   "key": "экран зала|надписи наезжают|div.hall > main.quiz-stage > div.dance-screen.db-stage > p.db-foot|",
    "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 5 px (p.quiz-screen__race-answer)",
-   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.name-emoji",
-   "text": "🦊",
-   "at": "playing/8/reveal/",
+   "kind": "надписи наезжают",
+   "message": "«💃 Танец · латина» и «Вход: localhost:43513/j · код » друг на друге",
+   "path": "div.hall > main.quiz-stage > div.dance-screen.db-stage > p.db-foot",
+   "text": "💃 Танец · латина | Вход: localhost:43513/j · код 123 456",
+   "at": "playing/1/question/vote",
    "count": 1,
-   "shot": "shots/quiz-3-solo-crowd50-hall-2.jpg",
+   "shot": "shots/dance-0-teams-crowd50-hall-1.jpg",
    "where": [
-    "quiz 4-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+    "dance 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
    "games": [
-    "quiz"
+    "dance"
    ]
   },
   {
-   "key": "экран зала|обрезан текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 5 px (p.quiz-screen__race-answer)",
-   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span",
-   "text": "Александра Константинова",
-   "at": "playing/8/reveal/",
-   "count": 1,
-   "shot": "shots/quiz-3-solo-crowd50-hall-3.jpg",
-   "where": [
-    "quiz 4-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
-   ],
-   "games": [
-    "quiz"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > strong|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 5 px (p.quiz-screen__race-answer)",
-   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > strong",
-   "text": "Песня",
-   "at": "playing/8/reveal/",
-   "count": 1,
-   "shot": "shots/quiz-3-solo-crowd50-hall-4.jpg",
-   "where": [
-    "quiz 4-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
-   ],
-   "games": [
-    "quiz"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow|",
+   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage > div.dance-screen.db-stage > p.db-foot|",
    "area": "экран зала",
    "kind": "закрыт другим элементом",
-   "message": "«Первым ходит» закрыт элементом div.draw-coin__rays",
-   "path": "div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow",
-   "text": "Первым ходит",
-   "at": "playing/14/reveal/",
-   "count": 26,
-   "shot": "shots/board-0-solo-crowd50-hall-1.jpg",
+   "message": "«💃 Танец · латина» закрыт элементом p.stage-code",
+   "path": "div.hall > main.quiz-stage > div.dance-screen.db-stage > p.db-foot",
+   "text": "💃 Танец · латина",
+   "at": "playing/1/question/vote",
+   "count": 1,
+   "shot": "shots/dance-0-teams-crowd50-hall-2.jpg",
    "where": [
-    "lotto 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
-    "board 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
-    "durak 1-й шаблон, каждый сам ×4, зал на 50: 50 гостей или 16 команд, телевизор",
-    "bunker 1-й шаблон, каждый сам ×16, зал на 50: 50 гостей или 16 команд, телевизор",
-    "spy 1-й шаблон, каждый сам ×20, зал на 50: 50 гостей или 16 команд, телевизор",
-    "mafia 1-й шаблон, каждый сам ×30, зал на 50: 50 гостей или 16 команд, телевизор",
-    "truth 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
-    "truth 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
-    "truth 2-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
-    "truth 2-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+    "dance 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
    "games": [
-    "lotto",
-    "board",
-    "durak",
-    "bunker",
-    "spy",
-    "mafia",
-    "truth"
+    "dance"
    ]
   },
   {
@@ -428,7 +378,7 @@
    "path": "section.mil-screen__main > p.mil-screen__who > span.mil-screen__team > span.name-emoji",
    "text": "🦄",
    "at": "playing/0/ready/turn",
-   "count": 5,
+   "count": 11,
    "shot": "shots/millionaire-0-teams-crowd50-hall-1.jpg",
    "where": [
     "millionaire 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
@@ -446,7 +396,7 @@
    "path": "section.mil-screen__main > p.mil-screen__who > span.mil-screen__team > span",
    "text": "Единороги из бухгалтерии",
    "at": "playing/0/ready/turn",
-   "count": 5,
+   "count": 11,
    "shot": "shots/millionaire-0-teams-crowd50-hall-2.jpg",
    "where": [
     "millionaire 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
@@ -457,15 +407,33 @@
    ]
   },
   {
-   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter|",
-   "area": "телефон",
+   "key": "экран зала|бледный текст|div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__letter|",
+   "area": "экран зала",
    "kind": "бледный текст",
-   "message": "контраст 1.10 (нужно от 4.5)",
-   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter",
+   "message": "контраст 1.21 (нужно от 3)",
+   "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__letter",
    "text": "D",
-   "at": "playing/0/question/question",
-   "count": 20,
-   "shot": "shots/millionaire-0-teams-crowd50-phones-1.jpg",
+   "at": "playing/2/question/question",
+   "count": 8,
+   "shot": "shots/millionaire-0-teams-crowd50-hall-3.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
+    "millionaire 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__text|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 1.34 (нужно от 3)",
+   "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__text",
+   "text": "Жёлтого",
+   "at": "playing/2/question/question",
+   "count": 8,
+   "shot": "shots/millionaire-0-teams-crowd50-hall-4.jpg",
    "where": [
     "millionaire 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
     "millionaire 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
@@ -480,9 +448,27 @@
    "kind": "бледный текст",
    "message": "контраст 1.00 (нужно от 4.5)",
    "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text",
-   "text": "Жёлтого",
-   "at": "playing/0/question/question",
-   "count": 26,
+   "text": "Зелёного",
+   "at": "playing/1/reveal/reveal",
+   "count": 14,
+   "shot": "shots/millionaire-0-teams-crowd50-phones-1.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
+    "millionaire 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.79 (нужно от 4.5)",
+   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter",
+   "text": "A",
+   "at": "playing/2/question/question",
+   "count": 14,
    "shot": "shots/millionaire-0-teams-crowd50-phones-2.jpg",
    "where": [
     "millionaire 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
@@ -493,15 +479,74 @@
    ]
   },
   {
-   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct|",
-   "area": "телефон",
+   "area": "пульт",
+   "kind": "тупик",
+   "message": "пульт: Большая игра · 🐝 Пчёлки финансового контроля · первый игрок12 сОчки: 32 из 200Игрок отвечает вслух — коснитесь его ответа под вопросом или «Нет на табло». Ответ первого игрока второму повторять нельзя.1. Назовите свадебную традициюОтвет: Выкуп невесты · 32Выкуп невесты · 32Бросание букета · 20Карав | кнопки: Выкуп невесты · 32 / Бросание букета · 20 / Каравай · 14 / Похищение невесты · 10 / Конкурсы · 8 / Бросание подвязки · 6 / ✕ Нет на табло / Белый · 55 / Айвори · 14 / Кремовый · 9 / Розовый · 7 / Голу",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 12,
+   "where": [
+    "hundred 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 2-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 2-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 3-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 3-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.hd-row__text)",
+   "path": "div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text",
+   "text": "Деньги в конверте",
+   "at": "playing/1/reveal/done",
+   "count": 36,
+   "shot": "shots/hundred-0-teams-crowd50-hall-1.jpg",
+   "where": [
+    "hundred 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 2-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 2-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 3-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
+    "hundred 3-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|section.mil-screen__bars > div.mil-bars-window > p.mil-bars-window__more > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«,» закрыт элементом span",
+   "path": "section.mil-screen__bars > div.mil-bars-window > p.mil-bars-window__more > span",
+   "text": ",",
+   "at": "playing/0/ready/turn",
+   "count": 5,
+   "shot": "shots/millionaire-0-solo-crowd50-hall-3.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|main.quiz-stage > div.mil-screen.mil-screen--audience > section.mil-screen__main > p.mil-flash|",
+   "area": "экран зала",
    "kind": "бледный текст",
-   "message": "контраст 1.00 (нужно от 4.5)",
-   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct",
-   "text": "28%",
-   "at": "playing/13/question/question",
-   "count": 4,
-   "shot": "shots/millionaire-0-solo-crowd50-phones-3.jpg",
+   "message": "контраст 1.49 (нужно от 3)",
+   "path": "main.quiz-stage > div.mil-screen.mil-screen--audience > section.mil-screen__main > p.mil-flash",
+   "text": "Помощь зала",
+   "at": "playing/4/question/audience",
+   "count": 1,
+   "shot": "shots/millionaire-0-solo-crowd50-hall-6.jpg",
    "where": [
     "millionaire 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
@@ -515,85 +560,26 @@
    "kind": "бледный текст",
    "message": "контраст 1.34 (нужно от 3)",
    "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__pct",
-   "text": "34%",
-   "at": "playing/13/question/question",
-   "count": 2,
-   "shot": "shots/millionaire-0-solo-crowd50-hall-3.jpg",
+   "text": "0%",
+   "at": "playing/4/question/audience",
+   "count": 4,
+   "shot": "shots/millionaire-0-solo-crowd50-hall-7.jpg",
    "where": [
     "millionaire 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
    "games": [
     "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|бледный текст|div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__letter|",
-   "area": "экран зала",
-   "kind": "бледный текст",
-   "message": "контраст 1.69 (нужно от 3)",
-   "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__letter",
-   "text": "C",
-   "at": "playing/13/question/question",
-   "count": 2,
-   "shot": "shots/millionaire-0-solo-crowd50-hall-4.jpg",
-   "where": [
-    "millionaire 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 4 px (span.hd-row__text)",
-   "path": "div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text",
-   "text": "На море",
-   "at": "playing/5/reveal/play",
-   "count": 67,
-   "shot": "shots/hundred-0-teams-crowd50-hall-1.jpg",
-   "where": [
-    "hundred 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
-    "hundred 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
-    "hundred 2-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
-    "hundred 2-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
-    "hundred 3-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
-    "hundred 3-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
-    "hundred 4-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
-    "hundred 4-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
-   ],
-   "games": [
-    "hundred"
-   ]
-  },
-  {
-   "key": "пульт|бледный текст|li > button.hd-host__row > span.hd-host__text > small|",
-   "area": "пульт",
-   "kind": "бледный текст",
-   "message": "контраст 1.85 (нужно от 4.5)",
-   "path": "li > button.hd-host__row > span.hd-host__text > small",
-   "text": "ещё: бельё, плед",
-   "at": "playing/1/reveal/play",
-   "count": 3,
-   "shot": "shots/hundred-0-teams-crowd50-phones-1.jpg",
-   "where": [
-    "hundred 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
-    "hundred 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
-   ],
-   "games": [
-    "hundred"
    ]
   },
   {
    "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span.name-emoji|",
    "area": "экран зала",
    "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 14 px (span.dg-team__nm)",
+   "message": "текст обрезан по высоте на 6 px (span.dg-team__nm)",
    "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span.name-emoji",
    "text": "🦄",
-   "at": "playing/9/reveal/",
-   "count": 36,
+   "at": "playing/2/ready/",
+   "count": 48,
    "shot": "shots/dragon-0-teams-crowd50-hall-1.jpg",
    "where": [
     "dragon 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
@@ -607,11 +593,11 @@
    "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span|",
    "area": "экран зала",
    "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 14 px (span.dg-team__nm)",
+   "message": "текст обрезан по высоте на 6 px (span.dg-team__nm)",
    "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span",
    "text": "Единороги из бухгалтерии",
-   "at": "playing/9/reveal/",
-   "count": 36,
+   "at": "playing/2/ready/",
+   "count": 48,
    "shot": "shots/dragon-0-teams-crowd50-hall-2.jpg",
    "where": [
     "dragon 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
@@ -625,11 +611,11 @@
    "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span.name-emoji|",
    "area": "экран зала",
    "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 14 px (span.dg-team__nm)",
+   "message": "текст обрезан по высоте на 6 px (span.dg-team__nm)",
    "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span.name-emoji",
-   "text": "🐙",
-   "at": "playing/9/reveal/",
-   "count": 32,
+   "text": "🦋",
+   "at": "playing/2/ready/",
+   "count": 48,
    "shot": "shots/dragon-0-teams-crowd50-hall-3.jpg",
    "where": [
     "dragon 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
@@ -643,11 +629,11 @@
    "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span|",
    "area": "экран зала",
    "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 14 px (span.dg-team__nm)",
+   "message": "текст обрезан по высоте на 6 px (span.dg-team__nm)",
    "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span",
-   "text": "Осьминоги техподдержки",
-   "at": "playing/9/reveal/",
-   "count": 32,
+   "text": "Бабочки отдела кадров 2.0",
+   "at": "playing/2/ready/",
+   "count": 48,
    "shot": "shots/dragon-0-teams-crowd50-hall-4.jpg",
    "where": [
     "dragon 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",
@@ -658,32 +644,30 @@
    ]
   },
   {
-   "key": "телефон|бледный текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b|",
-   "area": "телефон",
-   "kind": "бледный текст",
-   "message": "контраст 1.00 (нужно от 4.5)",
-   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b",
-   "text": "A",
-   "at": "playing/13/question/play",
-   "count": 3,
-   "shot": "shots/durak-0-solo-crowd50-phones-1.jpg",
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
    "where": [
-    "durak 1-й шаблон, каждый сам ×4, зал на 50: 50 гостей или 16 команд, телевизор"
+    "mafia 1-й шаблон, каждый сам ×30, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
    "games": [
-    "durak"
+    "mafia"
    ]
   },
   {
-   "key": "экран зала|надписи наезжают|main.quiz-stage > div.mf-screen > section.mf-screen__main > p.mf-note|",
+   "key": "экран зала|обрезан текст|main.quiz-stage > div.mf-screen > section.mf-screen__main > span.quiz-screen__badge|",
    "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«Голосуйте тайно на телефоне · » и «🦉» друг на друге",
-   "path": "main.quiz-stage > div.mf-screen > section.mf-screen__main > p.mf-note",
-   "text": "Голосуйте тайно на телефоне · проголосовали 0 из 26 | 🦉",
-   "at": "playing/18/question/vote",
-   "count": 7,
-   "shot": "shots/mafia-0-solo-crowd50-hall-2.jpg",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 35 px (div.mf-screen)",
+   "path": "main.quiz-stage > div.mf-screen > section.mf-screen__main > span.quiz-screen__badge",
+   "text": "Партия 1 из 3 · итог",
+   "at": "playing/90/reveal/over",
+   "count": 1,
+   "shot": "shots/mafia-0-solo-crowd50-hall-1.jpg",
    "where": [
     "mafia 1-й шаблон, каждый сам ×30, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
@@ -715,10 +699,10 @@
    "at": "",
    "count": 1,
    "where": [
-    "mafia 1-й шаблон, каждый сам ×30, зал на 50: 50 гостей или 16 команд, телевизор"
+    "spy 1-й шаблон, каждый сам ×20, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
    "games": [
-    "mafia"
+    "spy"
    ]
   },
   {
@@ -728,10 +712,54 @@
    "path": "",
    "text": "",
    "at": "",
-   "count": 2,
+   "count": 1,
    "where": [
-    "truth 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
-    "truth 2-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+    "spy 1-й шаблон, каждый сам ×20, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "spy"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "truth 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
    "games": [
     "truth"
@@ -744,13 +772,28 @@
    "path": "",
    "text": "",
    "at": "",
-   "count": 2,
+   "count": 1,
    "where": [
-    "truth 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор",
-    "truth 2-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
+    "truth 1-й шаблон, каждый сам ×50, зал на 50: 50 гостей или 16 команд, телевизор"
    ],
    "games": [
     "truth"
+   ]
+  },
+  {
+   "area": "пульт",
+   "kind": "тупик",
+   "message": "пульт: Кости лжеца · раунд 4 · стаканов 4, костей 17Первая ставка раунда. Ход: 🦉 Екатерина ВоскресенскаяКости всех стаканов (только вам)🦊 Александра Константинова🐺 Владимир Преображенский🦉 Екатерина Воскресенская🐻 Максимилиан РождественскийЗа стакан «🦉 Екатерина Воскресенская» (если нет телефона)−1 × | кнопки:  /  /  /  /  / + / Ставка за стакан: одна двойка / Назад",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 4,
+   "where": [
+    "perudo 1-й шаблон, каждый сам ×4, зал на 50: 50 гостей или 16 команд, телевизор",
+    "perudo 1-й шаблон, команды ×4, зал на 50: 50 гостей или 16 команд, телевизор"
+   ],
+   "games": [
+    "perudo"
    ]
   },
   {
@@ -761,7 +804,7 @@
    "path": "div.stack.stack--tight > ul.wager-host-list > li > span",
    "text": "ждём…",
    "at": "playing/2/question/bet",
-   "count": 5,
+   "count": 2,
    "shot": "shots/wager-0-teams-crowd50-phones-1.jpg",
    "where": [
     "wager 1-й шаблон, команды ×16, зал на 50: 50 гостей или 16 команд, телевизор",

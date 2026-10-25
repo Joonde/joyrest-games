@@ -1,4 +1,25 @@
-• bunker-0-solo-projector: видов 78, находок 1 (до финала не дошла)
-• bunker-0-solo-laptop: видов 80, находок 1 (до финала не дошла)
-• bunker-0-solo-tv: видов 82, находок 1 (до финала не дошла)
-Ревизор: 1 находок → /tmp/inspect/README.md
+✓ quiz-0-solo-projector: видов 46, находок 0
+✓ quiz-0-solo-tv: видов 46, находок 0
+✓ quiz-0-teams-tv: видов 38, находок 0
+✓ quiz-0-solo-laptop: видов 40, находок 0
+✓ quiz-1-solo-tv: видов 26, находок 0
+✓ quiz-1-solo-projector: видов 26, находок 0
+✓ quiz-0-teams-projector: видов 38, находок 0
+✓ quiz-0-teams-laptop: видов 44, находок 0
+✓ quiz-1-solo-laptop: видов 28, находок 0
+✓ quiz-1-teams-projector: видов 26, находок 0
+✓ quiz-1-teams-tv: видов 26, находок 0
+✓ quiz-1-teams-laptop: видов 30, находок 0
+✓ quiz-2-solo-tv: видов 26, находок 0
+✓ quiz-2-solo-projector: видов 26, находок 0
+✓ quiz-2-solo-laptop: видов 32, находок 0
+✓ quiz-2-teams-projector: видов 40, находок 0
+✓ quiz-2-teams-tv: видов 40, находок 0
+✓ quiz-2-teams-laptop: видов 39, находок 0
+✓ quiz-3-solo-tv: видов 44, находок 0
+✓ quiz-3-solo-projector: видов 45, находок 0
+• quiz-3-teams-tv: видов 53, находок 10
+• quiz-3-solo-laptop: видов 48, находок 23
+• quiz-3-teams-projector: видов 54, находок 14
+✓ quiz-3-teams-laptop: видов 46, находок 0
+Ревизор: 27 находок → /tmp/inspect/README.md

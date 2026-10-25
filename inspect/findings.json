@@ -1,42 +1,628 @@
 {
  "runs": [
   {
-   "name": "bunker-0-solo-projector",
-   "views": 78,
-   "findings": 1,
-   "finished": false
+   "name": "quiz-0-solo-projector",
+   "views": 46,
+   "findings": 0,
+   "finished": true
   },
   {
-   "name": "bunker-0-solo-laptop",
-   "views": 80,
-   "findings": 1,
-   "finished": false
+   "name": "quiz-0-solo-tv",
+   "views": 46,
+   "findings": 0,
+   "finished": true
   },
   {
-   "name": "bunker-0-solo-tv",
-   "views": 82,
-   "findings": 1,
-   "finished": false
+   "name": "quiz-0-teams-tv",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-solo-laptop",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-projector",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-laptop",
+   "views": 44,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-laptop",
+   "views": 28,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-laptop",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-laptop",
+   "views": 32,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-projector",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-tv",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-laptop",
+   "views": 39,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-tv",
+   "views": 44,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-projector",
+   "views": 45,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-tv",
+   "views": 53,
+   "findings": 10,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-laptop",
+   "views": 48,
+   "findings": 23,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-projector",
+   "views": 54,
+   "findings": 14,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-laptop",
+   "views": 46,
+   "findings": 0,
+   "finished": true
   }
  ],
  "findings": [
   {
-   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow|",
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--bronze > span.super-level__name|",
    "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Первым ходит» закрыт элементом div.draw-coin__rays",
-   "path": "div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow",
-   "text": "Первым ходит",
-   "at": "playing/3/question/open",
-   "count": 11,
-   "shot": "shots/bunker-0-solo-laptop-hall-1.jpg",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 97 px (li.super-level.super-level--bronze)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--bronze > span.super-level__name",
+   "text": "Бронза",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-1.jpg",
    "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена",
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена",
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd"
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "bunker"
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--bronze > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 185 px (li.super-level.super-level--bronze)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--bronze > span.super-level__points",
+   "text": "100 очков",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-2.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__name|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 97 px (li.super-level.super-level--silver)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__name",
+   "text": "Серебро",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-3.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 185 px (li.super-level.super-level--silver)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__points",
+   "text": "200 очков",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-4.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__name|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 97 px (li.super-level.super-level--gold)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__name",
+   "text": "Золото",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-5.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 185 px (li.super-level.super-level--gold)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__points",
+   "text": "300 очков",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-6.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--diamond > span.super-level__name|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 97 px (li.super-level.super-level--diamond)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--diamond > span.super-level__name",
+   "text": "Бриллиант",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-7.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--diamond > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 185 px (li.super-level.super-level--diamond)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--diamond > span.super-level__points",
+   "text": "500 очков",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-8.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__name|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Серебро» закрыт элементом p.super-vote__verdict",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__name",
+   "text": "Серебро",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-9.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__name|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Золото» закрыт элементом p.super-vote__verdict",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__name",
+   "text": "Золото",
+   "at": "playing/7/ready/",
+   "count": 3,
+   "shot": "shots/quiz-3-solo-laptop-hall-10.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > div.race > p.race__more|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 40 px",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > div.race > p.race__more",
+   "text": "и ещё 10",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-11.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Верно — :» и «Финиш! выигрывает гонку · +200» друг на друге",
+   "path": "div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer",
+   "text": "Верно — : | Финиш! выигрывает гонку · +200 очков",
+   "at": "playing/8/reveal/",
+   "count": 2,
+   "shot": "shots/quiz-3-solo-laptop-hall-12.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Верно — :» закрыт элементом p.quiz-screen__finish",
+   "path": "div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer",
+   "text": "Верно — :",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-13.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«🐺» закрыт элементом p.quiz-screen__finish",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span.name-emoji",
+   "text": "🐺",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-14.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Владимир Преображенский» и «Владимир Преображенский» друг на друге",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span",
+   "text": "Владимир Преображенский | Владимир Преображенский",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-15.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Владимир Преображенский» закрыт элементом span",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span",
+   "text": "Владимир Преображенский",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-16.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > strong|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Песня» закрыт элементом p.quiz-screen__finish",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > strong",
+   "text": "Песня",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-17.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.race > div.race__lane > span.race__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«🐺» закрыт элементом p.stage-code",
+   "path": "div.race > div.race__lane > span.race__name > span.name-emoji",
+   "text": "🐺",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-18.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.race > div.race__lane > span.race__name > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Максимилиан Новосельцев» закрыт элементом p.stage-code",
+   "path": "div.race > div.race__lane > span.race__name > span",
+   "text": "Максимилиан Новосельцев",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-19.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.quiz-screen.quiz-screen--race > div.race > div.race__lane > span.race__status|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«0 / 1» закрыт элементом p.stage-code",
+   "path": "div.quiz-screen.quiz-screen--race > div.race > div.race__lane > span.race__status",
+   "text": "0 / 1",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-20.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 1.54 (нужно от 3)",
+   "path": "div.hall > main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer",
+   "text": "Верно — :",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-21.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 1.54 (нужно от 3)",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > span",
+   "text": "Владимир Преображенский",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-22.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > strong|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 1.54 (нужно от 3)",
+   "path": "main.quiz-stage.show-stage > div.quiz-screen.quiz-screen--race > p.quiz-screen__race-answer > strong",
+   "text": "Песня",
+   "at": "playing/8/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-solo-laptop-hall-23.jpg",
+   "where": [
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--bronze > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«100 очков» закрыт элементом div.super-vote__bar",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--bronze > span.super-level__points",
+   "text": "100 очков",
+   "at": "playing/7/ready/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-9.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«200 очков» закрыт элементом strong",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__points",
+   "text": "200 очков",
+   "at": "playing/7/ready/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-11.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«300 очков» закрыт элементом div.super-vote__bar",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__points",
+   "text": "300 очков",
+   "at": "playing/7/ready/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-13.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--diamond > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«500 очков» закрыт элементом div.super-vote__bar",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--diamond > span.super-level__points",
+   "text": "500 очков",
+   "at": "playing/7/ready/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-14.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
    ]
   }
  ]

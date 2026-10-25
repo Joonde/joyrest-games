@@ -4,8 +4,17 @@ import type { Leaderboard } from "../../data/types";
 import { teamColorVar } from "../../themes/registry";
 import { NameText } from "../NameText";
 
-/** Сколько полос видно на экране: дальше — лидеры гонки и «ещё N». */
-const MAX_LANES = 8;
+/**
+ * Сколько полос в колонке и колонок (решение владельца 25 октября 2026 — игроки должны видеть себя): до 8 — одна колонка,
+ * до 16 — две, дальше три; больше 30 — лидеры гонки и «ещё N».
+ */
+const PER_COLUMN = 10;
+const MAX_LANES = 30;
+
+/** Сколько колонок под столько участников. */
+export function raceColumns(count: number): number {
+  return count <= 8 ? 1 : count <= 16 ? 2 : 3;
+}
 
 /**
  * Гонка на экране зала: у каждого участника полоса из делений до клетчатого «Финиша» и столбец
@@ -26,15 +35,24 @@ export function RaceLanes({ leaderboard, buzz, target }: { leaderboard: Leaderbo
   for (const r of rows.slice(MAX_LANES)) if (must.has(r.id) && shown.length < MAX_LANES + 3) shown.push(r);
   const hidden = rows.length - shown.length;
   const queue = (buzz?.order ?? []).filter((pid) => !(buzz?.out ?? []).includes(pid));
+  const columns = raceColumns(shown.length);
+  const rowsPerColumn = columns === 1 ? shown.length : Math.min(PER_COLUMN, Math.ceil(shown.length / columns));
 
   return (
-    <div className="race" role="list" aria-label="Гонка до финиша">
-      <div className="race__head" aria-hidden="true">
-        <span>Участник</span>
-        <span>Старт → {target}</span>
-        <span className="race__finish-label">Финиш</span>
-        <span>Сейчас</span>
-      </div>
+    <div className={`race race--cols-${columns}`} role="list" aria-label="Гонка до финиша">
+      {columns === 1 ? (
+        <div className="race__head" aria-hidden="true">
+          <span>Участник</span>
+          <span>Старт → {target}</span>
+          <span className="race__finish-label">Финиш</span>
+          <span>Сейчас</span>
+        </div>
+      ) : (
+        <p className="race__caption" aria-hidden="true">
+          Старт → финиш за {target} {target === 1 ? "деление" : target < 5 ? "деления" : "делений"}
+        </p>
+      )}
+      <div className="race__grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${Math.max(1, rowsPerColumn)}, minmax(0, 7.4cqh))` }}>
       {shown.map(({ id, e, race }) => {
         const current = buzz?.current === id;
         const out = (buzz?.out ?? []).includes(id);
@@ -47,7 +65,7 @@ export function RaceLanes({ leaderboard, buzz, target }: { leaderboard: Leaderbo
         else if (out) status = "Мимо ✕";
         else if (place === 1 || (place === 0 && !buzz?.current)) status = "Следующий";
         else if (race >= target) status = "Финиш!";
-        else status = `${race} / ${target}`;
+        else status = columns === 1 ? `${race} / ${target}` : `${race}/${target}`;
         const cls = ["race__lane", current ? "is-current" : "", out ? "is-out" : "", winner ? "is-winner" : "", race >= target ? "is-finished" : ""].join(" ");
         return (
           <div key={id} className={cls} role="listitem" style={e.colorIndex !== undefined ? style : undefined}>
@@ -64,6 +82,7 @@ export function RaceLanes({ leaderboard, buzz, target }: { leaderboard: Leaderbo
           </div>
         );
       })}
+      </div>
       {hidden > 0 && <p className="race__more">и ещё {hidden}</p>}
     </div>
   );

@@ -8111,6 +8111,60 @@ ul.chips {
   color: #221e1b;
 }
 
+/* Колонки дорожек: много участников — все видны (две колонки с 9, три с 17). */
+.race__grid {
+  display: grid;
+  grid-auto-flow: column;
+  align-content: start;
+  gap: 0.8cqh 1.6cqw;
+  min-height: 0;
+}
+
+.quiz-screen--race > .race {
+  display: flex;
+  flex-direction: column;
+}
+
+.quiz-screen--race .race__grid {
+  flex: 1 1 0;
+}
+
+.race__caption {
+  margin: 0;
+  font-size: max(1.1cqw, 1.8cqh);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.race--cols-2 .race__lane,
+.race--cols-3 .race__lane {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 2.6cqw auto;
+  gap: 0.8cqw;
+  padding: 0 1cqw;
+}
+
+.race--cols-2 .race__name {
+  font-size: max(1.5cqw, 2.2cqh);
+}
+
+.race--cols-3 .race__name {
+  font-size: max(1.15cqw, 1.9cqh);
+}
+
+.race--cols-2 .race__status,
+.race--cols-3 .race__status {
+  font-size: max(1cqw, 1.8cqh);
+  padding: 0.4cqh 0.8cqw;
+  white-space: nowrap;
+}
+
+.race--cols-2 .race__flag,
+.race--cols-3 .race__flag {
+  height: 70%;
+  max-height: 5.4cqh;
+}
+
 .race__more {
   margin: 0;
   text-align: center;
@@ -8284,7 +8338,6 @@ ul.chips {
 
 .quiz-screen--race .race__lane {
   height: auto;
-  flex: 1 1 0;
   min-height: 0;
   max-height: 7.4cqh;
 }

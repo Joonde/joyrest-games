@@ -776,8 +776,15 @@ try {
   await ap.bringToFront();
   const after = await ids();
   check(before.join() === after.join(), "Прежние клиенты: после «Telegram» порядок списка не меняется", `до ${before.length}, после ${after.length}`);
-  check(await soft(async () => (await petrCard.getAttribute("class"))?.includes("is-done"), WAIT, "написали"), "Написанный — остаётся на месте с отметкой ✓");
-  check(await soft(async () => (await ap.locator(".contacts-last").count()) > 0, WAIT, "следующий"), "Сверху — «✓ Открыли чат» и кнопка следующего");
+  check(await soft(async () => (await ap.locator(".contacts-last").count()) > 0, WAIT, "получилось?"), "После «Telegram» сверху — «Получилось отправить?»");
+  check(!((await petrCard.getAttribute("class")) ?? "").includes("is-done"), "Пока не ответили «Да» — «написали» не ставится");
+  await ap.locator(".contacts-last").getByRole("button", { name: /Не получилось/ }).click();
+  check(await soft(async () => (await petrCard.getByText(/Telegram: не получилось/).count()) > 0, WAIT, "не получилось"), "«Не получилось» — на карточке «Telegram: не получилось», не отмечен");
+  await petrCard.getByRole("button", { name: "✓ Написал" }).click();
+  check(await soft(async () => (await petrCard.getAttribute("class"))?.includes("is-done"), WAIT, "написали"), "«✓ Написал» — карточка на месте, отмечена");
+  await petrCard.getByRole("button", { name: "Снять «написали»" }).click();
+  check(await soft(async () => !((await petrCard.getAttribute("class")) ?? "").includes("is-done"), WAIT, "снять"), "«Снять «написали»» убирает отметку");
+  check(before.join() === (await ids()).join(), "Порядок списка так и не менялся");
   await shot(ap, "excel-написали");
   // Тот же файл ещё раз — никого нового, двойников нет.
   const again = await upload();

@@ -20,6 +20,7 @@ import { ExcelImport } from "./ExcelImport";
 
 const CHANNEL_URL = "https://t.me/JoyRest";
 const SENT_KEY = "jr-past-sent";
+const FAIL_KEY = "jr-past-fail";
 
 /** Кому уже написали (на этом телефоне): id клиента → дата. */
 function readSent(): Record<string, number> {
@@ -28,6 +29,24 @@ function readSent(): Record<string, number> {
     return raw && typeof raw === "object" ? (raw as Record<string, number>) : {};
   } catch {
     return {};
+  }
+}
+
+/** Куда не получилось написать (на этом телефоне): id клиента → способы («telegram», «whatsapp»). */
+function readFail(): Record<string, string[]> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FAIL_KEY) ?? "{}") as unknown;
+    return raw && typeof raw === "object" ? (raw as Record<string, string[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFail(value: Record<string, string[]>): void {
+  try {
+    localStorage.setItem(FAIL_KEY, JSON.stringify(value));
+  } catch {
+    // Не запомнилось — не страшно.
   }
 }
 
@@ -75,7 +94,9 @@ export function ContactsTab() {
   // Порядок списка — по отметкам на момент открытия страницы: отправили — карточка остаётся на месте (тусклая),
   // список не перескакивает, пока вы ходите в мессенджер и обратно.
   const [orderSnap] = useState<Record<string, number>>(readSent);
-  const [last, setLast] = useState<string | null>(null);
+  // Открыли чат — ждём ответа «получилось?»: сайт не видит, что было в мессенджере (ошибка «не найден» и т. п.).
+  const [pending, setPending] = useState<{ id: string; kind: string } | null>(null);
+  const [fail, setFail] = useState<Record<string, string[]>>(readFail);
   const [toast, showToast] = useToast(4000);
   const [confirm, ask] = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -171,7 +192,22 @@ export function ContactsTab() {
     const next = { ...sent, [id]: Date.now() };
     setSent(next);
     writeSent(next);
-    setLast(id);
+    setPending(null);
+    showToast("✓ Отмечено: написали");
+  }
+
+  function unmarkSent(id: string) {
+    const next = { ...sent };
+    delete next[id];
+    setSent(next);
+    writeSent(next);
+  }
+
+  function markFailed(id: string, kind: string) {
+    const next = { ...fail, [id]: [...new Set([...(fail[id] ?? []), kind])] };
+    setFail(next);
+    writeFail(next);
+    setPending(null);
   }
 
   function toNext(id: string | undefined) {
@@ -226,8 +262,9 @@ export function ContactsTab() {
     (a, b) => (orderSnap[a.id] ?? 0) - (orderSnap[b.id] ?? 0) || a.name.localeCompare(b.name, "ru") || a.id.localeCompare(b.id),
   );
   const notYet = past.filter((c) => !sent[c.id]).length;
-  const next = ordered.find((c) => !sent[c.id] && c.marketing !== "yes");
-  const lastClient = last ? past.find((c) => c.id === last) : undefined;
+  const next = ordered.find((c) => !sent[c.id] && c.marketing !== "yes" && c.id !== pending?.id);
+  const pendingClient = pending ? past.find((c) => c.id === pending.id) : undefined;
+  const kindTitle = (kind: string) => (kind === "whatsapp" ? "WhatsApp" : "Telegram");
   const yesMessage = pastClientYesMessage(SITE_CALC_URL);
 
   return (
@@ -324,8 +361,9 @@ export function ContactsTab() {
       <h2 className="clients-section">Прежние клиенты · написать</h2>
       <p className="muted small">
         Касание «Telegram» или «WhatsApp» откроет чат и скопирует готовое сообщение от команды JoyRest с именем клиента. Telegram на телефоне
-        часто открывает чат без текста — подержите палец в поле сообщения → «Вставить» → «Отправить». Telegram показал ошибку («не найден»)
-        — у человека нет Telegram или номер скрыт: напишите в WhatsApp, а если и там нет — «Убрать — не клиент». В сообщении: один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
+        часто открывает чат без текста — подержите палец в поле сообщения → «Вставить» → «Отправить». Вернулись — ответьте «Получилось
+        отправить?»: «написали» ставится только после «Да». Telegram показал ошибку («не найден») — у человека нет Telegram или номер
+        скрыт: «Не получилось», дальше WhatsApp, а если и там нет — «Убрать — не клиент». Отметили по ошибке — «Снять «написали»». В сообщении: один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
         извинение, если ошиблись, и вопрос «можно присылать новости?». Пять вариантов текста чередуются. Цен и скидок нет. Отправляйте по
         одному и не больше 15 в день — иначе мессенджер может принять это за спам. Ответил «да» — нажмите «Ответил «да»»: отметим согласие, и
         кнопки откроют сообщение со скидкой 10%.
@@ -336,18 +374,27 @@ export function ContactsTab() {
           {sentToday >= 15 ? " — на сегодня хватит, продолжите завтра." : ""}
         </p>
       )}
-      {lastClient && (
-        <section className="card contacts-last" role="status" aria-label="Последнее сообщение">
+      {pendingClient && pending && (
+        <section className="card contacts-last" role="status" aria-label="Получилось написать?">
           <p className="small">
-            ✓ Открыли чат: <strong>{lastClient.name || who(lastClient)}</strong>. Текст скопирован — если его нет в чате, зажмите поле → «Вставить».
+            Открыли {kindTitle(pending.kind)}: <strong>{pendingClient.name || who(pendingClient)}</strong>. Текст скопирован — если его нет в
+            чате, зажмите поле → «Вставить». <strong>Получилось отправить?</strong>
           </p>
-          {next ? (
-            <button type="button" className="btn btn--secondary btn--block" onClick={() => toNext(next.id)}>
-              Следующий — {next.name || who(next)} ↓
+          <div className="actions">
+            <button type="button" className="btn btn--block" onClick={() => markSent(pendingClient.id)}>
+              ✓ Да, отправил
             </button>
-          ) : (
-            <p className="small">Всем из списка написали 🎉</p>
-          )}
+            <button type="button" className="btn btn--secondary btn--block" onClick={() => markFailed(pendingClient.id, pending.kind)}>
+              ✗ Не получилось — ошибка или не тот человек
+            </button>
+          </div>
+        </section>
+      )}
+      {!pending && next && Object.keys(sent).length > 0 && (
+        <button type="button" className="btn btn--secondary btn--block" onClick={() => toNext(next.id)}>
+          Следующий — {next.name || who(next)} ↓
+        </button>
+      )}
         </section>
       )}
       {state.status === "loading" && !clients ? (
@@ -362,11 +409,16 @@ export function ContactsTab() {
             // Согласился на новости — сообщение со скидкой, иначе — первое сообщение (спасибо, ссылки, вопрос о новостях).
             const yes = c.marketing === "yes";
             const text = yes ? yesMessage : pastClientMessage(c.name, links, messageVariant(c.id));
+            const failed = fail[c.id] ?? [];
+            // Где не получилось — в конец: сначала то, что ещё не пробовали.
+            const channels = writeChannels(c, text)
+              .filter((w) => w.kind !== "call")
+              .sort((a, b) => Number(failed.includes(a.kind)) - Number(failed.includes(b.kind)));
             return (
               <li
                 key={c.id}
                 id={`past-${c.id}`}
-                className={`card contacts-past${sent[c.id] && !yes ? " is-done" : ""}${next?.id === c.id ? " is-next" : ""}`}
+                className={`card contacts-past${sent[c.id] && !yes ? " is-done" : ""}${next?.id === c.id || pending?.id === c.id ? " is-next" : ""}`}
               >
                 <span className="contacts-row__name">
                   {next?.id === c.id ? "▶ " : sent[c.id] && !yes ? "✓ " : ""}
@@ -378,12 +430,16 @@ export function ContactsTab() {
                   {sent[c.id] ? ` · написали ${dayLabel(sent[c.id] ?? 0)}` : ""}
                   {yes ? " · согласие на новости ✓" : ""}
                 </span>
+                {failed.length > 0 && !sent[c.id] && (
+                  <span className="error small">
+                    {failed.map(kindTitle).join(" и ")}: не получилось.{" "}
+                    {channels.some((w) => !failed.includes(w.kind)) ? "Попробуйте другой способ ниже." : "Других способов нет — уберите его кнопкой «Убрать — не клиент»."}
+                  </span>
+                )}
                 {yes && <span className="small">Сообщение со скидкой 10%:</span>}
                 <div className="contacts-past__actions" role="group" aria-label={`Написать: ${c.name}`}>
                   {/* Удобный клиенту способ — первым; без телефона — только Telegram по нику. */}
-                  {writeChannels(c, text)
-                    .filter((w) => w.kind !== "call")
-                    .map((w) => (
+                  {channels.map((w) => (
                       <a
                         key={w.kind}
                         className="btn btn--secondary"
@@ -392,12 +448,22 @@ export function ContactsTab() {
                         rel="noopener noreferrer"
                         onClick={() => {
                           copyText(text);
-                          if (!yes) markSent(c.id);
+                          if (!yes) setPending({ id: c.id, kind: w.kind });
                         }}
                       >
                         {w.label}
                       </a>
                     ))}
+                  {!yes && !sent[c.id] && (
+                    <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => markSent(c.id)}>
+                      ✓ Написал
+                    </button>
+                  )}
+                  {!yes && sent[c.id] && (
+                    <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => unmarkSent(c.id)}>
+                      Снять «написали»
+                    </button>
+                  )}
                   {!yes && (
                     <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => answeredYes(c)}>
                       Ответил «да»

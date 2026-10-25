@@ -122,7 +122,7 @@ async function runPage(job, name, where, areas) {
   });
   // Пульт — тоже телефон ведущего: на странице телефонов он той же ширины.
   const host = areas === "hall" ? p.host : p.phone;
-  const url = `http://localhost:${port}/?m=${m}&mode=${mode}&n=${n}&seed=1&demo=${demo}&budget=${process.env.BUDGET ?? 350}&inspect=1&areas=${areas}&hall=${p.hall}&host=${host}&phone=${p.phone}&names=${p.names}${GALLERY && (profile === "tv" || profile === "crowd") ? "&gallery=1" : GALLERY && p.solo ? "&gallery=all" : ""}${p.solo ? "&shots=1" : ""}`;
+  const url = `http://localhost:${port}/?m=${m}&mode=${mode}&n=${n}&seed=1&demo=${demo}&budget=${process.env.BUDGET ?? 350}&inspect=1&areas=${areas}&hall=${p.hall}&host=${host}&phone=${p.phone}&names=${p.names}${GALLERY && (profile === "tv" || profile === "crowd") ? "&gallery=1" : GALLERY && p.solo ? "&gallery=all" : ""}`;
   let report;
   try {
     await page.goto(url);

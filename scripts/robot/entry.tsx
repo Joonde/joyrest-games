@@ -533,7 +533,9 @@ async function inspectView(): Promise<void> {
   window.scrollTo(0, 0);
   // Галерея (GALLERY=1 у inspect.mjs): снимки на выборке видов (1, 3, 6, 10, 15, 22, 31, 42 и финал) — посмотреть глазами.
   const sample = GALLERY && ([1, 3, 6, 10, 15, 22, 31, 42].includes(seenViews.size) || store.session.state.phase === "finished");
-  if ((sample || (GALLERY_ALL && seenViews.size <= 60)) && hall) await snap(hall, null, `вид-${seenViews.size}`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}`);
+  // gallery=all: только виды игры — без слайдов поверх (перерыв, QR, жеребьёвка) и таблицы по кнопке.
+  const gameView = !store.session.state.slide && !store.session.state.peek;
+  if ((sample || (GALLERY_ALL && gameView && seenViews.size <= 60)) && hall) await snap(hall, null, `вид-${seenViews.size}`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}`);
   // Телефонная страница: пульт ведущего, телефон капитана и участника (или первого гостя).
   if (sample && AREAS === "phones") {
     if (host && playing) await snap(host, null, `вид-${seenViews.size}-пульт`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}|пульт`);
@@ -681,6 +683,8 @@ async function run(): Promise<void> {
   serverApply({ state: { ...startState(), startedAt: null }, expect: { phase: "lobby" } });
   let lastSig = "";
   let still = 0;
+  // Лобби со всеми гостями — тоже вид (в большом зале: колонка «Присоединились» на 50 и 100 имён).
+  if (INSPECT) await inspectView();
   for (report.ticks = 0; report.ticks < BUDGET; report.ticks++) {
     await sleep(15);
     await phonesAct();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMOJIS, randomEmoji, splitEmoji, withEmoji } from "./emoji";
+import { EMOJIS, randomEmoji, shortName, splitEmoji, withEmoji } from "./emoji";
 import { NAME_MAX_LENGTH } from "./names";
 
 describe("смайлик к имени", () => {
@@ -23,5 +23,14 @@ describe("смайлик к имени", () => {
   it("случайный — из набора", () => {
     expect(randomEmoji(() => 0)).toBe(EMOJIS[0]);
     expect(randomEmoji(() => 0.999)).toBe(EMOJIS[EMOJIS.length - 1]);
+  });
+});
+
+describe("короткое имя для большого зала", () => {
+  it("смайлик и первое слово", () => {
+    expect(shortName("🦊 Александра Константинова")).toBe("🦊 Александра");
+    expect(shortName("Иван Петров")).toBe("Иван");
+    expect(shortName("Аня")).toBe("Аня");
+    expect(shortName("  🦊 Аня  ")).toBe("🦊 Аня");
   });
 });

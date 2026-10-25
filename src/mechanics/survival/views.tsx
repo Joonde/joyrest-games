@@ -104,7 +104,7 @@ export function RaceLanes({ session, content, result, size = "screen" }: { sessi
   const second = ranked[1] ? (session.leaderboard[ranked[1]]?.score ?? 0) : -1;
   const leader = ranked[0] && first > 0 && first > second ? ranked[0] : null;
   return (
-    <ol className={`sv-lanes sv-lanes--${size}${cols > 1 ? " sv-lanes--multi" : ""}${cols > 2 ? " sv-lanes--three" : ""}`} aria-label="Гонка по очкам" style={{ ["--cols" as string]: String(cols), ["--segs" as string]: String(segs), ["--war" as string]: String(Math.max(1, content.warEvery)) }}>
+    <ol className={`sv-lanes sv-lanes--${size}${cols > 1 ? " sv-lanes--multi" : ""}${cols > 2 ? " sv-lanes--three" : ""}${ranked.length > 18 ? " sv-lanes--dense" : ""}`} aria-label="Гонка по очкам" style={{ ["--cols" as string]: String(cols), ["--segs" as string]: String(segs), ["--war" as string]: String(Math.max(1, content.warEvery)) }}>
       {ranked.map((p) => {
         const score = session.leaderboard[p]?.score ?? 0;
         const share = Math.max(0, Math.min(1, score / goal));
@@ -131,7 +131,8 @@ export function RaceLanes({ session, content, result, size = "screen" }: { sessi
                 </span>
               )}
             </span>
-            <span className="sv-lane__score">{pointsLabel(score)}</span>
+            {/* Три колонки (13+ команд): только число — место отдаём имени. */}
+            <span className="sv-lane__score">{cols > 2 ? score : pointsLabel(score)}</span>
           </li>
         );
       })}

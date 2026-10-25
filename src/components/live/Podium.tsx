@@ -36,8 +36,8 @@ function Names({ place }: { place: PodiumPlace }) {
           <NameText name={e.name} />
         </p>
       ))}
-      {more > 0 && <p className="podium__more">и ещё {more}</p>}
-      <p className="podium__score">{pointsLabel(place.score)}</p>
+      {/* Одной строкой: в финале две строки вставали рядом и читались как «и ещё 2100 очков». */}
+      <p className="podium__score">{more > 0 ? `и ещё ${more} · ${pointsLabel(place.score)}` : pointsLabel(place.score)}</p>
     </div>
   );
 }

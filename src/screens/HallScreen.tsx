@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ClientLogo } from "../components/ClientLogo";
 import { setHallBusy } from "../components/UpdateBanner";
 import { EVENING_MECHANIC } from "../core/program";
+import { shortName } from "../core/emoji";
 import { EveningTable } from "../mechanics/evening/views";
 import { useNavigate, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
@@ -400,7 +401,7 @@ function Lobby({ session }: { session: Session }) {
             {teams ? `${teamWord(board.length)}${phonesTotal > 0 ? ` · телефонов ${phonesTotal}` : ""}` : playerWord(board.length)} · ждём {waitLabel}
           </span>
         </div>
-        <div className={`chips lobby-joined__list${board.length > 40 ? " is-dense" : board.length > 14 ? " is-compact" : ""}`} aria-live="polite">
+        <div className={`chips lobby-joined__list${board.length > 60 ? " is-dense is-tiny" : board.length > 40 ? " is-dense" : board.length > 14 ? " is-compact" : ""}`} aria-live="polite">
           {teams
             ? ordered.map((team) => {
                 const hidden = !teamNameVisible(session.state, team.number);
@@ -419,8 +420,9 @@ function Lobby({ session }: { session: Session }) {
                 );
               })
             : board.map((e) => (
-                <span key={e.id} className="chip">
-                  <NameText name={e.name} />
+                <span key={e.id} className="chip" title={e.name}>
+                  {/* 60+ гостей: смайлик и имя без фамилии, в четыре колонки — все помещаются без прокрутки. */}
+                  <NameText name={board.length > 60 ? shortName(e.name) : e.name} />
                 </span>
               ))}
         </div>

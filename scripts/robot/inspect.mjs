@@ -29,6 +29,9 @@ const PROFILES = {
   laptop: { title: "Ноутбук 16:10, большой зал, длинные имена", hall: "1280x800", host: 390, phone: 375, names: "long", crowd: true },
   // Большой праздник (просьба владельца 17 октября 2026): 10 команд или 40 гостей каждый сам, длинные имена, телевизор.
   crowd: { title: "Большой праздник: 10 команд или 40 гостей, телевизор", hall: "1920x1080", host: 390, phone: 360, names: "long", crowd: "big" },
+  // Очень большой зал (просьба владельца 25 октября 2026): 50 и 100 гостей каждый сам, 16 и 25 команд.
+  crowd50: { title: "Зал на 50: 50 гостей или 16 команд, телевизор", hall: "1920x1080", host: 390, phone: 360, names: "long", crowd: "big", solo: 50, teams: 16 },
+  crowd100: { title: "Зал на 100: 100 гостей или 25 команд, телевизор", hall: "1920x1080", host: 390, phone: 360, names: "long", crowd: "big", solo: 100, teams: 25 },
 };
 const wanted = (process.env.PROFILES ?? "tv,projector,laptop").split(",").filter((p) => PROFILES[p]);
 
@@ -52,8 +55,8 @@ for (const [m, cfg] of Object.entries(MECHANICS)) {
         const p = PROFILES[profile];
         const max = cfg.players ? Math.max(...cfg.players) : null;
         // Большой праздник: игры с тайными ролями — сколько позволяют правила (Мафия до 30, Шпион до 20, Убежище до 16).
-        const big = { mafia: 20, spy: 20, bunker: 16 }[m];
-        const n = p.crowd === "big" ? (big ?? (max && max < 6 ? max : mode === "teams" ? 10 : 40)) : (max ?? (p.crowd ? (mode === "teams" ? 8 : 16) : 4));
+        const big = p.solo ? { mafia: 30, spy: 20, bunker: 16 }[m] : { mafia: 20, spy: 20, bunker: 16 }[m];
+        const n = p.crowd === "big" ? (big ?? (max && max < 6 ? max : mode === "teams" ? (p.teams ?? 10) : (p.solo ?? 40))) : (max ?? (p.crowd ? (mode === "teams" ? 8 : 16) : 4));
         jobs.push({ m, demo, mode, n, profile });
       }
 }
@@ -119,7 +122,7 @@ async function runPage(job, name, where, areas) {
   });
   // Пульт — тоже телефон ведущего: на странице телефонов он той же ширины.
   const host = areas === "hall" ? p.host : p.phone;
-  const url = `http://localhost:${port}/?m=${m}&mode=${mode}&n=${n}&seed=1&demo=${demo}&budget=${process.env.BUDGET ?? 350}&inspect=1&areas=${areas}&hall=${p.hall}&host=${host}&phone=${p.phone}&names=${p.names}${GALLERY && (profile === "tv" || profile === "crowd") ? "&gallery=1" : ""}`;
+  const url = `http://localhost:${port}/?m=${m}&mode=${mode}&n=${n}&seed=1&demo=${demo}&budget=${process.env.BUDGET ?? 350}&inspect=1&areas=${areas}&hall=${p.hall}&host=${host}&phone=${p.phone}&names=${p.names}${GALLERY && (profile === "tv" || profile === "crowd") ? "&gallery=1" : GALLERY && p.solo ? "&gallery=all" : ""}`;
   let report;
   try {
     await page.goto(url);

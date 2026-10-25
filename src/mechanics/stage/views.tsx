@@ -1,5 +1,6 @@
 // «Танцуй как звезда / Караоке на поле»: поле плиток, переворот плитки с фигурками, видео (на весь экран по кнопке пульта),
 // зрительская симпатия и батл с перетягиванием каната — на экране зала; сердце «Подарить» и голос — на телефоне.
+import { usePaged } from "../../components/live/usePaged";
 import { useEffect, useRef, type CSSProperties } from "react";
 import { HallTimer } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
@@ -76,10 +77,17 @@ export function StageField({ content, result, onPick, disabled, compact }: { con
 }
 
 function TeamsStrip({ session }: { session: Session }) {
-  const entries = Object.entries(session.leaderboard).sort((a, b) => b[1].score - a[1].score).slice(0, 8);
-  if (entries.length === 0) return null;
+  const all = Object.entries(session.leaderboard).sort((a, b) => b[1].score - a[1].score);
+  // Больше восьми команд — страницами по восемь, листаются сами (раньше остальные просто не показывались).
+  const { rows: entries, pages, from } = usePaged(all, 8);
+  if (all.length === 0) return null;
   return (
     <div className="stage-teams">
+      {pages > 1 && (
+        <span className="stage-teams__page">
+          {from + 1}–{from + entries.length} из {all.length}
+        </span>
+      )}
       {entries.map(([p, e]) => (
         <div key={p} className="stage-teams__one" style={sideStyle(session, p)}>
           <span className="stage-teams__name">

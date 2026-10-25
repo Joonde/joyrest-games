@@ -689,7 +689,7 @@ async function run(): Promise<void> {
     await sleep(15);
     await hostAct();
     if (INSPECT) await inspectView();
-    if (SHOTS) {
+    if (SHOTS && !INSPECT) {
       const w = window as unknown as { robotShot?: (tick: number) => Promise<void> };
       await sleep(1300);
       if (w.robotShot) await w.robotShot(report.ticks);

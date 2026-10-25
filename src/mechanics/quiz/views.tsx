@@ -259,7 +259,11 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
           <span className="quiz-screen__counter">
             Вопрос {step + 1} из {total}
           </span>
-          <span className="quiz-screen__badge">Гонка · финиш — {target}</span>
+          {finish && finisher ? (
+            <span className="quiz-screen__finish">🏁 Финиш! +{finish.bonus} очков</span>
+          ) : (
+            <span className="quiz-screen__badge">Гонка · финиш — {target}</span>
+          )}
           {!revealed && <span className="quiz-screen__answered">Нажали: {buzz?.order.length ?? 0}</span>}
         </div>
         <h2 className="quiz-screen__question">
@@ -281,11 +285,6 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
                 Правильный ответ: <strong>{correctText(q) || "—"}</strong>
               </>
             )}
-          </p>
-        )}
-        {finish && finisher && (
-          <p className="quiz-screen__finish">
-            Финиш! <NameText name={finisher.name} /> выигрывает гонку · +{finish.bonus} очков
           </p>
         )}
         <RaceLanes leaderboard={session.leaderboard} buzz={buzz ?? EMPTY_BUZZ} target={target} />

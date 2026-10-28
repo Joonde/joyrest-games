@@ -7539,6 +7539,85 @@ ul.chips {
   font-weight: 500;
 }
 
+/* Догадка сняла сама: песня ещё не звучала. */
+.lotto-hint.is-fixed {
+  border-color: var(--color-danger, var(--color-highlight));
+  border-style: dashed;
+  font-weight: 500;
+}
+
+/* Отметка «карандашом»: название ещё не открыто — пунктир и «?», в «Лото!» не считается. */
+.lotto-card__cell.is-pencil {
+  position: relative;
+  border-style: dashed;
+  border-width: 2px;
+  border-color: var(--color-highlight);
+}
+
+.lotto-card__cell.is-pencil::after {
+  content: "?";
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-text);
+}
+
+/* Песня уже открыта, а клетка не отмечена — тонкий пунктир, чтобы не пропустить. */
+.lotto-card__cell.is-missed {
+  border-style: dashed;
+  border-color: var(--color-highlight);
+}
+
+/* Номер бочонка открытой песни — штамп в углу клетки. */
+.lotto-card__cell {
+  position: relative;
+}
+
+.lotto-card__num {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+.lotto-ticket .lotto-card__num {
+  top: 0.3cqw;
+  left: 0.8cqw;
+  font-size: max(10px, 2.2cqw);
+  color: var(--lotto-ink-soft);
+}
+
+.lotto-ticket .lotto-card__cell.is-marked .lotto-card__num {
+  color: var(--lotto-mark-ink);
+}
+
+.lotto-ticket .lotto-card__cell.is-pencil {
+  border-color: var(--lotto-mark);
+}
+
+.lotto-ticket .lotto-card__cell.is-pencil::after {
+  top: 0.3cqw;
+  right: 0.8cqw;
+  font-size: max(11px, 2.4cqw);
+  color: var(--lotto-ink);
+}
+
+.lotto-ticket .lotto-card__cell.is-missed {
+  border-color: var(--lotto-mark);
+}
+
+.lotto-phone__pencil {
+  margin: 0;
+  text-align: center;
+}
+
 .lotto-card__title {
   font-weight: 600;
   display: -webkit-box;

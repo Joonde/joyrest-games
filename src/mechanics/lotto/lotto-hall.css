@@ -500,8 +500,11 @@
 }
 
 .lh-track__sub {
-  margin: calc(0.6 * var(--u)) 0 0;
+  margin: calc(0.6 * var(--u)) auto 0;
+  max-width: calc(48 * var(--u));
   font-size: calc(1.45 * var(--u));
+  line-height: 1.3;
+  text-wrap: balance;
   color: var(--lh-soft);
 }
 
@@ -769,6 +772,9 @@
 
 .lh-video__s {
   margin: calc(0.2 * var(--u)) 0 0;
+  max-width: calc(62 * var(--u));
+  line-height: 1.3;
+  text-wrap: balance;
   font-size: calc(1.4 * var(--u));
   color: var(--lh-soft);
 }

@@ -3,7 +3,7 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Session } from "../../data/types";
 import { CARD_STYLES, CARD_STYLE_TITLES, cardCells, cellFit, createLotto, parseLotto, parseSongList, type LottoContent } from "./content";
 import { DEMO_LOTTO } from "./demo";
-import { cardFor, cardLines, hushSong, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
+import { canLastCall, cardFor, cardLines, hushSong, lastCall, revealedUpTo, splitMarks, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
 import { DRUM_MS, hasLyrics, lyricIndex, lyricsFromText, parseLrc, parseLyrics, songLength, toLrc } from "./content";
 import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
@@ -528,5 +528,105 @@ describe("караоке: доля спетой строки", () => {
     expect(lineProgress(times, 1, 12)).toBe(1);
     expect(lineProgress(times, 3, 22)).toBe(0.5);
     expect(lineProgress(times, 9, 22)).toBe(0);
+  });
+});
+
+describe("отметки после ответа и «Последний шанс» (28 октября 2026)", () => {
+  const c = game({ songs: songs(9) });
+  const base: Session = {
+    id: "s",
+    code: "123456",
+    hostId: "h",
+    gameId: "g",
+    gameTitle: "",
+    mechanic: "lotto",
+    gameSnapshot: null,
+    themeId: "joyrest",
+    playMode: "solo",
+    screenMode: "laptop",
+    state: { ...startState(), phase: "playing" },
+    leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } },
+    createdAt: 0,
+  };
+
+  it("открытые названия: пока песня звучит — без неё, на названии, в «Последний шанс» и на награждении — с ней", () => {
+    let s = applyChange(base, playSong(base), 1);
+    expect([...revealedUpTo(c, s.state)]).toEqual([]);
+    s = applyChange(s, revealSong(s, c, [], []), 2);
+    expect([...revealedUpTo(c, s.state)]).toEqual(["s0"]);
+    s = applyChange(s, nextSong(s), 3);
+    expect([...revealedUpTo(c, s.state)]).toEqual(["s0"]);
+    expect([...revealedUpTo(c, { ...s.state, stage: "ready" })]).toEqual([]);
+  });
+
+  it("догадка — пока название не открыто; открылось — верная настоящая, неверная — к снятию", () => {
+    const revealed = new Set(["s0", "s3"]);
+    expect(splitMarks(["s3", "s5", "s0"], revealed)).toEqual({ confirmed: ["s3", "s0"], pencil: ["s5"] });
+    // «Лото!» по настоящим отметкам: догадка линию не собирает.
+    const card = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"];
+    expect(isWin(card, new Set(splitMarks(["s0", "s1", "s2"], new Set(["s0", "s1"])).confirmed), 3, "row")).toBe(false);
+    expect(isWin(card, new Set(splitMarks(["s0", "s1", "s2"], new Set(["s0", "s1", "s2"])).confirmed), 3, "row")).toBe(true);
+  });
+
+  it("«Последний шанс» — только на названии последней песни и один раз; песня не перезапускается", () => {
+    let s = applyChange(base, playSong(base), 1);
+    for (let k = 0; k < 8; k++) {
+      expect(canLastCall(s, c)).toBe(false);
+      s = applyChange(s, revealSong(s, c, [], []), 2);
+      expect(canLastCall(s, c)).toBe(false);
+      s = applyChange(s, nextSong(s), 3);
+    }
+    s = applyChange(s, revealSong(s, c, [claim(8, "a", 4)], []), 4);
+    expect(s.leaderboard.a?.score).toBe(300);
+    expect(canLastCall(s, c)).toBe(true);
+    const startedAt = s.state.startedAt;
+    s = applyChange(s, lastCall(s), 5);
+    expect(s.state.stage).toBe("question");
+    expect(s.state.startedAt).toBe(startedAt);
+    expect(parseLottoResult(s.state.result).call).toBe(1);
+    expect(canLastCall(s, c)).toBe(false);
+    // Название остаётся открытым — гости отмечают по нему.
+    expect(revealedUpTo(c, s.state).has(c.songs[8]!.id)).toBe(true);
+    // Боря собрал после названия: засчитан вторым, Аня остаётся с первым призом.
+    s = applyChange(s, revealSong(s, c, [claim(8, "a", 4), claim(8, "b", 9)], []), 6);
+    expect(s.leaderboard.a?.score).toBe(300);
+    expect(s.leaderboard.b?.score).toBe(200);
+    const r = parseLottoResult(s.state.result);
+    expect(r.winners).toEqual(["a", "b"]);
+    expect(r.last).toEqual(["b"]);
+    expect(r.wins.find((w) => w.step === 8)?.prizes).toEqual({ a: 300, b: 200 });
+    expect(canLastCall(s, c)).toBe(false);
+    // «Назад» с названия после шанса снимает обе победы этой песни.
+    const back = lottoBack(s);
+    if (!back) throw new Error("нет шага назад");
+    const undone = applyChange(s, back.change, 7);
+    expect(undone.leaderboard.a?.score).toBe(0);
+    expect(undone.leaderboard.b?.score).toBe(0);
+    expect(parseLottoResult(undone.state.result).winners).toEqual([]);
+  });
+
+  it("«Назад» из «Последнего шанса» — снова название, победители и очки на месте", () => {
+    let s = applyChange(base, playSong(base), 1);
+    for (let k = 0; k < 8; k++) {
+      s = applyChange(s, revealSong(s, c, [], []), 2);
+      s = applyChange(s, nextSong(s), 3);
+    }
+    s = applyChange(s, revealSong(s, c, [claim(8, "a", 4)], []), 4);
+    s = applyChange(s, lastCall(s), 5);
+    const back = lottoBack(s);
+    if (!back) throw new Error("нет шага назад");
+    expect(back.clearAnswers).toBeUndefined();
+    const again = applyChange(s, back.change, 6);
+    expect(again.state.stage).toBe("reveal");
+    expect(again.leaderboard.a?.score).toBe(300);
+    expect(parseLottoResult(again.state.result)).toMatchObject({ winners: ["a"], last: ["a"], call: 0 });
+    expect(canLastCall(again, c)).toBe(true);
+  });
+
+  it("новая песня сбрасывает «Последний шанс»; старые итоги без поля — 0", () => {
+    expect(parseLottoResult({}).call).toBe(0);
+    expect(parseLottoResult({ call: -2 }).call).toBe(0);
+    const s = applyChange(base, playSong(base), 1);
+    expect(parseLottoResult(applyChange(s, nextSong(s), 2).state.result).call).toBe(0);
   });
 });

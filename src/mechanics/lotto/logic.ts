@@ -118,6 +118,29 @@ export function playedUpTo(content: LottoContent, step: number, order?: number[]
   );
 }
 
+/**
+ * Песни, название которых уже открыто: до прошлой песни, а на показе названия, в «Последний шанс» и на
+ * награждении — и текущая. Пока песня звучит, её название ещё не открыто — отметка на неё только догадка.
+ */
+export function revealedUpTo(content: LottoContent, state: { stage: string; step: number; result: unknown }): Set<string> {
+  const result = parseLottoResult(state.result);
+  const order = orderOf(content, result.order);
+  if (state.stage === "ready") return new Set();
+  const open = state.stage !== "question" || result.call > 0;
+  return playedUpTo(content, open ? state.step : state.step - 1, order);
+}
+
+/**
+ * Отметки гостя: подтверждённые — песня уже открыта, «карандаш» — догадка (песня ещё не открыта).
+ * С подсказкой «Лото!» считается только по подтверждённым, и на показе названия догадки снимаются.
+ */
+export function splitMarks(marks: string[], revealed: Set<string>): { confirmed: string[]; pencil: string[] } {
+  const confirmed: string[] = [];
+  const pencil: string[] = [];
+  for (const id of marks) (revealed.has(id) ? confirmed : pencil).push(id);
+  return { confirmed, pencil };
+}
+
 /** Номера (1…N) песен, прозвучавших до шага `upTo` включительно — для табло экрана зала. */
 export function playedNumbers(order: number[], upTo: number): number[] {
   return order.slice(0, Math.max(0, upTo + 1)).map((i) => i + 1);
@@ -142,6 +165,11 @@ export interface LottoResult {
   hush: number;
   /** Текст песни на экране: по настройке песни, или ведущий включил / убрал его кнопкой. */
   lyrics: LyricsMode;
+  /**
+   * «Последний шанс «Лото!»» после названия последней песни: 0 — нет, больше — ведущий снова открыл приём
+   * заявок по этой песне (название уже показано, песня не перезапускается).
+   */
+  call: number;
   /**
    * Победы по песням: номер шага и приз каждого победителя. «Назад» через несколько песен снимает ровно эти очки и
    * победы (по `last` в таблице нельзя — следующий показ его обнуляет). Нет у сессий, начатых до этого поля.
@@ -205,6 +233,7 @@ export function parseLottoResult(raw: unknown): LottoResult {
     order: Array.isArray(r.order) ? r.order.filter((i): i is number => typeof i === "number" && Number.isInteger(i) && i >= 0).slice(0, LOTTO_LIMITS.songs) : [],
     hush: typeof r.hush === "number" && Number.isInteger(r.hush) ? r.hush : 0,
     lyrics: r.lyrics === "on" || r.lyrics === "off" ? r.lyrics : "auto",
+    call: typeof r.call === "number" && Number.isInteger(r.call) && r.call > 0 ? r.call : 0,
   };
 }
 
@@ -262,7 +291,7 @@ function carryWinners(session: Session): Pick<LottoResult, "winners" | "wins" | 
 }
 
 /** Новая песня: заявок, повторов, «стоп» и ручного текста ещё нет. */
-const FRESH = { last: [], rejected: [], replay: 0, video: VIDEO_START, hush: 0, lyrics: "auto" as LyricsMode };
+const FRESH = { last: [], rejected: [], replay: 0, video: VIDEO_START, hush: 0, lyrics: "auto" as LyricsMode, call: 0 };
 
 /**
  * Включить первую песню: заявки принимаются, пока она звучит, и до показа названия. С барабаном порядок
@@ -335,11 +364,36 @@ export function revealSong(session: Session, content: LottoContent, answers: Ans
         order: prior.order,
         hush: prior.hush,
         lyrics: prior.lyrics,
-        wins: [...prior.wins.filter((w) => w.step !== session.state.step), ...(deltas.length > 0 ? [{ step: session.state.step, prizes: Object.fromEntries(won) }] : [])],
+        call: prior.call,
+        // После «Последнего шанса» победители первого показа этой песни остаются в её победах.
+        wins: mergeWins(prior.wins, session.state.step, Object.fromEntries(won)),
       },
     },
     leaderboard,
   };
+}
+
+function mergeWins(wins: LottoWin[], step: number, prizes: Record<string, number>): LottoWin[] {
+  const before = wins.find((w) => w.step === step)?.prizes ?? {};
+  const all = { ...before, ...prizes };
+  const rest = wins.filter((w) => w.step !== step);
+  return Object.keys(all).length > 0 ? [...rest, { step, prizes: all }] : rest;
+}
+
+/** Кнопка «Последний шанс «Лото!»»: название последней песни показано, шанса ещё не было. */
+export function canLastCall(session: Session, content: LottoContent): boolean {
+  const { stage, step, phase } = session.state;
+  return phase === "playing" && stage === "reveal" && step === content.songs.length - 1 && parseLottoResult(session.state.result).call === 0;
+}
+
+/**
+ * «Последний шанс»: после названия последней песни снова принимаем «Лото!» по этой же песне — гости, которые
+ * собрали карточку, когда название уже открылось, успевают нажать. Название остаётся на экране, песня не
+ * перезапускается (время начала то же), прежние победители и их очки остаются.
+ */
+export function lastCall(session: Session): SessionChange {
+  const result = parseLottoResult(session.state.result);
+  return { state: { stage: "question", revealed: false, answered: 0, result: { ...result, last: [], rejected: [], call: result.call + 1 } } };
 }
 
 /** Следующая песня — сразу звучит (пауза между песнями — показ названия). */
@@ -383,6 +437,12 @@ export function lottoBack(session: Session): LottoBack | null {
     const winners = result.winners.filter((pid) => !lost.includes(pid));
     const wins = result.wins.filter((w) => w.step !== step);
     return { change: { state: { stage: "question", revealed: false, result: { winners, last: [], rejected: [], replay: result.replay, video: result.video, wins, order: result.order, hush: result.hush, lyrics: result.lyrics } }, leaderboard } };
+  }
+  if (stage === "question" && parseLottoResult(session.state.result).call > 0) {
+    // «Последний шанс» закрываем без проверки: снова название песни, как было (её победители остаются).
+    const result = parseLottoResult(session.state.result);
+    const win = result.wins.find((w) => w.step === step);
+    return { change: { state: { stage: "reveal", revealed: true, result: { ...result, call: 0, last: win ? Object.keys(win.prizes) : [] } } } };
   }
   if (stage === "question") {
     if (step === 0) {

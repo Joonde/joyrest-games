@@ -267,7 +267,7 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
   }, [next, track, inDrum]);
 
   // Фанфары победителям (не при открытии экрана).
-  const winKey = stage === "reveal" && result.last.length > 0 ? `win:${step}` : "";
+  const winKey = stage === "reveal" && result.last.length > 0 ? `win:${step}:${result.call}` : "";
   const [heard, setHeard] = useState(winKey);
   useEffect(() => {
     if (winKey && winKey !== heard) playSound("fanfare");
@@ -277,8 +277,10 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
   // Караоке: текст по настройке песни или кнопкой пульта; время — по реальной позиции трека.
   const lyricsPossible = !!song && !!track && hasLyrics(song) && playing && !inDrum && result.lyrics !== "off";
   const t = useTrackTime(lyricsPossible);
+  // Название открыто: показ названия или «Последний шанс».
+  const opened = stage === "reveal" || (stage === "question" && result.call > 0);
   const lyricsOn =
-    lyricsPossible && t !== null && (result.lyrics === "on" || (song?.lyricsShow === "reveal" ? stage === "reveal" : t >= (song?.lyricsAt ?? 0) - 0.5));
+    lyricsPossible && t !== null && (result.lyrics === "on" || (song?.lyricsShow === "reveal" ? opened : t >= (song?.lyricsAt ?? 0) - 0.5));
 
   const playedBefore = playedNumbers(order, step - 1);
   const playedNow = playedNumbers(order, step);
@@ -307,10 +309,21 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
     );
   }
 
-  const revealed = stage === "reveal";
+  // «Последний шанс»: название уже открыто, снова принимаем «Лото!».
+  const lastCall = stage === "question" && result.call > 0;
+  const revealed = stage === "reveal" || lastCall;
   const counter = `${playedNow.length} из ${total} сыграно`;
-  const hint = revealed ? "Собрали линию? Жмите «Лото!» на телефоне" : "Есть на карточке? Отметьте её на телефоне";
-  const title = revealed ? "Правильный ответ" : withVideo && content.videoHide ? "Угадайте на слух" : "Угадайте песню";
+  const hint = lastCall
+    ? "Собрали карточку? Жмите «Лото!» на телефоне"
+    : revealed
+      ? content.hint
+        ? "Песня подсветилась на карточке? Отметьте · собрали — «Лото!»"
+        : "Есть на карточке? Отметьте · собрали — «Лото!»"
+      : content.hint
+        ? "Узнали песню? Отметьте — после ответа проверим"
+        : "Узнали песню с карточки? Отметьте её";
+  const title = lastCall ? "Последний шанс «Лото!»" : revealed ? "Правильный ответ" : withVideo && content.videoHide ? "Угадайте на слух" : "Угадайте песню";
+  const guessLine = "Угадайте песню! Как только ведущий откроет ответ, правильное название появится на экране";
   const upcoming = revealed ? next : undefined;
   const warm = upcoming?.video.source === "link" && upcoming.video.url ? <WarmVideo key={upcoming.id} url={upcoming.video.url} /> : null;
   const last = [...playedNow].reverse().slice(0, 5);
@@ -348,7 +361,7 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
             {revealed ? <Winners session={session} result={result} /> : (
               <div className="lh-video__cap">
                 <p className="lh-video__t">Звучит песня № {number}</p>
-                <p className="lh-video__s">Название откроется после ответа</p>
+                <p className="lh-video__s">Угадайте! Ведущий откроет ответ — название появится на экране</p>
               </div>
             )}
           </div>
@@ -366,7 +379,7 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
             ) : (
               <div className="lh-track__now">
                 <p className="lh-track__title">Звучит песня № {number}</p>
-                <p className="lh-track__sub">{track ? "Название откроется после ответа" : "Песню включает ведущий"}</p>
+                <p className="lh-track__sub">{track ? guessLine : `Песню включает ведущий. ${guessLine}`}</p>
               </div>
             )}
             {revealed && <Winners session={session} result={result} />}

@@ -6,6 +6,8 @@
 //     шага — что сохранилось на сервере. Раскладка: прокрутка вбок, мелкие кнопки.
 //  2. Игра на 24 песни (быстрый барабан): экран зала 1280×720 и 1920×1080, пульт и телефон гостя — барабан, табло, номер,
 //     страница песни, «Показать название», текст на экране и кнопки пульта, «Остановить песню», «Следующая», «Назад»,
+//     карточка гостя: догадки «карандашом», автоснятие неверных, номер бочонка после ответа, заявка после названия,
+//     «Последний шанс «Лото!»»,
 //     перезагрузка экрана посреди барабана, телефон «Крутим барабан…» и «Бочонок №».
 //  3. Табло на 60 и 100 песен: все номера в табло, клетки не наезжают и не выходят за табло.
 //  4. Видео-зона: «Прятать картинку до названия», маленькая пластинка, плашка ответа. Без «играет после ответа» — кнопки
@@ -547,6 +549,115 @@ async function videoZone(browser, host, track) {
   await screen.context().close();
 }
 
+// ---------------------------------------------------------------- 5. карточка гостя: догадки и «Последний шанс»
+
+async function cardFlow(browser, host) {
+  say("— 5. Карточка гостя: догадки, проверка после ответа, заявка после названия, «Последний шанс» —");
+  // 9 песен, карточка 3×3 — у каждого все 9 песен (в своём порядке), победа — ряд.
+  const content = contentOf(songsOf(9, null, { lyrics: [], times: [] }), { drum: "quick", rule: "row", cardStyle: "classic", playAfter: false });
+  const game = await createSession(host, `Лото карточка ${MARK}`, content);
+  const pult = await open(browser, "Пульт", PHONE, host.token);
+  await pult.goto(`${BASE}/host/${game.code}`);
+  await pult.getByRole("button", { name: "Начать игру" }).waitFor({ timeout: WAIT });
+  const screen = await open(browser, "Экран зала", TV);
+  await screen.goto(`${BASE}/screen/${game.code}`);
+  await screen.getByText("Присоединяйтесь к игре").waitFor({ timeout: WAIT });
+  const guests = [];
+  for (const name of ["Аня", "Боря"]) {
+    const g = await open(browser, `Гость ${name}`);
+    await g.goto(`${BASE}/play/${game.code}`);
+    await g.getByLabel("Имя", { exact: true }).fill(name);
+    await click(g, "Играть");
+    await until(async () => (await pult.locator("main").textContent())?.includes(name), WAIT, `${name} на пульте`);
+    guests.push(g);
+  }
+  const [anna, borya] = guests;
+  await click(pult, "Начать игру");
+  await screen.getByText("Откройте карточки").waitFor({ timeout: WAIT });
+  await screen.mouse.click(640, 360);
+  const cell = (p, n) => p.locator(".lotto-card__cell").filter({ hasText: new RegExp(`Песня номер ${n}(?!\\d)`) });
+  const has = async (loc, cls) => ((await loc.getAttribute("class")) ?? "").split(/\s+/).includes(cls);
+  const status = async (p) => (await p.locator(".quiz-phone__status").textContent()) ?? "";
+  const lotto = (p) => p.getByRole("button", { name: "Лото!", exact: true });
+  let annaQueued = 0;
+  let annaWon = false;
+
+  for (let k = 1; k <= 9; k++) {
+    await click(pult, k === 1 ? "🎰 Крутить барабан — первая песня" : "🎰 Крутить барабан — следующая песня");
+    await screen.locator(".lh-drum").waitFor({ timeout: WAIT });
+    const number = await until(async () => /№ (\d+) ·/.exec((await pult.locator("main").textContent()) ?? "")?.[1] ?? null, WAIT, "номер на пульте");
+    await screen.locator(".lh-song").waitFor({ timeout: 25_000 });
+    // Отложенная заявка Ани ушла с этим барабаном — на пульте видна сразу.
+    if (annaQueued && k === annaQueued + 1)
+      check(await soft(async () => ((await pult.locator(".open-answers").textContent()) ?? "").includes("Аня"), WAIT, ""), "Заявка Ани, собранная после названия, ушла ведущему с новой песней", "Заявка Ани после названия не пришла на пульт");
+    if (k === 1) {
+      check(((await screen.locator(".lh-track__sub").textContent()) ?? "").includes("Угадайте песню! Как только ведущий откроет ответ"), "Экран: «Угадайте песню! Как только ведущий откроет ответ, правильное название появится на экране»", "Экран: нет подписи про угадывание");
+      await hallLayout(screen, "Экран: угадайте песню");
+      check(((await anna.locator(".lotto-hint").textContent()) ?? "").includes("Угадайте песню на слух"), "Телефон: «Угадайте песню на слух…»", "Телефон: нет подсказки про угадывание");
+      check((await anna.locator(".lotto-card__cell.is-now").count()) === 0, "Телефон: пока песня звучит, ничего не светится", "Телефон: клетка светится до ответа — выдаёт песню");
+      check((await anna.locator(".lotto-card__num").count()) === 0, "Телефон: до ответа номеров на карточке нет", "Телефон: номер на карточке до ответа");
+      // Аня угадывает: одна догадка неверная, одна — верная.
+      const wrong = number === "1" ? "2" : "1";
+      await cell(anna, wrong).click();
+      await cell(anna, number).click();
+      check((await anna.locator(".lotto-card__cell.is-pencil").count()) === 2, "Отметки до ответа — «карандашом» (пунктир и «?»)", "Отметки до ответа не «карандашом»");
+      check((await anna.getByText("«?» — ваша догадка", { exact: false }).count()) === 1, "Под карточкой — ««?» — ваша догадка…»", "Нет пояснения про «?»");
+      await shot(anna, "карточка-догадки");
+      await click(pult, "Показать название");
+      await screen.locator(".lh-track__answer").waitFor({ timeout: WAIT });
+      check(
+        await soft(async () => ((await anna.locator(".lotto-hint.is-fixed").textContent()) ?? "").includes(`«Песня номер ${wrong}» ещё не звучала`), WAIT, ""),
+        "После названия неверная догадка снята сама: «… ещё не звучала — отметку сняли»",
+        "Неверная догадка не снята или нет сообщения",
+      );
+      check(!(await has(cell(anna, wrong), "is-pencil")) && !(await has(cell(anna, wrong), "is-marked")), "Неверная клетка снова пустая", "Неверная клетка осталась отмеченной");
+      check((await has(cell(anna, number), "is-marked")) && ((await cell(anna, number).textContent()) ?? "").includes(`№ ${number}`), `Верная догадка стала отметкой, в углу «№ ${number}»`, "Верная догадка не стала отметкой или нет номера");
+      check((await has(cell(borya, number), "is-now")) && ((await cell(borya, number).textContent()) ?? "").includes(`№ ${number}`), "У Бори песня подсветилась с номером бочонка", "У Бори нет подсветки или номера после названия");
+      check(((await borya.locator(".lotto-hint").first().textContent()) ?? "").includes("Эта песня у вас есть"), "Телефон: «Эта песня у вас есть! Нажмите на светящуюся клетку»", "Нет «Эта песня у вас есть!»");
+      await shot(anna, "карточка-после-ответа");
+      await phoneLayout(anna, "Телефон: карточка после ответа");
+    } else {
+      if (!(await lotto(borya).isDisabled())) bad(`Песня ${k}: у Бори без отметок «Лото!» загорелся`);
+      await click(pult, "Показать название");
+      await screen.locator(".lh-track__answer").waitFor({ timeout: WAIT });
+      // Аня отмечает подсветившуюся песню.
+      await until(async () => (await anna.locator(".lotto-card__cell.is-now").count()) === 1, WAIT, `песня ${k} светится у Ани`);
+      if (!annaWon) await anna.locator(".lotto-card__cell.is-now").click();
+    }
+    if (annaQueued && k === annaQueued + 1) {
+      annaWon = await soft(async () => /Вы выиграли|ЛОТО! Верно!/.test(await status(anna)), WAIT, "");
+      check(annaWon, "Заявка Ани после названия засчитана на следующей песне", `Заявка Ани не засчитана — «${await status(anna)}»`);
+    }
+    // Ряд у Ани собрался на названии — «Лото!» загорается, заявка ждёт следующей песни.
+    if (!annaQueued && k < 9 && (await soft(async () => !(await lotto(anna).isDisabled()), 1500, ""))) {
+      await lotto(anna).click();
+      annaQueued = k;
+      check(await soft(async () => (await status(anna)).includes("Заявка принята — уйдёт ведущему"), WAIT, ""), "Собрали на названии — «Заявка принята — уйдёт ведущему, как только закрутится следующий барабан»", `Нет статуса отложенной заявки — «${await status(anna)}»`);
+    }
+  }
+  if (!annaQueued) note("Ряд у Ани собрался только на последней песне — отложенная заявка проверена «Последним шансом»");
+
+  // Последняя песня: Боря отмечает всё после названия.
+  check((await borya.locator(".lotto-card__cell.is-missed").count()) === 8, "Сыгранные неотмеченные клетки — в пунктире (8 + светящаяся)", `Пунктир у ${await borya.locator(".lotto-card__cell.is-missed").count()} клеток, ждали 8`);
+  check((await borya.locator(".lotto-card__num").count()) === 9, "На всех сыгранных клетках — номер бочонка", "Не на всех сыгранных клетках номер");
+  for (let n = 1; n <= 9; n++) await cell(borya, String(n)).click();
+  await until(async () => !(await lotto(borya).isDisabled()), WAIT, "«Лото!» у Бори");
+  await lotto(borya).click();
+  check(await soft(async () => (await status(borya)).includes("Последний шанс"), WAIT, ""), "Последняя песня: «Заявка ждёт — скажите ведущему «Лото!»: он откроет «Последний шанс»»", `Нет статуса — «${await status(borya)}»`);
+  await click(pult, "🙋 Последний шанс «Лото!»");
+  check(await soft(async () => ((await screen.locator(".lh-head__title").textContent()) ?? "").includes("Последний шанс"), WAIT, ""), "Экран: «Последний шанс «Лото!»», название песни остаётся", "Экран: нет «Последний шанс»");
+  check((await screen.locator(".lh-track__answer").count()) === 1, "Экран: в «Последний шанс» название на месте", "Экран: название пропало в «Последний шанс»");
+  await hallLayout(screen, "Экран: последний шанс");
+  await shot(screen, "экран-последний-шанс");
+  check(await soft(async () => ((await pult.locator(".open-answers").textContent()) ?? "").includes("Боря"), WAIT, ""), "Заявка Бори ушла сама, как только открылся «Последний шанс»", "Заявка Бори не пришла на пульт");
+  await click(pult, "Проверить «Лото!» и закрыть приём");
+  check(await soft(async () => /Вы выиграли|ЛОТО! Верно!/.test(await status(borya)), WAIT, ""), "«Проверить» — Боря выиграл", `Боря не выиграл — «${await status(borya)}»`);
+  check((await pult.getByRole("button", { name: "🙋 Последний шанс «Лото!»" }).count()) === 0, "Второго «Последнего шанса» нет", "«Последний шанс» можно открыть ещё раз");
+  await phoneLayout(pult, "Пульт: после последнего шанса");
+  await shot(pult, "пульт-последний-шанс");
+  for (const p of [pult, screen, anna, borya]) await p.context().close();
+}
+
 // ---------------------------------------------------------------- запуск
 
 async function main() {
@@ -570,6 +681,7 @@ async function main() {
     ["игра на 24 песни", () => game24(browser, host, trackId)],
     ["табло 60 и 100", () => bigBoards(browser, host, trackId)],
     ["видео-зона", () => videoZone(browser, host, trackId)],
+    ["карточка гостя", () => cardFlow(browser, host)],
   ];
   for (const [name, run] of parts) {
     try {

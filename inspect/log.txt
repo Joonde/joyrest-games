@@ -1,9 +1,7 @@
-✓ lotto-0-solo-projector: видов 30, находок 0
-✓ lotto-0-solo-tv: видов 30, находок 0
+✓ lotto-0-solo-projector: видов 20, находок 0
+✓ lotto-0-solo-tv: видов 20, находок 0
+✓ lotto-0-teams-tv: видов 30, находок 0
 ✓ lotto-0-solo-laptop: видов 32, находок 0
-✓ lotto-0-teams-projector: видов 22, находок 0
-✓ lotto-0-teams-tv: видов 22, находок 0
-✓ lotto-0-solo-crowd: видов 30, находок 0
-✓ lotto-0-teams-laptop: видов 34, находок 0
-✓ lotto-0-teams-crowd: видов 32, находок 0
+✓ lotto-0-teams-projector: видов 30, находок 0
+✓ lotto-0-teams-laptop: видов 26, находок 0
 Ревизор: 0 находок → /tmp/inspect/README.md

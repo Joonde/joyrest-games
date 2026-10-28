@@ -2,12 +2,18 @@
  "runs": [
   {
    "name": "lotto-0-solo-projector",
-   "views": 30,
+   "views": 20,
    "findings": 0,
    "finished": true
   },
   {
    "name": "lotto-0-solo-tv",
+   "views": 20,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-tv",
    "views": 30,
    "findings": 0,
    "finished": true
@@ -20,31 +26,13 @@
   },
   {
    "name": "lotto-0-teams-projector",
-   "views": 22,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "lotto-0-teams-tv",
-   "views": 22,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "lotto-0-solo-crowd",
    "views": 30,
    "findings": 0,
    "finished": true
   },
   {
    "name": "lotto-0-teams-laptop",
-   "views": 34,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "lotto-0-teams-crowd",
-   "views": 32,
+   "views": 26,
    "findings": 0,
    "finished": true
   }

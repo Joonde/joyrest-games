@@ -495,9 +495,10 @@ async function bigBoards(browser, host, track) {
     const game = await createSession(host, `Лото ${n} ${MARK}`, contentOf(songsOf(n, track), { drum: "full", size: 5 }));
     const pult = await open(browser, `Пульт ${n}`, PHONE, host.token);
     await pult.goto(`${BASE}/host/${game.code}`);
-    const screen = await open(browser, `Экран ${n}`, TV_HD);
+    // «Уменьшить движение»: барабан без 3D (в CI 3D рисует процессор — два экрана не успевают за 13 с), табло то же.
+    const screen = await open(browser, `Экран ${n}`, { ...TV_HD, reducedMotion: "reduce" });
     await screen.goto(`${BASE}/screen/${game.code}`);
-    const small = await open(browser, `Экран ${n} 1280`, TV);
+    const small = await open(browser, `Экран ${n} 1280`, { ...TV, reducedMotion: "reduce" });
     await small.goto(`${BASE}/screen/${game.code}`);
     await click(pult, "Начать игру");
     await screen.getByText("Откройте карточки").waitFor({ timeout: WAIT });
@@ -507,6 +508,7 @@ async function bigBoards(browser, host, track) {
     await boardLayout(screen, n, `Табло ${n} (1920×1080)`);
     await boardLayout(small, n, `Табло ${n} (1280×720)`);
     await hallLayout(screen, `Экран ${n}: барабан`);
+    check((await screen.locator(".lh-drum__plain").count()) === 1, `Экран ${n}: «уменьшить движение» — барабан без 3D, «Крутим барабан…»`);
     await shot(screen, `экран-табло-${n}`);
     await shot(small, `экран-табло-${n}-1280`);
     await small.context().close();

@@ -3,7 +3,7 @@
   {
    "name": "lotto-0-solo-projector",
    "views": 30,
-   "findings": 8,
+   "findings": 0,
    "finished": true
   },
   {
@@ -15,19 +15,19 @@
   {
    "name": "lotto-0-solo-laptop",
    "views": 32,
-   "findings": 3,
-   "finished": true
-  },
-  {
-   "name": "lotto-0-teams-tv",
-   "views": 22,
    "findings": 0,
    "finished": true
   },
   {
    "name": "lotto-0-teams-projector",
    "views": 22,
-   "findings": 8,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-tv",
+   "views": 22,
+   "findings": 0,
    "finished": true
   },
   {
@@ -39,7 +39,7 @@
   {
    "name": "lotto-0-teams-laptop",
    "views": 34,
-   "findings": 3,
+   "findings": 0,
    "finished": true
   },
   {
@@ -49,156 +49,5 @@
    "finished": true
   }
  ],
- "findings": [
-  {
-   "key": "экран зала|мелко для зала|div.lh-frame > div.lh-head > div > p.lh-head__eb|",
-   "area": "экран зала",
-   "kind": "мелко для зала",
-   "message": "шрифт 11.1 px — 16 px на Full HD (нужно от 18)",
-   "path": "div.lh-frame > div.lh-head > div > p.lh-head__eb",
-   "text": "JoyRest · Музыкальное лото",
-   "at": "playing/0/question/",
-   "count": 2,
-   "shot": "shots/lotto-0-solo-projector-hall-1.jpg",
-   "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "lotto"
-   ]
-  },
-  {
-   "key": "экран зала|мелко для зала|div.lh-frame > aside.lh-board > div.lh-board__head > p.lh-board__title|",
-   "area": "экран зала",
-   "kind": "мелко для зала",
-   "message": "шрифт 10.6 px — 15 px на Full HD (нужно от 18)",
-   "path": "div.lh-frame > aside.lh-board > div.lh-board__head > p.lh-board__title",
-   "text": "Табло",
-   "at": "playing/0/question/",
-   "count": 5,
-   "shot": "shots/lotto-0-solo-projector-hall-2.jpg",
-   "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "lotto"
-   ]
-  },
-  {
-   "key": "экран зала|мелко для зала|div.lh-frame > aside.lh-board > div.lh-board__head > p.lh-board__count|",
-   "area": "экран зала",
-   "kind": "мелко для зала",
-   "message": "шрифт 11.8 px — 17 px на Full HD (нужно от 18)",
-   "path": "div.lh-frame > aside.lh-board > div.lh-board__head > p.lh-board__count",
-   "text": "из 28 сыграно",
-   "at": "playing/0/question/",
-   "count": 2,
-   "shot": "shots/lotto-0-solo-projector-hall-3.jpg",
-   "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "lotto"
-   ]
-  },
-  {
-   "key": "экран зала|мелко для зала|div.lh > div.lh-frame > aside.lh-board > p.lh-board__last|",
-   "area": "экран зала",
-   "kind": "мелко для зала",
-   "message": "шрифт 10.6 px — 15 px на Full HD (нужно от 18)",
-   "path": "div.lh > div.lh-frame > aside.lh-board > p.lh-board__last",
-   "text": "Последние",
-   "at": "playing/0/question/",
-   "count": 5,
-   "shot": "shots/lotto-0-solo-projector-hall-4.jpg",
-   "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "lotto"
-   ]
-  },
-  {
-   "key": "экран зала|мелко для зала|div.lh-frame.lh-song > div.lh-head > div > p.lh-head__eb|",
-   "area": "экран зала",
-   "kind": "мелко для зала",
-   "message": "шрифт 11.1 px — 16 px на Full HD (нужно от 18)",
-   "path": "div.lh-frame.lh-song > div.lh-head > div > p.lh-head__eb",
-   "text": "JoyRest · Музыкальное лото",
-   "at": "playing/0/reveal/",
-   "count": 3,
-   "shot": "shots/lotto-0-solo-projector-hall-5.jpg",
-   "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "lotto"
-   ]
-  },
-  {
-   "key": "экран зала|мелко для зала|main.quiz-stage.show-stage > div.lh > div.lh-frame.lh-song > p.lh-count|",
-   "area": "экран зала",
-   "kind": "мелко для зала",
-   "message": "шрифт 11.8 px — 17 px на Full HD (нужно от 18)",
-   "path": "main.quiz-stage.show-stage > div.lh > div.lh-frame.lh-song > p.lh-count",
-   "text": "1 из 28 сыграно",
-   "at": "playing/0/reveal/",
-   "count": 3,
-   "shot": "shots/lotto-0-solo-projector-hall-6.jpg",
-   "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "lotto"
-   ]
-  },
-  {
-   "key": "экран зала|мелко для зала|div.lh-frame.lh-song > div.lh-track > div.lh-track__answer > p.lh-track__k|",
-   "area": "экран зала",
-   "kind": "мелко для зала",
-   "message": "шрифт 11.8 px — 17 px на Full HD (нужно от 18)",
-   "path": "div.lh-frame.lh-song > div.lh-track > div.lh-track__answer > p.lh-track__k",
-   "text": "Это была песня № 24",
-   "at": "playing/0/reveal/",
-   "count": 3,
-   "shot": "shots/lotto-0-solo-projector-hall-7.jpg",
-   "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "lotto"
-   ]
-  },
-  {
-   "key": "экран зала|мелко для зала|main.quiz-stage.show-stage > div.lh > div.lh-frame.lh-song > p.lh-last|",
-   "area": "экран зала",
-   "kind": "мелко для зала",
-   "message": "шрифт 10.6 px — 15 px на Full HD (нужно от 18)",
-   "path": "main.quiz-stage.show-stage > div.lh > div.lh-frame.lh-song > p.lh-last",
-   "text": "Последние",
-   "at": "playing/0/reveal/",
-   "count": 6,
-   "shot": "shots/lotto-0-solo-projector-hall-8.jpg",
-   "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "lotto"
-   ]
-  }
- ]
+ "findings": []
 }

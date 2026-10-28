@@ -48,6 +48,7 @@ jobs:
           E2E_BASE: https://test.games.joy-rest.ru
           E2E_SHOTS: /tmp/e2e/shots
           LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOTTO_PARTS: ${{ contains(github.event.head_commit.message, '[cards]') && 'cards' || '' }}
           LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
       - name: Снимки в ветку e2e-shots
         if: always()

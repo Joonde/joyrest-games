@@ -323,7 +323,7 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
         </p>
       )}
       <LottoTicket style={content.cardStyle} rule={content.rule} size={content.size}>
-        <div className="lotto-card" style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }} role="group" aria-label="Ваша карточка">
+        <div className={guided ? "lotto-card lotto-card--strip" : "lotto-card"} style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }} role="group" aria-label="Ваша карточка">
           {card.map((id, i) => {
             const open = revealed.has(id);
             const on = marked.has(id) && (!guided || open);

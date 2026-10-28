@@ -7618,6 +7618,16 @@ ul.chips {
   text-align: center;
 }
 
+/* С подсказкой у каждой клетки сверху своя полоска под номер бочонка и «?»: они не наезжают на название
+   (5×5 на маленьком телефоне — клетка ~44 px, номер в углу ложился на первую строку). */
+.lotto-card--strip .lotto-card__cell {
+  padding-top: 17px;
+}
+
+.lotto-ticket .lotto-card--strip .lotto-card__cell {
+  padding-top: calc(0.6cqw + max(11px, 2.4cqw));
+}
+
 .lotto-card__title {
   font-weight: 600;
   display: -webkit-box;

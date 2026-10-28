@@ -667,6 +667,113 @@ async function cardFlow(browser, host) {
   for (const p of [pult, screen, anna, borya]) await p.context().close();
 }
 
+// ---------------------------------------------------------------- 6. карточки «Вечер» и «День»: 3×3, 4×4, 5×5
+
+// Придуманные названия разной длины (как у настоящих песен): короткие, длинные слова, по 4–6 слов.
+const TITLES = [
+  "Ночной экспресс", "Танцуем до рассвета", "Звёздный вальс над крышами", "Шоколадное сердце", "Ты — моё лето",
+  "Электричка в никуда", "Мандариновый Новый год", "Позвони мне, позвони", "Белые розы на снегу", "Сумасшедшая любовь",
+  "Капитан моей мечты", "Ла-ла-ла", "Неоновые огни большого города", "Медленный танец", "Привет, суперзвезда",
+  "Дискотека девяностых", "Самая-самая", "Километры до тебя", "Лимонадное настроение", "Полёт над облаками",
+  "Город, где мы были счастливы", "Зажигай!", "Карамельная осень", "Бесконечный припев", "Морской бриз",
+  "Танцпол зовёт", "Одна на миллион", "Вечеринка у бассейна", "Дорогами любви", "Солнечный зайчик",
+  "Мы будем вместе навсегда", "Огни Москвы", "Радио-хит недели", "Колыбельная для взрослых", "Последний трамвай",
+  "Синяя птица удачи", "Всё будет хорошо", "Мой рок-н-ролл", "Сладкий сон", "Под небом Парижа",
+  "Обними меня крепче", "Звонок из прошлого", "Летний ливень", "Миллион алых роз на подоконнике", "Красивая жизнь",
+  "Ветер перемен", "Лучший день", "Праздник к нам приходит", "Фейерверк желаний", "Спасибо, музыка",
+];
+
+async function cardLayout(page) {
+  return page.evaluate(() => {
+    const out = { overlap: [], clipped: [], outside: [], small: [] };
+    const box = (el) => el?.getBoundingClientRect();
+    const hit = (a, b) => a && b && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+    for (const cell of document.querySelectorAll(".lotto-card__cell")) {
+      const c = box(cell);
+      const title = cell.querySelector(".lotto-card__title");
+      const artist = cell.querySelector(".lotto-card__artist");
+      const num = cell.querySelector(".lotto-card__num");
+      const name = title?.textContent?.trim() ?? "?";
+      const t = box(title);
+      if (num && (hit(box(num), t) || hit(box(num), box(artist)))) out.overlap.push(`№ на «${name}»`);
+      // «?» и ♪ — в правом верхнем углу, высотой как полоска: название ниже неё.
+      const pad = parseFloat(getComputedStyle(cell).paddingTop);
+      if (t && cell.matches(".is-pencil") && t.top < c.top + pad - 1) out.overlap.push(`«?» на «${name}»`);
+      for (const [el, what] of [[title, "название"], [artist, "исполнитель"]]) {
+        const r = box(el);
+        if (!r || r.width === 0) continue;
+        if (r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5) out.outside.push(`${what} «${name}»`);
+      }
+      if (title && title.scrollHeight > title.clientHeight + 2) out.clipped.push(`«${name}»`);
+      if (title && parseFloat(getComputedStyle(title).fontSize) < 11.5) out.small.push(`«${name}» ${getComputedStyle(title).fontSize}`);
+    }
+    const ticket = box(document.querySelector(".lotto-ticket") ?? document.querySelector(".lotto-card"));
+    const claim = box(document.querySelector(".lotto-phone__claim"));
+    const wide = document.documentElement.scrollWidth > window.innerWidth + 1;
+    // Карточка и «Лото!» вместе — помещаются ли на экран телефона, если прокрутить к карточке.
+    const fit = ticket && claim ? Math.round(claim.bottom - ticket.top) : 0;
+    return { ...out, wide, fit, screen: window.innerHeight, cellW: Math.round(box(document.querySelector(".lotto-card__cell"))?.width ?? 0) };
+  });
+}
+
+async function cardsGallery(browser, host) {
+  say("— 6. Карточки «Вечер» и «День»: 3×3, 4×4, 5×5 на маленьком и обычном телефоне —");
+  const PHONES = [
+    ["360", { ...PHONE, viewport: { width: 360, height: 740 } }],
+    ["412", { ...PHONE, viewport: { width: 412, height: 915 } }],
+  ];
+  for (const style of ["evening", "day"]) {
+    for (const size of [3, 4, 5]) {
+      const label = `${style === "evening" ? "Вечер" : "День"} ${size}×${size}`;
+      const count = size * size * 2;
+      const songs = songsOf(count, null, { lyrics: [], times: [], length: null }).map((s, i) => ({ ...s, title: TITLES[i % TITLES.length], artist: `Исполнитель ${i + 1}` }));
+      const game = await createSession(host, `Лото карточки ${MARK}`, contentOf(songs, { drum: "quick", rule: "line", size, cardStyle: style, playAfter: false }));
+      const pult = await open(browser, "Пульт", PHONE, host.token);
+      await pult.goto(`${BASE}/host/${game.code}`);
+      await pult.getByRole("button", { name: "Начать игру" }).waitFor({ timeout: WAIT });
+      const phones = [];
+      for (const [w, options] of PHONES) {
+        const g = await open(browser, `Гость ${w}`, options);
+        await g.goto(`${BASE}/play/${game.code}`);
+        await g.getByLabel("Имя", { exact: true }).fill(`Гость ${w}`);
+        await click(g, "Играть");
+        await until(async () => (await pult.locator("main").textContent())?.includes(`Гость ${w}`), WAIT, `гость ${w} на пульте`);
+        phones.push([w, g]);
+      }
+      await click(pult, "Начать игру");
+      const audit = async (moment) => {
+        for (const [w, g] of phones) {
+          await g.locator(".lotto-ticket").first().scrollIntoViewIfNeeded().catch(() => undefined);
+          const r = await cardLayout(g);
+          const where = `${label}, ${w} px, ${moment}`;
+          check(r.overlap.length === 0, `${where}: номер и «?» не наезжают на текст`, `${where}: наезжает — ${r.overlap.slice(0, 4).join("; ")}`);
+          check(r.outside.length === 0, `${where}: текст внутри клеток`, `${where}: за краем клетки — ${r.outside.slice(0, 4).join("; ")}`);
+          check(r.clipped.length === 0, `${where}: названия не обрезаны`, `${where}: обрезано — ${r.clipped.slice(0, 4).join("; ")}`);
+          check(r.small.length === 0, `${where}: шрифт названий не мельче 12 px`, `${where}: мелко — ${r.small.slice(0, 3).join("; ")}`);
+          check(!r.wide, `${where}: нет прокрутки вбок`, `${where}: страница шире экрана`);
+          note(`${where}: клетка ${r.cellW} px; карточка с «Лото!» — ${r.fit} px из ${r.screen}${r.fit > r.screen ? " (не влезает целиком)" : ""}`);
+          await shot(g, `карточка-${style}-${size}-${w}-${moment}`);
+        }
+      };
+      for (let k = 0; k < 4; k++) {
+        await click(pult, k === 0 ? "🎰 Крутить барабан — первая песня" : "🎰 Крутить барабан — следующая песня");
+        await until(async () => !((await phones[0][1].locator(".lotto-phone .eyebrow").first().textContent()) ?? "").includes("Крутим барабан"), 25_000, "барабан докрутился");
+        if (k === 0) {
+          // Догадки «карандашом» — две первые клетки у каждого.
+          for (const [, g] of phones) for (const i of [0, 1]) await g.locator(".lotto-card__cell").nth(i).click({ force: true });
+          await audit("догадки");
+        }
+        await click(pult, "Показать название");
+        await until(async () => (await phones[0][1].locator(".lotto-hint").count()) > 0, WAIT, "подсказка после названия");
+        for (const [, g] of phones) if ((await g.locator(".lotto-card__cell.is-now").count()) > 0 && k % 2 === 0) await g.locator(".lotto-card__cell.is-now").click({ force: true });
+        if (k === 0) await audit("ответ");
+      }
+      await audit("4-песни");
+      for (const p of [pult, ...phones.map(([, g]) => g)]) await p.context().close();
+    }
+  }
+}
+
 // ---------------------------------------------------------------- запуск
 
 async function main() {
@@ -685,13 +792,16 @@ async function main() {
   ok("Трек для проверки загружен");
 
   const browser = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required", "--use-gl=angle", "--use-angle=swiftshader", "--ignore-gpu-blocklist"] });
-  const parts = [
+  const all = [
     ["конструктор", () => editor(browser, host, trackId)],
     ["игра на 24 песни", () => game24(browser, host, trackId)],
     ["табло 60 и 100", () => bigBoards(browser, host, trackId)],
     ["видео-зона", () => videoZone(browser, host, trackId)],
     ["карточка гостя", () => cardFlow(browser, host)],
+    ["карточки вечер и день", () => cardsGallery(browser, host)],
   ];
+  // Коммит с [cards] — только карточки (быстро, ~6 минут).
+  const parts = process.env.LOTTO_PARTS === "cards" ? all.filter(([name]) => name === "карточки вечер и день") : all;
   for (const [name, run] of parts) {
     try {
       await run();

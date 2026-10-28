@@ -622,7 +622,8 @@ async function cardFlow(browser, host) {
       await screen.locator(".lh-track__answer").waitFor({ timeout: WAIT });
       // Аня отмечает подсветившуюся песню.
       await until(async () => (await anna.locator(".lotto-card__cell.is-now").count()) === 1, WAIT, `песня ${k} светится у Ани`);
-      if (!annaWon) await anna.locator(".lotto-card__cell.is-now").click();
+      // Светящаяся клетка пульсирует (scale) — Playwright ждал бы, пока она «замрёт»; человеку это не мешает.
+      if (!annaWon) await anna.locator(".lotto-card__cell.is-now").click({ force: true });
     }
     if (annaQueued && k === annaQueued + 1) {
       annaWon = await soft(async () => /Вы выиграли|ЛОТО! Верно!/.test(await status(anna)), WAIT, "");
@@ -640,7 +641,7 @@ async function cardFlow(browser, host) {
   // Последняя песня: Боря отмечает всё после названия.
   check((await borya.locator(".lotto-card__cell.is-missed").count()) === 8, "Сыгранные неотмеченные клетки — в пунктире (8 + светящаяся)", `Пунктир у ${await borya.locator(".lotto-card__cell.is-missed").count()} клеток, ждали 8`);
   check((await borya.locator(".lotto-card__num").count()) === 9, "На всех сыгранных клетках — номер бочонка", "Не на всех сыгранных клетках номер");
-  for (let n = 1; n <= 9; n++) await cell(borya, String(n)).click();
+  for (let n = 1; n <= 9; n++) await cell(borya, String(n)).click({ force: true });
   await until(async () => !(await lotto(borya).isDisabled()), WAIT, "«Лото!» у Бори");
   await lotto(borya).click();
   check(await soft(async () => (await status(borya)).includes("Последний шанс"), WAIT, ""), "Последняя песня: «Заявка ждёт — скажите ведущему «Лото!»: он откроет «Последний шанс»»", `Нет статуса — «${await status(borya)}»`);

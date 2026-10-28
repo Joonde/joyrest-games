@@ -12,7 +12,7 @@ import { useServerNow } from "../../components/live/useServerNow";
 import { clock } from "../../data";
 import type { Session } from "../../data/types";
 import { StageVideo, WarmVideo } from "../stage/video";
-import { AFTER_VOLUME, DRUM_MS, hasLyrics, hasVideo, songLength, type LottoContent, type LottoSong } from "./content";
+import { AFTER_VOLUME, DRUM_MS, hasLyrics, hasVideo, songLength, type LottoContent } from "./content";
 import { KaraokeLines } from "./karaoke";
 import { orderOf, parseLottoResult, playedNumbers, songAt, songIndexAt, type LottoResult } from "./logic";
 import "./lotto-hall.css";

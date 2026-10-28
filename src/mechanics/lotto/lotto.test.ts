@@ -69,7 +69,7 @@ describe("содержимое лото", () => {
   it("проверка: песен на карточку, названия, повторы", () => {
     expect(validateLotto(game({ songs: songs(8) }))[0]?.message).toMatch(/хотя бы 9 песен/);
     expect(validateLotto(game())).toEqual([]);
-    const dup = game({ songs: [...songs(9), { id: "x", title: "Песня 1", artist: "", trackId: null, trackStart: 0, video: NO_VIDEO, videoStart: 0 }] });
+    const dup = game({ songs: [...songs(9), { ...songs(1)[0]!, id: "x", title: "Песня 1" }] });
     expect(validateLotto(dup).some((e) => e.path === "songs/x/title")).toBe(true);
     expect(validateLotto(parseLotto(DEMO_LOTTO.content))).toEqual([]);
   });

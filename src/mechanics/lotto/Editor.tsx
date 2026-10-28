@@ -6,7 +6,8 @@ import { saveLocalVideo } from "../../components/media/localVideo";
 import { TrackPicker } from "../../components/music/TrackPicker";
 import type { VideoSource } from "../dance/content";
 import type { EditorProps } from "../types";
-import { badVideoLink, CARD_STYLE_HINTS, CARD_STYLE_TITLES, CARD_STYLES, cardCells, hasVideo, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, WIN_RULES, type LottoContent, type LottoSong, type WinRule } from "./content";
+import { badVideoLink, CARD_STYLE_HINTS, CARD_STYLE_TITLES, CARD_STYLES, cardCells, DRUM_HINTS, DRUM_MODES, DRUM_TITLES, hasLyrics, hasVideo, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, WIN_RULES, type LottoContent, type LottoSong, type WinRule } from "./content";
+import { SongTrackTools } from "./SongTools";
 import { validateLotto } from "./validate";
 import { ClampedNumber } from "../../components/ClampedNumber";
 
@@ -155,7 +156,29 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
           <input type="checkbox" checked={content.hint} disabled={!editable} onChange={(e) => set({ hint: e.target.checked })} />
           <span className="choice__text">
             <span className="choice__title">Подсказывать гостям песню на карточке</span>
-            <span className="choice__hint">Звучит песня, которая есть у гостя, — её клетка светится и на телефоне «Эта песня у вас есть!». Выключите для игры на знатоков.</span>
+            <span className="choice__hint">Ведущий показал название — песня светится у тех, у кого она есть, с номером бочонка; отметки наугад, которые не совпали, снимаются сами, «Лото!» — только по прозвучавшим песням. Выключите для игры на знатоков.</span>
+          </span>
+        </label>
+        <fieldset disabled={!editable}>
+          <legend>Барабан перед песней</legend>
+          {DRUM_MODES.map((mode) => (
+            <label key={mode} className="choice">
+              <input type="radio" name="lotto-drum" checked={content.drum === mode} onChange={() => set({ drum: mode })} />
+              <span className="choice__text">
+                <span className="choice__title">{DRUM_TITLES[mode]}</span>
+                <span className="choice__hint">{DRUM_HINTS[mode]}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <label className="choice">
+          <input type="checkbox" checked={content.playAfter} disabled={!editable} onChange={(e) => set({ playAfter: e.target.checked })} />
+          <span className="choice__text">
+            <span className="choice__title">Песня играет и после правильного ответа</span>
+            <span className="choice__hint">
+              Название на экране, а песня звучит дальше — тише, на 60%, до конца отрывка: зал допевает. Без галочки на «Показать название» музыка плавно
+              затихает. Ведущий может остановить песню с пульта.
+            </span>
           </span>
         </label>
         <fieldset disabled={!editable}>
@@ -180,7 +203,8 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
       <section className="card">
         <h2>Песни · {content.songs.length}</h2>
         <p className="muted">
-          На карточке {cardCells(content)} песен из списка, у каждого гостя — своя. Звучат по порядку списка. Трек можно выбрать из своей или общей
+          На карточке {cardCells(content)} песен из списка, у каждого гостя — своя.{" "}
+          {content.drum === "off" ? "Звучат по порядку списка." : "С барабаном звучат в случайном порядке: номер бочонка — номер песни в этом списке."} Трек можно выбрать из своей или общей
           музыки — тогда песня играет на экране зала; без трека ведущий включает её сам. К песне можно добавить видео — клип или караоке:
           ссылкой на YouTube, VK Видео или Rutube или файлом на устройстве экрана зала (на сервер видео не загружается).
         </p>
@@ -244,6 +268,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                       {song.artist ? <span className="muted"> — {song.artist}</span> : null}
                       {song.trackId ? " ♪" : ""}
                       {hasVideo(song) ? " ▶" : ""}
+                      {hasLyrics(song) && !hasVideo(song) ? " 🎤" : ""}
                     </span>
                   </button>
                 </div>
@@ -276,6 +301,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                         })
                       }
                     />
+                    {!hasVideo(song) && <SongTrackTools song={song} content={content} editable={editable} onChange={(patch) => setSong(song.id, patch)} />}
                     <SongVideo song={song} editable={editable} onChange={(patch) => setSong(song.id, patch)} />
                     {editable && (
                       <button type="button" className="btn btn--quiet btn--block" onClick={() => removeSong(song)}>

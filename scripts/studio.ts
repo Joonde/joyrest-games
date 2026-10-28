@@ -15,7 +15,7 @@ import { validateContent } from "../src/mechanics/quiz/validate";
 import { DEMO_LOTTO } from "../src/mechanics/lotto/demo";
 import { parseLotto } from "../src/mechanics/lotto/content";
 import { validateLotto } from "../src/mechanics/lotto/validate";
-import { cardFor, isWin, nextSong, parseLottoResult, playedUpTo, playSong, revealSong } from "../src/mechanics/lotto/logic";
+import { cardFor, isWin, nextSong, orderOf, parseLottoResult, playSong, playedUpTo, revealSong } from "../src/mechanics/lotto/logic";
 import type { Answer, Participant, Session } from "../src/data/types";
 import { DEMO_BOARD } from "../src/mechanics/board/demo";
 import { DEMO_CHECKERS } from "../src/mechanics/checkers/demo";
@@ -607,14 +607,14 @@ async function main() {
       return back.status("POST", `/api/sessions/${sid}/apply`, { ...change, expect: { phase: cur.state.phase, step: cur.state.step, stage: cur.state.stage } });
     };
     check((await act({ state: { phase: "playing", step: 0, stage: "ready", startedAt: null, revealed: false, timeLimit: null, answered: 0, result: null } })) === 200, "лото началось");
-    check((await act(playSong(await get()))) === 200, "первая песня звучит");
+    check((await act(playSong(await get(), lotto))) === 200, "первая песня звучит (барабан: случайный порядок)");
     const card = cardFor(lotto, me.uid);
     check(card.length === lotto.size * lotto.size, `у гостя карточка ${lotto.size}×${lotto.size}`);
     let won = false;
     for (let guard = 0; guard < lotto.songs.length && !won; guard++) {
       const cur = await get();
       const step = cur.state.step;
-      const played = playedUpTo(lotto, step);
+      const played = playedUpTo(lotto, step, orderOf(lotto, parseLottoResult(cur.state.result).order));
       const marks = card.filter((c) => played.has(c));
       if (isWin(card, new Set(marks), lotto.size, lotto.rule)) {
         const r = await guest.call<{ result: string }>("POST", `/api/sessions/${sid}/answers`, { step, pid: me.uid, value: { marks } });

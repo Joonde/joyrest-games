@@ -19,7 +19,44 @@ export interface LottoSong {
   video: { source: VideoSource; url: string; name: string };
   /** С какой секунды видео. */
   videoStart: number;
+  /** Сколько секунд играет эта песня: null — как у всей игры (`fragment`), 0 — до конца трека. */
+  length: number | null;
+  /** Текст песни для караоке — по строкам (ведущий вставляет сам). Пусто — текста нет. */
+  lyrics: string[];
+  /** Секунда трека, с которой звучит каждая строка (размечает ведущий). Строки дальше — без времени, на экран не идут. */
+  times: number[];
+  /** Когда показывать текст: после названия или с секунды трека `lyricsAt`. */
+  lyricsShow: LyricsShow;
+  /** Секунда трека, с которой текст на экране (при `lyricsShow = "at"`). */
+  lyricsAt: number;
 }
+
+/** Текст песни: после показа названия (угадывание не портит) или с выбранной секунды трека. */
+export type LyricsShow = "reveal" | "at";
+
+/**
+ * Барабан перед песней (решение владельца 27 октября 2026): «full» — полный (~13 с с показом номера),
+ * «quick» — быстрый (~7 с), «off» — без барабана, песни по списку (как было). С барабаном порядок песен
+ * случайный и закрепляется на игру.
+ */
+export type DrumMode = "full" | "quick" | "off";
+
+export const DRUM_MODES: DrumMode[] = ["full", "quick", "off"];
+
+export const DRUM_TITLES: Record<DrumMode, string> = {
+  full: "Барабан",
+  quick: "Быстрый барабан",
+  off: "Без барабана",
+};
+
+export const DRUM_HINTS: Record<DrumMode, string> = {
+  full: "Барабан крутится, выпадает бочонок, номер 3 секунды на экране — и звучит песня. Песни в случайном порядке. ~13 с на песню.",
+  quick: "То же, но короче — ~7 с на песню. Для больших игр на 60–100 песен.",
+  off: "Песни по порядку списка, сразу звучат — как раньше.",
+};
+
+/** Сколько длится показ барабана до музыки, мс (вместе с 3 секундами номера). */
+export const DRUM_MS: Record<DrumMode, number> = { full: 12900, quick: 7200, off: 0 };
 
 /** Что считается победой: линия по горизонтали, по вертикали, любая линия, две линии или вся карточка. */
 export type WinRule = "row" | "column" | "line" | "twoLines" | "full";
@@ -48,7 +85,14 @@ export interface LottoContent {
   videoHide: boolean;
   /** Подсказка гостю: звучащая песня есть на его карточке — клетка светится, «Эта песня у вас есть!». */
   hint: boolean;
+  /** Барабан перед каждой песней. Старые игры — без барабана. */
+  drum: DrumMode;
+  /** Песня играет и после показа названия — тише, на 60% (люди допевают). Выкл — на названии музыка затихает. */
+  playAfter: boolean;
 }
+
+/** Громкость песни после показа названия, если включено «играет и после ответа». */
+export const AFTER_VOLUME = 0.6;
 
 export const LOTTO_LIMITS = {
   songs: 100,
@@ -60,7 +104,23 @@ export const LOTTO_LIMITS = {
   prizes: 5,
   url: 500,
   maxVideoStart: 3600,
+  /** Своя длина песни: от minFragment до maxLength секунд (0 — до конца). */
+  maxLength: 900,
+  lyricsLines: 200,
+  lyricsLine: 120,
+  maxTrackSec: 3600,
 } as const;
+
+/** Сколько секунд играет песня (0 — до конца трека). */
+export function songLength(content: Pick<LottoContent, "fragment">, song: Pick<LottoSong, "length"> | undefined): number {
+  if (!song || song.length === null) return content.fragment;
+  return song.length;
+}
+
+/** Есть ли у песни размеченный текст (хотя бы одна строка со временем). */
+export function hasLyrics(song: Pick<LottoSong, "lyrics" | "times"> | undefined): boolean {
+  return !!song && song.lyrics.length > 0 && song.times.length > 0;
+}
 
 /** Есть ли у песни видео, которое экран может показать (ссылка — непустая). */
 export function hasVideo(song: Pick<LottoSong, "video"> | undefined): boolean {
@@ -111,11 +171,11 @@ export function newSongId(): string {
 }
 
 export function newSong(title = "", artist = ""): LottoSong {
-  return { id: newSongId(), title, artist, trackId: null, trackStart: 0, video: { source: "none", url: "", name: "" }, videoStart: 0 };
+  return { id: newSongId(), title, artist, trackId: null, trackStart: 0, video: { source: "none", url: "", name: "" }, videoStart: 0, length: null, lyrics: [], times: [], lyricsShow: "reveal", lyricsAt: 0 };
 }
 
 export function createLotto(): LottoContent {
-  return { songs: [], size: 4, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "evening", videoHide: false, hint: true };
+  return { songs: [], size: 4, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "evening", videoHide: false, hint: true, drum: "full", playAfter: false };
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -148,6 +208,10 @@ export function parseLotto(raw: unknown): LottoContent {
       trackStart: int(s.trackStart, 0, 0, 3600),
       video: parseVideo(s.video, LOTTO_LIMITS.url),
       videoStart: int(s.videoStart, 0, 0, LOTTO_LIMITS.maxVideoStart),
+      length: parseLength(s.length),
+      ...parseLyrics(s.lyrics, s.times),
+      lyricsShow: s.lyricsShow === "at" ? ("at" as const) : ("reveal" as const),
+      lyricsAt: seconds(s.lyricsAt),
     };
   });
   const size = d.size === 3 || d.size === 5 ? d.size : 4;
@@ -164,7 +228,108 @@ export function parseLotto(raw: unknown): LottoContent {
     cardStyle: d.cardStyle === "evening" || d.cardStyle === "day" ? d.cardStyle : "classic",
     videoHide: d.videoHide === true,
     hint: d.hint !== false,
+    drum: d.drum === "full" || d.drum === "quick" ? d.drum : "off",
+    playAfter: d.playAfter === true,
   };
+}
+
+/** Длина песни: null — общая, 0 — до конца, иначе от minFragment до maxLength. */
+function parseLength(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  if (value <= 0) return 0;
+  return Math.min(LOTTO_LIMITS.maxLength, Math.max(LOTTO_LIMITS.minFragment, Math.round(value)));
+}
+
+/** Секунда трека с точностью до десятых. */
+export function seconds(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return 0;
+  return Math.round(Math.min(LOTTO_LIMITS.maxTrackSec, value) * 10) / 10;
+}
+
+/** Строки текста и их время: строк не больше лимита, время не больше строк и не убывает. */
+export function parseLyrics(rawLines: unknown, rawTimes: unknown): { lyrics: string[]; times: number[] } {
+  const lyrics = (Array.isArray(rawLines) ? rawLines : [])
+    .filter((l): l is string => typeof l === "string")
+    .map((l) => text(l, LOTTO_LIMITS.lyricsLine).trim())
+    .filter(Boolean)
+    .slice(0, LOTTO_LIMITS.lyricsLines);
+  const times: number[] = [];
+  for (const t of Array.isArray(rawTimes) ? rawTimes : []) {
+    if (times.length >= lyrics.length) break;
+    if (typeof t !== "number" || !Number.isFinite(t)) break;
+    times.push(Math.max(seconds(t), times[times.length - 1] ?? 0));
+  }
+  return { lyrics, times };
+}
+
+/** Текст из поля «вставить текст» → строки (пустые строки убираются). */
+export function lyricsFromText(input: string): string[] {
+  return parseLyrics(input.split(/\r?\n/), []).lyrics;
+}
+
+/**
+ * Файл .lrc («[01:02.50] строка») → строки и время. Служебные теги ([ar:…], [ti:…], [offset:…]) пропускаются,
+ * несколько меток у строки — строка повторяется. Строк без времени нет — null (это не .lrc).
+ */
+export function parseLrc(input: string): { lyrics: string[]; times: number[] } | null {
+  const rows: Array<{ t: number; line: string }> = [];
+  let offset = 0;
+  for (const raw of input.split(/\r?\n/)) {
+    const meta = /^\s*\[offset:\s*([+-]?\d+)\s*\]/i.exec(raw);
+    if (meta) {
+      offset = Number(meta[1]) / 1000;
+      continue;
+    }
+    const tags = [...raw.matchAll(/\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g)];
+    if (tags.length === 0) continue;
+    const line = raw.replace(/\[[^\]]*\]/g, "").replace(/<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>/g, "").trim();
+    if (!line) continue;
+    for (const tag of tags) {
+      const frac = tag[3] ? Number(`0.${tag[3]}`) : 0;
+      rows.push({ t: Number(tag[1]) * 60 + Number(tag[2]) + frac - offset, line });
+    }
+  }
+  if (rows.length === 0) return null;
+  rows.sort((a, b) => a.t - b.t);
+  return parseLyrics(
+    rows.map((r) => r.line),
+    rows.map((r) => r.t),
+  );
+}
+
+/** Текст и разметка → файл .lrc (скачать и поправить в другой программе). */
+export function toLrc(song: Pick<LottoSong, "lyrics" | "times" | "title" | "artist">): string {
+  const stamp = (t: number) => {
+    const m = Math.floor(t / 60);
+    const s = t - m * 60;
+    return `${String(m).padStart(2, "0")}:${s.toFixed(2).padStart(5, "0")}`;
+  };
+  const head = [song.title ? `[ti:${song.title}]` : "", song.artist ? `[ar:${song.artist}]` : ""].filter(Boolean);
+  return [...head, ...song.lyrics.map((line, i) => (song.times[i] !== undefined ? `[${stamp(song.times[i] as number)}] ${line}` : line))].join("\n");
+}
+
+/** «1:05» / «1:05.3». */
+export function clockOf(sec: number, tenths = false): string {
+  const s = Math.max(0, sec);
+  const m = Math.floor(s / 60);
+  const rest = s - m * 60;
+  const whole = tenths ? rest.toFixed(1).padStart(4, "0") : String(Math.floor(rest)).padStart(2, "0");
+  return `${m}:${whole}`;
+}
+
+/** Какая строка звучит на секунде трека `t`: номер строки или -1 (ещё рано / текста нет). */
+export function lyricIndex(times: number[], t: number): number {
+  let lo = 0;
+  let hi = times.length - 1;
+  let found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if ((times[mid] as number) <= t) {
+      found = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return found;
 }
 
 /** Сколько букв помещается в строку клетки рисованной карточки при обычном размере шрифта. */
@@ -213,6 +378,42 @@ export function cellFit(title: string, size: LottoContent["size"]): { fit: numbe
   if (withArtist !== null) return { fit: withArtist, artist: true };
   const alone = fits(FIT_LINES[size] + (size < 5 ? 1 : 0));
   return { fit: alone ?? Math.min(wordFit, MIN_WRAP_FIT), artist: false };
+}
+
+const VOWELS = "аеёиоуыэюяaeiouy";
+const SOLID = "ьъй";
+
+/**
+ * Мягкие переносы (U+00AD) по слогам в длинных словах названия: в узкой клетке (5×5 на маленьком телефоне)
+ * слово переносится «Ко-лы-бель-ная», а не рвётся посреди. Браузеры по-разному умеют переносить русские слова
+ * сами (на части устройств не умеют вовсе), поэтому места переноса ставим здесь. Простые правила слогов:
+ * гласная | согласная+гласная, согласная | согласная, после «ь», «ъ», «й»; не меньше двух букв с каждой стороны,
+ * в каждой части — гласная. Слова короче `min` букв и слова с дефисом не трогаем.
+ */
+export function softHyphens(title: string, min = 7): string {
+  return title.replace(/[А-Яа-яЁёA-Za-z]+/g, (word) => {
+    if (word.length < min) return word;
+    const lower = word.toLowerCase();
+    const vowel = (i: number) => VOWELS.includes(lower[i] ?? "");
+    const hasVowel = (from: number, to: number) => [...lower.slice(from, to)].some((ch) => VOWELS.includes(ch));
+    let out = "";
+    let last = 0;
+    for (let i = 2; i <= word.length - 2; i += 1) {
+      const prev = lower[i - 1] ?? "";
+      const cur = lower[i] ?? "";
+      if (SOLID.includes(cur)) continue;
+      let ok = false;
+      if (vowel(i - 1) && !vowel(i) && vowel(i + 1)) ok = true; // ко|лы
+      else if (!vowel(i - 1) && !vowel(i) && !SOLID.includes(prev) && hasVowel(last, i - 1) && hasVowel(i, word.length)) ok = !SOLID.includes(lower[i + 1] ?? "") || false; // бел|ка
+      else if (SOLID.includes(prev) && !vowel(i)) ok = true; // бель|ная, май|ка
+      else if (vowel(i - 1) && vowel(i)) ok = true; // по|эт
+      if (ok && hasVowel(last, i) && hasVowel(i, word.length) && i - last >= 2) {
+        out += word.slice(last, i) + "\u00ad";
+        last = i;
+      }
+    }
+    return out + word.slice(last);
+  });
 }
 
 /** Сколько песен нужно на карточку. */

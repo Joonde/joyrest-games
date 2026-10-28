@@ -1,0 +1,908 @@
+/* Музыкальное лото — экран зала (27 октября 2026, макеты «Музлото — табло и видео»). Кадр 16:9 по центру, размеры —
+   в --u (1% ширины кадра). Свои тёплые цвета (--lh-*): кадр всегда тёмный, как сцена, в любой теме. Анимации — только
+   transform и opacity; при «уменьшить движение» всё стоит. */
+
+.lh {
+  --u: min(1cqw, 1.7778cqh);
+  --lh-ink: #fbf6f1;
+  --lh-soft: #b5aba2;
+  --lh-gold: #e3c68c;
+  --lh-gold-hi: #f3dfae;
+  --lh-sage: #a3c2aa;
+  --lh-rose: #c49e96;
+  --lh-coral: #e3aa9c;
+  --lh-dark: #221e1b;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--lh-ink);
+  font-family: "Jost", sans-serif;
+}
+
+.lh--empty {
+  font-size: calc(3 * var(--u));
+}
+
+.lh-frame {
+  position: relative;
+  width: calc(100 * var(--u));
+  height: calc(56.25 * var(--u));
+  overflow: hidden;
+  background: radial-gradient(ellipse 70% 75% at 50% 42%, #4a3628 0%, #2a1f18 45%, #130f0c 100%);
+}
+
+/* ----- знак JR ----- */
+.lh-mono {
+  display: block;
+  color: var(--lh-gold);
+  line-height: 0;
+}
+
+.lh-mono .logo {
+  width: 100%;
+  height: 100%;
+  color: inherit;
+}
+
+/* ----- шапка ----- */
+.lh-head {
+  position: absolute;
+  left: calc(3.4 * var(--u));
+  top: calc(2.9 * var(--u));
+  display: flex;
+  align-items: center;
+  gap: calc(1.2 * var(--u));
+  z-index: 3;
+}
+
+.lh-head__mono {
+  width: calc(5 * var(--u));
+  color: var(--lh-gold-hi);
+}
+
+.lh-head__eb {
+  margin: 0;
+  font-size: calc(1.35 * var(--u));
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--lh-soft);
+}
+
+.lh-head__title {
+  margin: calc(0.3 * var(--u)) 0 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(3.1 * var(--u));
+  line-height: 1.05;
+  color: var(--lh-ink);
+}
+
+.lh-count {
+  position: absolute;
+  right: calc(3.75 * var(--u));
+  top: calc(3.4 * var(--u));
+  margin: 0;
+  font-size: calc(1.4 * var(--u));
+  color: var(--lh-soft);
+  z-index: 3;
+}
+
+/* ----- табло ----- */
+.lh-board {
+  position: absolute;
+  left: calc(64.4 * var(--u));
+  top: calc(7.8 * var(--u));
+  width: calc(31.9 * var(--u));
+  height: calc(42 * var(--u));
+  box-sizing: border-box;
+  padding: calc(1.56 * var(--u)) calc(1.67 * var(--u)) calc(1.4 * var(--u));
+  border-radius: calc(1.46 * var(--u));
+  background: linear-gradient(180deg, rgba(42, 31, 24, 0.86), rgba(26, 20, 16, 0.92));
+  box-shadow:
+    inset 0 0 0 calc(0.08 * var(--u)) rgba(227, 198, 140, 0.3),
+    0 calc(1.5 * var(--u)) calc(4 * var(--u)) rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  z-index: 3;
+}
+
+.lh-board__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.lh-board__title {
+  display: flex;
+  align-items: center;
+  gap: calc(0.6 * var(--u));
+  margin: 0;
+  font-size: calc(1.35 * var(--u));
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--lh-gold);
+}
+
+.lh-board__mono {
+  width: calc(1.8 * var(--u));
+}
+
+.lh-board__count {
+  margin: 0;
+  font-size: calc(1.35 * var(--u));
+  color: var(--lh-soft);
+}
+
+.lh-board__count b {
+  margin-right: calc(0.2 * var(--u));
+  font-family: "Cormorant Garamond", serif;
+  font-size: calc(2.1 * var(--u));
+  color: var(--lh-ink);
+}
+
+.lh-board__bar {
+  height: calc(0.32 * var(--u));
+  margin: calc(0.6 * var(--u)) 0 calc(1.1 * var(--u));
+  border-radius: 99px;
+  background: rgba(227, 198, 140, 0.16);
+  overflow: hidden;
+}
+
+.lh-board__bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--lh-gold), var(--lh-sage));
+}
+
+.lh-board__last,
+.lh-last {
+  display: flex;
+  align-items: center;
+  gap: calc(0.62 * var(--u));
+  margin: 0 0 calc(1 * var(--u));
+  font-size: calc(1.35 * var(--u));
+  color: var(--lh-soft);
+  min-height: calc(3 * var(--u));
+}
+
+.lh-board__last b,
+.lh-last b {
+  width: calc(2.9 * var(--u));
+  height: calc(2.9 * var(--u));
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(1.5 * var(--u));
+  color: var(--lh-dark);
+  background: radial-gradient(circle at 40% 35%, #f7ebcb, var(--lh-gold) 60%, #c0975a);
+  opacity: 0.74;
+}
+
+.lh-board__last b.is-new,
+.lh-last b.is-new {
+  opacity: 1;
+  box-shadow:
+    0 0 0 calc(0.12 * var(--u)) var(--lh-ink),
+    0 0 calc(1 * var(--u)) calc(0.2 * var(--u)) rgba(243, 223, 174, 0.55);
+}
+
+.lh-board__grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+  container-type: size;
+  align-items: center;
+  justify-items: center;
+}
+
+.lh-board__grid i {
+  --d: min(calc(84cqw / var(--cols)), calc(84cqh / var(--rows)));
+  width: var(--d);
+  height: var(--d);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(var(--d) * 0.52);
+  line-height: 1;
+  color: rgba(251, 246, 241, 0.4);
+  box-shadow: inset 0 0 0 calc(0.08 * var(--u)) rgba(181, 171, 162, 0.28);
+}
+
+.lh-board__grid i.is-on {
+  color: var(--lh-dark);
+  background: radial-gradient(circle at 40% 35%, var(--lh-gold-hi), var(--lh-gold) 60%, #b8904d);
+  box-shadow: none;
+}
+
+.lh-board__grid i.is-now {
+  color: var(--lh-dark);
+  background: radial-gradient(circle at 40% 35%, #fff6dd, var(--lh-gold-hi) 55%, var(--lh-coral));
+  box-shadow:
+    0 0 0 calc(0.16 * var(--u)) var(--lh-ink),
+    0 0 calc(1.2 * var(--u)) calc(0.3 * var(--u)) rgba(243, 223, 174, 0.7);
+  animation: lh-now 0.6s ease-out;
+}
+
+@keyframes lh-now {
+  from {
+    transform: scale(1.5);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.lh-board__wm {
+  position: absolute;
+  right: calc(1.35 * var(--u));
+  bottom: calc(1.1 * var(--u));
+  width: calc(3.3 * var(--u));
+  opacity: 0.22;
+}
+
+/* ----- барабан ----- */
+.lh-drum {
+  position: absolute;
+  inset: 0;
+}
+
+.lh-drum__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.lh-drum__dim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 33% 50%, rgba(18, 14, 11, 0.55), rgba(18, 14, 11, 0.92));
+}
+
+.lh-drum__flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 33% 50%, rgba(255, 240, 205, 0.95), rgba(255, 220, 160, 0) 55%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.lh-drum__plain {
+  position: absolute;
+  left: 0;
+  width: calc(65 * var(--u));
+  top: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  font-family: "Cormorant Garamond", serif;
+  font-size: calc(4 * var(--u));
+  color: var(--lh-gold-hi);
+}
+
+/* Номер — по центру барабана (он сдвинут влево под табло). */
+.lh-drum__reveal {
+  position: absolute;
+  left: calc(12.8 * var(--u));
+  width: calc(40 * var(--u));
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform-origin: 50% 50%;
+  z-index: 2;
+}
+
+.lh-drum__ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(33 * var(--u));
+  height: calc(33 * var(--u));
+  transform: translate(-50%, -50%);
+}
+
+.lh-drum__mono {
+  width: calc(3.2 * var(--u));
+  margin-bottom: calc(0.7 * var(--u));
+  color: var(--lh-gold-hi);
+}
+
+.lh-drum__lbl {
+  margin: 0;
+  padding-left: 0.42em;
+  font-size: calc(1.35 * var(--u));
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--lh-gold);
+}
+
+.lh-drum__num {
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(20 * var(--u));
+  line-height: 0.95;
+  color: var(--lh-ink);
+  text-shadow:
+    0 0 calc(1.5 * var(--u)) rgba(243, 223, 174, 0.75),
+    0 0 calc(4.7 * var(--u)) rgba(227, 198, 140, 0.55),
+    0 0 calc(9 * var(--u)) rgba(196, 158, 150, 0.35);
+}
+
+.lh-drum__hold {
+  position: absolute;
+  top: calc(50% + 18 * var(--u));
+  margin: 0;
+  font-size: calc(1.45 * var(--u));
+  font-weight: 500;
+  color: var(--lh-gold-hi);
+}
+
+/* ----- страница песни ----- */
+.lh-song {
+  background: radial-gradient(ellipse 80% 80% at 50% 42%, #3a2a20 0%, #1e1713 55%, #110d0a 100%);
+}
+
+.lh-rays {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: calc(140 * var(--u));
+  height: calc(140 * var(--u));
+  margin: calc(-70 * var(--u)) 0 0 calc(-70 * var(--u));
+  background: repeating-conic-gradient(from 0deg, rgba(227, 198, 140, 0.055) 0deg 5deg, rgba(227, 198, 140, 0) 5deg 15deg);
+  animation: lh-turn 60s linear infinite;
+}
+
+@keyframes lh-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lh-vinyl {
+  position: absolute;
+  left: 50%;
+  top: calc(9 * var(--u));
+  width: calc(27 * var(--u));
+  height: calc(27 * var(--u));
+  margin-left: calc(-13.5 * var(--u));
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, #15100d 0 0.16%, #231b16 0.16% 0.32%);
+  box-shadow:
+    0 calc(1.5 * var(--u)) calc(4 * var(--u)) rgba(0, 0, 0, 0.7),
+    0 0 0 calc(0.3 * var(--u)) rgba(227, 198, 140, 0.28),
+    0 0 calc(4 * var(--u)) calc(0.5 * var(--u)) rgba(227, 198, 140, 0.18);
+  transition:
+    transform 0.6s ease,
+    top 0.6s ease;
+  z-index: 2;
+}
+
+.lh-vinyl__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0) 0deg,
+    rgba(255, 240, 210, 0.16) 30deg,
+    rgba(255, 255, 255, 0) 70deg,
+    rgba(255, 255, 255, 0) 180deg,
+    rgba(255, 240, 210, 0.12) 210deg,
+    rgba(255, 255, 255, 0) 250deg
+  );
+}
+
+.lh-vinyl.is-spin .lh-vinyl__sheen {
+  animation: lh-turn 2.4s linear infinite;
+}
+
+.lh-vinyl__label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 41%;
+  height: 41%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--lh-gold-hi), var(--lh-gold) 55%, #b8904d);
+  box-shadow: inset 0 0 0 calc(0.3 * var(--u)) rgba(122, 84, 38, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  container-type: inline-size;
+}
+
+.lh-vinyl__mono {
+  width: 18cqw;
+  color: #5a3d1e;
+  margin-bottom: 2cqw;
+}
+
+.lh-vinyl__l {
+  font-size: 8cqw;
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  padding-left: 0.35em;
+  text-transform: uppercase;
+  color: #5a3d1e;
+}
+
+.lh-vinyl__n {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 44cqw;
+  line-height: 1;
+  color: var(--lh-dark);
+}
+
+.lh-vinyl--small {
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
+  margin-left: calc(-5.5 * var(--u));
+}
+
+.lh-vinyl--small .lh-vinyl__n {
+  font-size: 48cqw;
+}
+
+.lh-track__now,
+.lh-track__answer {
+  position: absolute;
+  left: calc(8 * var(--u));
+  right: calc(8 * var(--u));
+  top: calc(38.5 * var(--u));
+  text-align: center;
+  z-index: 2;
+}
+
+.lh-track__k {
+  margin: 0;
+  font-size: calc(1.4 * var(--u));
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--lh-sage);
+}
+
+.lh-track__title {
+  margin: calc(0.4 * var(--u)) 0 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(4 * var(--u));
+  line-height: 1.02;
+  text-wrap: balance;
+  color: var(--lh-ink);
+}
+
+.lh-track__answer .lh-track__title {
+  font-size: calc(4.6 * var(--u));
+}
+
+.lh-track__sub {
+  margin: calc(0.6 * var(--u)) auto 0;
+  /* Одной строкой: ниже сразу эквалайзер, вторая строка ушла бы под него. */
+  white-space: nowrap;
+  font-size: calc(1.45 * var(--u));
+  line-height: 1.3;
+  color: var(--lh-soft);
+}
+
+.lh-track__artist {
+  margin: calc(0.5 * var(--u)) 0 0;
+  font-size: calc(1.9 * var(--u));
+  font-weight: 500;
+  color: var(--lh-gold-hi);
+}
+
+.lh-song--lyrics .lh-vinyl {
+  top: calc(8.5 * var(--u));
+}
+
+.lh-karaoke {
+  --k-size: calc(4.2 * var(--u));
+  position: absolute;
+  left: calc(6 * var(--u));
+  right: calc(6 * var(--u));
+  top: calc(21.5 * var(--u));
+  z-index: 2;
+}
+
+/* ----- караоке (экран зала и проверка в конструкторе) ----- */
+.karaoke {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-size: var(--k-size, 1.6rem);
+}
+
+.karaoke__count {
+  display: flex;
+  gap: 0.6em;
+  margin: 0 0 0.3em;
+  min-height: 1em;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 0.7em;
+  color: var(--lh-gold, var(--color-highlight));
+}
+
+.karaoke__count span {
+  opacity: 0.3;
+}
+
+.karaoke__count span.is-on {
+  opacity: 1;
+  transform: scale(1.25);
+}
+
+.karaoke__count span.is-past {
+  opacity: 0.12;
+}
+
+.karaoke__now {
+  display: grid;
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  line-height: 1.12;
+  text-wrap: balance;
+  max-width: 100%;
+}
+
+.karaoke__base,
+.karaoke__fill {
+  grid-area: 1 / 1;
+}
+
+.karaoke__base {
+  color: var(--lh-ink, var(--color-text));
+}
+
+.karaoke__base--wait {
+  opacity: 0.45;
+}
+
+.karaoke__fill {
+  color: var(--lh-gold-hi, var(--color-highlight));
+  text-shadow: 0 0 0.35em rgba(243, 223, 174, 0.45);
+  clip-path: inset(0 calc((1 - var(--k, 0)) * 100%) 0 0);
+}
+
+.karaoke__next {
+  margin: 0.5em 0 0;
+  min-height: 1.2em;
+  font-size: 0.6em;
+  line-height: 1.2;
+  color: var(--lh-soft, var(--color-text-muted));
+  text-wrap: balance;
+}
+
+/* ----- эквалайзер ----- */
+.lh-eq {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: calc(0.25 * var(--u));
+  height: calc(2.9 * var(--u));
+}
+
+.lh-eq span {
+  display: block;
+  flex: 1;
+  max-width: calc(0.75 * var(--u));
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(180deg, var(--lh-gold), var(--lh-rose));
+  transform-origin: bottom;
+  animation: lh-bar 0.9s ease-in-out infinite alternate;
+}
+
+.lh-eq span:nth-child(3n) {
+  background: linear-gradient(180deg, var(--lh-sage), var(--lh-gold));
+}
+
+@keyframes lh-bar {
+  from {
+    transform: scaleY(0.12);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.lh-eq--wide {
+  position: absolute;
+  left: calc(9.4 * var(--u));
+  right: calc(9.4 * var(--u));
+  bottom: calc(7.2 * var(--u));
+  z-index: 2;
+}
+
+.lh-eq--big {
+  width: 60%;
+  height: calc(8 * var(--u));
+}
+
+/* ----- победители ----- */
+.lh-winners {
+  position: absolute;
+  right: calc(3.75 * var(--u));
+  top: calc(9 * var(--u));
+  width: calc(26 * var(--u));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(0.6 * var(--u));
+  z-index: 3;
+}
+
+.lh-winners li {
+  padding: calc(0.6 * var(--u)) calc(1.1 * var(--u));
+  border-radius: calc(0.9 * var(--u));
+  background: rgba(24, 18, 14, 0.86);
+  box-shadow: inset 0 0 0 calc(0.1 * var(--u)) rgba(163, 194, 170, 0.6);
+  font-size: calc(1.5 * var(--u));
+  font-weight: 600;
+  color: var(--lh-sage);
+}
+
+.lh-winners strong {
+  color: var(--lh-gold-hi);
+}
+
+/* ----- видео ----- */
+.lh-video__zone {
+  position: absolute;
+  left: calc(20.4 * var(--u));
+  top: calc(10.7 * var(--u));
+  width: calc(59.3 * var(--u));
+  height: calc(33.3 * var(--u));
+  border-radius: calc(1.35 * var(--u));
+  overflow: hidden;
+  background: #0c0907;
+  box-shadow:
+    0 0 0 calc(0.1 * var(--u)) rgba(227, 198, 140, 0.55),
+    0 0 0 calc(0.5 * var(--u)) rgba(227, 198, 140, 0.08),
+    0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.lh-video__zone .stage-video__frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+.lh-video__zone .stage-video__note,
+.lh-video__zone .stage-video__stopped,
+.lh-video__zone .stage-video__pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(1.2 * var(--u));
+  padding: calc(2 * var(--u));
+  text-align: center;
+  color: var(--lh-ink);
+  font-size: calc(1.6 * var(--u));
+}
+
+.lh-video__cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(1.2 * var(--u));
+  background: linear-gradient(135deg, #2a1f18, #1a1410);
+  text-align: center;
+}
+
+.lh-video__cover-t {
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(2.8 * var(--u));
+}
+
+.lh-video__cover-s {
+  margin: 0;
+  font-size: calc(1.35 * var(--u));
+  color: var(--lh-soft);
+}
+
+.lh-video__wm {
+  position: absolute;
+  right: calc(1.46 * var(--u));
+  bottom: calc(1.6 * var(--u));
+  width: calc(3.6 * var(--u));
+  color: var(--lh-ink);
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.lh-song--video .lh-vinyl {
+  top: calc(5 * var(--u));
+  z-index: 4;
+}
+
+.lh-video__cap {
+  position: absolute;
+  left: calc(20.4 * var(--u));
+  top: calc(45.2 * var(--u));
+  z-index: 3;
+}
+
+.lh-video__t {
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(2.3 * var(--u));
+}
+
+.lh-video__s {
+  margin: calc(0.2 * var(--u)) 0 0;
+  max-width: calc(62 * var(--u));
+  line-height: 1.3;
+  text-wrap: balance;
+  font-size: calc(1.4 * var(--u));
+  color: var(--lh-soft);
+}
+
+.lh-song--video .lh-winners {
+  left: calc(20.4 * var(--u));
+  right: auto;
+  top: calc(45.2 * var(--u));
+  width: auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.lh-answer {
+  position: absolute;
+  left: calc(1.46 * var(--u));
+  right: calc(1.46 * var(--u));
+  bottom: calc(1.6 * var(--u));
+  padding: calc(1.2 * var(--u)) calc(1.7 * var(--u));
+  border-radius: calc(1.15 * var(--u));
+  background: rgba(24, 18, 14, 0.88);
+  box-shadow: inset 0 0 0 calc(0.1 * var(--u)) rgba(227, 198, 140, 0.55);
+  display: flex;
+  align-items: center;
+  gap: calc(1.5 * var(--u));
+  animation: lh-up 0.5s ease-out;
+}
+
+@keyframes lh-up {
+  from {
+    opacity: 0;
+    transform: translateY(calc(2 * var(--u)));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lh-answer__num {
+  flex: none;
+  width: calc(5 * var(--u));
+  height: calc(5 * var(--u));
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(2.7 * var(--u));
+  color: var(--lh-dark);
+  background: radial-gradient(circle at 40% 35%, #fff6dd, var(--lh-gold-hi) 55%, var(--lh-gold));
+}
+
+.lh-answer__k {
+  margin: 0;
+  font-size: calc(1.35 * var(--u));
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--lh-sage);
+}
+
+.lh-answer__title {
+  margin: calc(0.2 * var(--u)) 0 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: calc(3.2 * var(--u));
+  line-height: 1.05;
+}
+
+.lh-answer__artist {
+  margin: calc(0.2 * var(--u)) 0 0;
+  font-size: calc(1.56 * var(--u));
+  font-weight: 500;
+  color: var(--lh-gold-hi);
+}
+
+.lh-answer__mono {
+  margin-left: auto;
+  width: calc(3.6 * var(--u));
+  flex: none;
+  opacity: 0.9;
+}
+
+/* ----- низ ----- */
+.lh-last {
+  position: absolute;
+  left: calc(6.5 * var(--u));
+  bottom: calc(2.9 * var(--u));
+  margin: 0;
+  z-index: 3;
+}
+
+/* Справа внизу экрана зала — кнопка звука: подсказка стоит левее неё. */
+.lh-hint {
+  position: absolute;
+  right: calc(8.5 * var(--u));
+  bottom: calc(3.6 * var(--u));
+  margin: 0;
+  font-size: calc(1.45 * var(--u));
+  font-weight: 500;
+  color: var(--lh-sage);
+  z-index: 3;
+}
+
+.lh-last__count {
+  margin-left: calc(0.8 * var(--u));
+  font-size: calc(1.4 * var(--u));
+}
+
+/* «Видео загружается…» — сверху зоны: снизу на ответе плашка с названием. */
+.lh-video__zone .stage-video__loading {
+  inset: calc(1.5 * var(--u)) auto auto calc(1.5 * var(--u));
+  margin: 0;
+  font-size: calc(1.3 * var(--u));
+  padding: calc(0.6 * var(--u)) calc(1.4 * var(--u));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lh-rays,
+  .lh-vinyl.is-spin .lh-vinyl__sheen,
+  .lh-eq span,
+  .lh-board__grid i.is-now,
+  .lh-answer {
+    animation: none;
+  }
+
+  .lh-eq span {
+    transform: scaleY(0.5);
+  }
+}

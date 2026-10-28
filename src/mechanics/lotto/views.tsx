@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { storeScope } from "../../core/program";
-import { NameText } from "../../components/NameText";
-import { preloadTrack, useFragment } from "../../components/music/useFragment";
-import { playSound } from "../../components/live/sound";
+import { preloadTrack } from "../../components/music/useFragment";
 import { placeOf } from "../../core/leaderboard";
 import { pointsLabel } from "../../core/results";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { StageVideo, WarmVideo } from "../stage/video";
-import { cardCells, cellFit, hasVideo, RULE_TITLES, type CardStyle, type LottoContent, type LottoSong } from "./content";
-import { cardFor, isWin, parseLottoResult } from "./logic";
+import { WarmVideo } from "../stage/video";
+import { cardCells, cellFit, DRUM_MS, hasVideo, RULE_TITLES, softHyphens, type CardStyle, type LottoContent, type LottoSong } from "./content";
+import { LottoHall } from "./hall";
+import { cardFor, isWin, orderOf, parseLottoResult, revealedUpTo, songIndexAt, splitMarks } from "./logic";
 
 /**
  * Рисованная карточка «Вечер» / «День»: фон-картинка 3:4, заголовок и правило сверху, сетка — в пустой
@@ -28,8 +27,17 @@ function LottoTicket({ style, rule, size, children }: { style: CardStyle; rule: 
   );
 }
 
-function cellClass(on: boolean, now = false): string {
-  return `lotto-card__cell${on ? " is-marked" : ""}${now ? " is-now" : ""}`;
+interface CellState {
+  on: boolean;
+  now?: boolean;
+  /** Отметка-догадка: название песни ещё не открыто. */
+  pencil?: boolean;
+  /** Песня уже открыта, а клетка не отмечена. */
+  missed?: boolean;
+}
+
+function cellClass({ on, now = false, pencil = false, missed = false }: CellState): string {
+  return `lotto-card__cell${on ? " is-marked" : ""}${pencil ? " is-pencil" : ""}${now ? " is-now" : ""}${missed ? " is-missed" : ""}`;
 }
 
 function CellText({ song, size, styled }: { song: LottoSong | undefined; size: LottoContent["size"]; styled: boolean }) {
@@ -39,7 +47,7 @@ function CellText({ song, size, styled }: { song: LottoSong | undefined; size: L
   return (
     <>
       <span className="lotto-card__title" style={styled ? ({ "--fit": fit.fit } as CSSProperties) : undefined}>
-        {title}
+        {softHyphens(title)}
       </span>
       {song?.artist && fit.artist && <span className="lotto-card__artist">{song.artist}</span>}
     </>
@@ -55,7 +63,7 @@ function SampleTicket({ content }: { content: LottoContent }) {
       <LottoTicket style={content.cardStyle} rule={content.rule} size={content.size}>
         <div className="lotto-card" style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }}>
           {cells.map((song, i) => (
-            <span key={song.id} className={cellClass(marked.has(i))}>
+            <span key={song.id} className={cellClass({ on: marked.has(i) })}>
               <CellText song={song} size={content.size} styled />
             </span>
           ))}
@@ -65,135 +73,34 @@ function SampleTicket({ content }: { content: LottoContent }) {
   );
 }
 
-/** Названия последних прозвучавших песен (после показа названия). */
-function history(content: LottoContent, step: number, revealed: boolean, count: number) {
-  const last = revealed ? step : step - 1;
-  return content.songs.slice(Math.max(0, last - count + 1), last + 1).reverse();
-}
-
 /**
- * Экран зала: «Песня 7 из 30» и музыка, название после показа, победители «Лото!», последние
- * песни списком. Отмечают гости на своих телефонах.
+ * Экран зала: заставка «Откройте карточки» до первой песни, дальше — барабан, табло и страница песни (hall.tsx).
  */
 export function LottoScreenView({ session, content }: ViewProps<LottoContent>) {
-  const { stage, step } = session.state;
-  const song = content.songs[step];
-  const next = content.songs[step + 1];
-  const result = parseLottoResult(session.state.result);
-  const playing = stage === "question";
-  // Есть видео — звук из видео, трек не играет.
-  const withVideo = hasVideo(song);
-  const trackOf = (s: LottoSong | undefined) => (s && !hasVideo(s) ? s.trackId : null);
+  if (session.state.stage === "ready") return <LottoIntro content={content} />;
+  return <LottoHall session={session} content={content} />;
+}
 
+/** Заставка: правило, пример карточки; без барабана — заранее прогреваем ролик первой песни. */
+function LottoIntro({ content }: { content: LottoContent }) {
+  const first = content.drum === "off" ? content.songs[0] : undefined;
   useEffect(() => {
-    preloadTrack(trackOf(song));
-    preloadTrack(trackOf(next));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- trackOf — чистая функция
-  }, [song, next]);
-  useFragment(trackOf(song), song?.trackStart ?? 0, content.fragment, playing ? `p:${step}:${session.state.startedAt ?? 0}:${result.replay}` : null);
-
-  // Есть победители этой песни — фанфары (не при открытии экрана).
-  const winKey = stage === "reveal" && result.last.length > 0 ? `win:${step}` : "";
-  const [heard, setHeard] = useState(winKey);
-  useEffect(() => {
-    if (winKey && winKey !== heard) playSound("fanfare");
-    setHeard(winKey);
-  }, [winKey, heard]);
-
-  if (!song) return <div className="quiz-screen quiz-screen--empty">Песен нет</div>;
-  // Ролик, который покажем следующим: на заставке — первая песня, после названия — следующая.
-  const upcoming = stage === "ready" ? song : stage === "reveal" ? next : undefined;
-  const warm = upcoming?.video.source === "link" && upcoming.video.url ? <WarmVideo key={upcoming.id} url={upcoming.video.url} /> : null;
-  const recent = history(content, step, stage === "reveal", 5);
-  const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? "";
-
-  if (stage === "ready") {
-    const styled = content.cardStyle !== "classic" && content.songs.length >= cardCells(content);
-    return (
-      <div className={styled ? "quiz-screen quiz-screen--intro lotto-intro" : "quiz-screen quiz-screen--intro"}>
-        <div className="lotto-intro__text">
-          <span className="quiz-screen__badge">Музыкальное лото · {RULE_TITLES[content.rule].toLowerCase()}</span>
-          <h2 className="quiz-screen__intro">Откройте карточки</h2>
-          <p className="quiz-screen__hint">Услышали песню с карточки — отметьте её. Собрали — жмите «Лото!»</p>
-        </div>
-        {styled && <SampleTicket content={content} />}
-        {warm}
-      </div>
-    );
-  }
-
-  const winnersList =
-    result.last.length > 0 ? (
-      <ul className="lotto-screen__winners" aria-live="polite">
-        {result.last.map((pid) => (
-          <li key={pid}>
-            ЛОТО! <NameText name={nameOf(pid)} /> <strong>+{session.leaderboard[pid]?.last ?? 0}</strong>
-          </li>
-        ))}
-      </ul>
-    ) : null;
-
+    preloadTrack(first && !hasVideo(first) ? first.trackId : null);
+  }, [first]);
+  const warm = first?.video.source === "link" && first.video.url ? <WarmVideo key={first.id} url={first.video.url} /> : null;
+  const styled = content.cardStyle !== "classic" && content.songs.length >= cardCells(content);
   return (
-    <div className={withVideo ? "quiz-screen lotto-screen lotto-screen--video" : "quiz-screen lotto-screen"}>
-      <div className="quiz-screen__top">
-        <span className="quiz-screen__counter">
-          Песня {step + 1} из {content.songs.length}
-        </span>
-        <span className="quiz-screen__badge">{RULE_TITLES[content.rule]}</span>
-        <span className="quiz-screen__answered">Победителей: {result.winners.length}</span>
+    <div className={styled ? "quiz-screen quiz-screen--intro lotto-intro" : "quiz-screen quiz-screen--intro"}>
+      <div className="lotto-intro__text">
+        <span className="quiz-screen__badge">Музыкальное лото · {RULE_TITLES[content.rule].toLowerCase()}</span>
+        <h2 className="quiz-screen__intro">Откройте карточки</h2>
+        <p className="quiz-screen__hint">
+          {content.drum === "off" ? "Звучит песня — угадайте её." : "Крутим барабан: выпадает номер — звучит песня. Угадайте её."}{" "}
+          {content.hint ? "Ведущий откроет название — песня подсветится на карточке. Собрали — жмите «Лото!»" : "Узнали свою — отметьте. Собрали — жмите «Лото!»"}
+        </p>
       </div>
-      {withVideo ? (
-        // Видео остаётся тем же элементом и после показа названия — караоке не обрывается.
-        <div className="lotto-video">
-          <StageVideo key={`${step}:${result.replay}`} tile={{ id: song.id, title: song.title, video: song.video, start: song.videoStart }} video={result.video} />
-          {playing && content.videoHide && (
-            <div className="lotto-video__cover">
-              <div className="lotto-eq" aria-hidden="true">
-                {Array.from({ length: 7 }, (_, i) => (
-                  <span key={i} style={{ animationDelay: `${i * 0.11}s` }} />
-                ))}
-              </div>
-              <h2 className="quiz-screen__intro">Слушаем…</h2>
-              <p className="quiz-screen__hint">Есть на карточке — отметьте</p>
-            </div>
-          )}
-          {!playing && (
-            <div className="lotto-video__caption">
-              <h2 className="lotto-screen__title">{song.title || "Песня"}</h2>
-              {song.artist && <p className="lotto-screen__artist">{song.artist}</p>}
-              {winnersList}
-            </div>
-          )}
-        </div>
-      ) : playing ? (
-        <div className="lotto-screen__now">
-          <div className="lotto-eq" aria-hidden="true">
-            {Array.from({ length: 7 }, (_, i) => (
-              <span key={i} style={{ animationDelay: `${i * 0.11}s` }} />
-            ))}
-          </div>
-          <h2 className="quiz-screen__intro">Слушаем…</h2>
-          <p className="quiz-screen__hint">Есть на карточке — отметьте</p>
-        </div>
-      ) : (
-        <div className="lotto-screen__now">
-          <p className="quiz-screen__hint">Это была</p>
-          <h2 className="lotto-screen__title">{song.title || "Песня"}</h2>
-          {song.artist && <p className="lotto-screen__artist">{song.artist}</p>}
-          {winnersList}
-        </div>
-      )}
+      {styled && <SampleTicket content={content} />}
       {warm}
-      {recent.length > 0 && (
-        <ol className="lotto-screen__history" aria-label="Уже звучали">
-          {recent.map((s) => (
-            <li key={s.id}>
-              {s.title}
-              {s.artist ? <span className="muted"> — {s.artist}</span> : null}
-            </li>
-          ))}
-        </ol>
-      )}
     </div>
   );
 }
@@ -210,6 +117,24 @@ function loadMarks(key: string): string[] {
   }
 }
 
+function loadPending(key: string): number | null {
+  try {
+    const n = Number(localStorage.getItem(key));
+    return localStorage.getItem(key) !== null && Number.isInteger(n) && n >= 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePending(key: string, step: number | null): void {
+  try {
+    if (step === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, String(step));
+  } catch {
+    // Приватный режим: заявка живёт до перезагрузки.
+  }
+}
+
 function saveMarks(key: string, marks: string[]): void {
   try {
     localStorage.setItem(key, JSON.stringify(marks));
@@ -219,35 +144,107 @@ function saveMarks(key: string, marks: string[]): void {
 }
 
 /**
- * Телефон гостя: своя карточка, касание отмечает песню, «Лото!» — когда собрана линия по отметкам.
- * Проверяет пульт по песням, которые действительно звучали.
+ * Телефон гостя: своя карточка, касание отмечает песню, «Лото!» — когда собрано по правилу игры.
+ *
+ * С подсказкой (по умолчанию) телефон сам сверяет отметки с открытыми названиями: пока песня звучит, отметка —
+ * «карандашом» (догадка); ведущий показал название — верная становится настоящей (✓ и номер бочонка), неверные
+ * снимаются с объяснением, у звучавшей песни клетка светится. «Лото!» считает только настоящие отметки, поэтому
+ * ложную заявку не отправить. Собрали после названия — заявка ждёт и уходит с началом следующей песни (или в
+ * «Последний шанс»). Без подсказки — отметки как есть, всё на слух. Пульт всё равно проверяет по сыгранным песням.
  */
 export function LottoPlayerView({ session, content, pid, role, myAnswer, sending, onAnswer }: PlayerViewProps<LottoContent, { marks: string[] }>) {
   const card = useMemo(() => cardFor(content, pid), [content, pid]);
   const key = `${MARKS_KEY}.${storeScope(session)}.${pid}`;
+  const pendingKey = `${key}.claim`;
   const [marks, setMarks] = useState<string[]>(() => loadMarks(key));
+  const [pending, setPending] = useState<number | null>(() => loadPending(pendingKey));
   const titles = useMemo(() => new Map(content.songs.map((s) => [s.id, s])), [content.songs]);
+  const numbers = useMemo(() => new Map(content.songs.map((s, i) => [s.id, i + 1])), [content.songs]);
   const result = parseLottoResult(session.state.result);
   const { stage, step } = session.state;
   const me = session.leaderboard[pid];
   const place = placeOf(session.leaderboard, pid);
   const won = result.winners.indexOf(pid);
-  const marked = new Set(marks);
-  const ready = isWin(card, marked, content.size, content.rule);
-  const claimed = myAnswer !== null && myAnswer !== undefined;
-  const canClaim = role !== "member" && stage === "question" && won < 0 && !claimed && !sending && ready;
+  const guided = content.hint;
   const noScreen = session.screenMode === "none";
-  const song = content.songs[step];
-  // Подсказка: звучащая (или только что звучавшая) песня есть на карточке — клетка светится.
-  const nowId = content.hint && (stage === "question" || stage === "reveal") && song && card.includes(song.id) ? song.id : null;
+  const withNumbers = guided && content.drum !== "off" && !noScreen;
+  const revealed = useMemo(() => revealedUpTo(content, session.state), [content, session.state]);
+  const marked = new Set(marks);
+  const split = splitMarks(marks, revealed);
+  const claimed = myAnswer !== null && myAnswer !== undefined;
+  const captain = role !== "member";
+  const lastStep = step >= content.songs.length - 1;
+  // Название открыто: показ названия, «Последний шанс» или награждение.
+  const shown = stage === "reveal" || stage === "podium" || (stage === "question" && result.call > 0);
+  const songIndex = songIndexAt(orderOf(content, result.order), step);
+  const song = content.songs[songIndex];
+  // С барабаном песня звучит не сразу: пока крутится барабан, ничего не выдаёт, какая песня выпадет
+  // (часы телефона — свои, секунда туда-сюда не важна).
+  const drumUntil = content.drum !== "off" && !noScreen && result.replay === 0 && result.call === 0 && stage === "question" && session.state.startedAt ? session.state.startedAt + DRUM_MS[content.drum] : 0;
+  const [, wake] = useState(0);
+  useEffect(() => {
+    const wait = drumUntil - Date.now();
+    if (wait <= 0) return;
+    const timer = window.setTimeout(() => wake((n) => n + 1), wait + 50);
+    return () => window.clearTimeout(timer);
+  }, [drumUntil]);
+  const spinning = drumUntil > Date.now();
+  // «Лото!» с подсказкой — по настоящим отметкам. Плюс звучащая сейчас песня, если гость узнал её на слух и
+  // отметил: она уже прозвучала, заявка честная (так знаток успевает первым). Пока крутится барабан — нет:
+  // иначе загоревшаяся кнопка выдала бы, какая песня выпадет.
+  const liveId = stage === "question" && result.call === 0 && !spinning && song ? song.id : null;
+  const counted = guided ? [...split.confirmed, ...(liveId && marked.has(liveId) && !revealed.has(liveId) ? [liveId] : [])] : marks;
+  const ready = isWin(card, new Set(counted), content.size, content.rule);
+  const canClaimNow = captain && stage === "question" && won < 0 && !claimed && !sending && ready;
+  const canQueue = captain && stage === "reveal" && won < 0 && !sending && ready && pending === null && !result.last.includes(pid);
+  // Подсказка: название открыто и песня есть на карточке — клетка светится.
+  const nowId = guided && shown && stage !== "podium" && song && card.includes(song.id) ? song.id : null;
   const nowMarked = nowId !== null && marked.has(nowId);
 
   useEffect(() => setMarks(loadMarks(key)), [key]);
+  useEffect(() => setPending(loadPending(pendingKey)), [pendingKey]);
+
+  // Название открылось — догадки, которые не совпали, снимаем сами и говорим, какие.
+  const revealKey = guided && shown ? `${key}:${step}` : null;
+  const [fixed, setFixed] = useState<{ at: string; titles: string[] } | null>(null);
+  useEffect(() => {
+    if (!revealKey) return;
+    const wrong = marks.filter((id) => !revealed.has(id));
+    if (wrong.length === 0) return;
+    const next = marks.filter((id) => revealed.has(id));
+    setMarks(next);
+    saveMarks(key, next);
+    setFixed({ at: revealKey, titles: wrong.map((id) => titles.get(id)?.title || "песня") });
+    try {
+      navigator.vibrate?.(60);
+    } catch {
+      // Вибрации нет — хватит надписи.
+    }
+    // Только в момент, когда название открылось: следующие догадки снимет следующий показ.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealKey]);
+  const fixedNow = fixed && fixed.at === revealKey ? fixed.titles : null;
+
+  // Отложенная заявка: собрали после названия — уходит, как только снова принимают «Лото!».
+  useEffect(() => {
+    if (pending === null) return;
+    const drop = () => {
+      setPending(null);
+      savePending(pendingKey, null);
+    };
+    if (won >= 0 || step < pending || session.state.phase === "finished" || stage === "podium" || !captain) return drop();
+    if (stage !== "question" || claimed || sending) return;
+    if (step === pending && result.call === 0) return;
+    drop();
+    if (ready) onAnswer({ marks: counted });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, stage, step, result.call, won, claimed, sending, session.state.phase, captain, ready]);
 
   // Собрали — кнопка «Лото!» загорается и мигает, телефон коротко вибрирует (один раз за сборку).
+  const lit = canClaimNow || canQueue;
   const buzzed = useRef(false);
   useEffect(() => {
-    if (!canClaim) {
+    if (!lit) {
       buzzed.current = false;
       return;
     }
@@ -258,7 +255,7 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
     } catch {
       // Вибрации нет — хватит мигания.
     }
-  }, [canClaim]);
+  }, [lit]);
 
   function toggle(id: string) {
     const next = marked.has(id) ? marks.filter((m) => m !== id) : [...marks, id];
@@ -266,40 +263,84 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
     saveMarks(key, next);
   }
 
+  function claim() {
+    if (canClaimNow) onAnswer({ marks: counted });
+    else if (canQueue) {
+      setPending(step);
+      savePending(pendingKey, step);
+    }
+  }
+
+  const nextWord = content.drum !== "off" && !noScreen ? "как только закрутится следующий барабан" : "как только зазвучит следующая песня";
   let status: string;
   if (won >= 0) status = `Вы выиграли! ${won + 1}-е место среди победителей`;
   else if (stage === "reveal" && result.last.includes(pid)) status = "ЛОТО! Верно!";
+  else if (pending !== null && stage === "reveal")
+    status = lastStep ? "Заявка ждёт — скажите ведущему «Лото!»: он откроет «Последний шанс»" : `Заявка принята — уйдёт ведущему, ${nextWord}`;
   else if (stage === "reveal" && result.rejected.includes(pid)) status = "Не совпало: на карточке есть песни, которые ещё не звучали";
   else if (sending) status = "Отправляем заявку…";
-  else if (claimed) status = "Заявка у ведущего — проверим после песни";
-  else if (role === "member") status = "«Лото!» нажимает капитан команды";
+  else if (claimed) status = result.call > 0 ? "Заявка у ведущего — проверит сейчас" : "Заявка у ведущего — проверим после песни";
+  else if (!captain) status = ready ? "Собрали! Скажите капитану — «Лото!» жмёт он" : "«Лото!» нажимает капитан команды";
   else if (stage === "ready") status = "Ждём первую песню";
+  else if (result.call > 0 && stage === "question") status = ready ? "Последний шанс! Собрали — жмите «Лото!» ↑" : "Последний шанс «Лото!» — у вас пока не собрано";
   else status = ready ? "Собрали! Жмите «Лото!» ↑" : `Отмечайте песни · ${RULE_TITLES[content.rule].toLowerCase()}`;
-  const hint = won < 0 && nowId !== null ? (nowMarked ? "✓ Эта песня у вас отмечена" : "🎵 Эта песня у вас есть! Нажмите на светящуюся клетку") : null;
+
+  let hint: string | null = null;
+  let hintDone = false;
+  if (won < 0 && guided && !spinning && stage !== "ready" && stage !== "podium") {
+    if (nowId !== null) {
+      hint = nowMarked ? `✓ Песня${withNumbers ? ` № ${songIndex + 1}` : ""} отмечена` : "🎵 Эта песня у вас есть! Нажмите на светящуюся клетку";
+      hintDone = nowMarked;
+    } else if (shown && song) {
+      hint = "Этой песни на вашей карточке нет — ждём следующую";
+      hintDone = true;
+    } else if (stage === "question") {
+      hint = "🎧 Угадайте песню на слух. Ведущий откроет название — она подсветится на карточке";
+      hintDone = true;
+    }
+  }
 
   return (
     <div className="quiz-phone lotto-phone">
       <p className="eyebrow">
-        {stage === "ready" ? "Музыкальное лото" : `Песня ${step + 1} из ${content.songs.length}`}
+        {stage === "ready" ? "Музыкальное лото" : spinning ? `Крутим барабан… · песня ${step + 1} из ${content.songs.length}` : content.drum !== "off" && !noScreen ? `Бочонок № ${songIndex + 1} · песня ${step + 1} из ${content.songs.length}` : `Песня ${step + 1} из ${content.songs.length}`}
         {me && place ? ` · ${pointsLabel(me.score)}` : ""}
       </p>
-      {noScreen && stage === "reveal" && song && (
+      {noScreen && shown && stage !== "podium" && song && (
         <p className="lotto-phone__song">
           Звучала: <strong>{song.title}</strong>
           {song.artist ? ` — ${song.artist}` : ""}
         </p>
       )}
+      {fixedNow && (
+        <p className="lotto-hint is-fixed" role="alert">
+          {fixedNow.length === 1 ? `«${fixedNow[0]}» ещё не звучала — отметку сняли` : `Ещё не звучали: ${fixedNow.map((t) => `«${t}»`).join(", ")} — отметки сняли`}
+        </p>
+      )}
       {hint && (
-        <p className={nowMarked ? "lotto-hint is-done" : "lotto-hint"} role="status">
+        <p className={hintDone ? "lotto-hint is-done" : "lotto-hint"} role="status">
           {hint}
         </p>
       )}
       <LottoTicket style={content.cardStyle} rule={content.rule} size={content.size}>
-        <div className="lotto-card" style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }} role="group" aria-label="Ваша карточка">
+        <div className={guided ? "lotto-card lotto-card--strip" : "lotto-card"} style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }} role="group" aria-label="Ваша карточка">
           {card.map((id, i) => {
-            const on = marked.has(id);
+            const open = revealed.has(id);
+            const on = marked.has(id) && (!guided || open);
+            const pencil = guided && marked.has(id) && !open;
+            const num = withNumbers && open ? numbers.get(id) : undefined;
+            const label = `${titles.get(id)?.title ?? "Песня"}${num ? `, бочонок ${num}` : ""}${pencil ? ", отмечено карандашом — проверим после ответа" : on ? ", отмечено" : ""}`;
             return (
-              <button key={`${id}-${i}`} type="button" className={cellClass(on, id === nowId)} aria-pressed={on} aria-current={id === nowId ? "true" : undefined} onClick={() => toggle(id)}>
+              <button
+                key={`${id}-${i}`}
+                type="button"
+                className={cellClass({ on, now: id === nowId, pencil, missed: guided && open && !marked.has(id) && id !== nowId })}
+                aria-pressed={marked.has(id)}
+                aria-label={label}
+                aria-current={id === nowId ? "true" : undefined}
+                onClick={() => toggle(id)}
+              >
+                {num !== undefined && <span className="lotto-card__num" aria-hidden="true">№ {num}</span>}
                 <CellText song={titles.get(id)} size={content.size} styled={content.cardStyle !== "classic"} />
               </button>
             );
@@ -307,11 +348,12 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
         </div>
       </LottoTicket>
       {card.length < cardCells(content) && <p className="error small">В игре мало песен для карточки — скажите ведущему.</p>}
-      {role !== "member" && won < 0 && (
-        <button type="button" className={canClaim ? "btn btn--block lotto-phone__claim is-ready" : "btn btn--block lotto-phone__claim"} disabled={!canClaim} onClick={() => onAnswer({ marks })}>
+      {captain && won < 0 && (
+        <button type="button" className={lit ? "btn btn--block lotto-phone__claim is-ready" : "btn btn--block lotto-phone__claim"} disabled={!lit} onClick={claim}>
           Лото!
         </button>
       )}
+      {guided && split.pencil.length > 0 && !shown && <p className="muted small lotto-phone__pencil">«?» — ваша догадка. Ведущий откроет название — проверим её сами.</p>}
       <p aria-live="polite" className={won >= 0 || result.last.includes(pid) ? "quiz-phone__status success" : "quiz-phone__status muted"}>
         {status}
       </p>

@@ -7628,6 +7628,31 @@ ul.chips {
   padding-top: calc(0.6cqw + max(11px, 2.4cqw));
 }
 
+/* Телефон гостя: рисованная карточка — почти на всю ширину экрана (выходит за поля карточки страницы), иначе
+   на телефоне 360 px она ~270 px и в 4×4 и 5×5 слова рвутся, а исполнитель обрезается (снимки 28 октября 2026). */
+.lotto-phone .lotto-ticket {
+  --lotto-phone-w: min(calc(100vw - 16px), 520px);
+  width: var(--lotto-phone-w);
+  max-width: none;
+  margin-inline: calc((100% - var(--lotto-phone-w)) / 2);
+}
+
+/* 4×4 и 5×5 — сетка шире (поля рисунка у краёв узкие, клетки до точек рамки не доходят). */
+.lotto-ticket.lotto-ticket--s4 {
+  --lotto-grid-side: 7cqw;
+}
+
+.lotto-ticket.lotto-ticket--s5 {
+  --lotto-grid-side: 6.5cqw;
+}
+
+/* Узкая карточка 4×4: исполнителю места нет — только название (было «Испо…»). */
+@container (max-width: 380px) {
+  .lotto-ticket--s4 .lotto-card__artist {
+    display: none;
+  }
+}
+
 .lotto-card__title {
   font-weight: 600;
   display: -webkit-box;

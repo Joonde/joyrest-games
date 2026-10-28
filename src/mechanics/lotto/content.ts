@@ -380,6 +380,42 @@ export function cellFit(title: string, size: LottoContent["size"]): { fit: numbe
   return { fit: alone ?? Math.min(wordFit, MIN_WRAP_FIT), artist: false };
 }
 
+const VOWELS = "аеёиоуыэюяaeiouy";
+const SOLID = "ьъй";
+
+/**
+ * Мягкие переносы (U+00AD) по слогам в длинных словах названия: в узкой клетке (5×5 на маленьком телефоне)
+ * слово переносится «Ко-лы-бель-ная», а не рвётся посреди. Браузеры по-разному умеют переносить русские слова
+ * сами (на части устройств не умеют вовсе), поэтому места переноса ставим здесь. Простые правила слогов:
+ * гласная | согласная+гласная, согласная | согласная, после «ь», «ъ», «й»; не меньше двух букв с каждой стороны,
+ * в каждой части — гласная. Слова короче `min` букв и слова с дефисом не трогаем.
+ */
+export function softHyphens(title: string, min = 7): string {
+  return title.replace(/[А-Яа-яЁёA-Za-z]+/g, (word) => {
+    if (word.length < min) return word;
+    const lower = word.toLowerCase();
+    const vowel = (i: number) => VOWELS.includes(lower[i] ?? "");
+    const hasVowel = (from: number, to: number) => [...lower.slice(from, to)].some((ch) => VOWELS.includes(ch));
+    let out = "";
+    let last = 0;
+    for (let i = 2; i <= word.length - 2; i += 1) {
+      const prev = lower[i - 1] ?? "";
+      const cur = lower[i] ?? "";
+      if (SOLID.includes(cur)) continue;
+      let ok = false;
+      if (vowel(i - 1) && !vowel(i) && vowel(i + 1)) ok = true; // ко|лы
+      else if (!vowel(i - 1) && !vowel(i) && !SOLID.includes(prev) && hasVowel(last, i - 1) && hasVowel(i, word.length)) ok = !SOLID.includes(lower[i + 1] ?? "") || false; // бел|ка
+      else if (SOLID.includes(prev) && !vowel(i)) ok = true; // бель|ная, май|ка
+      else if (vowel(i - 1) && vowel(i)) ok = true; // по|эт
+      if (ok && hasVowel(last, i) && hasVowel(i, word.length) && i - last >= 2) {
+        out += word.slice(last, i) + "\u00ad";
+        last = i;
+      }
+    }
+    return out + word.slice(last);
+  });
+}
+
 /** Сколько песен нужно на карточку. */
 export function cardCells(content: Pick<LottoContent, "size">): number {
   return content.size * content.size;

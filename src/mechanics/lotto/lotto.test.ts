@@ -4,7 +4,7 @@ import type { Answer, Session } from "../../data/types";
 import { CARD_STYLES, CARD_STYLE_TITLES, cardCells, cellFit, createLotto, parseLotto, parseSongList, type LottoContent } from "./content";
 import { DEMO_LOTTO } from "./demo";
 import { canLastCall, cardFor, cardLines, hushSong, lastCall, revealedUpTo, splitMarks, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
-import { DRUM_MS, hasLyrics, lyricIndex, lyricsFromText, parseLrc, parseLyrics, songLength, toLrc } from "./content";
+import { DRUM_MS, softHyphens, hasLyrics, lyricIndex, lyricsFromText, parseLrc, parseLyrics, songLength, toLrc } from "./content";
 import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
 import { lineProgress } from "./karaoke";
@@ -628,5 +628,23 @@ describe("отметки после ответа и «Последний шан�
     expect(parseLottoResult({ call: -2 }).call).toBe(0);
     const s = applyChange(base, playSong(base), 1);
     expect(parseLottoResult(applyChange(s, nextSong(s), 2).state.result).call).toBe(0);
+  });
+});
+
+describe("мягкие переносы в названиях", () => {
+  const show = (t: string) => softHyphens(t).replace(/\u00ad/g, "-");
+  it("длинные слова — по слогам, короткие и с дефисом — как есть", () => {
+    expect(show("Колыбельная")).toBe("Ко-лы-бель-ная");
+    expect(show("Позвони мне, позвони")).toBe("Поз-во-ни мне, поз-во-ни");
+    expect(show("Лимонадное настроение")).toBe("Ли-мо-над-ное нас-тро-ение");
+    expect(show("Ла-ла-ла")).toBe("Ла-ла-ла");
+    expect(show("Сон")).toBe("Сон");
+  });
+  it("переносы не меняют текст и не оставляют одну букву", () => {
+    for (const t of ["Дискотека девяностых", "Мандариновый Новый год", "Фейерверк желаний", "Километры до тебя", "Шоколадное"]) {
+      const out = softHyphens(t);
+      expect(out.replace(/\u00ad/g, "")).toBe(t);
+      for (const word of out.split(/\s+/)) for (const part of word.split("\u00ad")) expect(part.replace(/[^А-Яа-яЁё]/g, "").length).toBeGreaterThanOrEqual(2);
+    }
   });
 });

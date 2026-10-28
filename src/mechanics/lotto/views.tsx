@@ -5,7 +5,7 @@ import { placeOf } from "../../core/leaderboard";
 import { pointsLabel } from "../../core/results";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { WarmVideo } from "../stage/video";
-import { cardCells, cellFit, DRUM_MS, hasVideo, RULE_TITLES, type CardStyle, type LottoContent, type LottoSong } from "./content";
+import { cardCells, cellFit, DRUM_MS, hasVideo, RULE_TITLES, softHyphens, type CardStyle, type LottoContent, type LottoSong } from "./content";
 import { LottoHall } from "./hall";
 import { cardFor, isWin, orderOf, parseLottoResult, revealedUpTo, songIndexAt, splitMarks } from "./logic";
 
@@ -47,7 +47,7 @@ function CellText({ song, size, styled }: { song: LottoSong | undefined; size: L
   return (
     <>
       <span className="lotto-card__title" style={styled ? ({ "--fit": fit.fit } as CSSProperties) : undefined}>
-        {title}
+        {softHyphens(title)}
       </span>
       {song?.artist && fit.artist && <span className="lotto-card__artist">{song.artist}</span>}
     </>

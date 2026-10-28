@@ -3,13 +3,14 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Session } from "../../data/types";
 import { CARD_STYLES, CARD_STYLE_TITLES, cardCells, cellFit, createLotto, parseLotto, parseSongList, type LottoContent } from "./content";
 import { DEMO_LOTTO } from "./demo";
-import { cardFor, cardLines, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, nextSong, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, score } from "./logic";
+import { cardFor, cardLines, hushSong, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
+import { DRUM_MS, hasLyrics, lyricIndex, lyricsFromText, parseLrc, parseLyrics, songLength, toLrc } from "./content";
 import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
 
 const NO_VIDEO = { source: "none" as const, url: "", name: "" };
-const songs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Песня ${i}`, artist: "", trackId: null, trackStart: 0, video: NO_VIDEO, videoStart: 0 }));
-const game = (patch: Partial<LottoContent> = {}): LottoContent => ({ songs: songs(12), size: 3, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "classic", videoHide: false, hint: true, ...patch });
+const songs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Песня ${i}`, artist: "", trackId: null, trackStart: 0, video: NO_VIDEO, videoStart: 0, length: null, lyrics: [], times: [], lyricsShow: "reveal" as const, lyricsAt: 0 }));
+const game = (patch: Partial<LottoContent> = {}): LottoContent => ({ songs: songs(12), size: 3, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "classic", videoHide: false, hint: true, drum: "off", playAfter: false, ...patch });
 const claim = (step: number, pid: string, at: number | null = 1): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { marks: [] }, submittedAt: at });
 
 describe("содержимое лото", () => {
@@ -360,5 +361,159 @@ describe("«Назад» через несколько песен (QA 23 окт�
   it("старые итоги без побед по песням читаются без ошибок", () => {
     expect(parseLottoResult({ winners: ["a"], wins: [{ step: "x" }, { step: 2, prizes: { a: 300, b: "x" } }] }).wins).toEqual([{ step: 2, prizes: { a: 300 } }]);
     expect(parseLottoResult(null).wins).toEqual([]);
+  });
+});
+
+
+describe("барабан: случайный порядок песен (27 октября 2026)", () => {
+  const c = game({ songs: songs(24), drum: "full" });
+  const base: Session = {
+    id: "sess-1",
+    code: "123456",
+    hostId: "h",
+    gameId: "g",
+    gameTitle: "",
+    mechanic: "lotto",
+    gameSnapshot: null,
+    themeId: "joyrest",
+    playMode: "solo",
+    screenMode: "laptop",
+    state: startState(),
+    leaderboard: { a: { name: "Аня", kind: "player", score: 0 } },
+    createdAt: 0,
+  };
+
+  it("порядок — перестановка всех песен, один и тот же для сессии, разный для разных сессий", () => {
+    const o1 = shuffledOrder(c, "sess-1");
+    expect([...o1].sort((x, y) => x - y)).toEqual(c.songs.map((_, i) => i));
+    expect(shuffledOrder(c, "sess-1")).toEqual(o1);
+    expect(shuffledOrder(c, "sess-2")).not.toEqual(o1);
+    expect(o1).not.toEqual(c.songs.map((_, i) => i));
+  });
+
+  it("первая песня ставит порядок, дальше он не меняется — ни «Следующая», ни «Назад», ни повтор", () => {
+    let s = applyChange(base, playSong(base, c), 1);
+    const order = parseLottoResult(s.state.result).order;
+    expect(order).toEqual(shuffledOrder(c, base.id));
+    s = applyChange(s, replaySong(s), 2);
+    s = applyChange(s, revealSong(s, c, [], []), 3);
+    s = applyChange(s, nextSong(s), 4);
+    expect(parseLottoResult(s.state.result).order).toEqual(order);
+    expect(songAt(c, order, s.state.step)?.id).toBe(c.songs[order[1] as number]?.id);
+    const back = lottoBack(s);
+    if (!back) throw new Error("нет шага назад");
+    s = applyChange(s, back.change, 5);
+    expect(parseLottoResult(s.state.result).order).toEqual(order);
+    // Назад до заставки и снова «Включить» — та же первая песня.
+    const back2 = lottoBack(applyChange(s, lottoBack(s)?.change ?? {}, 6));
+    expect(back2).not.toBeNull();
+    const again = applyChange(base, playSong(base, c), 7);
+    expect(parseLottoResult(again.state.result).order).toEqual(order);
+  });
+
+  it("без барабана — по списку; у старых сессий без порядка — по списку", () => {
+    const plain = game({ songs: songs(5) });
+    const s = applyChange(base, playSong(base, plain), 1);
+    expect(orderOf(plain, parseLottoResult(s.state.result).order)).toEqual([0, 1, 2, 3, 4]);
+    expect(orderOf(plain, [0, 0, 1, 2, 3])).toEqual([0, 1, 2, 3, 4]);
+    expect(orderOf(plain, [4, 3, 2, 1, 0])).toEqual([4, 3, 2, 1, 0]);
+    expect(orderOf(plain, "x")).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("проверка «Лото!» — по песням в порядке барабана, а не по списку", () => {
+    const small = game({ songs: songs(12), size: 3, rule: "full", drum: "full" });
+    let s = applyChange(base, playSong(base, small), 1);
+    const order = parseLottoResult(s.state.result).order;
+    const card = cardFor(small, "a");
+    // Играем песни, пока не прозвучат все 9 с карточки Ани.
+    while (![...card].every((id) => playedUpTo(small, s.state.step, order).has(id))) {
+      s = applyChange(s, revealSong(s, small, [], []), 2);
+      s = applyChange(s, nextSong(s), 3);
+    }
+    const step = s.state.step;
+    const won = applyChange(s, revealSong(s, small, [claim(step, "a")], []), 4);
+    expect(won.leaderboard.a?.score).toBe(300);
+    // По списку (без порядка) на этом шаге карточка, как правило, ещё не собрана — значит, порядок учтён.
+    expect(playedUpTo(small, step, order).size).toBe(step + 1);
+    expect(playedNumbers(order, step)).toEqual(order.slice(0, step + 1).map((i) => i + 1));
+  });
+
+  it("стоп и текст на экран — команды пульта; новая песня их сбрасывает", () => {
+    let s = applyChange(base, playSong(base, c), 1);
+    s = applyChange(s, revealSong(s, c, [], []), 2);
+    s = applyChange(s, hushSong(s), 3);
+    s = applyChange(s, lyricsCommand(s, "on"), 4);
+    expect(parseLottoResult(s.state.result)).toMatchObject({ hush: 1, lyrics: "on" });
+    s = applyChange(s, nextSong(s), 5);
+    expect(parseLottoResult(s.state.result)).toMatchObject({ hush: 0, lyrics: "auto" });
+  });
+
+  it("«Назад» с новой песни на название прошлой — музыка прошлой не включается (hush)", () => {
+    let s = applyChange(base, playSong(base, c), 1);
+    s = applyChange(s, revealSong(s, c, [], []), 2);
+    s = applyChange(s, nextSong(s), 3);
+    const back = lottoBack(s);
+    if (!back) throw new Error("нет шага назад");
+    s = applyChange(s, back.change, 4);
+    expect(s.state.stage).toBe("reveal");
+    expect(parseLottoResult(s.state.result).hush).toBeGreaterThan(0);
+  });
+
+  it("настройки барабана: старые игры — без барабана, новые — с барабаном; длительность показа", () => {
+    expect(parseLotto({ songs: [] }).drum).toBe("off");
+    expect(parseLotto({ drum: "quick" }).drum).toBe("quick");
+    expect(parseLotto({ drum: "x" }).drum).toBe("off");
+    expect(createLotto().drum).toBe("full");
+    expect(parseLotto(createLotto()).drum).toBe("full");
+    expect(DRUM_MS.off).toBe(0);
+    expect(DRUM_MS.quick).toBeLessThan(DRUM_MS.full);
+    expect(parseLotto({ playAfter: true }).playAfter).toBe(true);
+    expect(parseLotto({}).playAfter).toBe(false);
+  });
+});
+
+describe("песня: своя длина, текст и разметка", () => {
+  it("длина песни: общая, своя в пределах, «до конца»", () => {
+    const c = parseLotto({ fragment: 30, songs: [{ id: "a" }, { id: "b", length: 0 }, { id: "c", length: 2 }, { id: "d", length: 99999 }, { id: "e", length: 75 }] });
+    expect(c.songs.map((s) => s.length)).toEqual([null, 0, 5, 900, 75]);
+    expect(songLength(c, c.songs[0])).toBe(30);
+    expect(songLength(c, c.songs[1])).toBe(0);
+    expect(songLength(c, c.songs[4])).toBe(75);
+  });
+
+  it("текст: пустые строки убираются, время не убывает и не длиннее строк", () => {
+    expect(lyricsFromText("Первая\n\n  Вторая  \r\nТретья")).toEqual(["Первая", "Вторая", "Третья"]);
+    expect(parseLyrics(["а", "б", "в"], [5, 3, 10, 20])).toEqual({ lyrics: ["а", "б", "в"], times: [5, 5, 10] });
+    expect(parseLyrics(["а", "б"], [1.234, "x", 3])).toEqual({ lyrics: ["а", "б"], times: [1.2] });
+    expect(parseLyrics("мусор", null)).toEqual({ lyrics: [], times: [] });
+    const many = parseLyrics(Array.from({ length: 500 }, (_, i) => `строка ${i}`), []);
+    expect(many.lyrics.length).toBe(200);
+  });
+
+  it("песня из базы: текст, разметка и когда показывать", () => {
+    const c = parseLotto({ songs: [{ id: "a", lyrics: ["раз", "два"], times: [10, 12.55], lyricsShow: "at", lyricsAt: 8.04 }, { id: "b", lyricsShow: "x" }] });
+    expect(c.songs[0]).toMatchObject({ lyrics: ["раз", "два"], times: [10, 12.6], lyricsShow: "at", lyricsAt: 8 });
+    expect(c.songs[1]).toMatchObject({ lyrics: [], times: [], lyricsShow: "reveal", lyricsAt: 0 });
+    expect(hasLyrics(c.songs[0])).toBe(true);
+    expect(hasLyrics(c.songs[1])).toBe(false);
+  });
+
+  it(".lrc: метки времени, служебные теги, несколько меток у строки, смещение", () => {
+    const lrc = "[ar:Кто-то]\n[ti:Песня]\n[offset:+500]\n[00:12.50]Первая строка\n[00:15.00][01:00.00]Припев\n[00:20]Третья\nбез времени";
+    const parsed = parseLrc(lrc);
+    expect(parsed).toEqual({ lyrics: ["Первая строка", "Припев", "Третья", "Припев"], times: [12, 14.5, 19.5, 59.5] });
+    expect(parseLrc("просто текст\nбез меток")).toBeNull();
+    const back = toLrc({ title: "Т", artist: "А", lyrics: ["раз", "два"], times: [62.5] });
+    expect(back).toBe("[ti:Т]\n[ar:А]\n[01:02.50] раз\nдва");
+    expect(parseLrc(back)).toEqual({ lyrics: ["раз"], times: [62.5] });
+  });
+
+  it("какая строка звучит", () => {
+    const times = [10, 12, 15];
+    expect(lyricIndex(times, 5)).toBe(-1);
+    expect(lyricIndex(times, 10)).toBe(0);
+    expect(lyricIndex(times, 14.9)).toBe(1);
+    expect(lyricIndex(times, 100)).toBe(2);
+    expect(lyricIndex([], 3)).toBe(-1);
   });
 });

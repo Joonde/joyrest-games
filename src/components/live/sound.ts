@@ -11,7 +11,7 @@ export function setSoundSet(name: SoundSetName): void {
   soundSet = name;
 }
 
-export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame" | "dice" | "step" | "bonus" | "trap" | "sparkle" | "treasure";
+export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame" | "dice" | "step" | "bonus" | "trap" | "sparkle" | "treasure" | "pop" | "ding";
 
 /** Раньше «без звука» запоминалось на устройстве — из-за этого экран молчал на следующих вечерах. */
 const OLD_MUTE_KEY = "joyrest.soundOff";
@@ -487,6 +487,39 @@ function sparkle(): void {
   [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, i * 0.05 + Math.random() * 0.03, 0.25, 0.05, "sine"));
 }
 
+/** Крышка бочонка: короткий хлопок с призвуком. */
+function pop(): void {
+  burst(0, 0.08, 0.4, { type: "bandpass", freq: 900, q: 1.2 }, 0.002);
+  tone(880, 0, 0.12, 0.08, "triangle");
+  tone(1320, 0.02, 0.18, 0.05, "sine");
+}
+
+/** Номер бочонка: звон колокольчика и искры. */
+function ding(): void {
+  [1047, 1319, 1568].forEach((f, i) => tone(f, i * 0.03, 1.4, 0.07, "sine"));
+  [2093, 2637, 3136].forEach((f, i) => tone(f, 0.15 + i * 0.07, 0.4, 0.035, "sine"));
+}
+
+/**
+ * Барабан лото (решение владельца 27 октября 2026): бочонки стучат друг о друга и о прутья — щелчки, которые
+ * учащаются при разгоне и редеют при остановке. `profile(t)` — скорость барабана 0…1 в секунду `t`.
+ */
+export function drumRattle(seconds: number, profile: (t: number) => number): void {
+  if (muted || !soundReady()) return;
+  duckMusic(seconds);
+  let t = 0;
+  let i = 0;
+  while (t < seconds) {
+    const speed = Math.max(0.05, Math.min(1, profile(t)));
+    const v = 0.05 + speed * 0.16;
+    burst(t, 0.035, v, { type: "bandpass", freq: 1700 + ((i * 7919) % 1400), q: 3.5 });
+    if (i % 3 === 0) burst(t + 0.01, 0.05, v * 0.5, { type: "lowpass", freq: 420 });
+    // Быстрый барабан — щелчок каждые ~35 мс, медленный — раз в ~300 мс.
+    t += 0.035 + (1 - speed) * 0.27 + ((i * 31) % 7) * 0.006;
+    i += 1;
+  }
+}
+
 const DUCK_SECONDS: Partial<Record<SoundName, number>> = { treasure: 3, dice: 0.9, bonus: 1, trap: 1.1, roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
 
 export function playSound(name: SoundName): void {
@@ -513,6 +546,8 @@ export function playSound(name: SoundName): void {
   if (name === "trap") trap();
   if (name === "sparkle") sparkle();
   if (name === "treasure") treasure();
+  if (name === "pop") pop();
+  if (name === "ding") ding();
   if (name === "roar") roar();
   if (name === "flame") flame();
   if (name === "whoosh") burst(0, 0.7, 0.3, { type: "bandpass", freq: 300, q: 2, toFreq: 4000 }, 0.25);
@@ -1140,6 +1175,28 @@ function silenceFragment(): void {
   resumeAfterFragment = false;
   fragmentPaused = false;
   fragmentEl?.pause();
+}
+
+/** Где сейчас играет фрагмент: секунда трека или null (не играет). Нужна караоке-строкам. */
+export function fragmentTime(): number | null {
+  if (!fragmentEl || fragmentEl.paused || fragmentPaused) return null;
+  return fragmentEl.currentTime;
+}
+
+/**
+ * Громкость фрагмента без перезапуска: «играет и после ответа» — плавно на 60% (решение владельца 27 октября 2026).
+ * Остаток фрагмента доиграет как шёл.
+ */
+export function fragmentLevel(to: number, seconds: number): void {
+  rampFragment(Math.max(0, Math.min(1, to)), seconds);
+}
+
+/** Плавно заглушить фрагмент и остановить (название показали — песня не обрывается резко). */
+export function fadeOutFragment(seconds: number): void {
+  if (!fragmentEl || fragmentEl.paused) return;
+  window.clearTimeout(fragmentTimer);
+  rampFragment(0, seconds);
+  fragmentTimer = window.setTimeout(() => stopFragment(), seconds * 1000);
 }
 
 export function stopFragment(): void {

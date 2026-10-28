@@ -24984,3 +24984,121 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   color: var(--color-text);
   background: var(--color-surface-alt);
 }
+
+/* ---------- Музыкальное лото: трек, отрывок и караоке в конструкторе (27 октября 2026) ---------- */
+.lotto-tools {
+  padding-top: 8px;
+}
+
+.lotto-wave {
+  position: relative;
+  height: 44px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  touch-action: none;
+  overflow: hidden;
+}
+
+.lotto-wave__clip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--color-highlight);
+  opacity: 0.35;
+}
+
+.lotto-wave__pos {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1px;
+  background: var(--color-primary);
+}
+
+.lotto-tools__time {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.lotto-mark__big {
+  min-height: 96px;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 1.15rem;
+}
+
+.lotto-mark__line {
+  display: block;
+  font-weight: 500;
+  font-size: 0.95rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.lotto-karaoke-preview {
+  container-type: inline-size;
+  padding: 16px 12px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+}
+
+.lotto-karaoke-preview .karaoke {
+  --k-size: clamp(1.1rem, 6cqw, 2.2rem);
+}
+
+.lotto-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.lotto-lines li {
+  display: grid;
+  grid-template-columns: 4.2em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.lotto-lines li.is-now {
+  background: var(--color-surface-alt);
+  outline: 2px solid var(--color-highlight);
+}
+
+.lotto-lines li.is-unmarked {
+  color: var(--color-text-muted);
+}
+
+.lotto-lines__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.lotto-lines__text {
+  overflow-wrap: anywhere;
+}
+
+.lotto-lines__tools {
+  display: flex;
+  gap: 2px;
+}
+
+.lotto-lines__tools .btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding-inline: 6px;
+}

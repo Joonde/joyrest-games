@@ -7,6 +7,7 @@ import { cardFor, cardLines, hushSong, isWin, lottoBack, lottoPrimary, lottoStep
 import { DRUM_MS, hasLyrics, lyricIndex, lyricsFromText, parseLrc, parseLyrics, songLength, toLrc } from "./content";
 import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
+import { lineProgress } from "./karaoke";
 
 const NO_VIDEO = { source: "none" as const, url: "", name: "" };
 const songs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Песня ${i}`, artist: "", trackId: null, trackStart: 0, video: NO_VIDEO, videoStart: 0, length: null, lyrics: [], times: [], lyricsShow: "reveal" as const, lyricsAt: 0 }));
@@ -515,5 +516,17 @@ describe("песня: своя длина, текст и разметка", () =
     expect(lyricIndex(times, 14.9)).toBe(1);
     expect(lyricIndex(times, 100)).toBe(2);
     expect(lyricIndex([], 3)).toBe(-1);
+  });
+});
+
+describe("караоке: доля спетой строки", () => {
+  it("от начала строки до начала следующей; последняя — 4 секунды; за краями — 0 и 1", () => {
+    const times = [10, 12, 12, 20];
+    expect(lineProgress(times, 0, 9)).toBe(0);
+    expect(lineProgress(times, 0, 11)).toBe(0.5);
+    expect(lineProgress(times, 0, 30)).toBe(1);
+    expect(lineProgress(times, 1, 12)).toBe(1);
+    expect(lineProgress(times, 3, 22)).toBe(0.5);
+    expect(lineProgress(times, 9, 22)).toBe(0);
   });
 });

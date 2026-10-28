@@ -43,7 +43,17 @@ export default function DrumCanvas({ numbers, pick, speed, seed, startedAt, onFa
     const scene = made;
     const end = DRUM_TIMELINES[speed].end + 0.3;
     let raf = 0;
+    // Слабое устройство (телевизор без видеокарты): меньше ~8 кадров в секунду за первые полторы секунды — без 3D,
+    // сразу номер (время барабана то же).
+    const begun = performance.now();
+    let frames = 0;
     const loop = () => {
+      frames += 1;
+      const spent = performance.now() - begun;
+      if (spent > 1500 && spent < 3000 && frames / (spent / 1000) < 8) {
+        failRef.current();
+        return;
+      }
       const t = (Date.now() + clock.offset() - startedAt) / 1000;
       try {
         scene.frame(Math.max(0, t));

@@ -189,7 +189,7 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
   return (
     <div className="quiz-phone lotto-phone">
       <p className="eyebrow">
-        {stage === "ready" ? "Музыкальное лото" : spinning ? `Крутим барабан… · песня ${step + 1} из ${content.songs.length}` : content.drum !== "off" ? `Бочонок № ${songIndex + 1} · песня ${step + 1} из ${content.songs.length}` : `Песня ${step + 1} из ${content.songs.length}`}
+        {stage === "ready" ? "Музыкальное лото" : spinning ? `Крутим барабан… · песня ${step + 1} из ${content.songs.length}` : content.drum !== "off" && session.screenMode !== "none" ? `Бочонок № ${songIndex + 1} · песня ${step + 1} из ${content.songs.length}` : `Песня ${step + 1} из ${content.songs.length}`}
         {me && place ? ` · ${pointsLabel(me.score)}` : ""}
       </p>
       {noScreen && stage === "reveal" && song && (

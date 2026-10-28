@@ -169,20 +169,24 @@ async function boardLayout(page, total, where) {
     const cells = [...board.querySelectorAll(".lh-board__grid i")].map((el) => ({ n: el.textContent, b: el.getBoundingClientRect() }));
     let overlap = 0;
     let outside = 0;
+    const pairs = [];
     for (let i = 0; i < cells.length; i++) {
       const a = cells[i].b;
       if (a.left < bb.left || a.right > bb.right || a.top < bb.top || a.bottom > bb.bottom) outside += 1;
       for (let j = i + 1; j < Math.min(cells.length, i + 12); j++) {
         const c = cells[j].b;
-        if (a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1 && c.top < a.bottom - 1) overlap += 1;
+        if (a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1 && c.top < a.bottom - 1) {
+          overlap += 1;
+          pairs.push(`${cells[i].n}/${cells[j].n} ${Math.round(a.width)}×${Math.round(a.height)} @${Math.round(a.left)},${Math.round(a.top)} и @${Math.round(c.left)},${Math.round(c.top)}`);
+        }
       }
     }
     const font = cells[0] ? parseFloat(getComputedStyle(board.querySelector(".lh-board__grid i")).fontSize) : 0;
-    return { count: cells.length, overlap, outside, font, last: cells[cells.length - 1]?.n };
+    return { count: cells.length, overlap, outside, font, last: cells[cells.length - 1]?.n, pairs: pairs.slice(0, 3).join("; ") };
   });
   if (!r) return bad(`${where}: табло не видно`);
   check(r.count === total && r.last === String(total), `${where}: в табло все ${total} номеров`, `${where}: в табло ${r.count} номеров (последний ${r.last})`);
-  check(r.overlap === 0 && r.outside === 0, `${where}: клетки табло не наезжают и не выходят за край`, `${where}: наезжают ${r.overlap}, за краем ${r.outside}`);
+  check(r.overlap === 0 && r.outside === 0, `${where}: клетки табло не наезжают и не выходят за край`, `${where}: наезжают ${r.overlap} (${r.pairs}), за краем ${r.outside}`);
   check(r.font >= 9, `${where}: номер в клетке читается (${r.font.toFixed(1)} px)`, `${where}: номер в клетке мелкий — ${r.font.toFixed(1)} px`);
 }
 
@@ -369,8 +373,8 @@ async function editor(browser, host, track) {
 // ---------------------------------------------------------------- 2. игра на 24 песни
 
 async function game24(browser, host, track) {
-  say("— 2. Игра на 24 песни, быстрый барабан —");
-  const content = contentOf(songsOf(24, track));
+  say("— 2. Игра на 24 песни, полный барабан —");
+  const content = contentOf(songsOf(24, track), { drum: "full" });
   const game = await createSession(host, `Лото 24 ${MARK}`, content);
   const pult = await open(browser, "Пульт", PHONE, host.token);
   await pult.goto(`${BASE}/host/${game.code}`);
@@ -398,26 +402,25 @@ async function game24(browser, host, track) {
   check((await pult.getByText("Барабан крутится на экране зала", { exact: false }).count()) > 0, "Пульт: «Барабан крутится на экране зала — песня зазвучит через N с»");
   check(((await anna.locator(".lotto-phone .eyebrow").first().textContent()) ?? "").includes("Крутим барабан"), "Телефон: «Крутим барабан…», подсказка не выдаёт песню");
   check((await anna.locator(".lotto-card__cell.is-now").count()) === 0, "Телефон: пока крутится барабан, клетка не светится");
-  await sleep(1200);
+  // Номер знает пульт сразу («№ N · название»); экран покажет его крупно, когда бочонок откроется.
+  const number = await until(async () => /№ (\d+) ·/.exec((await pult.locator("main").textContent()) ?? "")?.[1] ?? null, WAIT, "номер на пульте").catch((e) => (bad(String(e.message)), null));
   await shot(screen, "экран-барабан");
-  const number = await until(async () => {
-    const n = await screen.locator(".lh-drum__num").textContent().catch(() => null);
-    return n ? n.trim() : null;
-  }, 9000, "номер бочонка").catch((e) => (bad(String(e.message)), null));
-  if (number) ok(`Экран зала: выпал бочонок ${number}, номер крупно с отсчётом`);
-  await sleep(1200);
-  await shot(screen, "экран-номер");
-  await hallLayout(screen, "Экран: номер");
-  check(
-    await soft(async () => (await screen.locator(".lh-board__grid i.is-now").textContent()) === number, 3000, "номер на табло"),
-    "Табло: выпавший номер загорелся",
-    "Табло: выпавший номер не загорелся",
-  );
+  const bigOk = await soft(async () => ((await screen.locator(".lh-drum__num").textContent().catch(() => null)) ?? "").trim() === number, 14_000, "номер крупно");
+  check(bigOk, `Экран зала: выпал бочонок ${number}, номер крупно с отсчётом`, `Экран зала: крупного номера ${number} не дождались`);
+  if (bigOk) {
+    await shot(screen, "экран-номер");
+    await hallLayout(screen, "Экран: номер");
+    check(
+      await soft(async () => (await screen.locator(".lh-board__grid i.is-now").textContent()) === number, 3000, "номер на табло"),
+      "Табло: выпавший номер загорелся",
+      "Табло: выпавший номер не загорелся",
+    );
+  }
   await screen.locator(".lh-song").waitFor({ timeout: WAIT });
   ok("После барабана — страница песни");
   check(((await screen.locator(".lh-vinyl__n").first().textContent()) ?? "").trim() === number, "Пластинка с тем же номером, что выпал");
   check(((await screen.locator(".lh-track__title").textContent()) ?? "").includes(`№ ${number}`), `«Звучит песня № ${number}»`);
-  check(((await pult.locator("main").textContent()) ?? "").includes(`№ ${number}`), "Пульт: номер бочонка и название песни");
+  check(((await pult.locator("main").textContent()) ?? "").includes(`бочонок № ${number}`), "Пульт: номер бочонка и название песни");
   check(((await anna.locator(".lotto-phone .eyebrow").first().textContent()) ?? "").includes(`Бочонок № ${number}`), "Телефон: «Бочонок № N»");
   await hallLayout(screen, "Экран: звучит песня");
   await shot(screen, "экран-песня");
@@ -432,7 +435,7 @@ async function game24(browser, host, track) {
   await shot(screen, "экран-ответ");
   await click(pult, "Убрать текст");
   await until(async () => (await screen.locator(".lh-karaoke").count()) === 0, WAIT, "текст убран").then(() => ok("«Убрать текст» — текста на экране нет"), (e) => bad(String(e.message)));
-  check((await pult.getByRole("button", { name: "Как в настройке песни" }).count()) === 1, "Пульт: «Как в настройке песни» вернуть");
+  check(await soft(async () => (await pult.getByRole("button", { name: "Как в настройке песни" }).count()) === 1, WAIT, ""), "Пульт: после «Убрать текст» — «Как в настройке песни» и «Показать текст сейчас»");
   await click(pult, "⏹ Остановить песню (играет на 60%)");
   await until(async () => (await pult.getByRole("button", { name: "⏹ Остановить песню (играет на 60%)" }).count()) === 0, WAIT, "стоп").then(() => ok("«Остановить песню» — кнопка ушла, песня остановлена"), (e) => bad(String(e.message)));
   await hallLayout(screen, "Экран: правильный ответ");
@@ -488,17 +491,19 @@ async function bigBoards(browser, host, track) {
     await pult.goto(`${BASE}/host/${game.code}`);
     const screen = await open(browser, `Экран ${n}`, TV_HD);
     await screen.goto(`${BASE}/screen/${game.code}`);
+    const small = await open(browser, `Экран ${n} 1280`, TV);
+    await small.goto(`${BASE}/screen/${game.code}`);
     await click(pult, "Начать игру");
     await screen.getByText("Откройте карточки").waitFor({ timeout: WAIT });
     await click(pult, "🎰 Крутить барабан — первая песня");
     await screen.locator(".lh-board").waitFor({ timeout: WAIT });
-    await sleep(3000);
+    await small.locator(".lh-board").waitFor({ timeout: WAIT });
     await boardLayout(screen, n, `Табло ${n} (1920×1080)`);
+    await boardLayout(small, n, `Табло ${n} (1280×720)`);
     await hallLayout(screen, `Экран ${n}: барабан`);
     await shot(screen, `экран-табло-${n}`);
-    await screen.setViewportSize({ width: 1280, height: 720 });
-    await sleep(500);
-    await boardLayout(screen, n, `Табло ${n} (1280×720)`);
+    await shot(small, `экран-табло-${n}-1280`);
+    await small.context().close();
     await pult.context().close();
     await screen.context().close();
   }

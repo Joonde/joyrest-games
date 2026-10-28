@@ -173,13 +173,13 @@ export function SongTrackTools({ song, content, editable, onChange }: { song: Lo
         {song.length !== null && song.length > 0 && !LENGTHS.includes(song.length) && <p className="muted small">Сейчас: {song.length} с.</p>}
         <p className="muted small">Для караоке выберите «До конца» или подольше — зал успеет спеть.</p>
       </fieldset>
-      <LyricsEditor song={song} editable={editable} onChange={onChange} player={player} />
+      <LyricsEditor song={song} editable={editable} onChange={onChange} player={player} playAfter={content.playAfter} />
     </div>
   );
 }
 
 /** Текст песни: вставить, .lrc, когда показывать, разметка строк под музыку, правка времени, проверка. */
-function LyricsEditor({ song, editable, onChange, player }: { song: LottoSong; editable: boolean; onChange: (patch: Partial<LottoSong>) => void; player: Player }) {
+function LyricsEditor({ song, editable, onChange, player, playAfter }: { song: LottoSong; editable: boolean; onChange: (patch: Partial<LottoSong>) => void; player: Player; playAfter: boolean }) {
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [mode, setMode] = useState<"idle" | "mark" | "check">("idle");
@@ -355,6 +355,12 @@ function LyricsEditor({ song, editable, onChange, player }: { song: LottoSong; e
                   <span className="choice__hint">Текст появится сам с этого места (например, с припева). Ведущий может включить или убрать его и с пульта.</span>
                 </span>
               </label>
+              {song.lyricsShow === "reveal" && !playAfter && (
+                <p className="notice small">
+                  Чтобы зал пел после названия, включите в «⚙️ Правила и настройки» галочку «Песня играет и после правильного ответа» — иначе на
+                  названии музыка затихает и текст уходит вместе с ней.
+                </p>
+              )}
               {song.lyricsShow === "at" && (
                 <button type="button" className="btn btn--secondary btn--block" disabled={player.t === 0 && !player.playing} onClick={() => onChange({ lyricsAt: seconds(player.now()) })}>
                   ⤓ Показывать текст отсюда — {clockOf(player.playing ? player.now() : player.t, true)}

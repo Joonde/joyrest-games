@@ -320,7 +320,7 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
     <div className="lh">
       <div className={`lh-frame lh-song${withVideo ? " lh-song--video" : ""}${lyricsOn ? " lh-song--lyrics" : ""}`}>
         <div className="lh-rays" aria-hidden="true" />
-        <Head title={title} right={counter} />
+        <Head title={title} />
         {withVideo ? (
           <div className="lh-video">
             <div className="lh-video__zone">
@@ -381,6 +381,7 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
               {n}
             </b>
           ))}
+          <span className="lh-last__count">{counter}</span>
         </p>
         <p className="lh-hint">{hint}</p>
         {warm}

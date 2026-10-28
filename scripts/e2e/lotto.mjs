@@ -109,10 +109,13 @@ const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isM
 const TV = { viewport: { width: 1280, height: 720 }, locale: "ru-RU" };
 const TV_HD = { viewport: { width: 1920, height: 1080 }, locale: "ru-RU" };
 
+const openPages = [];
+
 async function open(browser, who, options = PHONE, token = "") {
   const context = await browser.newContext(options);
   if (token) await context.addCookies([{ name: "__Host-jr_s", value: token, url: BASE, secure: true, httpOnly: true, sameSite: "Lax" }]);
   const page = await context.newPage();
+  openPages.push([who, page]);
   page.on("pageerror", (error) => bad(`${who}: ошибка на странице — ${String(error.message).slice(0, 160)}`));
   page.on("console", (msg) => {
     if (msg.type() === "error" && !/favicon|ERR_ABORTED|net::|status of 40[134]|status of 409|rutube|Failed to load resource/.test(msg.text())) bad(`${who}: ошибка в консоли — ${msg.text().slice(0, 160)}`);
@@ -392,6 +395,17 @@ async function game24(browser, host, track) {
   await screen.mouse.click(640, 360);
   ok("Заставка «Откройте карточки», звук на экране разрешён касанием");
 
+  // Экран запоминает всё, что показал (номер крупно, свежая клетка табло): проверки ниже не зависят от того,
+  // успел ли медленный браузер CI сделать снимок в нужную секунду.
+  await screen.evaluate(() => {
+    window.__seen = { big: [], fresh: [] };
+    new MutationObserver(() => {
+      const big = document.querySelector(".lh-drum__num")?.textContent?.trim();
+      const fresh = document.querySelector(".lh-board__grid i.is-now")?.textContent?.trim();
+      if (big && !window.__seen.big.includes(big)) window.__seen.big.push(big);
+      if (fresh && !window.__seen.fresh.includes(fresh)) window.__seen.fresh.push(fresh);
+    }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+  });
   await click(pult, "🎰 Крутить барабан — первая песня");
   await screen.locator(".lh-drum").waitFor({ timeout: WAIT });
   ok("Экран зала: барабан");
@@ -405,18 +419,10 @@ async function game24(browser, host, track) {
   // Номер знает пульт сразу («№ N · название»); экран покажет его крупно, когда бочонок откроется.
   const number = await until(async () => /№ (\d+) ·/.exec((await pult.locator("main").textContent()) ?? "")?.[1] ?? null, WAIT, "номер на пульте").catch((e) => (bad(String(e.message)), null));
   await shot(screen, "экран-барабан");
-  const bigOk = await soft(async () => ((await screen.locator(".lh-drum__num").textContent().catch(() => null)) ?? "").trim() === number, 14_000, "номер крупно");
-  check(bigOk, `Экран зала: выпал бочонок ${number}, номер крупно с отсчётом`, `Экран зала: крупного номера ${number} не дождались`);
-  if (bigOk) {
-    await shot(screen, "экран-номер");
-    await hallLayout(screen, "Экран: номер");
-    check(
-      await soft(async () => (await screen.locator(".lh-board__grid i.is-now").textContent()) === number, 3000, "номер на табло"),
-      "Табло: выпавший номер загорелся",
-      "Табло: выпавший номер не загорелся",
-    );
-  }
-  await screen.locator(".lh-song").waitFor({ timeout: WAIT });
+  await screen.locator(".lh-song").waitFor({ timeout: 25_000 });
+  const seen = await screen.evaluate(() => window.__seen);
+  check(seen.big.includes(number), `Экран зала: выпал бочонок ${number} — номер крупно с отсчётом`, `Экран зала: крупный номер — ${seen.big.join(", ") || "не показан"}, ждали ${number}`);
+  check(seen.fresh.includes(number), "Табло: выпавший номер загорелся", `Табло: загорелся ${seen.fresh.join(", ") || "ничего"}, ждали ${number}`);
   ok("После барабана — страница песни");
   check(((await screen.locator(".lh-vinyl__n").first().textContent()) ?? "").trim() === number, "Пластинка с тем же номером, что выпал");
   check(((await screen.locator(".lh-track__title").textContent()) ?? "").includes(`№ ${number}`), `«Звучит песня № ${number}»`);
@@ -567,8 +573,11 @@ async function main() {
     try {
       await run();
     } catch (e) {
-      bad(`${name}: ${String(e.message ?? e).slice(0, 300)}`);
+      bad(`${name}: ${String(e.message ?? e).replace(/\s+/g, " ").slice(0, 900)}`);
+      // Что было на экранах в момент сбоя.
+      for (const [who, page] of openPages) if (!page.isClosed()) await shot(page, `сбой-${name}-${who}`);
     }
+    openPages.length = 0;
   }
   await browser.close();
 }

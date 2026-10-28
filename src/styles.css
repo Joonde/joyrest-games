@@ -7646,6 +7646,12 @@ ul.chips {
   --lotto-grid-side: 6.5cqw;
 }
 
+/* 5×5: длинное название («Миллион алых роз на подоконнике») — до четырёх строк, клетка подрастает. */
+.lotto-ticket--s5 .lotto-card__title {
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
 /* Узкая карточка 4×4: исполнителю места нет — только название (было «Испо…»). */
 @container (max-width: 380px) {
   .lotto-ticket--s4 .lotto-card__artist {

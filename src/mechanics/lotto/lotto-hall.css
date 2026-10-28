@@ -501,10 +501,10 @@
 
 .lh-track__sub {
   margin: calc(0.6 * var(--u)) auto 0;
-  max-width: calc(48 * var(--u));
+  /* Одной строкой: ниже сразу эквалайзер, вторая строка ушла бы под него. */
+  white-space: nowrap;
   font-size: calc(1.45 * var(--u));
   line-height: 1.3;
-  text-wrap: balance;
   color: var(--lh-soft);
 }
 

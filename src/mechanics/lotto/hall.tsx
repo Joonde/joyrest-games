@@ -379,7 +379,7 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
             ) : (
               <div className="lh-track__now">
                 <p className="lh-track__title">Звучит песня № {number}</p>
-                <p className="lh-track__sub">{track ? guessLine : `Песню включает ведущий. ${guessLine}`}</p>
+                <p className="lh-track__sub">{guessLine}</p>
               </div>
             )}
             {revealed && <Winners session={session} result={result} />}

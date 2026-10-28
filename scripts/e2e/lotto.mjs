@@ -593,6 +593,14 @@ async function cardFlow(browser, host) {
     if (k === 1) {
       check(((await screen.locator(".lh-track__sub").textContent()) ?? "").includes("Угадайте песню! Как только ведущий откроет ответ"), "Экран: «Угадайте песню! Как только ведущий откроет ответ, правильное название появится на экране»", "Экран: нет подписи про угадывание");
       await hallLayout(screen, "Экран: угадайте песню");
+      // Подпись — одной строкой, эквалайзер её не закрывает.
+      const sub = await screen.evaluate(() => {
+        const p = document.querySelector(".lh-track__sub")?.getBoundingClientRect();
+        const eq = document.querySelector(".lh-eq--wide")?.getBoundingClientRect();
+        const line = parseFloat(getComputedStyle(document.querySelector(".lh-track__sub")).lineHeight);
+        return p && eq ? { lines: Math.round(p.height / line), gap: eq.top - p.bottom } : null;
+      });
+      check(!!sub && sub.lines === 1 && sub.gap >= 0, "Подпись про угадывание — одной строкой, над эквалайзером", `Подпись про угадывание: ${JSON.stringify(sub)} — наезжает на эквалайзер или в несколько строк`);
       check(((await anna.locator(".lotto-hint").textContent()) ?? "").includes("Угадайте песню на слух"), "Телефон: «Угадайте песню на слух…»", "Телефон: нет подсказки про угадывание");
       check((await anna.locator(".lotto-card__cell.is-now").count()) === 0, "Телефон: пока песня звучит, ничего не светится", "Телефон: клетка светится до ответа — выдаёт песню");
       check((await anna.locator(".lotto-card__num").count()) === 0, "Телефон: до ответа номеров на карточке нет", "Телефон: номер на карточке до ответа");

@@ -1,49 +1,9 @@
-✓ quiz-0-solo-projector: видов 46, находок 0
-✓ quiz-0-solo-tv: видов 46, находок 0
-✓ quiz-0-teams-tv: видов 38, находок 0
-✓ quiz-0-solo-laptop: видов 40, находок 0
-✓ quiz-1-solo-tv: видов 28, находок 0
-✓ quiz-1-solo-projector: видов 28, находок 0
-✓ quiz-0-teams-projector: видов 38, находок 0
-✓ quiz-0-teams-laptop: видов 44, находок 0
-✓ quiz-1-teams-tv: видов 26, находок 0
-✓ quiz-1-solo-laptop: видов 28, находок 0
-✓ quiz-1-teams-projector: видов 26, находок 0
-✓ quiz-1-teams-laptop: видов 32, находок 0
-✓ quiz-2-solo-projector: видов 26, находок 0
-✓ quiz-2-solo-tv: видов 26, находок 0
-✓ quiz-2-solo-laptop: видов 32, находок 0
-✓ quiz-2-teams-projector: видов 42, находок 0
-✓ quiz-2-teams-tv: видов 42, находок 0
-✓ quiz-2-teams-laptop: видов 42, находок 0
-✓ quiz-3-solo-tv: видов 45, находок 0
-✓ quiz-3-solo-projector: видов 45, находок 0
-✓ quiz-3-teams-tv: видов 53, находок 0
-✓ quiz-3-solo-laptop: видов 48, находок 0
-✓ quiz-3-teams-projector: видов 53, находок 0
-✓ quiz-3-teams-laptop: видов 46, находок 0
-• dance-0-teams-projector: видов 40, находок 1
-✓ dance-0-teams-tv: видов 40, находок 0
-• dance-0-teams-laptop: видов 36, находок 1
-✓ stage-0-teams-tv: видов 58, находок 0
-✓ stage-0-teams-laptop: видов 46, находок 0
-✓ stage-0-teams-projector: видов 58, находок 0
-✓ stage-1-teams-tv: видов 58, находок 0
-✓ stage-1-teams-laptop: видов 46, находок 0
-✓ stage-1-teams-projector: видов 58, находок 0
-✓ survival-0-teams-tv: видов 40, находок 0
-✓ survival-0-teams-projector: видов 40, находок 0
-✓ dragon-0-teams-projector: видов 26, находок 0
-✓ dragon-0-teams-tv: видов 26, находок 0
-✓ dragon-0-teams-laptop: видов 32, находок 0
-✓ dragon-1-teams-projector: видов 33, находок 0
-✓ dragon-1-teams-tv: видов 33, находок 0
-✓ dragon-1-teams-laptop: видов 34, находок 0
-✓ survival-0-teams-laptop: видов 44, находок 0
-• mafia-0-solo-tv: видов 89, находок 1
-• mafia-0-solo-projector: видов 85, находок 1
-• mafia-0-solo-laptop: видов 89, находок 1
-• bunker-0-solo-tv: видов 77, находок 1 (до финала не дошла)
-• bunker-0-solo-projector: видов 86, находок 1 (до финала не дошла)
-• bunker-0-solo-laptop: видов 83, находок 8 (до финала не дошла)
-Ревизор: 11 находок → /tmp/inspect/README.md
+• lotto-0-solo-projector: видов 30, находок 8
+✓ lotto-0-solo-tv: видов 30, находок 0
+• lotto-0-solo-laptop: видов 32, находок 3
+✓ lotto-0-teams-tv: видов 22, находок 0
+• lotto-0-teams-projector: видов 22, находок 8
+✓ lotto-0-solo-crowd: видов 30, находок 0
+• lotto-0-teams-laptop: видов 34, находок 3
+✓ lotto-0-teams-crowd: видов 32, находок 0
+Ревизор: 8 находок → /tmp/inspect/README.md

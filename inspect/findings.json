@@ -1,484 +1,203 @@
 {
  "runs": [
   {
-   "name": "quiz-0-solo-projector",
-   "views": 46,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-0-solo-tv",
-   "views": 46,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-0-teams-tv",
-   "views": 38,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-0-solo-laptop",
-   "views": 40,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-solo-tv",
-   "views": 28,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-solo-projector",
-   "views": 28,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-0-teams-projector",
-   "views": 38,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-0-teams-laptop",
-   "views": 44,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-teams-tv",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-solo-laptop",
-   "views": 28,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-teams-projector",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-teams-laptop",
-   "views": 32,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-solo-projector",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-solo-tv",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-solo-laptop",
-   "views": 32,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-teams-projector",
-   "views": 42,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-teams-tv",
-   "views": 42,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-teams-laptop",
-   "views": 42,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-solo-tv",
-   "views": 45,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-solo-projector",
-   "views": 45,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-teams-tv",
-   "views": 53,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-solo-laptop",
-   "views": 48,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-teams-projector",
-   "views": 53,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-teams-laptop",
-   "views": 46,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dance-0-teams-projector",
-   "views": 40,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "dance-0-teams-tv",
-   "views": 40,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dance-0-teams-laptop",
-   "views": 36,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "stage-0-teams-tv",
-   "views": 58,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-0-teams-laptop",
-   "views": 46,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-0-teams-projector",
-   "views": 58,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-1-teams-tv",
-   "views": 58,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-1-teams-laptop",
-   "views": 46,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-1-teams-projector",
-   "views": 58,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "survival-0-teams-tv",
-   "views": 40,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "survival-0-teams-projector",
-   "views": 40,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-0-teams-projector",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-0-teams-tv",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-0-teams-laptop",
-   "views": 32,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-1-teams-projector",
-   "views": 33,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-1-teams-tv",
-   "views": 33,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-1-teams-laptop",
-   "views": 34,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "survival-0-teams-laptop",
-   "views": 44,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "mafia-0-solo-tv",
-   "views": 89,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "mafia-0-solo-projector",
-   "views": 85,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "mafia-0-solo-laptop",
-   "views": 89,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "bunker-0-solo-tv",
-   "views": 77,
-   "findings": 1,
-   "finished": false
-  },
-  {
-   "name": "bunker-0-solo-projector",
-   "views": 86,
-   "findings": 1,
-   "finished": false
-  },
-  {
-   "name": "bunker-0-solo-laptop",
-   "views": 83,
+   "name": "lotto-0-solo-projector",
+   "views": 30,
    "findings": 8,
-   "finished": false
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-tv",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-laptop",
+   "views": 32,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-tv",
+   "views": 22,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-projector",
+   "views": 22,
+   "findings": 8,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-crowd",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-laptop",
+   "views": 34,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-crowd",
+   "views": 32,
+   "findings": 0,
+   "finished": true
   }
  ],
  "findings": [
   {
-   "key": "экран зала|мелко для зала|main.quiz-stage > div.dance-screen.db-stage > div.db-head > span.db-kicker|",
+   "key": "экран зала|мелко для зала|div.lh-frame > div.lh-head > div > p.lh-head__eb|",
    "area": "экран зала",
    "kind": "мелко для зала",
-   "message": "шрифт 12.8 px — 18 px на Full HD (нужно от 18)",
-   "path": "main.quiz-stage > div.dance-screen.db-stage > div.db-head > span.db-kicker",
-   "text": "JoyRest · вечер танцев",
-   "at": "playing/0/ready/",
-   "count": 1,
-   "shot": "shots/dance-0-teams-projector-hall-1.jpg",
-   "where": [
-    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "dance"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Первым ходит» закрыт элементом div.draw-coin__rays",
-   "path": "div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow",
-   "text": "Первым ходит",
-   "at": "playing/17/podium/result",
-   "count": 21,
-   "shot": "shots/dance-0-teams-laptop-hall-1.jpg",
-   "where": [
-    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "mafia 1-й шаблон, каждый сам ×9, телевизор full hd",
-    "mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена",
-    "mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена",
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd",
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена",
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "dance",
-    "mafia",
-    "bunker"
-   ]
-  },
-  {
-   "area": "страница",
-   "kind": "не успел",
-   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
-   "path": "",
-   "text": "",
-   "at": "",
-   "count": 1,
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "area": "страница",
-   "kind": "не успел",
-   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
-   "path": "",
-   "text": "",
-   "at": "",
-   "count": 1,
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|надписи наезжают|div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span|",
-   "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«Речь» и «№4» друг на друге",
-   "path": "div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span",
-   "text": "Речь | №4",
-   "at": "playing/50/question/open",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-laptop-hall-2.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Речь» закрыт элементом article.bk-dossier",
-   "path": "div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span",
-   "text": "Речь",
-   "at": "playing/50/question/open",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-laptop-hall-3.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|надписи наезжают|div.bk-stage__text > h2.bk-title > span > span.name-emoji|",
-   "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«🐝» и «№3» друг на друге",
-   "path": "div.bk-stage__text > h2.bk-title > span > span.name-emoji",
-   "text": "🐝 | №3",
-   "at": "playing/57/question/justify",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-laptop-hall-4.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|div.bk-stage__text > h2.bk-title > span > span.name-emoji|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«🐝» закрыт элементом span.bk-dossier__seat",
-   "path": "div.bk-stage__text > h2.bk-title > span > span.name-emoji",
-   "text": "🐝",
-   "at": "playing/57/question/justify",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-laptop-hall-5.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|надписи наезжают|div.bk-stage__text > h2.bk-title > span > span|",
-   "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«Константин Константинова» и «🦉» друг на друге",
-   "path": "div.bk-stage__text > h2.bk-title > span > span",
-   "text": "Константин Константинова | 🦉",
-   "at": "playing/57/question/justify",
-   "count": 11,
-   "shot": "shots/bunker-0-solo-laptop-hall-6.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|div.bk-stage__text > h2.bk-title > span > span|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Константин Константинова» закрыт элементом span.bk-dossier__seat",
-   "path": "div.bk-stage__text > h2.bk-title > span > span",
-   "text": "Константин Константинова",
-   "at": "playing/57/question/justify",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-laptop-hall-7.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|надписи наезжают|section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted|",
-   "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«Снова ничья — решит жребий.» и «Моряк · стаж 17 лет» друг на друге",
-   "path": "section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted",
-   "text": "Снова ничья — решит жребий. | Моряк · стаж 17 лет",
-   "at": "playing/57/question/justify",
+   "message": "шрифт 11.1 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.lh-frame > div.lh-head > div > p.lh-head__eb",
+   "text": "JoyRest · Музыкальное лото",
+   "at": "playing/0/question/",
    "count": 2,
-   "shot": "shots/bunker-0-solo-laptop-hall-8.jpg",
+   "shot": "shots/lotto-0-solo-projector-hall-1.jpg",
    "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "bunker"
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.lh-frame > aside.lh-board > div.lh-board__head > p.lh-board__title|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.6 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.lh-frame > aside.lh-board > div.lh-board__head > p.lh-board__title",
+   "text": "Табло",
+   "at": "playing/0/question/",
+   "count": 5,
+   "shot": "shots/lotto-0-solo-projector-hall-2.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.lh-frame > aside.lh-board > div.lh-board__head > p.lh-board__count|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.8 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.lh-frame > aside.lh-board > div.lh-board__head > p.lh-board__count",
+   "text": "из 28 сыграно",
+   "at": "playing/0/question/",
+   "count": 2,
+   "shot": "shots/lotto-0-solo-projector-hall-3.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.lh > div.lh-frame > aside.lh-board > p.lh-board__last|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.6 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.lh > div.lh-frame > aside.lh-board > p.lh-board__last",
+   "text": "Последние",
+   "at": "playing/0/question/",
+   "count": 5,
+   "shot": "shots/lotto-0-solo-projector-hall-4.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.lh-frame.lh-song > div.lh-head > div > p.lh-head__eb|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.1 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.lh-frame.lh-song > div.lh-head > div > p.lh-head__eb",
+   "text": "JoyRest · Музыкальное лото",
+   "at": "playing/0/reveal/",
+   "count": 3,
+   "shot": "shots/lotto-0-solo-projector-hall-5.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage.show-stage > div.lh > div.lh-frame.lh-song > p.lh-count|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.8 px — 17 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage.show-stage > div.lh > div.lh-frame.lh-song > p.lh-count",
+   "text": "1 из 28 сыграно",
+   "at": "playing/0/reveal/",
+   "count": 3,
+   "shot": "shots/lotto-0-solo-projector-hall-6.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.lh-frame.lh-song > div.lh-track > div.lh-track__answer > p.lh-track__k|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.8 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.lh-frame.lh-song > div.lh-track > div.lh-track__answer > p.lh-track__k",
+   "text": "Это была песня № 24",
+   "at": "playing/0/reveal/",
+   "count": 3,
+   "shot": "shots/lotto-0-solo-projector-hall-7.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage.show-stage > div.lh > div.lh-frame.lh-song > p.lh-last|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.6 px — 15 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage.show-stage > div.lh > div.lh-frame.lh-song > p.lh-last",
+   "text": "Последние",
+   "at": "playing/0/reveal/",
+   "count": 6,
+   "shot": "shots/lotto-0-solo-projector-hall-8.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "lotto"
    ]
   }
  ]

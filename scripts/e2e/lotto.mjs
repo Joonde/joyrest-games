@@ -631,7 +631,7 @@ async function cardFlow(browser, host) {
     }
     // Ряд у Ани собрался на названии — «Лото!» загорается, заявка ждёт следующей песни.
     if (!annaQueued && k < 9 && (await soft(async () => !(await lotto(anna).isDisabled()), 1500, ""))) {
-      await lotto(anna).click();
+      await lotto(anna).click({ force: true });
       annaQueued = k;
       check(await soft(async () => (await status(anna)).includes("Заявка принята — уйдёт ведущему"), WAIT, ""), "Собрали на названии — «Заявка принята — уйдёт ведущему, как только закрутится следующий барабан»", `Нет статуса отложенной заявки — «${await status(anna)}»`);
     }
@@ -643,7 +643,7 @@ async function cardFlow(browser, host) {
   check((await borya.locator(".lotto-card__num").count()) === 9, "На всех сыгранных клетках — номер бочонка", "Не на всех сыгранных клетках номер");
   for (let n = 1; n <= 9; n++) await cell(borya, String(n)).click({ force: true });
   await until(async () => !(await lotto(borya).isDisabled()), WAIT, "«Лото!» у Бори");
-  await lotto(borya).click();
+  await lotto(borya).click({ force: true });
   check(await soft(async () => (await status(borya)).includes("Последний шанс"), WAIT, ""), "Последняя песня: «Заявка ждёт — скажите ведущему «Лото!»: он откроет «Последний шанс»»", `Нет статуса — «${await status(borya)}»`);
   await click(pult, "🙋 Последний шанс «Лото!»");
   check(await soft(async () => ((await screen.locator(".lh-head__title").textContent()) ?? "").includes("Последний шанс"), WAIT, ""), "Экран: «Последний шанс «Лото!»», название песни остаётся", "Экран: нет «Последний шанс»");

@@ -881,7 +881,8 @@
 
 /* «Видео загружается…» — сверху зоны: снизу на ответе плашка с названием. */
 .lh-video__zone .stage-video__loading {
-  inset: calc(1.5 * var(--u)) 0 auto;
+  inset: calc(1.5 * var(--u)) auto auto calc(1.5 * var(--u));
+  margin: 0;
   font-size: calc(1.3 * var(--u));
   padding: calc(0.6 * var(--u)) calc(1.4 * var(--u));
 }

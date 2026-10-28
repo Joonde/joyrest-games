@@ -87,7 +87,6 @@ export function Board({ total, played, fresh }: { total: number; played: number[
           </i>
         ))}
       </div>
-      <Mono className="lh-board__wm" />
     </aside>
   );
 }
@@ -332,7 +331,7 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
                   <p className="lh-video__cover-s">Видео откроется вместе с названием</p>
                 </div>
               )}
-              <Mono className="lh-video__wm" />
+              {!revealed && <Mono className="lh-video__wm" />}
               {revealed && (
                 <div className="lh-answer">
                   <span className="lh-answer__num">{number}</span>

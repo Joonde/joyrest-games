@@ -662,7 +662,7 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     const cleared = await post("/api/clients/kout1/outreach", owner, { unfail: "all" });
     expect(cleared.json()).toMatchObject({ outreachFail: [] });
     expect(cleared.json().outreachAt).toBe(worked.json().outreachAt);
-    expect(cleared.json().updatedAt).toBe(version);
+    expect(cleared.json().updatedAt).toBe(worked.json().updatedAt);
     expect((await post("/api/clients/kout1/outreach", owner, { unfail: "all" })).json()).toMatchObject({ outreachFail: [] });
     expect((await post("/api/clients/kout1/outreach", owner, { fail: "telegram", unfail: "telegram" })).statusCode).toBe(400);
     expect((await post("/api/clients/kout1/outreach", owner, { unfail: "vk" })).statusCode).toBe(400);

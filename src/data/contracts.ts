@@ -15,6 +15,7 @@ import type {
   CalendarMember,
   AgencyEvent,
   ClientDetails,
+  OutreachMark,
   ClientResponse,
   ClientRecord,
   ContactMatches,
@@ -354,9 +355,9 @@ export interface ClientsRepository {
   saveNotes(id: string, notes: string, base: string): Promise<ClientDetails>;
   /**
    * Рассылка прежним клиентам (только владелец): `sent` — написали (`at` — когда, для переноса отметки с телефона) или
-   * снять отметку; `fail` — куда сообщение не дошло. Карточку клиента не меняет.
+   * снять отметку; `fail` — куда сообщение не дошло, `unfail` — снять «не получилось». Карточку клиента не меняет.
    */
-  outreach(id: string, mark: { sent?: boolean; at?: number; fail?: "telegram" | "whatsapp" }): Promise<ClientDetails>;
+  outreach(id: string, mark: OutreachMark): Promise<ClientDetails>;
   archive(id: string): Promise<void>;
   restore(id: string): Promise<void>;
   /** Адрес выгрузки CSV: только согласившиеся на рассылку или все. */

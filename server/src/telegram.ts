@@ -32,6 +32,7 @@ import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent, TelegramStatus } from "../../src/data/types";
 import { actorOf, apiGuard, sessionUser } from "./auth";
 import { upsertClient } from "./clients";
+import { dropBusinessOf } from "./telegramAccess";
 
 const CODE_TTL_MS = 30 * 60_000;
 const POLL_TIMEOUT_S = 25;
@@ -241,7 +242,7 @@ export function startBot(options: BotOptions): Bot {
 
   /** Сообщение ведущему с кнопкой «Принял, готовлюсь»: прежнюю кнопку убрать, номер нового сообщения запомнить. */
   async function sendAsk(userId: string, text: string, e: NoticeEvent): Promise<boolean> {
-    const [link] = await sql<{ chat_id: string }[]>`select chat_id::text from tg_links where user_id = ${userId}`;
+    const link = await activeLink(userId);
     if (!link) return false;
     await settleAsk(e.id, null);
     const sent = await sendChatMsg(link.chat_id, text, acceptButton(e));
@@ -263,8 +264,15 @@ export function startBot(options: BotOptions): Bot {
     return me;
   }
 
+  /** Чат человека с ботом — только у того, кто в команде (отключённому бот ничего не шлёт, ревью 29 октября 2026). */
+  async function activeLink(userId: string): Promise<{ chat_id: string } | null> {
+    const [link] = await sql<{ chat_id: string }[]>`
+      select l.chat_id::text from tg_links l join users u on u.id = l.user_id where l.user_id = ${userId} and u.active`;
+    return link ?? null;
+  }
+
   async function sendTo(userId: string, text: string, markup?: object): Promise<boolean> {
-    const [link] = await sql<{ chat_id: string }[]>`select chat_id::text from tg_links where user_id = ${userId}`;
+    const link = await activeLink(userId);
     if (!link) return false;
     const status = await sendChat(link.chat_id, text, markup);
     // Человек заблокировал бота — отвязываем, чтобы в студии было видно «не подключён».
@@ -393,7 +401,7 @@ export function startBot(options: BotOptions): Bot {
       } catch {
         owner = "";
       }
-      const to = new Set([owner, ...sales.map((s) => s.user_id)].filter(Boolean));
+      const to = new Set([(await ownerAllowed(owner)) ? owner : "", ...sales.map((s) => s.user_id)].filter(Boolean));
       for (const userId of to) if (await sendTo(userId, waitingText(platformUrl))) sent += 1;
     }
     log.info({ telegram: "waiting", chats: rows.length, sent }, "telegram");
@@ -579,17 +587,32 @@ export function startBot(options: BotOptions): Bot {
   /** Подключения, которых Telegram не знает или которые нам не подходят, — не спрашиваем о них на каждое сообщение. */
   const unknownConnections = new Set<string>();
 
+  /** Подключивший всё ещё в команде и с правом на клиентов (его могли отключить или снять роль). */
+  async function ownerAllowed(owner: string | undefined): Promise<boolean> {
+    if (!owner) return false;
+    const [u] = await sql<{ role: string; active: boolean; access_role: string | null }[]>`select role, active, access_role from users where id = ${owner}`;
+    return !!u && permissions.canManageClients({ uid: owner, role: u.role === "admin" ? "admin" : "host", active: u.active, accessRole: u.access_role });
+  }
+
   async function connectionOf(id: string): Promise<{ user: number; chat: number } | null> {
     const read = async () => {
       const [row] = await sql<{ value: string }[]>`select value from tg_state where key = ${`biz:${id}`}`;
       try {
-        return row ? (JSON.parse(row.value) as { user: number; chat: number }) : null;
+        return row ? (JSON.parse(row.value) as { user: number; chat: number; owner?: string }) : null;
       } catch {
         return null;
       }
     };
     const known = await read();
-    if (known) return known;
+    if (known) {
+      if (await ownerAllowed(known.owner)) return known;
+      // Права на клиентов больше нет — подключение снимаем; вернут права — бот подключат заново в Telegram.
+      if (known.owner) await dropBusinessOf(sql, known.owner);
+      else await sql`delete from tg_state where key = ${`biz:${id}`}`;
+      unknownConnections.add(id);
+      log.info({ telegram: "business", result: "revoked" }, "telegram");
+      return null;
+    }
     if (unknownConnections.has(id)) return null;
     // Бота подключили, пока сервер не читал сообщения, — спросим Telegram, кто это.
     try {

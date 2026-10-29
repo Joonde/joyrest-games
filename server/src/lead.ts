@@ -27,7 +27,7 @@ export interface LeadOptions {
   /**
    * Заявка принята (до отправки в Telegram): клиент — в базу клиентов. Ошибка не мешает заявке.
    * Записалось (заявка или вопрос) — посетитель видит «спасибо», даже если Telegram не ответил или
-   * бот не настроен: владелец увидит человека в «Клиентах». Отзывы в базу не пишутся — только Telegram.
+   * бот не настроен: владелец увидит человека в «Клиентах». Отзыв — так же: он в «Отзывах» студии (статус «Новый»).
    */
   onLead?: (lead: LeadData) => Promise<void>;
 }
@@ -399,9 +399,10 @@ export function registerLead(app: FastifyInstance, options: LeadOptions, routeOp
         }, type);
       }
 
-      // Клиент — в базу клиентов (даже если Telegram сейчас не ответит).
+      // Клиент — в базу клиентов, отзыв — в «Отзывы» студии (даже если Telegram сейчас не ответит; ревью 29 октября
+      // 2026: отзывы раньше сюда не попадали — запись в «Отзывы» в app.ts была недостижима).
       let stored = false;
-      if (options.onLead && type !== "review") {
+      if (options.onLead) {
         stored = await options.onLead(checked.lead).then(
           () => true,
           () => {

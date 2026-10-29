@@ -461,6 +461,68 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     expect(saved.statusCode).toBe(200);
     expect(saved.json().origin).toBe("recommend");
   });
+
+  it("ушёл из команды или сняли роль: бот ему больше не пишет и не берёт клиентов из его Telegram", async () => {
+    const SVETA = 555;
+    const TANYA = 556;
+    const CALC = "🧮 Расчёт JoyRest\nПакет: Квиз\nГостей: до 25";
+    const msg = (n: number, conn: string, from: { id: number; first_name: string; username: string }) => ({
+      business_message: { message_id: n, business_connection_id: conn, chat: { id: from.id, type: "private" }, from, text: CALC },
+    });
+    const names = async () => ((await get("/api/clients", owner)).json().clients as Array<{ name: string }>).map((c) => c.name);
+    const passwords: Record<string, string> = {};
+    const staff = async (email: string, name: string, chat: number, conn: string) => {
+      const made = (await post("/api/users", owner, { email, name })).json();
+      passwords[email] = made.temporaryPassword;
+      expect((await post(`/api/users/${made.account.uid}/access`, owner, { role: "sales" })).statusCode).toBe(200);
+      await connect(await login(email, made.temporaryPassword), chat);
+      tg.update({ business_connection: { id: conn, user: { id: chat }, user_chat_id: chat, is_enabled: true } });
+      await until(() => to(chat).some((t) => t.includes("✅ Бот JoyRest подключён к вашему Telegram")), `бизнес ${name}`);
+      return made.account.uid as string;
+    };
+    const svetaId = await staff("sveta@example.com", "Света", SVETA, "bc9");
+    const tanyaId = await staff("tanya@example.com", "Таня", TANYA, "bc10");
+    const svetaPassword = passwords["sveta@example.com"] ?? "";
+    tg.update(msg(9401, "bc9", { id: 8501, first_name: "Сеня", username: "senya_calc" }));
+    await until(async () => (await names()).includes("Сеня"), "расчёт из Telegram Светы — клиент");
+
+    // Свету отключили: чат с ботом отвязан, её бизнес-подключение снято — сразу, без её участия. Испорченная запись
+    // чужого подключения отключению не мешает; ссылка «Подключить Telegram», взятая до отключения, больше не работает.
+    await sql`insert into tg_state (key, value) values ('biz:broken', '{x')`;
+    expect((await post("/api/telegram/link", await login("sveta@example.com", svetaPassword))).statusCode).toBe(200);
+    expect(await sql`select 1 from tg_codes where user_id = ${svetaId}`).toHaveLength(1);
+    expect((await post(`/api/users/${svetaId}/active`, owner, { active: false })).statusCode).toBe(200);
+    expect(await sql`select 1 from tg_codes where user_id = ${svetaId}`).toHaveLength(0);
+    expect(await sql`select 1 from tg_state where key = 'biz:broken'`).toHaveLength(1);
+    await sql`delete from tg_state where key = 'biz:broken'`;
+    expect(await sql`select 1 from tg_links where user_id = ${svetaId}`).toHaveLength(0);
+    expect(await sql`select 1 from tg_state where key = 'biz:bc9'`).toHaveLength(0);
+    const svetaSeen = to(SVETA).length;
+    expect(await bot.salesNotice("site")).toBeGreaterThan(0); // Мария и Таня
+    expect(to(SVETA)).toHaveLength(svetaSeen);
+    tg.update(msg(9402, "bc9", { id: 8502, first_name: "Паша", username: "pasha_calc" }));
+
+    // Тане сняли роль менеджера: уведомления о мероприятиях ей по-прежнему можно, а «Клиенты» из её Telegram — нет.
+    expect((await post(`/api/users/${tanyaId}/access`, owner, { role: null })).statusCode).toBe(200);
+    expect(await sql`select 1 from tg_state where key = 'biz:bc10'`).toHaveLength(0);
+    expect(await sql`select 1 from tg_links where user_id = ${tanyaId}`).toHaveLength(1);
+    tg.update(msg(9403, "bc10", { id: 8503, first_name: "Рита", username: "rita_calc" }));
+
+    // Подключение есть, а права на клиентов уже нет (роль сменили в обход) — бот снимает его при первом сообщении.
+    await sql`update users set access_role = 'sales' where id = ${tanyaId}`;
+    tg.update({ business_connection: { id: "bc10", user: { id: TANYA }, user_chat_id: TANYA, is_enabled: true } });
+    await until(async () => (await sql`select 1 from tg_state where key = 'biz:bc10'`).length === 1, "Таня снова подключила бизнес");
+    await sql`update users set access_role = null where id = ${tanyaId}`;
+    tg.update(msg(9404, "bc10", { id: 8504, first_name: "Зоя", username: "zoya_calc" }));
+    await until(async () => (await sql`select 1 from tg_state where key = 'biz:bc10'`).length === 0, "подключение без права снято");
+
+    await new Promise((r) => setTimeout(r, 400));
+    const after = await names();
+    expect(after.some((n) => n === "Паша" || n === "Рита" || n === "Зоя")).toBe(false);
+    // Вернули Свету — Telegram снова подключает она сама (телефон мог смениться).
+    expect((await post(`/api/users/${svetaId}/active`, owner, { active: true })).statusCode).toBe(200);
+    expect(await sql`select 1 from tg_links where user_id = ${svetaId}`).toHaveLength(0);
+  });
 });
 
 

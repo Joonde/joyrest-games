@@ -654,6 +654,19 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     const listed = ((await get("/api/clients", owner)).json().clients as Array<{ id: string; outreachAt: number | null }>).find((c) => c.id === "kout1");
     expect(listed?.outreachAt).toBeTypeOf("number");
     expect((await post("/api/clients/kout1/outreach", owner, { sent: false })).json().outreachAt).toBeNull();
+    // «Не получилось» снимается: у одного способа (он сработал — вместе с «написали») или у всех сразу (по ошибке).
+    await post("/api/clients/kout1/outreach", owner, { fail: "whatsapp" });
+    const worked = await post("/api/clients/kout1/outreach", owner, { sent: true, unfail: "telegram" });
+    expect(worked.json()).toMatchObject({ outreachFail: ["whatsapp"] });
+    expect(worked.json().outreachAt).toBeTypeOf("number");
+    const cleared = await post("/api/clients/kout1/outreach", owner, { unfail: "all" });
+    expect(cleared.json()).toMatchObject({ outreachFail: [] });
+    expect(cleared.json().outreachAt).toBe(worked.json().outreachAt);
+    expect(cleared.json().updatedAt).toBe(worked.json().updatedAt);
+    expect((await post("/api/clients/kout1/outreach", owner, { unfail: "all" })).json()).toMatchObject({ outreachFail: [] });
+    expect((await post("/api/clients/kout1/outreach", owner, { fail: "telegram", unfail: "telegram" })).statusCode).toBe(400);
+    expect((await post("/api/clients/kout1/outreach", owner, { unfail: "vk" })).statusCode).toBe(400);
+    expect((await post("/api/clients/kout1/outreach", anna, { unfail: "all" })).statusCode).toBe(403);
     // Мусор и чужие — отказ.
     expect((await post("/api/clients/kout1/outreach", owner, { fail: "vk" })).statusCode).toBe(400);
     expect((await post("/api/clients/kout1/outreach", owner, {})).statusCode).toBe(400);

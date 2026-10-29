@@ -393,6 +393,16 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       const game = await findGame(request.params.id);
       if (!game) return { ok: true };
       if (!permissions.canDeleteGame(actorOf(user), ref(game))) return fail(reply, 403, "permission-denied");
+      // Игру сейчас проводят (сама или блоком вечера) — не удаляем: картинки пропали бы с экрана зала посреди игры.
+      // Брошенная (12 часов без действий пульта) не держит (ревью 29 октября 2026).
+      const [live] = await sql<{ id: string }[]>`
+        select id from sessions
+        where state->>'phase' in ('lobby', 'playing') and updated_at > now() - interval '12 hours'
+          and (game_id = ${game.id} or exists (
+            select 1 from jsonb_array_elements(case when jsonb_typeof(program->'blocks') = 'array' then program->'blocks' else '[]'::jsonb end) b
+            where b->>'gameId' = ${game.id}))
+        limit 1`;
+      if (live) return reply.code(409).send({ error: "failed-precondition", reason: "in-play" });
       await sql.begin(async (tx) => {
         await tx`delete from media where game_id = ${game.id}`;
         await tx`delete from games where id = ${game.id}`;

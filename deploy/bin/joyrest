@@ -542,6 +542,9 @@ deploy_env() {
   ensure_dirs
   exec 9>"$DEPLOY_DIR/lock"
   flock -w 900 9 || die "Другая выкладка идёт дольше 15 минут."
+  # Отложенная выкладка основной версии (pending-prod) — только последний запрос: любой новый (из очереди, вручную,
+  # откат) её заменяет. Снова идёт игра — запишем заново ниже.
+  [ "$env" = prod ] && rm -f "$DEPLOY_DIR/pending-prod"
 
   if [ "$(release_value "$env" APP_VERSION)" = "$sha" ] && [ -e "$(env_link "$env")" ] && health_ok "$env" "$sha"; then
     set_status "$env" "ok $sha (уже выложена)"
@@ -549,18 +552,22 @@ deploy_env() {
     return 0
   fi
 
-  # Основную версию во время игры не трогаем. Не удалось проверить — считаем, что игра идёт:
-  # таймер повторит через 2 минуты, обойти можно только вручную (force).
+  # Основную версию во время игры не трогаем. Не удалось проверить — считаем, что игра идёт.
+  # Отложенную выкладку таймер (joyrest auto-update) повторяет каждые 2 минуты, пока игра не кончится;
+  # сразу — только вручную (force). Повтор пишет в журнал только при смене причины.
   if [ "$env" = prod ] && [ "$force" != force ]; then
-    local active
+    local active reason
     if ! active=$(active_games); then
-      set_status "$env" "blocked $sha: не удалось проверить, идёт ли игра (повтор через 2 мин; вручную — force)"
-      log "[$env] $sha отложена: не удалось проверить активные игры"
-      return 3
+      reason="не удалось проверить, идёт ли игра"
+    elif [ "$active" -gt 0 ]; then
+      reason="идёт игра ($active сесс. с активностью за $ACTIVE_MINUTES мин)"
     fi
-    if [ "$active" -gt 0 ]; then
-      set_status "$env" "blocked $sha: идёт игра ($active сесс. с активностью за $ACTIVE_MINUTES мин)"
-      log "[$env] $sha отложена: идёт игра ($active)"
+    if [ -n "${reason:-}" ]; then
+      local text="blocked $sha: $reason — выложится сама после игры (проверка раз в 2 мин; сразу — force)"
+      echo "$sha" > "$DEPLOY_DIR/pending-prod"
+      # В файле состояния перед текстом — дата и время (два слова).
+      [ "$(cut -d' ' -f3- "$DEPLOY_DIR/status-$env" 2>/dev/null)" = "$text" ] || log "[$env] $sha отложена: $reason"
+      set_status "$env" "$text"
       return 3
     fi
   fi
@@ -1096,6 +1103,19 @@ registry_digest() {
 # GitHub production) или вручную: sudo joyrest deploy <коммит>.
 cmd_auto_update() {
   need_root auto-update
+  # Исключение — отложенная выкладка основной версии (ревью 29 октября 2026): коммит в pending-prod пишет только
+  # deploy_env, когда запрос уже прошёл проверку (очередь от привратника с ключом main или вручную из Termius), а
+  # выложить не дали идущая игра. Повторяем тем же путём, без force: игра ещё идёт — снова ждём.
+  local pending code
+  pending=$(head -c 40 "$DEPLOY_DIR/pending-prod" 2>/dev/null || true)
+  if [[ "$pending" =~ $SHA_RE ]]; then
+    code=0; ( deploy_env prod "$pending" ) || code=$?
+    if [ "$code" = 0 ]; then
+      notify "✅ Основная версия ${pending:0:7} выложена — игра закончилась, выкладка была отложена."
+    elif [ "$code" != 3 ]; then
+      notify "⚠️ Отложенная выкладка ${pending:0:7} не удалась, основная версия осталась прежней. Подробно: sudo joyrest status"
+    fi
+  fi
   local env=test tag="test-release" remote deployed sha
   {
     remote=$(registry_digest "$tag" 2>/dev/null) || return 0

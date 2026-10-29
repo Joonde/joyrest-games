@@ -56,4 +56,4 @@ export {
 } from "./hooks";
 export { preloadData } from "./firebase";
 export { connection } from "./connection";
-export { Cancelled, errorCodeOf, isPermanentError, retryDelay, withRetry } from "./retry";
+export { Cancelled, errorCodeOf, isPermanentError, retryBriefly, retryDelay, withRetry } from "./retry";

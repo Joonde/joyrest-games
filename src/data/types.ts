@@ -655,6 +655,17 @@ export interface ClientRecord {
   outreachFail?: Array<"telegram" | "whatsapp">;
 }
 
+/**
+ * Отметка рассылки прежнему клиенту: `sent` — написали (`at` — когда) или снять «написали»; `fail` — куда не дошло;
+ * `unfail` — снять «не получилось» у способа (сработал) или у всех (`all`, отметили по ошибке).
+ */
+export interface OutreachMark {
+  sent?: boolean;
+  at?: number;
+  fail?: "telegram" | "whatsapp";
+  unfail?: "telegram" | "whatsapp" | "all";
+}
+
 /** Один ответ на новую заявку: сколько ждала, кто взял, когда (среднее время ответа). */
 export interface ClientResponse {
   userName: string;

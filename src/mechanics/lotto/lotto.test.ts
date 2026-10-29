@@ -3,7 +3,7 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Session } from "../../data/types";
 import { CARD_STYLES, CARD_STYLE_TITLES, cardCells, cellFit, createLotto, parseLotto, parseSongList, type LottoContent } from "./content";
 import { DEMO_LOTTO } from "./demo";
-import { canLastCall, cardFor, cardLines, hushSong, lastCall, revealedUpTo, splitMarks, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
+import { canLastCall, claimMarks, honestClaim, lottoMusicOn, cardFor, cardLines, hushSong, lastCall, revealedUpTo, splitMarks, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
 import { DRUM_MS, softHyphens, hasLyrics, lyricIndex, lyricsFromText, parseLrc, parseLyrics, songLength, toLrc } from "./content";
 import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
@@ -143,6 +143,49 @@ describe("очки за «Лото!»", () => {
     if (!before || !at) throw new Error("нет шага");
     expect(score(before, [claim(first - 1, "anna")], { state: state() })).toEqual([]);
     expect(score(at, [claim(first, "anna")], { state: state() })).toEqual([{ pid: "anna", delta: 300 }]);
+  });
+});
+
+describe("честное «Лото!» (решение владельца 29 октября 2026)", () => {
+  const c = game();
+  const steps = lottoSteps(c);
+  const state = () => ({ ...startState(), stage: "question" as const, result: null });
+  const anna = cardFor(c, "anna");
+  let first = -1;
+  for (let k = 0; k < c.songs.length; k++) {
+    if (isWin(anna, playedUpTo(c, k), c.size, c.rule)) {
+      first = k;
+      break;
+    }
+  }
+  const withMarks = (step: number, marks: string[]): Answer => ({ id: `${step}_anna`, step, pid: "anna", uid: "anna", value: { marks }, submittedAt: 1 });
+
+  it("отметил всё подряд — заявка не засчитывается, даже когда линия собралась", () => {
+    const at = steps[first];
+    if (!at) throw new Error("нет шага");
+    expect(score(at, [withMarks(first, anna)], { state: state() })).toEqual([]);
+    expect(honestClaim(anna, anna, playedUpTo(c, first), c.size, c.rule)).toBe(false);
+  });
+
+  it("отметил только прозвучавшие (и звучащую) — засчитывается; забытая отметка не мешает", () => {
+    const at = steps[first];
+    if (!at) throw new Error("нет шага");
+    const played = playedUpTo(c, first);
+    const honest = anna.filter((id) => played.has(id));
+    expect(score(at, [withMarks(first, honest)], { state: state() })).toEqual([{ pid: "anna", delta: 300 }]);
+    expect(score(at, [withMarks(first, honest.slice(1))], { state: state() })).toEqual([{ pid: "anna", delta: 300 }]);
+    // Чужие песни (не с карточки) и мусор в отметках заявку не ломают.
+    expect(honestClaim(anna, [...honest, "чужая", 7], played, c.size, c.rule)).toBe(true);
+  });
+
+  it("телефон с подсказкой: звучащая песня — в зачёт, только если из догадок отмечена она одна", () => {
+    const revealed = new Set(["s1", "s2"]);
+    expect(claimMarks(true, ["s1", "s5"], revealed, "s5")).toEqual(["s1", "s5"]);
+    expect(claimMarks(true, ["s1", "s5", "s6", "s7"], revealed, "s5")).toEqual(["s1"]);
+    expect(claimMarks(true, ["s1", "s6"], revealed, "s5")).toEqual(["s1"]);
+    expect(claimMarks(true, ["s1", "s5"], revealed, null)).toEqual(["s1"]);
+    // Без подсказки (знатоки) — все отметки как есть: ложную отметку отклонит проверка заявки.
+    expect(claimMarks(false, ["s1", "s9"], revealed, "s5")).toEqual(["s1", "s9"]);
   });
 });
 
@@ -646,5 +689,23 @@ describe("мягкие переносы в названиях", () => {
       expect(out.replace(/\u00ad/g, "")).toBe(t);
       for (const word of out.split(/\s+/)) for (const part of word.split("\u00ad")) expect(part.replace(/[^А-Яа-яЁё]/g, "").length).toBeGreaterThanOrEqual(2);
     }
+  });
+});
+
+describe("музыка лото на экране зала (ревью 29 октября 2026)", () => {
+  const base = { stage: "question", inDrum: false, hush: 0, quiet: false, sounded: false };
+  it("на вопросе — после барабана; пока крутится барабан — тишина", () => {
+    expect(lottoMusicOn(base)).toBe(true);
+    expect(lottoMusicOn({ ...base, inDrum: true })).toBe(false);
+  });
+  it("название открыли во время барабана — песня не начинается на полную", () => {
+    expect(lottoMusicOn({ ...base, stage: "reveal", sounded: false })).toBe(false);
+    expect(lottoMusicOn({ ...base, stage: "reveal", sounded: true })).toBe(true);
+  });
+  it("затихшая после названия песня сама не возвращается; «Стоп» — тишина", () => {
+    expect(lottoMusicOn({ ...base, stage: "reveal", sounded: true, quiet: true })).toBe(false);
+    expect(lottoMusicOn({ ...base, stage: "question", sounded: true, quiet: true })).toBe(false);
+    expect(lottoMusicOn({ ...base, hush: 1 })).toBe(false);
+    expect(lottoMusicOn({ ...base, stage: "podium", sounded: true })).toBe(false);
   });
 });

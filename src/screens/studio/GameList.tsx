@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { copyOfGame, HOST_GAMES_FOLDER } from "../../core/games";
-import { gameFoldersRepo, gamesRepo, permissions, proposalsRepo, useLoad, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
+import { errorCodeOf, gameFoldersRepo, gamesRepo, permissions, proposalsRepo, useLoad, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { ListSkeleton } from "../../components/Skeleton";
@@ -189,8 +189,12 @@ export function GameList({ scope, profile, onToast }: Props) {
       update((games) => games.filter((g) => g.id !== removedId));
       setToDelete(null);
       onToast("Игра удалена");
-    } catch {
-      setDeleteError("Не удалось удалить. Проверьте интернет и попробуйте снова.");
+    } catch (e) {
+      setDeleteError(
+        errorCodeOf(e) === "failed-precondition" && typeof e === "object" && e !== null && "reason" in e && e.reason === "in-play"
+          ? "Эту игру сейчас проводят — удалите её, когда игра закончится."
+          : "Не удалось удалить. Проверьте интернет и попробуйте снова.",
+      );
     } finally {
       setDeleting(false);
     }

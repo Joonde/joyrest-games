@@ -36,7 +36,9 @@ for (const [m, cfg] of Object.entries(MECHANICS)) {
     for (const mode of cfg.modes) for (const n of cfg.players ?? [3]) for (const seed of [1, 2, 3]) jobs.push({ m, demo, mode, n, seed });
 }
 async function runJob({ m, demo, mode, n, seed }) {
-  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  // Лото — с «уменьшить движение»: 3D-барабан на сервере сборки рисуется программно, по 10–15 с на ход, и прогон не
+  // укладывается во время. Ход игры от этого не меняется; сам 3D-барабан проверяет «Проверка музыкального лото» на test.
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, reducedMotion: m === "lotto" ? "reduce" : "no-preference" });
   const consoleErrors = [];
   page.on("pageerror", (e) => consoleErrors.push(String(e).slice(0, 300)));
   page.on("console", (msg) => {

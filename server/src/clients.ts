@@ -565,7 +565,10 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       const id = request.params.id;
       const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
       const failKind = b.fail === "telegram" || b.fail === "whatsapp" ? b.fail : null;
-      if (!ID.test(id) || (typeof b.sent !== "boolean" && !failKind)) return fail(reply, 400, "invalid-argument");
+      // Снять «не получилось»: отметили по ошибке («all») или этот способ всё-таки сработал («Да, отправил»).
+      const unfailKind = b.unfail === "telegram" || b.unfail === "whatsapp" || b.unfail === "all" ? b.unfail : null;
+      if (!ID.test(id) || (typeof b.sent !== "boolean" && !failKind && !unfailKind)) return fail(reply, 400, "invalid-argument");
+      if (failKind && unfailKind) return fail(reply, 400, "invalid-argument");
       const now = Date.now();
       const at = typeof b.at === "number" && Number.isFinite(b.at) && b.at <= now + 60_000 && b.at >= now - 90 * 86_400_000 ? new Date(b.at) : new Date(now);
       const done = await sql.begin(async (tx) => {
@@ -576,6 +579,10 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         if (b.sent === false) await t`update clients set outreach_at = null where id = ${id}`;
         if (failKind) {
           const fails = outreachFails([row.outreach_fail, failKind].join(","));
+          await t`update clients set outreach_fail = ${fails.join(",")} where id = ${id}`;
+        }
+        if (unfailKind) {
+          const fails = unfailKind === "all" ? [] : outreachFails(row.outreach_fail).filter((k) => k !== unfailKind);
           await t`update clients set outreach_fail = ${fails.join(",")} where id = ${id}`;
         }
         return true;

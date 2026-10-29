@@ -14,7 +14,7 @@ import type { Session } from "../../data/types";
 import { StageVideo, WarmVideo } from "../stage/video";
 import { AFTER_VOLUME, DRUM_MS, hasLyrics, hasVideo, songLength, type LottoContent } from "./content";
 import { KaraokeLines } from "./karaoke";
-import { orderOf, parseLottoResult, playedNumbers, songAt, songIndexAt, type LottoResult } from "./logic";
+import { lottoMusicOn, orderOf, parseLottoResult, playedNumbers, songAt, songIndexAt, type LottoResult } from "./logic";
 import "./lotto-hall.css";
 
 const DrumCanvas = lazy(() => import("./drum/DrumCanvas"));
@@ -248,8 +248,17 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
   const playing = stage === "question" || stage === "reveal";
 
   // Музыка: включается после барабана; на названии — тише (играет и после ответа) или затихает; «Стоп» с пульта — тишина.
-  const musicOn = !inDrum && ((stage === "question" && result.hush === 0) || (stage === "reveal" && result.hush === 0));
-  const playKey = musicOn ? `p:${step}:${startedAt ?? 0}:${result.replay}` : null;
+  // На названии музыка только продолжает то, что уже звучало на вопросе: ведущий открыл название, пока крутился
+  // барабан, — песня не начинается с начала на полную громкость (ревью 29 октября 2026). Без «играет после ответа»
+  // после затухания ключ уходит совсем: трек, который ещё догружался по слабому Wi‑Fi, не заиграет поздно.
+  const songKey = `p:${step}:${startedAt ?? 0}:${result.replay}`;
+  const sounded = useRef<string | null>(null);
+  const [quietFor, setQuietFor] = useState<string | null>(null);
+  // «Назад» на вопрос и «Последний шанс» после затихшего названия песню заново не включают (как и раньше) —
+  // для этого на пульте «Повторить песню».
+  const musicOn = lottoMusicOn({ stage, inDrum, hush: result.hush, quiet: quietFor === songKey, sounded: sounded.current === songKey });
+  if (stage === "question" && musicOn) sounded.current = songKey;
+  const playKey = musicOn ? songKey : null;
   useFragment(track, song?.trackStart ?? 0, songLength(content, song), playKey);
   const seenStage = useRef(stage);
   useEffect(() => {
@@ -257,9 +266,15 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
     seenStage.current = stage;
     if (was === "question" && stage === "reveal" && track) {
       if (content.playAfter) fragmentLevel(AFTER_VOLUME, 1);
-      else fadeOutFragment(1);
+      else {
+        fadeOutFragment(1);
+        const key = songKey;
+        const timer = window.setTimeout(() => setQuietFor(key), 1100);
+        return () => window.clearTimeout(timer);
+      }
     }
-  }, [stage, track, content.playAfter]);
+    return undefined;
+  }, [stage, track, content.playAfter, songKey]);
 
   useEffect(() => {
     preloadTrack(next && !hasVideo(next) ? next.trackId : null);

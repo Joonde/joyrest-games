@@ -168,6 +168,21 @@ describe.skipIf(!url)("команда JoyRest на PostgreSQL", () => {
     expect((await post("/api/sessions/lena-session-1/finish", kim.cookie, {})).statusCode).toBe(403);
     await sql`update sessions set updated_at = now() - interval '13 hours' where id = 'lena-session-1'`;
     expect((await post("/api/sessions/lena-session-1/finish", kim.cookie, {})).statusCode).toBe(200);
+    // Вечер из блоков: помощник не переводит идущий вечер к итогам — ни блок, ни вечер не трогаются (ревью 29 октября 2026).
+    const snap = (mechanic: string) => ({ title: mechanic, mechanic, themeId: "joyrest", content: {} });
+    const program = { title: "Вечер", blocks: [{ title: "Квиз", mechanic: "quiz", snapshot: snap("quiz") }, { title: "Лото", mechanic: "lotto", snapshot: snap("lotto") }] };
+    expect((await post("/api/sessions", lena.cookie, { id: "lena-evening", gameTitle: "Вечер", mechanic: "evening", gameSnapshot: snap("evening"), playMode: "solo", program })).statusCode).toBe(200);
+    expect((await post("/api/sessions/lena-evening/phase", lena.cookie, { phase: "playing" })).statusCode).toBe(200);
+    const before = (await get("/api/sessions/lena-evening", lena.cookie)).json();
+    expect((await post("/api/sessions/lena-evening/finish", kim.cookie, {})).statusCode).toBe(403);
+    const after = (await get("/api/sessions/lena-evening", lena.cookie)).json();
+    expect(after).toMatchObject({ mechanic: "quiz", state: { phase: "playing" }, program: { at: "block", index: 0 } });
+    expect(after.version).toBe(before.version);
+    // Брошенный 12 часов вечер помощник закрывает целиком: итоги вечера и завершение.
+    await sql`update sessions set updated_at = now() - interval '13 hours' where id = 'lena-evening'`;
+    expect((await post("/api/sessions/lena-evening/finish", kim.cookie, {})).statusCode).toBe(200);
+    expect((await get("/api/sessions/lena-evening", lena.cookie)).json()).toMatchObject({ mechanic: "evening", state: { phase: "finished" }, program: { at: "final" } });
+
     // Завершённую чужую игру помощник из списка не убирает (это решает ведущий или владелец).
     expect((await post("/api/sessions/lena-session-1/hide", kim.cookie, {})).statusCode).toBe(409);
     expect((await post("/api/sessions/lena-session-1/hide", lena.cookie, {})).statusCode).toBe(200);

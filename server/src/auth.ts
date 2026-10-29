@@ -21,6 +21,7 @@ import * as permissions from "../../src/data/permissions";
 import type { HostAccount, HostLevel, Role, UserProfile } from "../../src/data/types";
 import { WindowLimiter } from "./lead";
 import { hashPassword, verifyPassword } from "./password";
+import { dropBusinessOf, dropTelegramOf } from "./telegramAccess";
 
 export const SESSION_COOKIE = "__Host-jr_s";
 export const SESSION_DAYS = 30;
@@ -472,7 +473,11 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
       const active = body.active;
       await sql.begin(async (tx) => {
         await tx`update users set active = ${active}, updated_at = now() where id = ${target.id}`;
-        if (!active) await tx`delete from auth_sessions where user_id = ${target.id}`;
+        if (!active) {
+          await tx`delete from auth_sessions where user_id = ${target.id}`;
+          // Ушёл из команды — бот больше ничего ему не шлёт и не берёт клиентов из его Telegram.
+          await dropTelegramOf(tx as unknown as Sql, target.id);
+        }
       });
       request.log.info({ auth: "active", result: "ok", status: 200 }, "auth");
       return { ok: true };
@@ -487,7 +492,12 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
       const target = await findUser(request.params.id);
       if (!target) return fail(reply, 404, "not-found", request, "access-role");
       if (!permissions.canSetAccessRole(actorOf(admin), { uid: target.id })) return fail(reply, 403, "permission-denied", request, "access-role");
-      await sql`update users set access_role = ${value}, updated_at = now() where id = ${target.id}`;
+      await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        await t`update users set access_role = ${value}, updated_at = now() where id = ${target.id}`;
+        // Сняли права на клиентов — Telegram для бизнеса этого человека больше не наполняет «Клиенты».
+        if (!permissions.canManageClients({ uid: target.id, role: target.role === "admin" ? "admin" : "host", active: true, accessRole: value })) await dropBusinessOf(t, target.id);
+      });
       request.log.info({ auth: "access-role", result: "ok", status: 200 }, "auth");
       return { ok: true };
     });

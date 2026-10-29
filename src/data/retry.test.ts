@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { isPermanentError, retryDelay, withRetry } from "./retry";
+import { Cancelled, isPermanentError, retryBriefly, retryDelay, withRetry } from "./retry";
 
 describe("повтор загрузки", () => {
   it("паузы 2, 4, 8 секунд, дальше каждые 10", () => {
@@ -36,6 +36,78 @@ describe("повтор загрузки", () => {
       throw { code: "permission-denied" };
     });
     await expect(failing).rejects.toEqual({ code: "permission-denied" });
+    expect(calls).toBe(1);
+  });
+});
+
+describe("быстрый повтор отправки ответа", () => {
+  const noWait = () => Promise.resolve();
+
+  it("обрыв на секунду — ответ уходит со второй попытки, паузы 1 и 2 секунды", async () => {
+    const waits: number[] = [];
+    let calls = 0;
+    const result = await retryBriefly(
+      async () => {
+        calls++;
+        if (calls < 3) throw { code: "unavailable" };
+        return "sent";
+      },
+      undefined,
+      async (ms) => {
+        waits.push(ms);
+      },
+    );
+    expect(result).toBe("sent");
+    expect(calls).toBe(3);
+    expect(waits).toEqual([1000, 2000]);
+  });
+
+  it("сеть так и не появилась — после двух повторов отдаёт ошибку", async () => {
+    let calls = 0;
+    const result = retryBriefly(async () => {
+      calls++;
+      throw { code: "unavailable" };
+    }, undefined, noWait);
+    await expect(result).rejects.toEqual({ code: "unavailable" });
+    expect(calls).toBe(3);
+  });
+
+  it("настоящую ошибку не повторяет", async () => {
+    let calls = 0;
+    const result = retryBriefly(async () => {
+      calls++;
+      throw { code: "permission-denied" };
+    }, undefined, noWait);
+    await expect(result).rejects.toEqual({ code: "permission-denied" });
+    expect(calls).toBe(1);
+  });
+
+  it("вопрос показали заново, пока ждали повтора, — старый ответ больше не отправляется", async () => {
+    let calls = 0;
+    let shown = 1;
+    const result = retryBriefly(
+      async () => {
+        calls++;
+        throw { code: "unavailable" };
+      },
+      undefined,
+      async () => {
+        shown = 2; // ведущий нажал «Назад» и снова «Показать вопрос»
+      },
+      () => shown === 1,
+    );
+    await expect(result).rejects.toBeInstanceOf(Cancelled);
+    expect(calls).toBe(1);
+  });
+
+  it("без пауз — одна попытка", async () => {
+    let calls = 0;
+    await expect(
+      retryBriefly(async () => {
+        calls++;
+        throw { code: "unavailable" };
+      }, [], noWait),
+    ).rejects.toBeTruthy();
     expect(calls).toBe(1);
   });
 });

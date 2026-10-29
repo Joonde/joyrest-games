@@ -6,7 +6,10 @@ import type { HostControlsProps } from "../types";
 import { canSeek } from "../stage/video";
 import { useServerNow } from "../../components/live/useServerNow";
 import { clockOf, DRUM_MS, hasLyrics, hasVideo, RULE_TITLES, type LottoContent } from "./content";
-import { canLastCall, cardFor, hushSong, isClaim, isWin, lastCall, lottoBack, lottoPrimary, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, songIndexAt, type LottoAction, type LottoVideoCmd } from "./logic";
+import { canLastCall, cardFor, honestClaim, hushSong, isClaim, lastCall, lottoBack, lottoPrimary, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, songIndexAt, type LottoAction, type LottoVideoCmd } from "./logic";
+
+/** Запас после барабана, пока «Показать название» ещё недоступна: часы экрана зала могут отставать от пульта. */
+const DRUM_MARGIN_MS = 1500;
 
 const LABELS: Record<LottoAction, string> = {
   play: "Включить первую песню",
@@ -43,9 +46,19 @@ export function LottoHostControls({ session, content, answers, participants, con
   const own = answers.filter((a) => a.step === step && isClaim(a.value) && !(result.call > 0 && result.winners.includes(a.pid)));
   const played = playedUpTo(content, step, order);
   const drum = content.drum !== "off" && session.screenMode !== "none";
-  const drumUntil = drum && stage === "question" && result.replay === 0 && result.call === 0 && session.state.startedAt ? session.state.startedAt + DRUM_MS[content.drum] : 0;
+  // Те же условия, что у экрана зала (`LottoHall`): без порядка песен экран барабан не крутит.
+  const drumUntil =
+    drum && stage === "question" && result.replay === 0 && result.call === 0 && result.order.length === content.songs.length && session.state.startedAt
+      ? session.state.startedAt + DRUM_MS[content.drum]
+      : 0;
   const now = useServerNow(500, drumUntil > 0);
-  const spinning = drumUntil > now;
+  // Пока крутится барабан, название не открыть — с запасом: часы экрана могут отставать, и открытое на последней
+  // секунде название застало бы экран ещё в барабане (песня бы не зазвучала). И не дольше барабана с запасом с той
+  // минуты, как пульт узнал о нём: неверные часы пульта не держат кнопку (ревью 29 октября 2026).
+  const seen = useRef<{ until: number; at: number } | null>(null);
+  if (drumUntil > 0 && seen.current?.until !== drumUntil) seen.current = { until: drumUntil, at: Date.now() };
+  const spinning = drumUntil > 0 && now < drumUntil + DRUM_MARGIN_MS && Date.now() < (seen.current?.at ?? 0) + DRUM_MS[content.drum] + DRUM_MARGIN_MS;
+  const turning = spinning && now < drumUntil;
   const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок";
 
   function nextSession(): Promise<void> {
@@ -129,13 +142,15 @@ export function LottoHostControls({ session, content, answers, participants, con
 
   // После названия песня играет дальше (настройка «играет и после ответа») — её можно остановить.
   const track = screen && song && !video && song.trackId ? song : null;
+  // Кнопка — при любой настройке: если песня всё же звучит (экран открыли поздно, трек догружался), её можно
+  // заглушить с пульта, а не только «Следующей песней» (ревью 29 октября 2026).
   const afterPanel =
-    track && stage === "reveal" && content.playAfter && result.hush === 0 ? (
+    track && stage === "reveal" && result.hush === 0 ? (
       <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(hushSong(latest.current))}>
-        ⏹ Остановить песню (играет на 60%)
+        {content.playAfter ? "⏹ Остановить песню (играет на 60%)" : "⏹ Остановить песню"}
       </button>
     ) : null;
-  const lyricsPanel = track && hasLyrics(track) && (stage === "question" || stage === "reveal") && !spinning && (
+  const lyricsPanel = track && hasLyrics(track) && (stage === "question" || stage === "reveal") && !turning && (
     <section className="stack stack--tight" aria-label="Текст песни на экране зала">
       <h3 className="host-quiz__subtitle">
         🎤 Текст песни на экране:{" "}
@@ -169,8 +184,9 @@ export function LottoHostControls({ session, content, answers, participants, con
         </p>
       )}
       <div className="actions">
-        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
-          {action === "podiumNext" ? podiumLabel(session) : action === "reveal" && result.call > 0 ? "Проверить «Лото!» и закрыть приём" : drum && action === "play" ? "🎰 Крутить барабан — первая песня" : drum && action === "next" ? "🎰 Крутить барабан — следующая песня" : LABELS[action]}
+        {/* Пока крутится барабан, название не открыть: песня ещё не звучала (ревью 29 октября 2026). */}
+        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || (action === "reveal" && spinning)} onClick={onPrimary}>
+          {action === "reveal" && spinning ? "🎰 Барабан крутится…" : action === "podiumNext" ? podiumLabel(session) : action === "reveal" && result.call > 0 ? "Проверить «Лото!» и закрыть приём" : drum && action === "play" ? "🎰 Крутить барабан — первая песня" : drum && action === "next" ? "🎰 Крутить барабан — следующая песня" : LABELS[action]}
         </button>
         {canLastCall(session, content) && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(lastCall(latest.current))}>
@@ -219,7 +235,7 @@ export function LottoHostControls({ session, content, answers, participants, con
             </p>
           )
         )}
-        {spinning && <p className="notice small">🎰 Барабан крутится на экране зала — песня зазвучит через {Math.max(1, Math.ceil((drumUntil - now) / 1000))} с.</p>}
+        {turning && <p className="notice small">🎰 Барабан крутится на экране зала — песня зазвучит через {Math.max(1, Math.ceil((drumUntil - now) / 1000))} с.</p>}
         {!song?.trackId && !video && stage !== "ready" && <p className="muted small">У песни нет трека — включите её со своего плеера.</p>}
         {video && stage !== "ready" && <p className="muted small">У песни видео: {video.video.source === "file" ? `файл «${video.video.name || "видео"}» на устройстве экрана` : video.video.source === "server" ? `«${video.video.name || "видео"}» из видео JoyRest` : "ролик по ссылке"}. Звук — из видео.</p>}
       </div>
@@ -236,7 +252,7 @@ export function LottoHostControls({ session, content, answers, participants, con
           ) : (
             <ul className="open-answers">
               {own.map((a) => {
-                const ok = isWin(cardFor(content, a.pid), played, content.size, content.rule) && !result.winners.includes(a.pid);
+                const ok = honestClaim(cardFor(content, a.pid), isClaim(a.value) ? a.value.marks : [], played, content.size, content.rule) && !result.winners.includes(a.pid);
                 return (
                   <li key={a.id} className={`open-answers__item open-answers__item--${ok ? "correct" : "wrong"}`}>
                     <span className="open-answers__text">{nameOf(a.pid)}</span>

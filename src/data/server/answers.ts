@@ -26,11 +26,14 @@ function parseList(value: unknown): Answer[] {
   return (Array.isArray(value) ? value : []).map(parseAnswer).filter((a): a is Answer => a !== null);
 }
 
+/** Ответ гостя ждём не дольше: дальше — повтор (`retryBriefly`) или «Ответ не дошёл». */
+export const ANSWER_TIMEOUT_MS = 8000;
+
 const base = (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/answers`;
 
 export const serverAnswersRepository: AnswersRepository = {
   async submit(sessionId, step, pid, _uid, value) {
-    const data = asRecord(await api("POST", base(sessionId), { step, pid, value }));
+    const data = asRecord(await api("POST", base(sessionId), { step, pid, value }, { timeoutMs: ANSWER_TIMEOUT_MS }));
     return data.result === "sent" ? "sent" : "rejected";
   },
 

@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { contactTitle, linkTitle, phoneKey, phoneLabel, telegramLinkOf, writeChannels } from "../../core/clients";
 import { cleanName, messageVariant, pastClientMessage, pastClientYesMessage, scanContacts, type ContactMatch } from "../../core/contactsImport";
-import { clientsRepo, useLoad, type ClientRecord } from "../../data";
+import { clientsRepo, useLoad, type ClientRecord, type OutreachMark } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
@@ -206,7 +206,7 @@ export function ContactsTab() {
   }
 
   /** Отметка рассылки на сервере; на экране — сразу, не дошла до сервера — возвращаем как было и говорим. */
-  async function mark(id: string, change: { sent?: boolean; at?: number; fail?: "telegram" | "whatsapp" }, done: string) {
+  async function mark(id: string, change: OutreachMark, done: string) {
     if (!clientsRepo) return;
     const before = (clients ?? []).find((c) => c.id === id);
     update((data) =>
@@ -216,7 +216,13 @@ export function ContactsTab() {
           : {
               ...x,
               outreachAt: change.sent === true ? (change.at ?? Date.now()) : change.sent === false ? null : x.outreachAt,
-              outreachFail: change.fail ? [...new Set([...(x.outreachFail ?? []), change.fail])] : x.outreachFail,
+              outreachFail: change.fail
+                ? [...new Set([...(x.outreachFail ?? []), change.fail])]
+                : change.unfail === "all"
+                  ? []
+                  : change.unfail
+                    ? (x.outreachFail ?? []).filter((k) => k !== change.unfail)
+                    : x.outreachFail,
             },
       ),
     );
@@ -230,9 +236,16 @@ export function ContactsTab() {
     }
   }
 
-  function markSent(id: string) {
+  /** `kind` — через что отправили: раньше там «не получилось», а теперь получилось — та отметка снимается. */
+  function markSent(id: string, kind?: string) {
     setPending(null);
-    void mark(id, { sent: true }, "✓ Отмечено: написали");
+    const worked = kind === "telegram" || kind === "whatsapp" ? kind : null;
+    const failedBefore = worked !== null && ((clients ?? []).find((c) => c.id === id)?.outreachFail ?? []).includes(worked);
+    void mark(id, failedBefore && worked ? { sent: true, unfail: worked } : { sent: true }, "✓ Отмечено: написали");
+  }
+
+  function unmarkFailed(id: string) {
+    void mark(id, { unfail: "all" }, "Отметка «не получилось» снята");
   }
 
   function unmarkSent(id: string) {
@@ -430,7 +443,7 @@ export function ContactsTab() {
         Касание «Telegram» или «WhatsApp» откроет чат и скопирует готовое сообщение от команды JoyRest с именем клиента. Telegram на телефоне
         часто открывает чат без текста — подержите палец в поле сообщения → «Вставить» → «Отправить». Вернулись — ответьте «Получилось
         отправить?»: «написали» ставится только после «Да». Telegram показал ошибку («не найден») — у человека нет Telegram или номер
-        скрыт: «Не получилось», дальше WhatsApp, а если и там нет — «Убрать — не клиент». Отметили по ошибке — «Снять «написали»». В сообщении: один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
+        скрыт: «Не получилось», дальше WhatsApp, а если и там нет — «Убрать — не клиент». Отметили по ошибке — «Снять «написали»» или «Снять «не получилось»». В сообщении: один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
         извинение, если ошиблись, и вопрос «можно присылать новости?». Пять вариантов текста чередуются. Цен и скидок нет. Отправляйте по
         одному и не больше 15 в день — иначе мессенджер может принять это за спам. Ответил «да» — нажмите «Ответил «да»»: отметим согласие, и
         кнопки откроют сообщение со скидкой 10%.
@@ -448,7 +461,7 @@ export function ContactsTab() {
             чате, зажмите поле → «Вставить». <strong>Получилось отправить?</strong>
           </p>
           <div className="actions">
-            <button type="button" className="btn btn--block" onClick={() => markSent(pendingClient.id)}>
+            <button type="button" className="btn btn--block" onClick={() => markSent(pendingClient.id, pending.kind)}>
               ✓ Да, отправил
             </button>
             <button type="button" className="btn btn--secondary btn--block" onClick={() => markFailed(pendingClient.id, pending.kind)}>
@@ -500,6 +513,11 @@ export function ContactsTab() {
                     {failed.map(kindTitle).join(" и ")}: не получилось.{" "}
                     {channels.some((w) => !failed.includes(w.kind)) ? "Попробуйте другой способ ниже." : "Других способов нет — уберите его кнопкой «Убрать — не клиент»."}
                   </span>
+                )}
+                {failed.length > 0 && !sent[c.id] && (
+                  <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => unmarkFailed(c.id)}>
+                    Снять «не получилось»
+                  </button>
                 )}
                 {yes && <span className="small">Сообщение со скидкой 10%:</span>}
                 <div className="contacts-past__actions" role="group" aria-label={`Написать: ${c.name}`}>

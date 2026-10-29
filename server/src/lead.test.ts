@@ -319,9 +319,10 @@ describe("/api/lead: Telegram", () => {
       expect(res.json()).toEqual({ ok: true });
     }
     expect(stored).toEqual(["lead", "question"]);
-    // Отзыв в базу не пишется — без Telegram он потерялся бы, посетитель видит ошибку.
+    // Отзыв — в «Отзывы» студии (решение владельца 15 октября 2026): Telegram не ответил, а отзыв не потерялся.
     const review = await app.inject({ method: "POST", url: "/api/lead", headers: { host: HOST, "content-type": "application/json" }, payload: JSON.stringify(VALID.review) });
-    expect(review.statusCode).toBe(502);
+    expect(review.statusCode).toBe(200);
+    expect(stored).toEqual(["lead", "question", "review"]);
     await app.close();
   });
 

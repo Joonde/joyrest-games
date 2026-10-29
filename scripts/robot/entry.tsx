@@ -417,6 +417,13 @@ function App() {
 
 // ------------------------------------------------------------------ робот
 
+// Время на странице робота. Пока на экране зала крутится барабан лото, пульт не даёт открыть название — настоящий
+// ведущий ждёт. Робот не ждёт по-настоящему (28 песен × 13 с), а «проматывает» время вперёд: часы одни на всех
+// (сервер в памяти, пульт, экран, телефоны), поэтому порядок событий тот же.
+const realNow = Date.now.bind(Date);
+let skew = 0;
+Date.now = () => realNow() + skew;
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const visible = (el: Element) => (el as HTMLElement).offsetParent !== null || (el as HTMLElement).getClientRects().length > 0;
 function buttons(root: Element | null): HTMLButtonElement[] {
@@ -589,6 +596,14 @@ const RISKY = /досрочно|Закончить|Без голосования
 
 async function hostAct(): Promise<void> {
   const root = document.querySelector("[data-host]");
+  // Главная кнопка ждёт времени (барабан лото) — ведущий ждёт, робот проматывает 2 секунды.
+  const waiting = [...(root?.querySelectorAll("button.host-quiz__primary") ?? [])].some((b) => (b as HTMLButtonElement).disabled && /Барабан крутится/.test(text(b)));
+  if (waiting) {
+    skew += 2000;
+    count("пульт: ждём барабан");
+    await sleep(60);
+    return;
+  }
   const list = buttons(root);
   if (list.length === 0) return;
   const primary = list.find((b) => b.classList.contains("host-quiz__primary")) ?? list.find((b) => b.classList.contains("btn") && !b.classList.contains("btn--secondary") && !b.classList.contains("btn--quiet"));

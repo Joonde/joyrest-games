@@ -916,7 +916,13 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const wasLobby = normalizeState(hosted.row.state).phase === "lobby";
       // Вечер из блоков закрывают посреди блока («Игры сейчас», «Завершить вечер досрочно»): сначала итоги блока и
       // общий счёт — экран, телефоны и история увидят вечер целиком.
-      if (parseProgram(hosted.row.program ?? null)?.at === "block" && !wasLobby) await moveEvening(hosted.row.id, "final", null, false);
+      // Помощник владельца закрывает только брошенный вечер: брошенность проверяется в том же переходе под
+      // блокировкой строки — идущий вечер ведущего не уходит к итогам (ревью 29 октября 2026: раньше переход
+      // случался до проверки, а 403 приходил уже после).
+      if (parseProgram(hosted.row.program ?? null)?.at === "block" && !wasLobby) {
+        const moved = await moveEvening(hosted.row.id, "final", null, false, hosted.staleOnly);
+        if (moved === "active") return fail(reply, 403, "permission-denied");
+      }
       const done = await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }), { staleOnly: hosted.staleOnly });
       if (done === "conflict") return fail(reply, 403, "permission-denied");
       if (done === "missing") return fail(reply, 404, "not-found");
@@ -934,12 +940,23 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     /**
      * Переход вечера из блоков под блокировкой строки (см. `/program`). `from: null` — текущий блок (закрытие
      * вечера из «Игр сейчас»); `touch: false` — не двигать `updated_at` (брошенность игры проверяется после).
+     * `staleOnly` — помощник владельца: переход только у брошенной игры (12 часов без действий), иначе `active`.
      */
-    async function moveEvening(sessionId: string, action: ProgramAction, from: number | null, touch: boolean): Promise<"ok" | "missing" | "conflict"> {
+    async function moveEvening(
+      sessionId: string,
+      action: ProgramAction,
+      from: number | null,
+      touch: boolean,
+      staleOnly = false,
+    ): Promise<"ok" | "missing" | "conflict" | "active"> {
       const outcome = await sql.begin(async (tx) => {
-        const rows = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${sessionId} for update`;
+        const rows = await tx<(SessionRow & { stale: boolean })[]>`
+          select ${tx(SESSION_COLUMNS)}, version::int as version,
+                 (state->>'phase' in ('lobby', 'playing') and updated_at < now() - interval '12 hours') as stale
+          from sessions where id = ${sessionId} for update`;
         const row = rows[0];
         if (!row) return "missing" as const;
+        if (staleOnly && !row.stale) return "active" as const;
         const parsed = parseProgram(row.program ?? null);
         const state = normalizeState(row.state);
         if (!parsed || state.phase !== "playing") return "conflict" as const;
@@ -964,7 +981,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const fresh = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${row.id}`;
         return { session: fresh[0] ? sessionOf(fresh[0]) : null, steps };
       });
-      if (outcome === "missing" || outcome === "conflict") return outcome;
+      if (outcome === "missing" || outcome === "conflict" || outcome === "active") return outcome;
       // Голоса «помощи зала» прошлого блока не переходят в новый (шаги снова с нуля).
       audience.delete(sessionId);
       for (const step of outcome.steps) hub.publish(`answers:${sessionId}`, { type: "clear", step });

@@ -68,3 +68,27 @@ export async function withRetry<T>(load: () => Promise<T>, isCancelled: () => bo
     }
   }
 }
+
+/** Короткие паузы перед повтором отправки ответа гостя (ревью 29 октября 2026). */
+export const BRIEF_RETRY_MS: readonly number[] = [1000, 2000];
+
+/**
+ * Отправка с двумя быстрыми повторами после обрыва сети: обрыв на секунду проходит сам, без нового касания.
+ * Повторять можно только повторяемые записи (ответ гостя: дошедший ответ сервер второй раз не принимает —
+ * «rejected», и телефон берёт записанный). Настоящую ошибку пробрасывает сразу, после повторов — последнюю.
+ */
+export async function retryBriefly<T>(
+  send: () => Promise<T>,
+  pauses: readonly number[] = BRIEF_RETRY_MS,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await send();
+    } catch (error) {
+      const ms = pauses[attempt];
+      if (isPermanentError(error) || ms === undefined) throw error;
+      await wait(ms);
+    }
+  }
+}

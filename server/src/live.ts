@@ -919,11 +919,15 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       // Помощник владельца закрывает только брошенный вечер: брошенность проверяется в том же переходе под
       // блокировкой строки — идущий вечер ведущего не уходит к итогам (ревью 29 октября 2026: раньше переход
       // случался до проверки, а 403 приходил уже после).
+      // Решение «брошен» принято один раз — под блокировкой в переходе вечера; закрытие следом его не перепроверяет,
+      // иначе ведущий, нажавший что-то ровно между двумя шагами, оставил бы вечер наполовину закрытым.
+      let evening = false;
       if (parseProgram(hosted.row.program ?? null)?.at === "block" && !wasLobby) {
         const moved = await moveEvening(hosted.row.id, "final", null, false, hosted.staleOnly);
         if (moved === "active") return fail(reply, 403, "permission-denied");
+        evening = moved === "ok";
       }
-      const done = await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }), { staleOnly: hosted.staleOnly });
+      const done = await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }), { staleOnly: hosted.staleOnly && !evening });
       if (done === "conflict") return fail(reply, 403, "permission-denied");
       if (done === "missing") return fail(reply, 404, "not-found");
       // Итоги — по таблице на сервере, а не по присланной.

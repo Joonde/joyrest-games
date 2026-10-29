@@ -468,7 +468,11 @@ function InGame({
   const personalSlotRef = useRef(answerSlot(session, true));
   personalSlotRef.current = answerSlot(session, true);
   // Режим команд: свой ответ телефона (подсказка капитана, голос участника) — по своему игроку.
-  const [myPersonal, setMyPersonal, clearMyPersonal] = useMyAnswer(session, me.id, teams && phase === "playing" && session.state.step === firstStep.current && stage !== "ready", true);
+  // Личный ответ не дошёл — так же сверяемся с сервером, когда приём закрыт.
+  const [unsurePersonal, setUnsurePersonal] = useState<string | null>(null);
+  const personalNow = answerSlot(session, true);
+  const recheckPersonal = phase === "playing" && unsurePersonal === personalNow && closed ? `${personalNow}:closed` : "";
+  const [myPersonal, setMyPersonal, clearMyPersonal] = useMyAnswer(session, me.id, teams && phase === "playing" && session.state.step === firstStep.current && stage !== "ready", true, recheckPersonal);
   const [personalSending, setPersonalSending] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -507,7 +511,7 @@ function InGame({
     rememberAnswer(session.id, slot, value);
     setMyAnswer(value);
     try {
-      const result = await retryBriefly(() => answersRepo.submit(session.id, step, pid, uid, value));
+      const result = await retryBriefly(() => answersRepo.submit(session.id, step, pid, uid, value), undefined, undefined, () => slotRef.current === slot);
       if (result === "rejected") {
         // Ответ уже есть (повторное нажатие) или время вышло: узнаём, что записано на сервере.
         const saved = await answersRepo.getOwn(session.id, step, pid).catch(() => null);
@@ -543,7 +547,7 @@ function InGame({
     rememberAnswer(session.id, slot, value);
     setMyPersonal(value);
     try {
-      const result = await retryBriefly(() => answersRepo.submit(session.id, step, me.id, uid, value));
+      const result = await retryBriefly(() => answersRepo.submit(session.id, step, me.id, uid, value), undefined, undefined, () => personalSlotRef.current === slot);
       if (result === "rejected") {
         const saved = await answersRepo.getOwn(session.id, step, me.id).catch(() => null);
         if (personalSlotRef.current !== slot) return;
@@ -560,6 +564,7 @@ function InGame({
       forgetAnswer(session.id, slot);
       if (personalSlotRef.current !== slot) return;
       clearMyPersonal();
+      setUnsurePersonal(slot);
       setError(isPermanentError(problem) ? "Не принято — нажмите ещё раз." : "Не дошло — проверьте интернет и нажмите ещё раз.");
     } finally {
       setPersonalSending(false);

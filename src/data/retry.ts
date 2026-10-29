@@ -81,6 +81,8 @@ export async function retryBriefly<T>(
   send: () => Promise<T>,
   pauses: readonly number[] = BRIEF_RETRY_MS,
   wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  /** Повтор ещё нужен (ответ гостя — тот же показ шага); нет — `Cancelled`, старый ответ не уходит в новый показ. */
+  wanted: () => boolean = () => true,
 ): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -88,7 +90,9 @@ export async function retryBriefly<T>(
     } catch (error) {
       const ms = pauses[attempt];
       if (isPermanentError(error) || ms === undefined) throw error;
+      if (!wanted()) throw new Cancelled();
       await wait(ms);
+      if (!wanted()) throw new Cancelled();
     }
   }
 }

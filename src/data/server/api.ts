@@ -58,16 +58,27 @@ async function send(path: string, init: RequestInit): Promise<Response> {
   return response;
 }
 
-export async function api<T = unknown>(method: Method, path: string, body?: unknown): Promise<T> {
-  // Без keepalive: браузер ограничивает такие запросы 64 КБ на все сразу (игра с русским
-  // текстом больше), а сбой выглядел бы как «нет связи».
-  const response = await send(path, {
-    method,
-    cache: "no-store",
-    headers: method === "GET" ? { Accept: "application/json" } : { "Content-Type": "application/json", "X-JoyRest": "1" },
-    body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
-  });
-  return (await response.json().catch(() => null)) as T;
+/**
+ * `timeoutMs` — не ждать дольше (ответ гостя): на слабом Wi‑Fi запрос часто не падает, а висит минутами, и без
+ * срока телефон не узнал бы, что ответ не дошёл. Срок вышел — `unavailable`, как обрыв (ревью 29 октября 2026).
+ */
+export async function api<T = unknown>(method: Method, path: string, body?: unknown, options: { timeoutMs?: number } = {}): Promise<T> {
+  const control = options.timeoutMs ? new AbortController() : null;
+  const timer = control ? setTimeout(() => control.abort(), options.timeoutMs) : null;
+  try {
+    // Без keepalive: браузер ограничивает такие запросы 64 КБ на все сразу (игра с русским
+    // текстом больше), а сбой выглядел бы как «нет связи».
+    const response = await send(path, {
+      method,
+      cache: "no-store",
+      headers: method === "GET" ? { Accept: "application/json" } : { "Content-Type": "application/json", "X-JoyRest": "1" },
+      body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
+      signal: control?.signal,
+    });
+    return (await response.json().catch(() => null)) as T;
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+  }
 }
 
 /** Картинка как есть (WebP или JPEG, сжатая на устройстве) и её размеры. */

@@ -8,6 +8,9 @@ import { useServerNow } from "../../components/live/useServerNow";
 import { clockOf, DRUM_MS, hasLyrics, hasVideo, RULE_TITLES, type LottoContent } from "./content";
 import { canLastCall, cardFor, honestClaim, hushSong, isClaim, lastCall, lottoBack, lottoPrimary, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, songIndexAt, type LottoAction, type LottoVideoCmd } from "./logic";
 
+/** Запас после барабана, пока «Показать название» ещё недоступна: часы экрана зала могут отставать от пульта. */
+const DRUM_MARGIN_MS = 1500;
+
 const LABELS: Record<LottoAction, string> = {
   play: "Включить первую песню",
   reveal: "Показать название",
@@ -43,9 +46,19 @@ export function LottoHostControls({ session, content, answers, participants, con
   const own = answers.filter((a) => a.step === step && isClaim(a.value) && !(result.call > 0 && result.winners.includes(a.pid)));
   const played = playedUpTo(content, step, order);
   const drum = content.drum !== "off" && session.screenMode !== "none";
-  const drumUntil = drum && stage === "question" && result.replay === 0 && result.call === 0 && session.state.startedAt ? session.state.startedAt + DRUM_MS[content.drum] : 0;
+  // Те же условия, что у экрана зала (`LottoHall`): без порядка песен экран барабан не крутит.
+  const drumUntil =
+    drum && stage === "question" && result.replay === 0 && result.call === 0 && result.order.length === content.songs.length && session.state.startedAt
+      ? session.state.startedAt + DRUM_MS[content.drum]
+      : 0;
   const now = useServerNow(500, drumUntil > 0);
-  const spinning = drumUntil > now;
+  // Пока крутится барабан, название не открыть — с запасом: часы экрана могут отставать, и открытое на последней
+  // секунде название застало бы экран ещё в барабане (песня бы не зазвучала). И не дольше барабана с запасом с той
+  // минуты, как пульт узнал о нём: неверные часы пульта не держат кнопку (ревью 29 октября 2026).
+  const seen = useRef<{ until: number; at: number } | null>(null);
+  if (drumUntil > 0 && seen.current?.until !== drumUntil) seen.current = { until: drumUntil, at: Date.now() };
+  const spinning = drumUntil > 0 && now < drumUntil + DRUM_MARGIN_MS && Date.now() < (seen.current?.at ?? 0) + DRUM_MS[content.drum] + DRUM_MARGIN_MS;
+  const turning = spinning && now < drumUntil;
   const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок";
 
   function nextSession(): Promise<void> {
@@ -137,7 +150,7 @@ export function LottoHostControls({ session, content, answers, participants, con
         {content.playAfter ? "⏹ Остановить песню (играет на 60%)" : "⏹ Остановить песню"}
       </button>
     ) : null;
-  const lyricsPanel = track && hasLyrics(track) && (stage === "question" || stage === "reveal") && !spinning && (
+  const lyricsPanel = track && hasLyrics(track) && (stage === "question" || stage === "reveal") && !turning && (
     <section className="stack stack--tight" aria-label="Текст песни на экране зала">
       <h3 className="host-quiz__subtitle">
         🎤 Текст песни на экране:{" "}
@@ -222,7 +235,7 @@ export function LottoHostControls({ session, content, answers, participants, con
             </p>
           )
         )}
-        {spinning && <p className="notice small">🎰 Барабан крутится на экране зала — песня зазвучит через {Math.max(1, Math.ceil((drumUntil - now) / 1000))} с.</p>}
+        {turning && <p className="notice small">🎰 Барабан крутится на экране зала — песня зазвучит через {Math.max(1, Math.ceil((drumUntil - now) / 1000))} с.</p>}
         {!song?.trackId && !video && stage !== "ready" && <p className="muted small">У песни нет трека — включите её со своего плеера.</p>}
         {video && stage !== "ready" && <p className="muted small">У песни видео: {video.video.source === "file" ? `файл «${video.video.name || "видео"}» на устройстве экрана` : video.video.source === "server" ? `«${video.video.name || "видео"}» из видео JoyRest` : "ролик по ссылке"}. Звук — из видео.</p>}
       </div>

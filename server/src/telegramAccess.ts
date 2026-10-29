@@ -11,18 +11,29 @@ import type { Sql } from "postgres";
  * узнает их. Возвращает число снятых подключений.
  */
 export async function dropBusinessOf(sql: Sql, userId: string): Promise<number> {
-  const rows = await sql<{ key: string }[]>`
-    delete from tg_state where key like 'biz:%' and (case when value like '{%' then (value::jsonb ->> 'owner') end) = ${userId}
-    returning key`;
-  const conns = rows.map((r) => r.key.slice("biz:".length));
-  if (conns.length > 0) {
-    await sql`update tg_chats set waiting_since = null, notified_at = null, updated_at = now() where conn_id = any(${conns})`;
-  }
+  // Значение разбираем здесь, а не приведением в базе: одна испорченная запись не должна мешать отключить человека.
+  const rows = await sql<{ key: string; value: string }[]>`select key, value from tg_state where key like 'biz:%'`;
+  const keys = rows.filter((r) => ownerOf(r.value) === userId).map((r) => r.key);
+  if (keys.length === 0) return 0;
+  await sql`delete from tg_state where key = any(${keys})`;
+  const conns = keys.map((k) => k.slice("biz:".length));
+  await sql`update tg_chats set waiting_since = null, notified_at = null, updated_at = now() where conn_id = any(${conns})`;
   return conns.length;
+}
+
+function ownerOf(value: string): string {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === "object" && parsed !== null && "owner" in parsed && typeof parsed.owner === "string" ? parsed.owner : "";
+  } catch {
+    return "";
+  }
 }
 
 /** Отключили человека: его чат с ботом отвязан (уведомления не уходят на телефон, который мог остаться у него) и бизнес — тоже. */
 export async function dropTelegramOf(sql: Sql, userId: string): Promise<void> {
   await sql`delete from tg_links where user_id = ${userId}`;
+  // Ссылка «Подключить Telegram», полученная до отключения, больше не сработает.
+  await sql`delete from tg_codes where user_id = ${userId}`;
   await dropBusinessOf(sql, userId);
 }

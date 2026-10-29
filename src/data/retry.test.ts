@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { isPermanentError, retryBriefly, retryDelay, withRetry } from "./retry";
+import { Cancelled, isPermanentError, retryBriefly, retryDelay, withRetry } from "./retry";
 
 describe("повтор загрузки", () => {
   it("паузы 2, 4, 8 секунд, дальше каждые 10", () => {
@@ -79,6 +79,24 @@ describe("быстрый повтор отправки ответа", () => {
       throw { code: "permission-denied" };
     }, undefined, noWait);
     await expect(result).rejects.toEqual({ code: "permission-denied" });
+    expect(calls).toBe(1);
+  });
+
+  it("вопрос показали заново, пока ждали повтора, — старый ответ больше не отправляется", async () => {
+    let calls = 0;
+    let shown = 1;
+    const result = retryBriefly(
+      async () => {
+        calls++;
+        throw { code: "unavailable" };
+      },
+      undefined,
+      async () => {
+        shown = 2; // ведущий нажал «Назад» и снова «Показать вопрос»
+      },
+      () => shown === 1,
+    );
+    await expect(result).rejects.toBeInstanceOf(Cancelled);
     expect(calls).toBe(1);
   });
 

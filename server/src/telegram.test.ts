@@ -470,8 +470,10 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
       business_message: { message_id: n, business_connection_id: conn, chat: { id: from.id, type: "private" }, from, text: CALC },
     });
     const names = async () => ((await get("/api/clients", owner)).json().clients as Array<{ name: string }>).map((c) => c.name);
+    const passwords: Record<string, string> = {};
     const staff = async (email: string, name: string, chat: number, conn: string) => {
       const made = (await post("/api/users", owner, { email, name })).json();
+      passwords[email] = made.temporaryPassword;
       expect((await post(`/api/users/${made.account.uid}/access`, owner, { role: "sales" })).statusCode).toBe(200);
       await connect(await login(email, made.temporaryPassword), chat);
       tg.update({ business_connection: { id: conn, user: { id: chat }, user_chat_id: chat, is_enabled: true } });
@@ -480,11 +482,19 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     };
     const svetaId = await staff("sveta@example.com", "Света", SVETA, "bc9");
     const tanyaId = await staff("tanya@example.com", "Таня", TANYA, "bc10");
+    const svetaPassword = passwords["sveta@example.com"] ?? "";
     tg.update(msg(9401, "bc9", { id: 8501, first_name: "Сеня", username: "senya_calc" }));
     await until(async () => (await names()).includes("Сеня"), "расчёт из Telegram Светы — клиент");
 
-    // Свету отключили: чат с ботом отвязан, её бизнес-подключение снято — сразу, без её участия.
+    // Свету отключили: чат с ботом отвязан, её бизнес-подключение снято — сразу, без её участия. Испорченная запись
+    // чужого подключения отключению не мешает; ссылка «Подключить Telegram», взятая до отключения, больше не работает.
+    await sql`insert into tg_state (key, value) values ('biz:broken', '{x')`;
+    expect((await post("/api/telegram/link", await login("sveta@example.com", svetaPassword))).statusCode).toBe(200);
+    expect(await sql`select 1 from tg_codes where user_id = ${svetaId}`).toHaveLength(1);
     expect((await post(`/api/users/${svetaId}/active`, owner, { active: false })).statusCode).toBe(200);
+    expect(await sql`select 1 from tg_codes where user_id = ${svetaId}`).toHaveLength(0);
+    expect(await sql`select 1 from tg_state where key = 'biz:broken'`).toHaveLength(1);
+    await sql`delete from tg_state where key = 'biz:broken'`;
     expect(await sql`select 1 from tg_links where user_id = ${svetaId}`).toHaveLength(0);
     expect(await sql`select 1 from tg_state where key = 'biz:bc9'`).toHaveLength(0);
     const svetaSeen = to(SVETA).length;

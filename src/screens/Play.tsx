@@ -383,8 +383,12 @@ function rememberAnswer(sessionId: string, slot: string, value: unknown): void {
   }
 }
 
-/** Ответ на текущий шаг: с телефона, а если его нет — с сервера (после перезагрузки, у участника команды). */
-function useMyAnswer(session: Session, pid: string, ask: boolean, personal = false) {
+/**
+ * Ответ на текущий шаг: с телефона, а если его нет — с сервера (после перезагрузки, у участника команды).
+ * `recheck` — непустой ключ: спросить сервер ещё раз, даже если уже спрашивали на этом шаге (ответ не дошёл до
+ * телефона, а мог дойти до сервера — сверяемся, когда приём ответов закрыт).
+ */
+function useMyAnswer(session: Session, pid: string, ask: boolean, personal = false, recheck = "") {
   const { step } = session.state;
   const slot = answerSlot(session, personal);
   const [answer, setAnswer] = useState<{ slot: string; value: { value: unknown } | null } | null>(null);
@@ -396,7 +400,7 @@ function useMyAnswer(session: Session, pid: string, ask: boolean, personal = fal
       return;
     }
     setAnswer(null);
-    if (!ask) {
+    if (!ask && !recheck) {
       setAnswer({ slot, value: null });
       return;
     }
@@ -407,7 +411,7 @@ function useMyAnswer(session: Session, pid: string, ask: boolean, personal = fal
     return () => {
       cancelled = true;
     };
-  }, [session.id, step, slot, pid, ask]);
+  }, [session.id, step, slot, pid, ask, recheck]);
 
   const current = answer?.slot === slot ? answer.value : undefined;
   return [current, (value: unknown) => setAnswer({ slot, value: { value } }), () => setAnswer({ slot, value: null })] as const;
@@ -454,7 +458,10 @@ function InGame({
   const [unsure, setUnsure] = useState<string | null>(null);
   const slotNow = answerSlot(session);
   const closed = stage !== "question" && stage !== "ready";
-  const [myAnswer, setMyAnswer, clearMyAnswer] = useMyAnswer(session, pid, phase === "playing" && (ask || (unsure === slotNow && closed)));
+  // Ключ перепроверки меняется ровно в момент закрытия приёма: на первом шаге после входа сервер уже спрашивали
+  // (ответа тогда ещё не было) — без нового ключа телефон не спросил бы снова (нашла проверка в браузере).
+  const recheck = phase === "playing" && unsure === slotNow && closed ? `${slotNow}:closed` : "";
+  const [myAnswer, setMyAnswer, clearMyAnswer] = useMyAnswer(session, pid, phase === "playing" && ask, false, recheck);
   // Ответ на сервере уходит после паузы и повторов: шаг мог смениться — старый ответ не трогает новый шаг.
   const slotRef = useRef(slotNow);
   slotRef.current = slotNow;

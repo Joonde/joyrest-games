@@ -3,7 +3,7 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Session } from "../../data/types";
 import { CARD_STYLES, CARD_STYLE_TITLES, cardCells, cellFit, createLotto, parseLotto, parseSongList, type LottoContent } from "./content";
 import { DEMO_LOTTO } from "./demo";
-import { canLastCall, cardFor, cardLines, hushSong, lastCall, revealedUpTo, splitMarks, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
+import { canLastCall, lottoMusicOn, cardFor, cardLines, hushSong, lastCall, revealedUpTo, splitMarks, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
 import { DRUM_MS, softHyphens, hasLyrics, lyricIndex, lyricsFromText, parseLrc, parseLyrics, songLength, toLrc } from "./content";
 import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
@@ -646,5 +646,23 @@ describe("мягкие переносы в названиях", () => {
       expect(out.replace(/\u00ad/g, "")).toBe(t);
       for (const word of out.split(/\s+/)) for (const part of word.split("\u00ad")) expect(part.replace(/[^А-Яа-яЁё]/g, "").length).toBeGreaterThanOrEqual(2);
     }
+  });
+});
+
+describe("музыка лото на экране зала (ревью 29 октября 2026)", () => {
+  const base = { stage: "question", inDrum: false, hush: 0, quiet: false, sounded: false };
+  it("на вопросе — после барабана; пока крутится барабан — тишина", () => {
+    expect(lottoMusicOn(base)).toBe(true);
+    expect(lottoMusicOn({ ...base, inDrum: true })).toBe(false);
+  });
+  it("название открыли во время барабана — песня не начинается на полную", () => {
+    expect(lottoMusicOn({ ...base, stage: "reveal", sounded: false })).toBe(false);
+    expect(lottoMusicOn({ ...base, stage: "reveal", sounded: true })).toBe(true);
+  });
+  it("затихшая после названия песня сама не возвращается; «Стоп» — тишина", () => {
+    expect(lottoMusicOn({ ...base, stage: "reveal", sounded: true, quiet: true })).toBe(false);
+    expect(lottoMusicOn({ ...base, stage: "question", sounded: true, quiet: true })).toBe(false);
+    expect(lottoMusicOn({ ...base, hush: 1 })).toBe(false);
+    expect(lottoMusicOn({ ...base, stage: "podium", sounded: true })).toBe(false);
   });
 });

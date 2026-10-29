@@ -129,10 +129,12 @@ export function LottoHostControls({ session, content, answers, participants, con
 
   // После названия песня играет дальше (настройка «играет и после ответа») — её можно остановить.
   const track = screen && song && !video && song.trackId ? song : null;
+  // Кнопка — при любой настройке: если песня всё же звучит (экран открыли поздно, трек догружался), её можно
+  // заглушить с пульта, а не только «Следующей песней» (ревью 29 октября 2026).
   const afterPanel =
-    track && stage === "reveal" && content.playAfter && result.hush === 0 ? (
+    track && stage === "reveal" && result.hush === 0 ? (
       <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(hushSong(latest.current))}>
-        ⏹ Остановить песню (играет на 60%)
+        {content.playAfter ? "⏹ Остановить песню (играет на 60%)" : "⏹ Остановить песню"}
       </button>
     ) : null;
   const lyricsPanel = track && hasLyrics(track) && (stage === "question" || stage === "reveal") && !spinning && (
@@ -169,8 +171,9 @@ export function LottoHostControls({ session, content, answers, participants, con
         </p>
       )}
       <div className="actions">
-        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
-          {action === "podiumNext" ? podiumLabel(session) : action === "reveal" && result.call > 0 ? "Проверить «Лото!» и закрыть приём" : drum && action === "play" ? "🎰 Крутить барабан — первая песня" : drum && action === "next" ? "🎰 Крутить барабан — следующая песня" : LABELS[action]}
+        {/* Пока крутится барабан, название не открыть: песня ещё не звучала (ревью 29 октября 2026). */}
+        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || (action === "reveal" && spinning)} onClick={onPrimary}>
+          {action === "reveal" && spinning ? "🎰 Барабан крутится…" : action === "podiumNext" ? podiumLabel(session) : action === "reveal" && result.call > 0 ? "Проверить «Лото!» и закрыть приём" : drum && action === "play" ? "🎰 Крутить барабан — первая песня" : drum && action === "next" ? "🎰 Крутить барабан — следующая песня" : LABELS[action]}
         </button>
         {canLastCall(session, content) && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(lastCall(latest.current))}>

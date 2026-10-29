@@ -481,3 +481,14 @@ export function lottoBack(session: Session): LottoBack | null {
   // «ready» бывает только перед первой песней.
   return null;
 }
+
+/**
+ * Звучит ли песня на экране зала (ревью 29 октября 2026). На вопросе — после барабана; на названии — только если
+ * песня уже звучала на вопросе (`sounded`): название открыли, пока крутился барабан, — песня не начинается с начала
+ * на полную громкость. `quiet` — название показали без «играет после ответа», песня затихла: ни название, ни
+ * «Назад» на вопрос, ни «Последний шанс» её снова не включают (для этого — «Повторить песню»). «Стоп» с пульта — тишина.
+ */
+export function lottoMusicOn(m: { stage: string; inDrum: boolean; hush: number; quiet: boolean; sounded: boolean }): boolean {
+  if (m.inDrum || m.hush !== 0 || m.quiet) return false;
+  return m.stage === "question" || (m.stage === "reveal" && m.sounded);
+}

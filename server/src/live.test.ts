@@ -314,6 +314,35 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().tipsUrl).toBe("");
   });
 
+  it("отзыв с формы сайта попадает в «Отзывы» студии, даже если Telegram не ответил", async () => {
+    // Отдельное приложение с включённым сайтом на той же базе (ревью 29 октября 2026: отзыв уходил только в Telegram).
+    const SITE = "joy-rest.test";
+    const siteApp = buildApp({
+      version: "t",
+      publicDir: null,
+      checkDatabase: async () => true,
+      sql,
+      site: { dir: mkdtempSync(join(tmpdir(), "joyrest-site-")), enabled: true, stubDir: null, hosts: [SITE], indexing: false },
+      lead: {
+        telegram: { token: "t", chatId: "1" },
+        send: async () => {
+          throw new Error("telegram 502");
+        },
+      },
+    });
+    const text = `Отзыв с сайта ${Date.now()}`;
+    const res = await siteApp.inject({
+      method: "POST",
+      url: "/api/lead",
+      headers: { host: SITE, "content-type": "application/json" },
+      payload: JSON.stringify({ type: "review", consent: true, website: "", name: "Анна", rating: 4, text }),
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    await siteApp.close();
+    const list = (await call("GET", "/api/reviews", host)).json() as Array<{ text: string; name: string; rating: number; status: string; sessionId: string }>;
+    expect(list.filter((r) => r.text === text)).toEqual([expect.objectContaining({ name: "Анна", rating: 4, status: "new", sessionId: "site" })]);
+  });
+
   it("завершение: по коду сессию больше не найти, пульт находит свою; итоги по ссылке без входа", async () => {
     const code = await newSession("fin1");
     await call("POST", "/api/sessions/fin1/leaderboard", host, { entries: { p1: { name: "Аня", kind: "player", score: 30 }, p2: { name: "Боря", kind: "player", score: 50 } } });

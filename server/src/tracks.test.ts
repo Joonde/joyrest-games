@@ -1,4 +1,5 @@
-import { mkdtempSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import postgres from "postgres";
@@ -42,12 +43,13 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
   const admin = postgres(url ?? "", { max: 1, onnotice: () => {} });
   const sql = postgres(url ?? "", { max: 3, onnotice: () => {}, connection: { search_path: SCHEMA } });
   const HOST = "games.test";
+  const mediaDir = mkdtempSync(join(tmpdir(), "joyrest-audio-"));
   const app = buildApp({
     version: "t",
     publicDir: null,
     checkDatabase: async () => true,
     sql,
-    mediaDir: mkdtempSync(join(tmpdir(), "joyrest-audio-")),
+    mediaDir,
     auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } },
   });
   let owner = "";
@@ -132,6 +134,51 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     await post("/api/tracks/t1/share", anna);
     await post("/api/tracks/t1/accept", owner);
     expect((await get("/api/tracks", boris)).json().library).toHaveLength(1);
+  });
+
+  it("файл трека отдаётся с диска частями: весь, отрезок, хвост, 416, 304, нет файла — 404", async () => {
+    await post("/api/tracks", anna, { id: "r1", title: "Части", license: "own" });
+    const body = Buffer.concat([Buffer.from("ID3"), Buffer.from(Array.from({ length: 4997 }, (_, i) => i % 251))]);
+    expect((await upload("r1", anna, body)).statusCode).toBe(200);
+    const device = cookieOf(await post("/api/auth/device", "", {}));
+    const load = (extra: Record<string, string> = {}) =>
+      app.inject({ method: "GET", url: "/api/tracks/r1/file", headers: { host: HOST, cookie: device, ...extra } });
+
+    const whole = await load();
+    expect(whole.statusCode).toBe(200);
+    expect(whole.headers["content-length"]).toBe(String(body.length));
+    expect(whole.headers["accept-ranges"]).toBe("bytes");
+    expect(whole.rawPayload.equals(body)).toBe(true);
+
+    const part = await load({ range: "bytes=100-1099" });
+    expect(part.statusCode).toBe(206);
+    expect(part.headers["content-range"]).toBe(`bytes 100-1099/${body.length}`);
+    expect(part.headers["content-length"]).toBe("1000");
+    expect(part.rawPayload.equals(body.subarray(100, 1100))).toBe(true);
+
+    const open = await load({ range: "bytes=4990-" });
+    expect(open.statusCode).toBe(206);
+    expect(open.rawPayload.equals(body.subarray(4990))).toBe(true);
+    const tail = await load({ range: "bytes=-7" });
+    expect(tail.headers["content-range"]).toBe(`bytes ${body.length - 7}-${body.length - 1}/${body.length}`);
+    expect(tail.rawPayload.equals(body.subarray(body.length - 7))).toBe(true);
+    const single = await load({ range: "bytes=0-0" });
+    expect(single.rawPayload.equals(body.subarray(0, 1))).toBe(true);
+
+    const outside = await load({ range: `bytes=${body.length}-` });
+    expect(outside.statusCode).toBe(416);
+    expect(outside.headers["content-range"]).toBe(`bytes */${body.length}`);
+
+    const etag = String(whole.headers.etag);
+    expect((await load({ "if-none-match": etag })).statusCode).toBe(304);
+
+    // Файл пропал с диска — 404 и не кэшируется (раньше — то же поведение).
+    const sha = createHash("sha256").update(body).digest("hex");
+    rmSync(join(mediaDir, "audio", sha));
+    const gone = await load();
+    expect(gone.statusCode).toBe(404);
+    expect(gone.headers["cache-control"]).toBe("no-store");
+    expect((await load({ range: "bytes=0-9" })).statusCode).toBe(404);
   });
 
   it("отклонение с причиной; общий трек правит только владелец агентства", async () => {

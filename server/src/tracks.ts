@@ -7,8 +7,8 @@
  * картинок их не трогает, в том числе у прошлых релизов при откате). Сервер звук не перекодирует.
  */
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync } from "node:fs";
-import { mkdir, readFile, rename, statfs, writeFile } from "node:fs/promises";
+import { createReadStream, existsSync } from "node:fs";
+import { mkdir, rename, stat, statfs, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
@@ -410,26 +410,28 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       const etag = `"${track.sha256}"`;
       reply.header("Cache-Control", "private, max-age=31536000, immutable").header("ETag", etag);
       if (request.headers["if-none-match"] === etag) return reply.code(304).send();
-      let file: Buffer;
-      try {
-        file = await readFile(join(audioDir, track.sha256));
-      } catch {
+      const path = join(audioDir, track.sha256);
+      const info = await stat(path).catch(() => null);
+      if (!info?.isFile()) {
         reply.header("Cache-Control", "no-store");
         return fail(reply, 404, "not-found");
       }
       // Отдаём частями по запросу браузера (Range): Safari на iPhone иначе не перематывает прослушивание
-      // к началу отрезка, а длинный трек играет только после полной загрузки.
+      // к началу отрезка, а длинный трек играет только после полной загрузки. Читаем с диска потоком только
+      // нужную часть, как у видео: файл целиком в память не берём (app-prod — 384 МБ, Safari просит трек
+      // десятками мелких частей, несколько вечеров с музыкой сразу иначе держали десятки копий трека).
       reply.header("Accept-Ranges", "bytes");
-      const range = byteRange(request.headers.range, file.length);
-      if (range === "invalid") return reply.code(416).header("Content-Range", `bytes */${file.length}`).send();
+      const range = byteRange(request.headers.range, info.size);
+      if (range === "invalid") return reply.code(416).header("Content-Range", `bytes */${info.size}`).send();
       if (range) {
         return reply
           .code(206)
           .type(track.mime)
-          .header("Content-Range", `bytes ${range.start}-${range.end}/${file.length}`)
-          .send(file.subarray(range.start, range.end + 1));
+          .header("Content-Range", `bytes ${range.start}-${range.end}/${info.size}`)
+          .header("Content-Length", String(range.end - range.start + 1))
+          .send(createReadStream(path, { start: range.start, end: range.end }));
       }
-      return reply.type(track.mime).send(file);
+      return reply.type(track.mime).header("Content-Length", String(info.size)).send(createReadStream(path));
     });
 
     // Ведущий предлагает свой трек в общую. Повтор, пока ждёт, — то же.

@@ -241,7 +241,22 @@ describe.skipIf(!url)("игры и картинки на PostgreSQL", () => {
     expect((await call("GET", "/api/media/annaGame1/img1/full", anna)).statusCode).toBe(200);
 
     expect((await call("DELETE", "/api/games/annaGame1", boris)).statusCode).toBe(403);
+    // Игру сейчас проводят — сама или блоком вечера — удалить нельзя (картинки пропали бы с экрана зала).
+    const block = { title: "Вечер", at: "block", index: 1, blocks: [{ title: "Квиз", mechanic: "quiz", gameId: "other" }, { title: "Моя", mechanic: "quiz", gameId: "annaGame1" }] };
+    await sql`insert into sessions (id, code, host_id, game_id, state) values ('delLive', '700001', ${annaId}, 'annaGame1', ${sql.json({ phase: "playing" })})`;
+    await sql`insert into sessions (id, code, host_id, game_id, state, program) values ('delEvening', '700002', ${annaId}, 'other', ${sql.json({ phase: "lobby" })}, ${sql.json(block)})`;
+    const blocked = await call("DELETE", "/api/games/annaGame1", anna);
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json()).toEqual({ error: "failed-precondition", reason: "in-play" });
+    await sql`update sessions set state = ${sql.json({ phase: "finished" })} where id = 'delLive'`;
+    expect((await call("DELETE", "/api/games/annaGame1", anna)).statusCode).toBe(409); // вечер ещё идёт
+    // Испорченная программа чужой сессии не ломает проверку; брошенный вечер (12 часов без пульта) и завершённая игра
+    // не держат. При отказах ничего не стёрто.
+    await sql`insert into sessions (id, code, host_id, game_id, state, program) values ('delBroken', '700003', ${annaId}, 'other', ${sql.json({ phase: "playing" })}, ${sql.json({ blocks: "x" })})`;
+    expect((await call("GET", "/api/media/annaGame1/img1/full", anna)).statusCode).toBe(200);
+    await sql`update sessions set updated_at = now() - interval '13 hours' where id = 'delEvening'`;
     expect((await call("DELETE", "/api/games/annaGame1", anna)).statusCode).toBe(200);
+    await sql`delete from sessions where id in ('delLive', 'delEvening', 'delBroken')`;
     expect((await call("GET", "/api/games/annaGame1", anna)).statusCode).toBe(404);
     const [{ count }] = await sql<{ count: string }[]>`select count(*)::text as count from media where game_id = 'annaGame1'`;
     expect(count).toBe("0");

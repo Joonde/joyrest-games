@@ -7,7 +7,7 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { WarmVideo } from "../stage/video";
 import { cardCells, cellFit, DRUM_MS, hasVideo, RULE_TITLES, softHyphens, type CardStyle, type LottoContent, type LottoSong } from "./content";
 import { LottoHall } from "./hall";
-import { cardFor, isWin, orderOf, parseLottoResult, revealedUpTo, songIndexAt, splitMarks } from "./logic";
+import { cardFor, claimMarks, isWin, orderOf, parseLottoResult, revealedUpTo, songIndexAt, splitMarks } from "./logic";
 
 /**
  * Рисованная карточка «Вечер» / «День»: фон-картинка 3:4, заголовок и правило сверху, сетка — в пустой
@@ -193,7 +193,11 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
   // отметил: она уже прозвучала, заявка честная (так знаток успевает первым). Пока крутится барабан — нет:
   // иначе загоревшаяся кнопка выдала бы, какая песня выпадет.
   const liveId = stage === "question" && result.call === 0 && !spinning && song ? song.id : null;
-  const counted = guided ? [...split.confirmed, ...(liveId && marked.has(liveId) && !revealed.has(liveId) ? [liveId] : [])] : marks;
+  // Честное «Лото!» (решение владельца 29 октября 2026): звучащая песня идёт в зачёт, только если из догадок «?»
+  // отмечена она одна. Кто отметил карандашом всё подряд, кнопка не подсказывает момент победы.
+  const counted = claimMarks(guided, marks, revealed, liveId);
+  // Отметил звучащую песню и ещё догадки — подсказываем, что оставить одну (иначе кнопка не загорится).
+  const extraGuesses = guided && liveId !== null && split.pencil.includes(liveId) && split.pencil.length > 1 && isWin(card, new Set([...split.confirmed, liveId]), content.size, content.rule);
   const ready = isWin(card, new Set(counted), content.size, content.rule);
   const canClaimNow = captain && stage === "question" && won < 0 && !claimed && !sending && ready;
   const canQueue = captain && stage === "reveal" && won < 0 && !sending && ready && pending === null && !result.last.includes(pid);
@@ -354,6 +358,7 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
         </button>
       )}
       {guided && split.pencil.length > 0 && !shown && <p className="muted small lotto-phone__pencil">«?» — ваша догадка. Ведущий откроет название — проверим её сами.</p>}
+      {extraGuesses && captain && won < 0 && <p className="notice small">Отмечено несколько догадок «?». Оставьте только песню, которая звучит, — и «Лото!» загорится.</p>}
       <p aria-live="polite" className={won >= 0 || result.last.includes(pid) ? "quiz-phone__status success" : "quiz-phone__status muted"}>
         {status}
       </p>

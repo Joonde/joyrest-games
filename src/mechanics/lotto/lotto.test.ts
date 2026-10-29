@@ -3,7 +3,7 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Session } from "../../data/types";
 import { CARD_STYLES, CARD_STYLE_TITLES, cardCells, cellFit, createLotto, parseLotto, parseSongList, type LottoContent } from "./content";
 import { DEMO_LOTTO } from "./demo";
-import { canLastCall, lottoMusicOn, cardFor, cardLines, hushSong, lastCall, revealedUpTo, splitMarks, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
+import { canLastCall, claimMarks, honestClaim, lottoMusicOn, cardFor, cardLines, hushSong, lastCall, revealedUpTo, splitMarks, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedNumbers, playedUpTo, playSong, replaySong, revealSong, score, shuffledOrder, songAt } from "./logic";
 import { DRUM_MS, softHyphens, hasLyrics, lyricIndex, lyricsFromText, parseLrc, parseLyrics, songLength, toLrc } from "./content";
 import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
@@ -143,6 +143,49 @@ describe("очки за «Лото!»", () => {
     if (!before || !at) throw new Error("нет шага");
     expect(score(before, [claim(first - 1, "anna")], { state: state() })).toEqual([]);
     expect(score(at, [claim(first, "anna")], { state: state() })).toEqual([{ pid: "anna", delta: 300 }]);
+  });
+});
+
+describe("честное «Лото!» (решение владельца 29 октября 2026)", () => {
+  const c = game();
+  const steps = lottoSteps(c);
+  const state = () => ({ ...startState(), stage: "question" as const, result: null });
+  const anna = cardFor(c, "anna");
+  let first = -1;
+  for (let k = 0; k < c.songs.length; k++) {
+    if (isWin(anna, playedUpTo(c, k), c.size, c.rule)) {
+      first = k;
+      break;
+    }
+  }
+  const withMarks = (step: number, marks: string[]): Answer => ({ id: `${step}_anna`, step, pid: "anna", uid: "anna", value: { marks }, submittedAt: 1 });
+
+  it("отметил всё подряд — заявка не засчитывается, даже когда линия собралась", () => {
+    const at = steps[first];
+    if (!at) throw new Error("нет шага");
+    expect(score(at, [withMarks(first, anna)], { state: state() })).toEqual([]);
+    expect(honestClaim(anna, anna, playedUpTo(c, first), c.size, c.rule)).toBe(false);
+  });
+
+  it("отметил только прозвучавшие (и звучащую) — засчитывается; забытая отметка не мешает", () => {
+    const at = steps[first];
+    if (!at) throw new Error("нет шага");
+    const played = playedUpTo(c, first);
+    const honest = anna.filter((id) => played.has(id));
+    expect(score(at, [withMarks(first, honest)], { state: state() })).toEqual([{ pid: "anna", delta: 300 }]);
+    expect(score(at, [withMarks(first, honest.slice(1))], { state: state() })).toEqual([{ pid: "anna", delta: 300 }]);
+    // Чужие песни (не с карточки) и мусор в отметках заявку не ломают.
+    expect(honestClaim(anna, [...honest, "чужая", 7], played, c.size, c.rule)).toBe(true);
+  });
+
+  it("телефон с подсказкой: звучащая песня — в зачёт, только если из догадок отмечена она одна", () => {
+    const revealed = new Set(["s1", "s2"]);
+    expect(claimMarks(true, ["s1", "s5"], revealed, "s5")).toEqual(["s1", "s5"]);
+    expect(claimMarks(true, ["s1", "s5", "s6", "s7"], revealed, "s5")).toEqual(["s1"]);
+    expect(claimMarks(true, ["s1", "s6"], revealed, "s5")).toEqual(["s1"]);
+    expect(claimMarks(true, ["s1", "s5"], revealed, null)).toEqual(["s1"]);
+    // Без подсказки (знатоки) — все отметки как есть: ложную отметку отклонит проверка заявки.
+    expect(claimMarks(false, ["s1", "s9"], revealed, "s5")).toEqual(["s1", "s9"]);
   });
 });
 

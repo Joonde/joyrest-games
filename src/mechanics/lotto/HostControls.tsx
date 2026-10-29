@@ -6,7 +6,7 @@ import type { HostControlsProps } from "../types";
 import { canSeek } from "../stage/video";
 import { useServerNow } from "../../components/live/useServerNow";
 import { clockOf, DRUM_MS, hasLyrics, hasVideo, RULE_TITLES, type LottoContent } from "./content";
-import { canLastCall, cardFor, hushSong, isClaim, isWin, lastCall, lottoBack, lottoPrimary, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, songIndexAt, type LottoAction, type LottoVideoCmd } from "./logic";
+import { canLastCall, cardFor, honestClaim, hushSong, isClaim, lastCall, lottoBack, lottoPrimary, lottoVideoCommand, lyricsCommand, nextSong, orderOf, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, songIndexAt, type LottoAction, type LottoVideoCmd } from "./logic";
 
 const LABELS: Record<LottoAction, string> = {
   play: "Включить первую песню",
@@ -239,7 +239,7 @@ export function LottoHostControls({ session, content, answers, participants, con
           ) : (
             <ul className="open-answers">
               {own.map((a) => {
-                const ok = isWin(cardFor(content, a.pid), played, content.size, content.rule) && !result.winners.includes(a.pid);
+                const ok = honestClaim(cardFor(content, a.pid), isClaim(a.value) ? a.value.marks : [], played, content.size, content.rule) && !result.winners.includes(a.pid);
                 return (
                   <li key={a.id} className={`open-answers__item open-answers__item--${ok ? "correct" : "wrong"}`}>
                     <span className="open-answers__text">{nameOf(a.pid)}</span>

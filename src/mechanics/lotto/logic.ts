@@ -252,9 +252,33 @@ export function prizeFor(content: LottoContent, place: number): number {
 }
 
 /**
- * Очки за песню. Заявка верна, если карточка участника собрана по правилу из уже прозвучавших
- * песен (отметки на телефоне не важны — честно и для тех, кто забыл отметить). Кто уже выиграл,
- * второй раз не получает. Порядок — по времени заявки на сервере.
+ * Какие отметки телефон отправит с «Лото!» и по каким зажигает кнопку. С подсказкой — открытые названия и звучащая
+ * песня, только если из догадок «?» отмечена она одна (честное «Лото!», решение владельца 29 октября 2026); без
+ * подсказки (знатоки) — все отметки как есть.
+ */
+export function claimMarks(guided: boolean, marks: string[], revealed: Set<string>, liveId: string | null): string[] {
+  if (!guided) return marks;
+  const { confirmed, pencil } = splitMarks(marks, revealed);
+  const live = liveId !== null && !revealed.has(liveId) && pencil.length === 1 && pencil[0] === liveId;
+  return live ? [...confirmed, liveId] : confirmed;
+}
+
+/**
+ * Честная заявка «Лото!» (решение владельца 29 октября 2026): среди отметок гостя нет песен, которые ещё не
+ * звучали (звучащая сейчас уже прозвучала), и карточка собрана по правилу из прозвучавших песен. Раньше отметки не
+ * проверялись: можно было отметить всё подряд и жать «Лото!» на каждой песне — без штрафа и первым. Забытая отметка
+ * прозвучавшей песни по-прежнему не мешает. Телефон с подсказкой шлёт только открытые названия и звучащую песню
+ * (если из догадок «?» отмечена она одна).
+ */
+export function honestClaim(card: string[], marks: readonly unknown[], played: Set<string>, size: number, rule: WinRule): boolean {
+  const own = new Set(card);
+  for (const id of marks) if (typeof id === "string" && own.has(id) && !played.has(id)) return false;
+  return isWin(card, played, size, rule);
+}
+
+/**
+ * Очки за песню. Заявка верна, если она честная (`honestClaim`): карточка собрана по правилу из уже прозвучавших
+ * песен, а среди отметок нет ещё не звучавших. Кто уже выиграл, второй раз не получает. Порядок — по времени заявки.
  */
 export function score(step: LottoStep, answers: Answer[], { state }: ScoreContext): ScoreDelta[] {
   const parsed = parseLottoResult(state.result);
@@ -267,7 +291,7 @@ export function score(step: LottoStep, answers: Answer[], { state }: ScoreContex
     .filter((a) => {
       if (seen.has(a.pid)) return false;
       seen.add(a.pid);
-      return isWin(cardFor(step.content, a.pid), played, step.content.size, step.content.rule);
+      return honestClaim(cardFor(step.content, a.pid), (a.value as { marks: string[] }).marks, played, step.content.size, step.content.rule);
     });
   return winners.map((a, i) => ({ pid: a.pid, delta: prizeFor(step.content, prior.size + i) }));
 }

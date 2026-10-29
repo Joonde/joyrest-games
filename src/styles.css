@@ -24652,6 +24652,18 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* Уже написали — карточка остаётся на месте, но тише; следующий — с золотой рамкой. */
+.contacts-past.is-done {
+  opacity: 0.6;
+}
+.contacts-past.is-next {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 2px var(--color-highlight);
+}
+.contacts-last {
+  display: grid;
+  gap: 8px;
+}
 .contacts-past__quiet {
   font-size: 0.9rem;
   font-weight: 500;

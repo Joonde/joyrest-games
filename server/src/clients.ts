@@ -146,6 +146,15 @@ interface Row {
   taken_ms: string | number | null;
   taken_by: string;
   contact: string | null;
+  outreach_at: Date | null;
+  outreach_fail: string | null;
+}
+
+/** Куда не дошло сообщение прежнему клиенту: только известные способы, без повторов. */
+export function outreachFails(raw: string | null | undefined): Array<"telegram" | "whatsapp"> {
+  const out: Array<"telegram" | "whatsapp"> = [];
+  for (const k of String(raw ?? "").split(",")) if ((k === "telegram" || k === "whatsapp") && !out.includes(k)) out.push(k);
+  return out;
 }
 
 function recordOf(row: Row): ClientRecord {
@@ -174,6 +183,8 @@ function recordOf(row: Row): ClientRecord {
     takenMs: row.taken_ms === null ? null : Number(row.taken_ms),
     takenBy: row.taken_by ?? "",
     contact: isClientContact(row.contact) ? row.contact : "",
+    outreachAt: row.outreach_at ? row.outreach_at.getTime() : null,
+    outreachFail: outreachFails(row.outreach_fail),
   };
 }
 
@@ -342,7 +353,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         coalesce((select h.source from client_contacts h where h.client_id = c.id and h.source <> 'status' order by h.created_at desc limit 1), 'status') as last_source,
         -- С какого времени клиент ждёт ответа в Telegram (бот в Telegram для бизнеса).
         (select min(t.waiting_since) from tg_chats t where t.client_id = c.id) as tg_waiting,
-        c.new_since, c.taken_at, c.taken_ms, c.taken_by, c.contact
+        c.new_since, c.taken_at, c.taken_ms, c.taken_by, c.contact, c.outreach_at, c.outreach_fail
       from clients c`;
 
     async function details(id: string): Promise<ClientDetails | null> {
@@ -543,6 +554,34 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       if (result === "archived") return reply.code(409).send({ error: "failed-precondition", reason: "archived" });
       if (result !== "ok") return fail(reply, 409, "failed-precondition");
       request.log.info({ clients: "notes" }, "clients");
+      return (await details(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // Рассылка прежним клиентам: «написали» и «не получилось» (только владелец — он и пишет; `canExportClients`).
+    // Карточку не меняет (updated_at не трогаем): это отметка рассылки, а не правка клиента. `at` — перенос отметки,
+    // поставленной раньше на телефоне (не в будущем и не старше 90 дней), иначе — сейчас.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/clients/:id/outreach", { bodyLimit: 1024 }, async (request, reply) => {
+      if (!(await allowed(request, reply, permissions.canExportClients))) return reply;
+      const id = request.params.id;
+      const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      const failKind = b.fail === "telegram" || b.fail === "whatsapp" ? b.fail : null;
+      if (!ID.test(id) || (typeof b.sent !== "boolean" && !failKind)) return fail(reply, 400, "invalid-argument");
+      const now = Date.now();
+      const at = typeof b.at === "number" && Number.isFinite(b.at) && b.at <= now + 60_000 && b.at >= now - 90 * 86_400_000 ? new Date(b.at) : new Date(now);
+      const done = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ outreach_fail: string }[]>`select outreach_fail from clients where id = ${id} for update`;
+        if (!row) return false;
+        if (b.sent === true) await t`update clients set outreach_at = ${at} where id = ${id}`;
+        if (b.sent === false) await t`update clients set outreach_at = null where id = ${id}`;
+        if (failKind) {
+          const fails = outreachFails([row.outreach_fail, failKind].join(","));
+          await t`update clients set outreach_fail = ${fails.join(",")} where id = ${id}`;
+        }
+        return true;
+      });
+      if (!done) return fail(reply, 404, "not-found");
+      request.log.info({ clients: "outreach" }, "clients");
       return (await details(id)) ?? fail(reply, 404, "not-found");
     });
 

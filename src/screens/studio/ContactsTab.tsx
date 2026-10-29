@@ -5,7 +5,7 @@
  * «Прежний клиент»). Остальная книжка на сервер не уходит. Ниже — прежние клиенты с кнопками «Написать» (WhatsApp или
  * Telegram с готовым сообщением) и «Ответил «да»» (согласие на новости, дальше кнопки — сообщение со скидкой).
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { contactTitle, linkTitle, phoneKey, phoneLabel, telegramLinkOf, writeChannels } from "../../core/clients";
 import { cleanName, messageVariant, pastClientMessage, pastClientYesMessage, scanContacts, type ContactMatch } from "../../core/contactsImport";
 import { clientsRepo, useLoad, type ClientRecord } from "../../data";
@@ -19,23 +19,45 @@ import { newId, Pill, useLastReady } from "./calendarParts";
 import { ExcelImport } from "./ExcelImport";
 
 const CHANNEL_URL = "https://t.me/JoyRest";
+// Раньше «написали» и «не получилось» хранились только в браузере телефона. С 29 октября 2026 — на сервере
+// (`clients.outreach_at`, `outreach_fail`): одинаково на телефоне и компьютере. Старые отметки переносятся при открытии.
 const SENT_KEY = "jr-past-sent";
+const FAIL_KEY = "jr-past-fail";
+/** Открыли чат и ещё не ответили «получилось?» — переживает перезагрузку страницы после возврата из мессенджера. */
+const PENDING_KEY = "jr-past-pending";
+const PENDING_MS = 3 * 3_600_000;
 
-/** Кому уже написали (на этом телефоне): id клиента → дата. */
-function readSent(): Record<string, number> {
+function readJson(key: string): Record<string, unknown> {
   try {
-    const raw = JSON.parse(localStorage.getItem(SENT_KEY) ?? "{}") as unknown;
-    return raw && typeof raw === "object" ? (raw as Record<string, number>) : {};
+    const raw = JSON.parse(localStorage.getItem(key) ?? "{}") as unknown;
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   } catch {
     return {};
   }
 }
 
-function writeSent(value: Record<string, number>): void {
+function forget(key: string): void {
   try {
-    localStorage.setItem(SENT_KEY, JSON.stringify(value));
+    localStorage.removeItem(key);
   } catch {
-    // Не запомнилось — не страшно: отметка только для удобства.
+    // Нет доступа к хранилищу — нечего и убирать.
+  }
+}
+
+type Pending = { id: string; kind: string; at: number };
+
+function readPending(): Pending | null {
+  const d = readJson(PENDING_KEY);
+  if (typeof d.id !== "string" || typeof d.kind !== "string" || typeof d.at !== "number") return null;
+  return Date.now() - d.at < PENDING_MS ? { id: d.id, kind: d.kind, at: d.at } : null;
+}
+
+function writePending(value: Pending | null): void {
+  try {
+    if (value) localStorage.setItem(PENDING_KEY, JSON.stringify(value));
+    else localStorage.removeItem(PENDING_KEY);
+  } catch {
+    // Не запомнилось — вопрос пропадёт после перезагрузки, отметку можно поставить кнопкой «✓ Написал».
   }
 }
 
@@ -71,7 +93,27 @@ export function ContactsTab() {
   const [showAll, setShowAll] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
-  const [sent, setSent] = useState<Record<string, number>>(readSent);
+  // Отметки рассылки — с сервера: одинаковые на телефоне и компьютере.
+  const sent = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const c of clients ?? []) if (c.outreachAt) out[c.id] = c.outreachAt;
+    return out;
+  }, [clients]);
+  const fail = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const c of clients ?? []) if (c.outreachFail?.length) out[c.id] = c.outreachFail;
+    return out;
+  }, [clients]);
+  // Порядок списка — по отметкам на момент открытия страницы: отправили — карточка остаётся на месте (тусклая),
+  // список не перескакивает, пока вы ходите в мессенджер и обратно.
+  const orderSnap = useRef<Record<string, number> | null>(null);
+  if (clients && !orderSnap.current) orderSnap.current = { ...sent };
+  // Открыли чат — ждём ответа «получилось?»: сайт не видит, что было в мессенджере (ошибка «не найден» и т. п.).
+  const [pending, setPendingState] = useState<Pending | null>(readPending);
+  const setPending = (value: Pending | null) => {
+    setPendingState(value);
+    writePending(value);
+  };
   const [toast, showToast] = useToast(4000);
   const [confirm, ask] = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -163,10 +205,81 @@ export function ContactsTab() {
     });
   }
 
+  /** Отметка рассылки на сервере; на экране — сразу, не дошла до сервера — возвращаем как было и говорим. */
+  async function mark(id: string, change: { sent?: boolean; at?: number; fail?: "telegram" | "whatsapp" }, done: string) {
+    if (!clientsRepo) return;
+    const before = (clients ?? []).find((c) => c.id === id);
+    update((data) =>
+      data.map((x) =>
+        x.id !== id
+          ? x
+          : {
+              ...x,
+              outreachAt: change.sent === true ? (change.at ?? Date.now()) : change.sent === false ? null : x.outreachAt,
+              outreachFail: change.fail ? [...new Set([...(x.outreachFail ?? []), change.fail])] : x.outreachFail,
+            },
+      ),
+    );
+    try {
+      const saved = await clientsRepo.outreach(id, change);
+      update((data) => data.map((x) => (x.id === id ? { ...x, outreachAt: saved.outreachAt, outreachFail: saved.outreachFail } : x)));
+      if (done) showToast(done);
+    } catch {
+      if (before) update((data) => data.map((x) => (x.id === id ? { ...x, outreachAt: before.outreachAt, outreachFail: before.outreachFail } : x)));
+      showToast("Отметка не сохранилась — нет связи. Нажмите ещё раз.");
+    }
+  }
+
   function markSent(id: string) {
-    const next = { ...sent, [id]: Date.now() };
-    setSent(next);
-    writeSent(next);
+    setPending(null);
+    void mark(id, { sent: true }, "✓ Отмечено: написали");
+  }
+
+  function unmarkSent(id: string) {
+    void mark(id, { sent: false }, "Отметка «написали» снята");
+  }
+
+  function markFailed(id: string, kind: string) {
+    setPending(null);
+    void mark(id, { fail: kind === "whatsapp" ? "whatsapp" : "telegram" }, "");
+  }
+
+  // Отметки, поставленные раньше на этом телефоне, — на сервер (один раз, потом из браузера убираются).
+  const moved = useRef(false);
+  useEffect(() => {
+    if (!clients || moved.current || !clientsRepo) return;
+    moved.current = true;
+    const repo = clientsRepo;
+    const oldSent = readJson(SENT_KEY);
+    const oldFail = readJson(FAIL_KEY);
+    const byId = new Map(clients.map((c) => [c.id, c]));
+    const jobs: Array<Promise<unknown>> = [];
+    for (const [id, at] of Object.entries(oldSent)) {
+      const c = byId.get(id);
+      if (c && !c.outreachAt && typeof at === "number") jobs.push(repo.outreach(id, { sent: true, at }));
+    }
+    for (const [id, kinds] of Object.entries(oldFail)) {
+      const c = byId.get(id);
+      if (!c || !Array.isArray(kinds)) continue;
+      for (const k of kinds) if ((k === "telegram" || k === "whatsapp") && !c.outreachFail?.includes(k)) jobs.push(repo.outreach(id, { fail: k }));
+    }
+    if (jobs.length === 0) {
+      forget(SENT_KEY);
+      forget(FAIL_KEY);
+      return;
+    }
+    void Promise.allSettled(jobs).then(async (results) => {
+      if (results.some((r) => r.status === "rejected")) return; // нет связи — перенесём при следующем открытии
+      forget(SENT_KEY);
+      forget(FAIL_KEY);
+      retry();
+      showToast(`Отметки с этого телефона перенесены: ${jobs.length}`);
+    });
+  }, [clients]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toNext(id: string | undefined) {
+    if (!id) return;
+    document.getElementById(`past-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   /** Лишний контакт — в архив: из списка пропадает, при следующей загрузке контактов не добавится снова. */
@@ -211,9 +324,14 @@ export function ContactsTab() {
   // Сколько написали сегодня (по Москве — по часам этого телефона): больше 15 в день мессенджеры принимают за спам.
   const todayKey = new Date().toDateString();
   const sentToday = Object.values(sent).filter((t) => new Date(t).toDateString() === todayKey).length;
-  // Сначала те, кому ещё не писали, потом — кому написали (давно — выше).
-  const ordered = [...past].sort((a, b) => (sent[a.id] ?? 0) - (sent[b.id] ?? 0));
+  // Сначала те, кому ещё не писали (на момент открытия), потом — кому написали (давно — выше); дальше — по имени.
+  const ordered = [...past].sort(
+    (a, b) => (orderSnap.current?.[a.id] ?? 0) - (orderSnap.current?.[b.id] ?? 0) || a.name.localeCompare(b.name, "ru") || a.id.localeCompare(b.id),
+  );
   const notYet = past.filter((c) => !sent[c.id]).length;
+  const next = ordered.find((c) => !sent[c.id] && c.marketing !== "yes" && c.id !== pending?.id);
+  const pendingClient = pending ? past.find((c) => c.id === pending.id) : undefined;
+  const kindTitle = (kind: string) => (kind === "whatsapp" ? "WhatsApp" : "Telegram");
   const yesMessage = pastClientYesMessage(SITE_CALC_URL);
 
   return (
@@ -309,8 +427,10 @@ export function ContactsTab() {
 
       <h2 className="clients-section">Прежние клиенты · написать</h2>
       <p className="muted small">
-        Касание «Telegram» или «WhatsApp» откроет чат с готовым сообщением от команды JoyRest с именем клиента (оно же копируется — если не
-        вставилось само, вставьте): один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
+        Касание «Telegram» или «WhatsApp» откроет чат и скопирует готовое сообщение от команды JoyRest с именем клиента. Telegram на телефоне
+        часто открывает чат без текста — подержите палец в поле сообщения → «Вставить» → «Отправить». Вернулись — ответьте «Получилось
+        отправить?»: «написали» ставится только после «Да». Telegram показал ошибку («не найден») — у человека нет Telegram или номер
+        скрыт: «Не получилось», дальше WhatsApp, а если и там нет — «Убрать — не клиент». Отметили по ошибке — «Снять «написали»». В сообщении: один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
         извинение, если ошиблись, и вопрос «можно присылать новости?». Пять вариантов текста чередуются. Цен и скидок нет. Отправляйте по
         одному и не больше 15 в день — иначе мессенджер может принять это за спам. Ответил «да» — нажмите «Ответил «да»»: отметим согласие, и
         кнопки откроют сообщение со скидкой 10%.
@@ -320,6 +440,27 @@ export function ContactsTab() {
           Сегодня написали: <strong>{sentToday}</strong> из 15 · ещё не писали: <strong>{notYet}</strong> из {past.length}
           {sentToday >= 15 ? " — на сегодня хватит, продолжите завтра." : ""}
         </p>
+      )}
+      {pendingClient && pending && (
+        <section className="card contacts-last" role="status" aria-label="Получилось написать?">
+          <p className="small">
+            Открыли {kindTitle(pending.kind)}: <strong>{pendingClient.name || who(pendingClient)}</strong>. Текст скопирован — если его нет в
+            чате, зажмите поле → «Вставить». <strong>Получилось отправить?</strong>
+          </p>
+          <div className="actions">
+            <button type="button" className="btn btn--block" onClick={() => markSent(pendingClient.id)}>
+              ✓ Да, отправил
+            </button>
+            <button type="button" className="btn btn--secondary btn--block" onClick={() => markFailed(pendingClient.id, pending.kind)}>
+              ✗ Не получилось — ошибка или не тот человек
+            </button>
+          </div>
+        </section>
+      )}
+      {!pending && next && Object.keys(sent).length > 0 && (
+        <button type="button" className="btn btn--secondary btn--block" onClick={() => toNext(next.id)}>
+          Следующий — {next.name || who(next)} ↓
+        </button>
       )}
       {state.status === "loading" && !clients ? (
         <ListSkeleton />
@@ -333,21 +474,37 @@ export function ContactsTab() {
             // Согласился на новости — сообщение со скидкой, иначе — первое сообщение (спасибо, ссылки, вопрос о новостях).
             const yes = c.marketing === "yes";
             const text = yes ? yesMessage : pastClientMessage(c.name, links, messageVariant(c.id));
+            const failed = fail[c.id] ?? [];
+            // Где не получилось — в конец: сначала то, что ещё не пробовали.
+            const channels = writeChannels(c, text)
+              .filter((w) => w.kind !== "call")
+              .sort((a, b) => Number(failed.includes(a.kind)) - Number(failed.includes(b.kind)));
             return (
-              <li key={c.id} className="card contacts-past">
-                <span className="contacts-row__name">{c.name || "Без имени"}</span>
+              <li
+                key={c.id}
+                id={`past-${c.id}`}
+                className={`card contacts-past${sent[c.id] && !yes ? " is-done" : ""}${next?.id === c.id || pending?.id === c.id ? " is-next" : ""}`}
+              >
+                <span className="contacts-row__name">
+                  {next?.id === c.id ? "▶ " : sent[c.id] && !yes ? "✓ " : ""}
+                  {c.name || "Без имени"}
+                </span>
                 <span className="muted small">
                   {who(c)}
                   {contactTitle(c) ? ` · связь: ${contactTitle(c)}` : ""}
                   {sent[c.id] ? ` · написали ${dayLabel(sent[c.id] ?? 0)}` : ""}
                   {yes ? " · согласие на новости ✓" : ""}
                 </span>
+                {failed.length > 0 && !sent[c.id] && (
+                  <span className="error small">
+                    {failed.map(kindTitle).join(" и ")}: не получилось.{" "}
+                    {channels.some((w) => !failed.includes(w.kind)) ? "Попробуйте другой способ ниже." : "Других способов нет — уберите его кнопкой «Убрать — не клиент»."}
+                  </span>
+                )}
                 {yes && <span className="small">Сообщение со скидкой 10%:</span>}
                 <div className="contacts-past__actions" role="group" aria-label={`Написать: ${c.name}`}>
                   {/* Удобный клиенту способ — первым; без телефона — только Telegram по нику. */}
-                  {writeChannels(c, text)
-                    .filter((w) => w.kind !== "call")
-                    .map((w) => (
+                  {channels.map((w) => (
                       <a
                         key={w.kind}
                         className="btn btn--secondary"
@@ -356,12 +513,22 @@ export function ContactsTab() {
                         rel="noopener noreferrer"
                         onClick={() => {
                           copyText(text);
-                          if (!yes) markSent(c.id);
+                          if (!yes) setPending({ id: c.id, kind: w.kind, at: Date.now() });
                         }}
                       >
                         {w.label}
                       </a>
                     ))}
+                  {!yes && !sent[c.id] && (
+                    <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => markSent(c.id)}>
+                      ✓ Написал
+                    </button>
+                  )}
+                  {!yes && sent[c.id] && (
+                    <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => unmarkSent(c.id)}>
+                      Снять «написали»
+                    </button>
+                  )}
                   {!yes && (
                     <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => answeredYes(c)}>
                       Ответил «да»

@@ -630,6 +630,39 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     await sql`delete from clients where id in ('kcontact1', 'kcontact2', 'kcontact3') or phone_key = '79993334466'`;
   });
 
+  it("рассылка прежним клиентам: «написали» и «не получилось» — на сервере, только владелец, карточку не меняют", async () => {
+    const base = { links: [], status: "held", marketing: "unknown", notes: "", origin: "past" };
+    const made = await post("/api/clients", owner, { ...base, id: "kout1", name: "Ольга", phone: "+7 999 444-55-66" });
+    expect(made.statusCode).toBe(200);
+    expect(made.json()).toMatchObject({ outreachAt: null, outreachFail: [] });
+    const version = made.json().updatedAt;
+    // Не получилось в Telegram — отметка способа, «написали» не ставится.
+    const tg = await post("/api/clients/kout1/outreach", owner, { fail: "telegram" });
+    expect(tg.json()).toMatchObject({ outreachAt: null, outreachFail: ["telegram"] });
+    await post("/api/clients/kout1/outreach", owner, { fail: "telegram" });
+    // Написали в WhatsApp: отметка с временем; перенос с телефона — со своим временем (в пределах 90 дней).
+    const yesterday = Date.now() - 86_400_000;
+    const moved = await post("/api/clients/kout1/outreach", owner, { sent: true, at: yesterday });
+    expect(moved.json()).toMatchObject({ outreachAt: yesterday, outreachFail: ["telegram"] });
+    // Время из будущего или слишком старое — ставится «сейчас».
+    const future = await post("/api/clients/kout1/outreach", owner, { sent: true, at: Date.now() + 86_400_000 * 5 });
+    expect(Math.abs(future.json().outreachAt - Date.now())).toBeLessThan(60_000);
+    // Карточка не менялась: форма с прежней версией сохраняется без конфликта.
+    expect(future.json().updatedAt).toBe(version);
+    expect((await post("/api/clients", owner, { ...base, id: "kout1", name: "Ольга", phone: "+7 999 444-55-66", expect: version })).statusCode).toBe(200);
+    // Видно в списке; снять отметку — можно.
+    const listed = ((await get("/api/clients", owner)).json().clients as Array<{ id: string; outreachAt: number | null }>).find((c) => c.id === "kout1");
+    expect(listed?.outreachAt).toBeTypeOf("number");
+    expect((await post("/api/clients/kout1/outreach", owner, { sent: false })).json().outreachAt).toBeNull();
+    // Мусор и чужие — отказ.
+    expect((await post("/api/clients/kout1/outreach", owner, { fail: "vk" })).statusCode).toBe(400);
+    expect((await post("/api/clients/kout1/outreach", owner, {})).statusCode).toBe(400);
+    expect((await post("/api/clients/nobody/outreach", owner, { sent: true })).statusCode).toBe(404);
+    expect((await post("/api/clients/kout1/outreach", anna, { sent: true })).statusCode).toBe(403);
+    expect((await post("/api/clients/kout1/outreach", "", { sent: true })).statusCode).toBe(401);
+    await sql`delete from clients where id = 'kout1'`;
+  });
+
   it("Telegram: без бота подключение недоступно, ответ понятный", async () => {
     expect((await get("/api/telegram/me", anna)).json()).toEqual({ available: false, linked: false, username: "" });
     expect((await post("/api/telegram/link", anna)).statusCode).toBe(503);

@@ -34,6 +34,8 @@ function parseClient(value: unknown): ClientRecord {
     takenMs: typeof d.takenMs === "number" ? d.takenMs : null,
     takenBy: asText(d.takenBy),
     contact: asText(d.contact),
+    outreachAt: typeof d.outreachAt === "number" ? d.outreachAt : null,
+    outreachFail: Array.isArray(d.outreachFail) ? d.outreachFail.filter((k): k is "telegram" | "whatsapp" => k === "telegram" || k === "whatsapp") : [],
   };
 }
 
@@ -79,6 +81,9 @@ export const serverClientsRepository: ClientsRepository = {
   },
   async saveNotes(id, notes, base) {
     return parseDetails(await api("POST", `/api/clients/${encodeURIComponent(id)}/notes`, { notes, base }));
+  },
+  async outreach(id, mark) {
+    return parseDetails(await api("POST", `/api/clients/${encodeURIComponent(id)}/outreach`, mark));
   },
   async archive(id) {
     await api("POST", `/api/clients/${encodeURIComponent(id)}/archive`, {});

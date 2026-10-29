@@ -649,6 +649,10 @@ export interface ClientRecord {
   takenBy?: string;
   /** Способ связи: telegram, whatsapp, call (`CLIENT_CONTACT_TITLES`); пусто — не указан. */
   contact?: string;
+  /** Рассылка прежним клиентам: когда написали («Получилось отправить? Да»); null — не писали. */
+  outreachAt?: number | null;
+  /** Куда сообщение не дошло (ошибка Telegram «не найден» и т. п.). */
+  outreachFail?: Array<"telegram" | "whatsapp">;
 }
 
 /** Один ответ на новую заявку: сколько ждала, кто взял, когда (среднее время ответа). */

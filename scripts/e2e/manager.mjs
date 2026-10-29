@@ -766,6 +766,45 @@ try {
   const petrHref = (await petrCard.locator("a", { hasText: "Telegram" }).first().getAttribute("href").catch(() => "")) ?? "";
   check(petrHref.startsWith(`https://t.me/${nick}?text=`), "Кнопка Telegram у клиента без номера — чат по нику с готовым текстом", `Ссылка: «${petrHref.slice(0, 80)}»`);
   await shot(ap, "excel-добавлены");
+  // Написали — список не перескакивает: карточка на том же месте, тусклая, сверху «Следующий — …».
+  const ids = async () => ap.locator("li.contacts-past").evaluateAll((els) => els.map((e) => e.id));
+  const before = await ids();
+  const popup = ap.waitForEvent("popup", { timeout: 5000 }).catch(() => null);
+  await petrCard.locator("a", { hasText: "Telegram" }).first().click();
+  const pop = await popup;
+  await pop?.close().catch(() => undefined);
+  await ap.bringToFront();
+  const after = await ids();
+  check(before.join() === after.join(), "Прежние клиенты: после «Telegram» порядок списка не меняется", `до ${before.length}, после ${after.length}`);
+  check(await soft(async () => (await ap.locator(".contacts-last").count()) > 0, WAIT, "получилось?"), "После «Telegram» сверху — «Получилось отправить?»");
+  check(!((await petrCard.getAttribute("class")) ?? "").includes("is-done"), "Пока не ответили «Да» — «написали» не ставится");
+  await ap.locator(".contacts-last").getByRole("button", { name: /Не получилось/ }).click();
+  check(await soft(async () => (await petrCard.getByText(/Telegram: не получилось/).count()) > 0, WAIT, "не получилось"), "«Не получилось» — на карточке «Telegram: не получилось», не отмечен");
+  await petrCard.getByRole("button", { name: "✓ Написал" }).click();
+  check(await soft(async () => (await petrCard.getAttribute("class"))?.includes("is-done"), WAIT, "написали"), "«✓ Написал» — карточка на месте, отмечена");
+  check(before.join() === (await ids()).join(), "Порядок списка так и не менялся");
+  // Отметки — на сервере: видны после перезагрузки и с другого устройства (через API).
+  const outreachOf = async () => ((await api("GET", "/api/clients", admin.cookie)).data?.clients ?? []).find((c) => c.name === `Пётр ${TAG}`);
+  const saved = await soft(async () => { const c = await outreachOf(); return typeof c?.outreachAt === "number" && (c?.outreachFail ?? []).includes("telegram"); }, WAIT, "на сервере");
+  check(saved, "Отметки на сервере: «написали» и «Telegram: не получилось»", JSON.stringify(await outreachOf() ?? null).slice(0, 200));
+  await ap.reload();
+  check(await soft(async () => ((await petrCard.getAttribute("class").catch(() => "")) ?? "").includes("is-done"), WAIT, "после перезагрузки"), "После перезагрузки страницы — всё ещё «написали»");
+  await petrCard.getByRole("button", { name: "Снять «написали»" }).click();
+  check(await soft(async () => !((await petrCard.getAttribute("class")) ?? "").includes("is-done"), WAIT, "снять"), "«Снять «написали»» убирает отметку");
+  check(await soft(async () => (await outreachOf())?.outreachAt === null, WAIT, "снято на сервере"), "Снятая отметка снята и на сервере");
+  // Вопрос «Получилось отправить?» переживает перезагрузку (вернулись из мессенджера — страница могла перезагрузиться).
+  const popup2 = ap.waitForEvent("popup", { timeout: 5000 }).catch(() => null);
+  await petrCard.locator("a", { hasText: "Telegram" }).first().click();
+  await (await popup2)?.close().catch(() => undefined);
+  await ap.bringToFront();
+  await ap.reload();
+  check(await soft(async () => (await ap.locator(".contacts-last").count()) > 0, WAIT, "вопрос после перезагрузки"), "«Получилось отправить?» остаётся после перезагрузки");
+  await ap.locator(".contacts-last").getByRole("button", { name: /Да, отправил/ }).click();
+  check(await soft(async () => typeof (await outreachOf())?.outreachAt === "number", WAIT, "да"), "«Да, отправил» — отметка на сервере");
+  // Менеджер ставить отметки не может.
+  const mgrMark = await api("POST", `/api/clients/${(await outreachOf())?.id}/outreach`, sales.cookie, { sent: false });
+  check(mgrMark.status === 403, "API: менеджер отметки рассылки не меняет — 403", `API: ${mgrMark.status}`);
+  await shot(ap, "excel-написали");
   // Тот же файл ещё раз — никого нового, двойников нет.
   const again = await upload();
   check(again.includes("уже в «Клиентах» — 2") && again.includes("Можно добавить — 0"), "Повторная загрузка: «уже в «Клиентах» — 2», добавить некого", `Повтор: «${again}»`);

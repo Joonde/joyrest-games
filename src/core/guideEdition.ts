@@ -34,6 +34,12 @@ export const LITE_RULES: readonly LiteRule[] = [
   [/ Владелец и заместитель (?:могут|видят)[^.]*\./, ""],
 ];
 
+/**
+ * Разделы целиком, которых в Лайте нет (заголовок блока): «Заявка от менеджера» — планировщик и Telegram агентства
+ * (решение владельца 30 октября 2026: в Лайте ведущий сам себе менеджер, календаря и бота нет).
+ */
+export const LITE_DROP_BLOCKS: readonly RegExp[] = [/^Заявка от менеджера/];
+
 /** Адрес платформы в текстах агентства. */
 const AGENCY_HOST = /games\.joy-rest\.ru/g;
 
@@ -48,6 +54,12 @@ export function liteText(text: string, host: string): string | null {
   return out.replace(AGENCY_HOST, host);
 }
 
+function droppedBlock(item: unknown): boolean {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+  const title = (item as { title?: unknown }).title;
+  return typeof title === "string" && LITE_DROP_BLOCKS.some((r) => r.test(title));
+}
+
 /** Копия данных инструкции для Лайта: все строки через `liteText`, убранные пункты списков выпадают. */
 export function forLite<T>(data: T, host: string): T {
   const walk = (v: unknown): unknown => {
@@ -55,6 +67,7 @@ export function forLite<T>(data: T, host: string): T {
     if (Array.isArray(v)) {
       const out: unknown[] = [];
       for (const item of v) {
+        if (droppedBlock(item)) continue;
         if (typeof item === "string") {
           const t = liteText(item, host);
           if (t !== null) out.push(t);

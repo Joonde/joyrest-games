@@ -706,26 +706,34 @@ function FinalCard({ session, pid }: { session: Session; pid: string }) {
     };
     return { input, result };
   }, [session.id, session.hostId, session.code, session.gameTitle, session.mechanic, session.themeId, session.playMode, session.createdAt, session.leaderboard, session.program, place, entry]);
+  const resultsLink = (
+    <Link to={`/results/${session.id}`} state={{ back: `${location.pathname}${location.search}` }}>
+      итоги игры →
+    </Link>
+  );
   return (
     <div className="card card--center">
       <p className="eyebrow">Игра завершена</p>
       {place && entry ? (
-        <>
-          <p className="quiz-phone__place">{place.place}</p>
-          <p className="quiz-phone__score">
-            место из {place.total} · {pointsLabel(entry.score)}
-          </p>
-          <p>{place.place === 1 ? "Поздравляем с победой!" : "Спасибо за игру!"}</p>
-        </>
+        // Итог — коротко, одной строкой с цифрой места: ниже ждут дела по шагам (решение владельца 31 октября 2026).
+        <div className="final-head">
+          <span className="final-head__place" aria-hidden>
+            {place.place}
+          </span>
+          <div className="final-head__text">
+            <p className="final-head__title">{place.place === 1 ? "Поздравляем с победой! 🏆" : (place.place === 2 && place.total >= 3) || (place.place === 3 && place.total >= 4) ? "Вы в призёрах! 🎉" : "Спасибо за игру!"}</p>
+            <p className="final-head__meta">
+              {place.place} место из {place.total} · {pointsLabel(entry.score)} · {resultsLink}
+            </p>
+          </div>
+        </div>
       ) : (
-        <p>Спасибо, что были с нами!</p>
+        <>
+          <p>Спасибо, что были с нами!</p>
+          <p className="small">{resultsLink}</p>
+        </>
       )}
       {session.program && <EveningTable program={session.program} board={session.leaderboard} limit={5} me={pid} />}
-      <div className="actions">
-        <Link className="btn btn--secondary btn--block" to={`/results/${session.id}`} state={{ back: `${location.pathname}${location.search}` }}>
-          Итоги игры
-        </Link>
-      </div>
       <FinalePhone sessionId={session.id} story={story} />
     </div>
   );

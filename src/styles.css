@@ -22391,21 +22391,69 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   color: var(--color-text-muted);
   white-space: nowrap;
 }
+.finale-phone {
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+}
 .finale-phone h2 {
   text-wrap: balance;
 }
-/* Карточка для сторис (31 октября 2026): превью картинки 9:16 по центру, не выше трети экрана. */
-.story-share__preview {
-  display: block;
-  width: auto;
-  height: min(46vh, 420px);
-  aspect-ratio: 9 / 16;
-  margin: 0 auto;
-  border-radius: 16px;
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.35);
-  object-fit: cover;
+/* Карточка для сторис (31 октября 2026): лента из трёх стилей — листается вбок, щелчок по центру; выбранный — крупно. */
+.story-share {
+  width: 100%;
+  min-width: 0;
 }
-.story-share__preview--wait {
+.story-pick {
+  /* Слайды меряются от ленты (offsetParent): по этим числам выбирается, чем делиться. */
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  gap: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* Поля по краям: первый и последний слайды тоже встают по центру. */
+  padding: 14px calc(50% - min(21vh, 100px)) 12px;
+  -webkit-overflow-scrolling: touch;
+}
+.story-pick::-webkit-scrollbar {
+  display: none;
+}
+.story-pick__slide {
+  /* Ширина у всех одна (меняется только масштаб): лента не прыгает, щелчок всегда встаёт по центру. */
+  flex: 0 0 auto;
+  width: min(42vh, 200px);
+  aspect-ratio: 9 / 16;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  overflow: hidden;
+  cursor: pointer;
+  opacity: 0.5;
+  transform: scale(0.84);
+  transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
+}
+.story-pick__slide.is-active {
+  opacity: 1;
+  transform: none;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.38), 0 0 0 2px var(--color-highlight);
+  cursor: default;
+}
+.story-pick__slide img,
+.story-pick__wait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.story-pick__wait {
   background: linear-gradient(180deg, #2e2622, #15110f);
   animation: story-wait 1.4s ease-in-out infinite alternate;
 }
@@ -22414,10 +22462,245 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     opacity: 0.6;
   }
 }
+.story-pick__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.story-pick__arrow {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.story-pick__arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.story-pick__dots {
+  display: inline-flex;
+  gap: 5px;
+}
+.story-pick__dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+.story-pick__dots span.is-on {
+  background: var(--color-highlight);
+}
+.story-pick__label {
+  min-width: 9.5em;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
 @media (prefers-reduced-motion: reduce) {
-  .story-share__preview--wait {
+  .story-pick__slide {
+    transition: none;
+  }
+  .story-pick__wait {
     animation: none;
   }
+}
+
+/* Итог гостя одной строкой: крупная цифра места и подпись (31 октября 2026). */
+.final-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-highlight);
+  border-radius: 18px;
+  text-align: left;
+}
+.final-head__place {
+  font-family: "Jost", system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 56px;
+  line-height: 0.9;
+  color: var(--color-highlight);
+}
+.final-head__text p {
+  margin: 0;
+}
+.final-head__title {
+  font-weight: 600;
+  font-size: 17px;
+}
+.final-head__meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Дела после игры по шагам: полоска шагов и блоки, подсвечен первый несделанный (31 октября 2026). */
+.finale-steps {
+  display: flex;
+  align-self: stretch;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.finale-steps__item {
+  flex: 1;
+}
+.finale-steps__item button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.finale-steps__n {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: 50%;
+  color: var(--color-highlight);
+  font-weight: 600;
+  font-size: 13px;
+}
+.finale-steps__item.is-active button {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.finale-steps__item.is-active .finale-steps__n {
+  background: var(--color-highlight);
+  color: var(--color-surface, #fff);
+}
+.finale-steps__item.is-done .finale-steps__n {
+  border-color: var(--color-success, #2f5e3b);
+  background: var(--color-success, #2f5e3b);
+  color: #fff;
+}
+.finale-steps__hint {
+  margin: 0;
+}
+.finale-step {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  min-width: 0;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  text-align: left;
+  scroll-margin-top: 72px;
+}
+.finale-step.is-active {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-highlight) 18%, transparent);
+}
+.finale-step__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.finale-step__n {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-highlight);
+  color: var(--color-surface, #fff);
+  font-weight: 600;
+  font-size: 13px;
+}
+.finale-step__n.is-ok {
+  background: var(--color-success, #2f5e3b);
+  color: #fff;
+}
+.finale-step__n.is-skip {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+.finale-step__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.finale-step__sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.finale-step.is-done {
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 14px;
+}
+.finale-step__done {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+}
+.finale-step__again,
+.finale-step__skip {
+  border: 0;
+  background: none;
+  color: var(--color-highlight);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.finale-step__skip {
+  align-self: center;
+  color: var(--color-text-muted);
+  padding: 4px 12px;
+}
+.finale-step__aside {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.finale-step__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.finale-step .finale-tips {
+  padding: 0;
+  border: 0;
+}
+.finale-phone__more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  text-align: center;
+}
+.finale-phone__more p {
+  margin: 0;
+}
+.finale-phone__thanks {
+  margin-top: 8px !important;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-highlight);
 }
 .finale-review__title {
   font-weight: 600;

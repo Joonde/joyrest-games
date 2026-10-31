@@ -111,3 +111,41 @@ export function storyCardText(input: StoryCardInput, now = Date.now()): StoryCar
       medal === "gold" ? "🏆 Поделиться победой" : medal === "silver" ? "🥈 Поделиться результатом" : medal === "bronze" ? "🥉 Поделиться результатом" : "📸 Поделиться карточкой",
   };
 }
+
+/**
+ * Стили карточки (решение владельца 31 октября 2026): гость листает их вбок и делится выбранным. Первым — «Венок».
+ * Порядок здесь = порядок слайдов; поделиться можно только тем, что сейчас по центру (`closestSlide`).
+ */
+export const STORY_STYLES = [
+  { id: "wreath", title: "Венок" },
+  { id: "deco", title: "Ар-деко" },
+  { id: "light", title: "Светлый" },
+] as const;
+
+export type StoryStyle = (typeof STORY_STYLES)[number]["id"];
+
+/** Надпись над цифрой: у победителя — «ПОБЕДИТЕЛЬ» («ЧЕМПИОН ВЕЧЕРА» в ар-деко), у призёров — металл, у остальных — «ИГРОВОЙ ВЕЧЕР». */
+export function storyEyebrow(style: StoryStyle, medal: StoryCardText["medal"]): string {
+  if (medal === "gold") return style === "deco" ? "ЧЕМПИОН ВЕЧЕРА" : "ПОБЕДИТЕЛЬ";
+  if (medal === "silver") return "СЕРЕБРО";
+  if (medal === "bronze") return "БРОНЗА";
+  return "ИГРОВОЙ ВЕЧЕР";
+}
+
+/**
+ * Какой слайд сейчас по центру ленты: ближайший центром к центру окна. Не зависит от отступов и размеров слайдов —
+ * этим же числом выбирается картинка, которой делимся, поэтому подпись, точки и файл всегда совпадают.
+ * Пустой список — 0.
+ */
+export function closestSlide(centers: readonly number[], viewCenter: number): number {
+  let best = 0;
+  let bestDist = Infinity;
+  centers.forEach((c, i) => {
+    const d = Math.abs(c - viewCenter);
+    if (d < bestDist) {
+      bestDist = d;
+      best = i;
+    }
+  });
+  return best;
+}

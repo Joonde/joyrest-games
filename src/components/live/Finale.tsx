@@ -5,14 +5,17 @@
  * ссылка JoyRest (`TIPS_URL` — Яндекс Чаевые) на всех играх, своих ссылок у ведущих нет; и без своего сервера тоже. Ссылки «Авито · канал · сайт» (`FinaleLinks`) — везде, где гость видит конец игры (17 октября 2026).
  * Только свой сервер (`finaleRepo`); у Firebase — один QR канала, как раньше.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { edition, errorCodeOf, finaleRepo, type Finale } from "../../data";
 import { QrCode } from "../QrCode";
-import { StoryShare } from "./StoryCard";
+import { shareResults, StoryShare } from "./StoryCard";
 import type { StoryCardInput } from "../../core/storyCard";
+import { activeStep, FINALE_STEP_LABELS, finaleSteps, parseMarks, stepsHint, type FinaleStepId, type FinaleStepStatus } from "../../core/finaleSteps";
 import type { GameResult } from "../../data";
 
 export const CHANNEL_URL = "https://t.me/JoyRest";
+/** Сообщество JoyRest во ВКонтакте (создано 31 октября 2026); пусто — кнопки «ВКонтакте» нет. */
+export const VK_URL = "";
 export const CHANNEL_TEXT = "Мы начали вести Telegram-канал — будем благодарны за подписку. Так вам будет легче найти нас, когда снова захотите праздник.";
 export const AVITO_URL = "https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349";
 export const AVITO_TEXT = "Отзывы на Авито помогают другим выбрать нас";
@@ -171,12 +174,12 @@ function FinaleQrsJoyRest({ sessionId }: { sessionId: string | null | undefined 
 }
 
 /** Чаевые на телефоне гостя: благодарность и кнопка. */
-export function TipsButton({ url = TIPS_URL }: { url?: string }) {
+export function TipsButton({ url = TIPS_URL, onOpen }: { url?: string; onOpen?: () => void }) {
   if (!JOYREST_LINKS) return null;
   return (
     <div className="stack stack--tight finale-tips">
       <p className="small">{TIPS_TEXT}</p>
-      <a className="btn btn--block" href={url} target="_blank" rel="noopener noreferrer">
+      <a className="btn btn--block" href={url} target="_blank" rel="noopener noreferrer" onClick={onOpen}>
         💛 Оставить чаевые
       </a>
     </div>
@@ -196,29 +199,251 @@ function TipsQr({ url }: { url: string }) {
   );
 }
 
-/** Телефон гостя после игры: те же дела кнопками, отзыв — прямо здесь. */
+const MARKS_KEY = "joyrest.finale.";
+
+function readMarks(sessionId: string): Partial<Record<FinaleStepId, FinaleStepStatus>> {
+  try {
+    return parseMarks(JSON.parse(localStorage.getItem(MARKS_KEY + sessionId) ?? "null"));
+  } catch {
+    return {};
+  }
+}
+
+function writeMarks(sessionId: string, marks: Partial<Record<FinaleStepId, FinaleStepStatus>>) {
+  try {
+    localStorage.setItem(MARKS_KEY + sessionId, JSON.stringify(marks));
+  } catch {
+    // Нет хранилища — отметки живут до перезагрузки.
+  }
+}
+
+/**
+ * Телефон гостя после игры (решение владельца 31 октября 2026): дела по шагам, чтобы не разбегались глаза —
+ * 1 карточка для сторис → 2 оценка вечера → 3 чаевые → 4 канал (`src/core/finaleSteps.ts`). Сверху полоска шагов,
+ * подсвечен первый несделанный, сделанный сворачивается в строку («ещё раз» — развернуть). Отметки помнит телефон.
+ */
 export function FinalePhone({ sessionId, story }: { sessionId: string; story?: { input: StoryCardInput; result: GameResult } | null }) {
   const [finale, setFinale] = useFinale(sessionId);
+  const [marks, setMarks] = useState(() => readMarks(sessionId));
+  const [open, setOpen] = useState<FinaleStepId | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  // Стиль карточки, выбранный в ленте, — чтобы «ещё раз» открывал его же.
+  const [storyStyle, setStoryStyle] = useState(0);
   if (!JOYREST_LINKS) return null;
-  // Личная карточка для сторис (31 октября 2026) — первой в блоке: её хочется отправить сразу.
-  const card = story ? <StoryShare input={story.input} result={story.result} /> : null;
-  if (!finaleRepo) {
-    if (!TIPS_URL && !card) return null;
+
+  const steps = finaleSteps({ card: Boolean(story), review: Boolean(finaleRepo), tips: Boolean(TIPS_URL) });
+  // Отзыв, отправленный раньше (с этого телефона), — шаг сделан.
+  const all: Partial<Record<FinaleStepId, FinaleStepStatus>> = finale?.myReview && !marks.review ? { ...marks, review: "done" } : marks;
+  const active = activeStep(steps, all);
+  const mark = (id: FinaleStepId, status: FinaleStepStatus) => {
+    setMarks((prev) => {
+      if (prev[id] === "done") return prev;
+      const next = { ...prev, [id]: status };
+      writeMarks(sessionId, next);
+      return next;
+    });
+    setOpen((o) => (o === id ? null : o));
+  };
+  const numberOf = (id: FinaleStepId) => steps.indexOf(id) + 1;
+  const step = (id: FinaleStepId, title: string, sub: string, doneLine: string, body: ReactNode) => (
+    <FinaleStep
+      key={id}
+      id={id}
+      n={numberOf(id)}
+      title={title}
+      sub={sub}
+      status={all[id]}
+      active={active === id}
+      expanded={open === id}
+      doneLine={doneLine}
+      onReopen={() => setOpen(id)}
+      onSkip={() => mark(id, "skip")}
+    >
+      {body}
+    </FinaleStep>
+  );
+  const isCard = Boolean(story);
+  const title = story && story.input.place === 1 ? "Ваша карточка победителя" : "Ваша карточка для сторис";
+
+  return (
+    <section className="stack finale-phone" aria-label="Что можно сделать после игры">
+      <ol className="finale-steps">
+        {steps.map((id) => {
+          const status = all[id];
+          const cls = status ? "finale-steps__item is-done" : active === id ? "finale-steps__item is-active" : "finale-steps__item";
+          return (
+            <li key={id} className={cls}>
+              <button
+                type="button"
+                aria-current={active === id ? "step" : undefined}
+                onClick={() => {
+                  if (status) setOpen(id);
+                  requestAnimationFrame(() => document.getElementById(`finale-${id}`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
+                }}
+              >
+                <span className="finale-steps__n" aria-hidden>
+                  {status === "done" ? "✓" : numberOf(id)}
+                </span>
+                {FINALE_STEP_LABELS[id]}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      {active && <p className="muted small finale-steps__hint">{stepsHint(steps.length)}</p>}
+
+      {isCard &&
+        story &&
+        step(
+          "card",
+          title,
+          "Листайте ← → и выберите стиль",
+          all.card === "done" ? "Карточка отправлена" : "Карточка — пропущено",
+          <StoryShare input={story.input} start={storyStyle} onPick={setStoryStyle} onShared={() => mark("card", "done")} />,
+        )}
+
+      {finaleRepo &&
+        step(
+          "review",
+          "Как вам вечер?",
+          finale?.myReview ? "Спасибо за отзыв!" : "Одно касание — пара слов по желанию",
+          finale?.myReview ? `Отзыв отправлен ${"★".repeat(finale.myReview.rating)}` : "Оценка — пропущено",
+          <>
+            <ReviewForm
+              sessionId={sessionId}
+              initial={finale?.myReview ?? null}
+              hideTitle
+              onSaved={(r) => {
+                if (finale) setFinale({ ...finale, myReview: r });
+                mark("review", "done");
+                // Остаётся раскрытым: «спасибо» и приглашение на Авито видно сразу, подсветка уходит к чаевым.
+                setOpen("review");
+              }}
+            />
+            {!finale?.myReview && (
+              <a className="finale-step__aside" href={AVITO_URL} target="_blank" rel="noopener noreferrer">
+                {AVITO_TEXT} — оставить отзыв на Авито →
+              </a>
+            )}
+          </>,
+        )}
+
+      {TIPS_URL &&
+        step(
+          "tips",
+          "Поддержать ведущего 💛",
+          "По желанию · копим на костюмы и технику ведущих",
+          all.tips === "done" ? "Спасибо за чаевые! 💛" : "Чаевые — пропущено",
+          <TipsButton onOpen={() => mark("tips", "done")} />,
+        )}
+
+      {step(
+        "channel",
+        "Будем на связи",
+        "Фото с вечера, новые игры и праздники",
+        all.channel === "done" ? "Вы с нами — спасибо!" : "Канал — пропущено",
+        <div className="stack stack--tight">
+          <p className="muted small">{CHANNEL_TEXT}</p>
+          <div className={VK_URL ? "finale-step__row" : undefined}>
+            <a className="btn btn--secondary btn--block" href={CHANNEL_URL} target="_blank" rel="noopener noreferrer" onClick={() => mark("channel", "done")}>
+              ✈️ Telegram
+            </a>
+            {VK_URL && (
+              <a className="btn btn--secondary btn--block" href={VK_URL} target="_blank" rel="noopener noreferrer" onClick={() => mark("channel", "done")}>
+                ВКонтакте
+              </a>
+            )}
+          </div>
+        </div>,
+      )}
+
+      <div className="finale-phone__more">
+        <p className="muted small">
+          {SITE_TEXT}:{" "}
+          <a href={SITE_CALC_URL} target="_blank" rel="noopener noreferrer">
+            joy-rest.ru
+          </a>
+        </p>
+        {story && (
+          <button
+            type="button"
+            className="btn btn--quiet"
+            onClick={async () => {
+              setNote(null);
+              setNote(await shareResults(story.result));
+            }}
+          >
+            Поделиться итогами игры
+          </button>
+        )}
+        {note && (
+          <p className="muted small" role="status">
+            {note}
+          </p>
+        )}
+        <p className="finale-phone__thanks">Спасибо, что были с нами!</p>
+      </div>
+    </section>
+  );
+}
+
+/** Один шаг: развёрнут, пока не сделан (или «ещё раз»); сделанный — строка с галочкой. */
+function FinaleStep({
+  id,
+  n,
+  title,
+  sub,
+  status,
+  active,
+  expanded,
+  doneLine,
+  onReopen,
+  onSkip,
+  children,
+}: {
+  id: FinaleStepId;
+  n: number;
+  title: string;
+  sub: string;
+  status: FinaleStepStatus | undefined;
+  active: boolean;
+  expanded: boolean;
+  doneLine: string;
+  onReopen: () => void;
+  onSkip: () => void;
+  children: ReactNode;
+}) {
+  if (status && !expanded) {
     return (
-      <section className="card stack finale-phone">
-        {card}
-        {TIPS_URL && <TipsButton />}
-      </section>
+      <div id={`finale-${id}`} className="finale-step is-done">
+        <span className={status === "done" ? "finale-step__n is-ok" : "finale-step__n is-skip"} aria-hidden>
+          {status === "done" ? "✓" : "–"}
+        </span>
+        <span className="finale-step__done">{doneLine}</span>
+        <button type="button" className="finale-step__again" onClick={onReopen}>
+          {status === "done" ? (id === "review" ? "исправить" : "ещё раз") : "открыть"}
+        </button>
+      </div>
     );
   }
   return (
-    <section className="card stack finale-phone" aria-labelledby="finale-title">
-      <h2 id="finale-title">Спасибо, что были с нами!</h2>
-      {card}
-      {TIPS_URL && <TipsButton />}
-      <ReviewForm sessionId={sessionId} initial={finale?.myReview ?? null} onSaved={(r) => finale && setFinale({ ...finale, myReview: r })} />
-      <FinaleLinks avito={!finale?.myReview} />
-    </section>
+    <div id={`finale-${id}`} className={active ? "finale-step is-active" : "finale-step"}>
+      <div className="finale-step__head">
+        <span className="finale-step__n" aria-hidden>
+          {n}
+        </span>
+        <div>
+          <h2 className="finale-step__title">{title}</h2>
+          <p className="finale-step__sub">{sub}</p>
+        </div>
+      </div>
+      {children}
+      {active && !status && (
+        <button type="button" className="finale-step__skip" onClick={onSkip}>
+          Пропустить
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -229,10 +454,13 @@ export function ReviewForm({
   sessionId,
   initial,
   onSaved,
+  hideTitle = false,
 }: {
   sessionId: string;
   initial: { rating: number; text: string; name: string } | null;
   onSaved?: (review: { rating: number; text: string; name: string }) => void;
+  /** Заголовок «Как вам вечер?» уже стоит над формой (шаг на телефоне гостя). */
+  hideTitle?: boolean;
 }) {
   const [rating, setRating] = useState(initial?.rating ?? 0);
   const [text, setText] = useState(initial?.text ?? "");
@@ -280,8 +508,18 @@ export function ReviewForm({
           <span className="muted">{"★".repeat(5 - rating)}</span>
         </p>
         <p>Спасибо за отзыв! Нам очень приятно.</p>
-        <p className="muted small">Поделитесь отзывом и на Авито — нам это очень поможет.</p>
-        <a className="btn btn--secondary btn--block" href={AVITO_URL} target="_blank" rel="noopener noreferrer">
+        <p className="muted small">
+          Поделитесь отзывом и на Авито — нам это очень поможет.{text.trim() ? " Ваш текст скопируем — останется вставить." : ""}
+        </p>
+        <a
+          className="btn btn--secondary btn--block"
+          href={AVITO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => {
+            if (text.trim()) void navigator.clipboard?.writeText(text.trim()).catch(() => undefined);
+          }}
+        >
           ⭐ Отзыв на Авито
         </a>
         <button type="button" className="btn btn--quiet" onClick={() => setEditing(true)}>
@@ -299,7 +537,7 @@ export function ReviewForm({
         void send();
       }}
     >
-      <p className="finale-review__title">Как вам вечер?</p>
+      {!hideTitle && <p className="finale-review__title">Как вам вечер?</p>}
       <div className="finale-review__rate" role="radiogroup" aria-label="Оценка">
         {STARS.map((n) => (
           <button

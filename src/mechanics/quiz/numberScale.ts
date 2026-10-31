@@ -40,7 +40,7 @@ export function scaleLabels(guesses: ScaleGuess[], players = guesses.length): Sc
     const at = Math.min(1 - SCALE_EDGE, Math.max(SCALE_EDGE, g.at));
     const row = rows.findIndex((taken) => taken.every((x) => Math.abs(x - at) >= SCALE_GAP));
     if (row < 0) continue;
-    rows[row].push(at);
+    rows[row]?.push(at);
     labels.push({ pid: g.pid, at, row });
   }
   return labels;

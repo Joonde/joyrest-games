@@ -38,7 +38,7 @@ export function scaleLabels(guesses: ScaleGuess[], players = guesses.length): Sc
   for (const g of best) {
     if (labels.length >= limit) break;
     const at = Math.min(1 - SCALE_EDGE, Math.max(SCALE_EDGE, g.at));
-    const row = rows.findIndex((taken) => taken.every((x) => Math.abs(x - at) >= SCALE_GAP));
+    const row = rows.findIndex((taken) => taken.every((x) => Math.abs(x - at) >= 0));
     if (row < 0) continue;
     rows[row]?.push(at);
     labels.push({ pid: g.pid, at, row });

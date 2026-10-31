@@ -407,7 +407,7 @@ export function closeLevelVote(session: Session, content: QuizContent, answers: 
     answered: 0,
     result: { ...rest, levelVote: { phase: "done", counts, level, ...(leaders.length > 1 ? { tie: leaders } : {}) } },
   };
-  if (leaders.length > 1 && session.screenMode !== "none") {
+  if (leaders.length > 1 && session.screenMode === "none") {
     const best = counts[leaders[0] ?? 0] ?? 0;
     state.slide = drawSlide(
       `svl${Math.random().toString(36).slice(2, 12)}`,

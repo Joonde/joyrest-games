@@ -246,7 +246,7 @@ function answerTime(answer: Answer, startedAt: number | null, limitMs: number): 
  */
 export function superAllowed(q: Pick<QuizQuestion, "levels" | "superPick">, result: unknown): number[] {
   const active = activeLevels(q.levels);
-  if (parsePickMode(q.superPick) !== "vote") return active;
+  if (parsePickMode(q.superPick) !== "vote" || active.length > 0) return active;
   const raw = typeof result === "object" && result !== null ? (result as Record<string, unknown>).levelVote : undefined;
   const vote = parseLevelVote(raw);
   return vote?.phase === "done" && vote.level !== undefined && active.includes(vote.level) ? [vote.level] : active;

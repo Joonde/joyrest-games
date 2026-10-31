@@ -418,7 +418,7 @@ export function superGroups(levels: SuperLevel[], answers: Array<{ value: unknow
 export function levelProblems(levels: SuperLevel[]): string[] {
   const problems: string[] = [];
   if (levels.length !== SUPER_LEVELS) problems.push("Нужно четыре уровня.");
-  if (activeLevels(levels).length < SUPER_MIN_LEVELS) problems.push(`Включите хотя бы ${SUPER_MIN_LEVELS} уровня.`);
+  if (activeLevels(levels).length < 1) problems.push(`Включите хотя бы ${SUPER_MIN_LEVELS} уровня.`);
   levels.forEach((l, i) => {
     if (l.off) return;
     const name = LEVEL_NAMES[i] ?? `Уровень ${i + 1}`;
@@ -507,7 +507,7 @@ export function votePassed(yes: number, no: number): boolean {
 
 /** Голоса разделились поровну (и кто-то голосовал): решает монетка или ведущий. */
 export function voteTied(yes: number, no: number): boolean {
-  return yes === no && yes > 0;
+  return yes === no;
 }
 
 /** Ничья, а решения ещё нет — ждём монетку или ведущего. */

@@ -8,6 +8,7 @@ import { MediaImage } from "../../components/media/MediaImage";
 import { pointsLabel } from "../../core/results";
 import type { Answer, Leaderboard } from "../../data/types";
 import type { QuizQuestion } from "./content";
+import { scaleLabels } from "./numberScale";
 import { numberDeltas, orderHits, orderShown, parseGuess, parseOrder, type QuizResult } from "./logic";
 
 /** Буквы карточек — в том порядке, как они лежат на экране. */
@@ -99,7 +100,12 @@ export function NumberScreen({ q, revealed, result, leaderboard }: { q: QuizQues
   const pad = (max - min) * 0.08 || Math.max(1, Math.abs(target) * 0.1);
   const from = min - pad;
   const span = max + pad - from;
-  const at = (v: number) => `${((v - from) / span) * 100}%`;
+  const share = (v: number) => (v - from) / span;
+  const at = (v: number) => `${share(v) * 100}%`;
+  // Подписи с именами — только у лучших и там, где не наезжают; остальные ответы — точками на шкале.
+  const labels = scaleLabels(rows.map((r) => ({ pid: r.pid, at: share(r.guess), place: r.place })), rows.length);
+  const byPid = new Map(rows.map((r) => [r.pid, r]));
+  const winners = rows.filter((r) => r.delta > 0).slice(0, 6);
   return (
     <div className="quiz-screen__number">
       <p className="quiz-screen__number-answer">
@@ -110,26 +116,38 @@ export function NumberScreen({ q, revealed, result, leaderboard }: { q: QuizQues
       <div className="quiz-screen__scale" aria-hidden="true">
         <span className="quiz-screen__scale-line" />
         <span className="quiz-screen__scale-target" style={{ left: at(target) }} />
-        {rows.slice(0, 12).map((r, i) => (
-          <span key={r.pid} className={r.place === 1 ? "quiz-screen__chip is-best" : "quiz-screen__chip"} style={{ left: at(r.guess), "--row": i % 3 } as CSSProperties}>
-            <NameText name={leaderboard[r.pid]?.name ?? "—"} /> · {formatNumber(r.guess)}
-          </span>
+        {rows.map((r) => (
+          <span key={r.pid} className={r.place === 1 ? "quiz-screen__dot is-best" : "quiz-screen__dot"} style={{ left: at(r.guess) }} />
         ))}
-      </div>
-      <ol className="quiz-screen__places">
-        {rows
-          .filter((r) => r.delta > 0)
-          .slice(0, 6)
-          .map((r) => (
-            <li key={r.pid}>
-              <span className="quiz-screen__places-n">{r.place}</span>
-              <span className="quiz-screen__places-name">
+        {labels.map((l) => {
+          const r = byPid.get(l.pid);
+          if (!r) return null;
+          return (
+            <span key={l.pid} className={r.place === 1 ? "quiz-screen__chip is-best" : "quiz-screen__chip"} style={{ left: `${l.at * 100}%`, "--row": l.row } as CSSProperties}>
+              <span className="quiz-screen__chip-name">
                 <NameText name={leaderboard[r.pid]?.name ?? "—"} />
-                <small>{r.diff === 0 ? "точно в цель!" : `ошибка ${formatNumber(r.diff)}`}</small>
               </span>
-              <span className="quiz-screen__places-pts">+{pointsLabel(r.delta)}</span>
-            </li>
-          ))}
+              <span>· {formatNumber(r.guess)}</span>
+            </span>
+          );
+        })}
+      </div>
+      <ol className="quiz-screen__places" data-count={winners.length}>
+        {winners.map((r) => (
+          <li key={r.pid}>
+            <span className="quiz-screen__places-n">{r.place}</span>
+            <span className="quiz-screen__places-name">
+              <span className="quiz-screen__places-who">
+                <NameText name={leaderboard[r.pid]?.name ?? "—"} />
+              </span>
+              <small>{r.diff === 0 ? "точно в цель!" : `ошибка ${formatNumber(r.diff)}`}</small>
+            </span>
+            <span className="quiz-screen__places-pts">
+              +{r.delta}
+              <small>{pointsLabel(r.delta).replace(/^\S+\s/, "")}</small>
+            </span>
+          </li>
+        ))}
       </ol>
     </div>
   );

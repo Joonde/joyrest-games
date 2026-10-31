@@ -9,13 +9,26 @@ import { quizRounds, raceBonusOf, roundAt, settingsOf, type QuizContent, type Qu
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, syncBuzz } from "../../core/buzz";
 import { auctionAnswers, emptyResult, parseResult, resultOf, score, startResult, steps } from "./logic";
 import { auctionBackToBets, isAuctionDraw, openBets } from "./auction";
-import { parseSuperVote, superPicks, tallySuperVote, VOTE_TIME, votePassed, type SuperVote } from "../../core/supergame";
+import { activeLevels, LEVEL_NAMES, levelVoteLeaders, parseLevelVote, parsePickMode, parseSuperVote, superPicks, tallyLevelVote, tallySuperVote, VOTE_TIME, votePassed, voteTied, voteUndecided, type LevelVote, type SuperVote } from "../../core/supergame";
+import { drawSlide, drawWinner } from "../../core/draw";
+import { pointsLabel } from "../../core/results";
 
-export type QuizAction = "show" | "reveal" | "board" | "total" | "next" | "podium" | "podiumNext" | "finish" | "vote" | "voteDone" | "skip";
+export type QuizAction = "show" | "reveal" | "board" | "total" | "next" | "podium" | "podiumNext" | "finish" | "vote" | "voteDone" | "skip" | "coin" | "levelVote" | "levelVoteDone";
 
 /** Голосование «Играем суперигру?» на этом шаге (из `result`). */
 export function superVoteOf(session: Pick<Session, "state">): SuperVote | undefined {
   return parseSuperVote(asRecord(session.state.result).superVote);
+}
+
+/** Голосование «Какой уровень играем?» на этом шаге (из `result`). */
+export function levelVoteOf(session: Pick<Session, "state">): LevelVote | undefined {
+  return parseLevelVote(asRecord(session.state.result).levelVote);
+}
+
+/** Уровень, выбранный залом (после итога голосования), иначе null. */
+export function chosenLevel(session: Pick<Session, "state">): number | null {
+  const vote = levelVoteOf(session);
+  return vote?.phase === "done" && vote.level !== undefined ? vote.level : null;
 }
 
 /** Суперигру на этом шаге пропустили по итогам голосования. */
@@ -67,11 +80,21 @@ function afterStep(session: Session, content: QuizContent): QuizAction {
 export function primaryAction(session: Session, content: QuizContent): QuizAction {
   const { stage, step } = session.state;
   const q = content.questions[step];
-  if (q?.kind === "super" && q.superVote) {
-    const vote = superVoteOf(session);
+  if (q?.kind === "super") {
+    const vote = q.superVote ? superVoteOf(session) : undefined;
     // Голосование: сначала «Играем?», после итога — уровни или пропуск.
-    if (stage === "ready") return !vote || vote.phase === "open" ? "vote" : vote.passed ? "show" : "skip";
-    if (stage === "question" && vote?.phase === "open") return "voteDone";
+    if (q.superVote && stage === "ready") {
+      if (!vote || vote.phase === "open") return "vote";
+      if (voteUndecided(vote)) return "coin";
+      if (!vote.passed) return "skip";
+    }
+    if (q.superVote && stage === "question" && vote?.phase === "open") return "voteDone";
+    // Зал голосует за уровень: «Какой уровень играем?» → итог → вопрос выбранного уровня.
+    if (parsePickMode(q.superPick) === "vote") {
+      const level = levelVoteOf(session);
+      if (stage === "ready" && level?.phase !== "done") return "levelVote";
+      if (stage === "question" && level?.phase === "open") return "levelVoteDone";
+    }
   }
   if (stage === "ready") return "show";
   if (stage === "question") return "reveal";
@@ -99,13 +122,19 @@ export const ACTION_LABELS: Record<QuizAction, string> = {
   vote: "Голосование: играем суперигру?",
   voteDone: "Подвести итог голосования",
   skip: "Пропустить суперигру",
+  coin: "🪙 Бросить монетку: играем или нет",
+  levelVote: "Голосование: какой уровень играем?",
+  levelVoteDone: "Подвести итог: какой уровень",
 };
 
 /** Подпись главной кнопки: на пьедестале — какое место откроется, в конце раунда — «Итоги раунда». */
 export function actionLabel(session: Session, content: QuizContent, action: QuizAction): string {
   if (action === "podiumNext") return podiumLabel(session);
   const q = content.questions[session.state.step];
-  if (q?.kind === "super" && action === "show") return "Открыть уровни";
+  if (q?.kind === "super" && action === "show") {
+    const level = chosenLevel(session);
+    return level !== null ? `Открыть вопрос «${LEVEL_NAMES[level]}»` : "Открыть уровни";
+  }
   if (q?.kind === "super" && action === "reveal") return "Показать ответы";
   if (q?.kind === "auction" && action === "show") return "Открыть ставки";
   if (q?.kind === "auction" && action === "reveal" && parseResult(session.state.result).auction?.phase === "bets") return "Ставки сделаны";
@@ -120,14 +149,16 @@ export function actionLabel(session: Session, content: QuizContent, action: Quiz
  * Старт прошлого раунда (`prevRoundBase`) едет в `result` через все этапы первого вопроса раунда,
  * чтобы «Назад» с любого этапа вернул общий счёт прошлого раунда.
  */
-function carry(session: Session): { prevRoundBase?: unknown; history?: unknown; superVote?: unknown } {
+function carry(session: Session): { prevRoundBase?: unknown; history?: unknown; superVote?: unknown; levelVote?: unknown } {
   const result = asRecord(session.state.result);
-  // Итог голосования суперигры едет через уровни и ответы: «Назад» не заставит голосовать заново.
+  // Итоги голосований суперигры («Играем?» и «Какой уровень?») едут через вопрос и ответы: «Назад» не заставит голосовать заново.
   const vote = parseSuperVote(result.superVote);
+  const level = parseLevelVote(result.levelVote);
   return {
     ...(result.prevRoundBase === undefined ? {} : { prevRoundBase: result.prevRoundBase }),
     ...(result.history === undefined ? {} : { history: result.history }),
     ...(vote?.phase === "done" ? { superVote: vote } : {}),
+    ...(level?.phase === "done" ? { levelVote: level } : {}),
   };
 }
 
@@ -214,6 +245,7 @@ export function showQuestion(session: Session, content: QuizContent): SessionCha
   if (q?.kind === "auction") return openBets(q, carry(session));
   return {
     state: {
+      ...(isSuperCoin(session) ? { slide: null } : {}),
       stage: "question",
       startedAt: "server",
       timeLimit: limitOf(q),
@@ -266,16 +298,140 @@ export function closeSuperVote(session: Session, answers: Answer[]): SessionChan
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: { ...rest, superVote: { phase: "done", yes, no, passed: votePassed(yes, no) } },
+      // Поровну — решения нет: монетка на экране зала или ведущий («Решить самому»).
+      result: { ...rest, superVote: voteTied(yes, no) ? { phase: "done", yes, no, tie: true } : { phase: "done", yes, no, passed: votePassed(yes, no) } },
     },
   };
 }
+
+/** Сколько монетка стоит на экране после остановки, прежде чем пульт её уберёт. */
+export const SUPER_COIN_HOLD_MS = 3500;
+
+/** Слайд жребия суперигры: монетка «играем ли» (id `svc…`) или жребий уровня (`svl…`). */
+export function isSuperCoin(session: Pick<Session, "state">): boolean {
+  const slide = session.state.slide;
+  return slide?.kind === "draw" && (slide.id.startsWith("svc") || slide.id.startsWith("svl"));
+}
+
+const COIN_YES = "Играем суперигру";
+const COIN_NO = "Не играем";
+
+/**
+ * «Бросить монетку»: голоса разделились поровну — монетка решает, играем ли. Решение пишется сразу, на экране зала
+ * (если он есть) монетка крутится `DRAW_MS` и показывает его; пульт убирает её сам. null — бросать нечего.
+ */
+export function coinSuperVote(session: Session, serverNow: number, random?: () => number): SessionChange | null {
+  const vote = superVoteOf(session);
+  if (!voteUndecided(vote) || !vote) return null;
+  const passed = drawWinner([true, false], random) ?? true;
+  const state: NonNullable<SessionChange["state"]> = { result: { ...asRecord(session.state.result), superVote: { ...vote, passed, coin: true } } };
+  if (session.screenMode !== "none") {
+    state.slide = drawSlide(
+      `svc${Math.random().toString(36).slice(2, 12)}`,
+      [COIN_YES, COIN_NO],
+      passed ? COIN_YES : COIN_NO,
+      serverNow,
+      {
+        spinEyebrow: `Голоса поровну · ${vote.yes} на ${vote.no}`,
+        spinText: "Монетка решит, играем ли суперигру",
+        doneEyebrow: "Монетка решила",
+        doneText: passed ? "Открываем уровни!" : "Суперигру пропускаем",
+      },
+      "coin",
+    );
+  }
+  return { state };
+}
+
+/** Монетка ещё крутится (до `endsAt` по часам сервера): телефоны и пульт не выдают решение раньше экрана. */
+export function superCoinSpinning(session: Pick<Session, "state">, serverNow: number): boolean {
+  return isSuperCoin(session) && serverNow < (session.state.slide?.endsAt ?? 0);
+}
+
 
 /** Ведущий решает иначе, чем голосование: «Всё равно играть» / «Всё равно пропустить». */
 export function overrideSuperVote(session: Session, passed: boolean): SessionChange | null {
   const vote = superVoteOf(session);
   if (vote?.phase !== "done") return null;
-  return { state: { result: { ...asRecord(session.state.result), superVote: { ...vote, passed } } } };
+  const { coin: _coin, ...rest } = vote;
+  return { state: { ...(isSuperCoin(session) ? { slide: null } : {}), result: { ...asRecord(session.state.result), superVote: { ...rest, passed } } } };
+}
+
+// ---------------------------------------------------------------- суперигра: голосование «Какой уровень?»
+
+/** «Голосование: какой уровень играем?»: каждый телефон касается уровня, до итога можно передумать. */
+export function openLevelVote(session: Session, content: QuizContent): SessionChange {
+  const q = content.questions[session.state.step];
+  const { levelVote: _old, ...rest } = carry(session);
+  return {
+    state: {
+      ...(isSuperCoin(session) ? { slide: null } : {}),
+      stage: "question",
+      startedAt: "server",
+      timeLimit: q?.voteTime ?? VOTE_TIME.def,
+      revealed: false,
+      answered: 0,
+      result: { ...emptyResult(), ...rest, levelVote: { phase: "open", counts: [0, 0, 0, 0] }, changeable: true },
+    },
+  };
+}
+
+/** Голоса за уровни — на экран, пока идёт голосование. null — записывать нечего. */
+export function levelVoteSync(session: Session, content: QuizContent, answers: Answer[]): SessionChange | null {
+  if (session.state.stage !== "question") return null;
+  const vote = levelVoteOf(session);
+  if (vote?.phase !== "open") return null;
+  const q = content.questions[session.state.step];
+  const counts = tallyLevelVote(answers.filter((a) => a.step === session.state.step), typeof session.state.startedAt === "number" ? session.state.startedAt : null, activeLevels(q?.levels));
+  if (counts.every((n, i) => n === vote.counts[i])) return null;
+  return { state: { answered: counts.reduce((a, b) => a + b, 0), result: { ...asRecord(session.state.result), levelVote: { phase: "open", counts } } } };
+}
+
+/**
+ * «Подвести итог: какой уровень»: играем уровень с наибольшим числом голосов. Поровну (или никто не голосовал) — жребий
+ * среди лидеров: на экране зала монетка (двое) или колесо (трое и больше), решение пишется сразу. Этап — снова заставка:
+ * на экране выбранная картинка, дальше «Открыть вопрос». Голоса шага пульт стирает.
+ */
+export function closeLevelVote(session: Session, content: QuizContent, answers: Answer[], serverNow: number, random?: () => number): SessionChange {
+  const q = content.questions[session.state.step];
+  const active = activeLevels(q?.levels);
+  const counts = tallyLevelVote(answers.filter((a) => a.step === session.state.step), typeof session.state.startedAt === "number" ? session.state.startedAt : null, active);
+  const leaders = levelVoteLeaders(counts, active);
+  const level = (leaders.length > 1 ? drawWinner(leaders, random) : leaders[0]) ?? active[0] ?? 0;
+  const { levelVote: _old, ...rest } = carry(session);
+  const state: NonNullable<SessionChange["state"]> = {
+    stage: "ready",
+    startedAt: null,
+    timeLimit: null,
+    revealed: false,
+    answered: 0,
+    result: { ...rest, levelVote: { phase: "done", counts, level, ...(leaders.length > 1 ? { tie: leaders } : {}) } },
+  };
+  if (leaders.length > 1 && session.screenMode !== "none") {
+    const best = counts[leaders[0] ?? 0] ?? 0;
+    state.slide = drawSlide(
+      `svl${Math.random().toString(36).slice(2, 12)}`,
+      leaders.map((i) => LEVEL_NAMES[i] ?? ""),
+      LEVEL_NAMES[level] ?? "",
+      serverNow,
+      {
+        spinEyebrow: best > 0 ? `Голоса поровну · по ${best}` : "Никто не выбрал уровень",
+        spinText: leaders.length === 2 ? "Монетка решит, какой уровень играем" : "Колесо решит, какой уровень играем",
+        doneEyebrow: "Играем уровень",
+        doneText: `${pointsLabel(q?.levels?.[level]?.points ?? 0)} за верный ответ`,
+      },
+      leaders.length === 2 ? "coin" : "wheel",
+    );
+  }
+  return { state };
+}
+
+/** Ведущий ставит другой уровень (после итога голосования). null — менять нечего. */
+export function chooseLevel(session: Session, content: QuizContent, level: number): SessionChange | null {
+  const vote = levelVoteOf(session);
+  const q = content.questions[session.state.step];
+  if (vote?.phase !== "done" || !activeLevels(q?.levels).includes(level) || (vote.level === level && !isSuperCoin(session))) return null;
+  return { state: { ...(isSuperCoin(session) ? { slide: null } : {}), result: { ...asRecord(session.state.result), levelVote: { ...vote, level, host: true } } } };
 }
 
 /** «Пропустить суперигру»: очков нет, дальше — как после ответа (таблица или следующий вопрос). */
@@ -286,7 +442,7 @@ export function skipSuper(session: Session): SessionChange {
     if (entry.last || entry.move) leaderboard[pid] = { ...entry, last: 0, move: 0 };
   }
   return {
-    state: { stage: "reveal", revealed: true, answered: 0, result: { ...emptyResult(), ...carry(session), skipped: true } },
+    state: { ...(isSuperCoin(session) ? { slide: null } : {}), stage: "reveal", revealed: true, answered: 0, result: { ...emptyResult(), ...carry(session), skipped: true } },
     leaderboard,
   };
 }
@@ -297,7 +453,7 @@ export function skipSuper(session: Session): SessionChange {
 export function superSync(session: Session, content: QuizContent, answers: Answer[]): SessionChange | null {
   if (session.state.stage !== "question") return null;
   if (content.questions[session.state.step]?.kind !== "super") return null;
-  if (superVoteOf(session)?.phase === "open") return null;
+  if (superVoteOf(session)?.phase === "open" || levelVoteOf(session)?.phase === "open") return null;
   const picks = superPicks(answers.filter((a) => a.step === session.state.step && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)));
   const before = parseResult(session.state.result).picks ?? {};
   const same = Object.keys(picks).length === Object.keys(before).length && Object.entries(picks).every(([pid, l]) => before[pid] === l);
@@ -412,7 +568,7 @@ export function reveal(
       stage: "reveal",
       revealed: true,
       answered: own.length,
-      result: { ...resultOf(step.question, own, before.accepted, before.buzz), ...(before.auction ? { auction: before.auction } : {}), ...(raceFinish ? { raceFinish } : {}), ...carry(session) },
+      result: { ...resultOf(step.question, own, before.accepted, before.buzz, session.state.result), ...(before.auction ? { auction: before.auction } : {}), ...(raceFinish ? { raceFinish } : {}), ...carry(session) },
     },
     leaderboard,
   };
@@ -513,10 +669,23 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
       clearAnswers: step,
     };
   }
+  if (stage === "question" && levelVoteOf(session)?.phase === "open") {
+    // Голосование за уровень отменили — снова заставка (итог «Играем?» остаётся), голоса стираются.
+    const { levelVote: _vote, ...rest } = carry(session);
+    return {
+      change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: Object.keys(rest).length > 0 ? rest : null } },
+      clearAnswers: step,
+    };
+  }
+  if (stage === "ready" && levelVoteOf(session)?.phase === "done") {
+    // С выбранного уровня — переголосовать за уровень (жребий, если крутился, уходит).
+    const { levelVote: _vote, ...rest } = carry(session);
+    return { change: { state: { ...(isSuperCoin(session) ? { slide: null } : {}), result: Object.keys(rest).length > 0 ? rest : null } } };
+  }
   if (stage === "ready" && superVoteOf(session)?.phase === "done") {
-    // С итога голосования — переголосовать: заставка без итога.
+    // С итога голосования — переголосовать: заставка без итога (монетка, если крутилась, уходит).
     const { superVote: _vote, ...rest } = carry(session);
-    return { change: { state: { result: Object.keys(rest).length > 0 ? rest : null } } };
+    return { change: { state: { ...(isSuperCoin(session) ? { slide: null } : {}), result: Object.keys(rest).length > 0 ? rest : null } } };
   }
   if (stage === "question") {
     const q = content?.questions[step];

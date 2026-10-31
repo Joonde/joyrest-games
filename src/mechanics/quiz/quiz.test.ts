@@ -19,10 +19,10 @@ import { DEMO_QUIZ_FORMATS } from "./demo";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { LeaderboardEntry, Session, SessionState } from "../../data/types";
-import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, closeSuperVote, extraAction, nextQuestion, openSuperVote, overrideSuperVote, primaryAction, reveal, showBoard, showQuestion, showTotal, skipSuper, superSkipped, superSync, superVoteOf, superVoteSync, toggleAccepted } from "./flow";
+import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, chooseLevel, chosenLevel, closeLevelVote, closeSuperVote, coinSuperVote, extraAction, isSuperCoin, levelVoteOf, levelVoteSync, openLevelVote, nextQuestion, openSuperVote, overrideSuperVote, primaryAction, reveal, showBoard, showQuestion, showTotal, skipSuper, superCoinSpinning, superSkipped, superSync, superVoteOf, superVoteSync, toggleAccepted } from "./flow";
 import { acceptKey } from "../../core/supergame";
 import { QUESTION_FORMATS } from "./content";
-import { emptyResult, groupOpenAnswers, isCorrect, numberDeltas, orderShown, parseResult, resultOf, score, steps } from "./logic";
+import { emptyResult, groupOpenAnswers, isCorrect, numberDeltas, orderShown, parseResult, resultOf, score, steps, superAllowed } from "./logic";
 import { matchesAnswer, normalizeAnswer } from "./normalize";
 import { errorsFor, validateContent, validateQuestion } from "./validate";
 
@@ -673,6 +673,7 @@ describe("суперигра в квизе", () => {
     ...newQuestion("super"),
     id: "s1",
     superVote: false,
+    superPick: "each",
     levels: [
       { points: 100, text: "Столица Франции?", answers: ["Париж"], imageId: null },
       { points: 200, text: "Самая длинная река?", answers: ["Нил"], imageId: null },
@@ -752,7 +753,7 @@ describe("суперигра: форматы уровней и голосова�
     { points: 300, text: "Сколько ступеней?", answers: [""], imageId: null, kind: "number" as const, number: 1665, unit: "ступеней", tolerance: 10, trackId: "t1", trackStart: 5, trackLength: 20 },
     { points: 500, text: "Автор «Мастера и Маргариты»?", answers: ["Булгаков"], imageId: null },
   ];
-  const superQ = (patch: Partial<QuizQuestion> = {}): QuizQuestion => ({ ...newQuestion("super"), id: "s2", levels: levels(), ...patch });
+  const superQ = (patch: Partial<QuizQuestion> = {}): QuizQuestion => ({ ...newQuestion("super"), id: "s2", levels: levels(), superPick: "each", ...patch });
   const session = (): Session =>
     ({
       id: "s",
@@ -837,7 +838,7 @@ describe("суперигра: форматы уровней и голосова�
     expect(superVoteOf(s)?.phase).toBe("done");
   });
 
-  it("голосование: поровну — не играем; старые голоса до старта не считаются", () => {
+  it("голосование: поровну — решает монетка на экране или ведущий; старые голоса до старта не считаются", () => {
     const content: QuizContent = { questions: [choice(), superQ()], settings: { ...DEFAULT_SETTINGS, intro: false } };
     let s = session();
     s = applyChange(s, nextQuestion(s, content), 1);
@@ -845,8 +846,219 @@ describe("суперигра: форматы уровней и голосова�
     const started = s.state.startedAt ?? 0;
     const votes = [ans("a", { vote: "yes" }, started + 1), ans("b", { vote: "no" }, started + 1), ans("c", { vote: "yes" }, started - 100)];
     s = applyChange(s, closeSuperVote(s, votes), 3);
-    expect(superVoteOf(s)).toMatchObject({ yes: 1, no: 1, passed: false });
-    expect(primaryAction(s, content)).toBe("skip");
+    const tied = s;
+    expect(superVoteOf(s)).toMatchObject({ yes: 1, no: 1, tie: true });
+    expect(superVoteOf(s)?.passed).toBeUndefined();
+    expect(primaryAction(s, content)).toBe("coin");
+    expect(actionLabel(s, content, "coin")).toContain("монетку");
+    // Монетка выпала «играем»: решение сразу, на экране — слайд монетки до endsAt.
+    const coin = coinSuperVote(s, 50_000, () => 0.1);
+    if (!coin) throw new Error("нет монетки");
+    s = applyChange(s, coin, 4);
+    expect(superVoteOf(s)).toMatchObject({ passed: true, coin: true, tie: true });
+    expect(isSuperCoin(s)).toBe(true);
+    expect(s.state.slide).toMatchObject({ kind: "draw", title: "Играем суперигру" });
+    expect(superCoinSpinning(s, 50_001)).toBe(true);
+    expect(superCoinSpinning(s, 50_000 + 60_000)).toBe(false);
+    expect(primaryAction(s, content)).toBe("show");
+    // Второй бросок не нужен — решение уже есть.
+    expect(coinSuperVote(s, 51_000)).toBeNull();
+    // «Открыть уровни» убирает монетку с экрана.
+    const show = showQuestion(s, content);
+    expect(show.state?.slide).toBeNull();
+    // «Назад» — переголосовать, монетка уходит.
+    const plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    expect(plan.change.state?.slide).toBeNull();
+    // Монетка выпала «не играем» — пропуск, без экрана зала — без слайда.
+    const noScreen = { ...tied, screenMode: "none" as const };
+    const coinNo = coinSuperVote(noScreen, 50_000, () => 0.9);
+    if (!coinNo) throw new Error("нет монетки");
+    expect(coinNo.state?.slide).toBeUndefined();
+    const decided = applyChange(noScreen, coinNo, 5);
+    expect(superVoteOf(decided)).toMatchObject({ passed: false, coin: true });
+    expect(primaryAction(decided, content)).toBe("skip");
+    // Ведущий решает сам — без монетки.
+    const own = overrideSuperVote(tied, true);
+    if (!own) throw new Error("нет записи");
+    const ownS = applyChange(tied, own, 6);
+    expect(superVoteOf(ownS)).toMatchObject({ passed: true });
+    expect(superVoteOf(ownS)?.coin).toBeUndefined();
+    expect(primaryAction(ownS, content)).toBe("show");
+    // Никто не голосовал — не ничья: не играем.
+    let empty = session();
+    empty = applyChange(empty, nextQuestion(empty, content), 1);
+    empty = applyChange(empty, openSuperVote(empty, content), 2);
+    empty = applyChange(empty, closeSuperVote(empty, []), 3);
+    expect(superVoteOf(empty)).toMatchObject({ yes: 0, no: 0, passed: false });
+    expect(primaryAction(empty, content)).toBe("skip");
+  });
+});
+
+describe("суперигра: зал голосует за уровень, уровней 2–4", () => {
+  const levels = () => [
+    { points: 100, text: "Столица Франции?", answers: ["Париж"], imageId: null },
+    { points: 200, text: "Самая длинная река?", answers: ["Нил"], imageId: null },
+    { points: 300, text: "Автор «Мастера и Маргариты»?", answers: ["Булгаков"], imageId: null },
+    { points: 500, text: "Год полёта Гагарина?", answers: ["1961"], imageId: null },
+  ];
+  const superQ = (patch: Partial<QuizQuestion> = {}): QuizQuestion => ({ ...newQuestion("super"), id: "s3", superVote: false, levels: levels(), ...patch });
+  const session = (screenMode: Session["screenMode"] = "laptop"): Session =>
+    ({
+      id: "s",
+      code: "1",
+      hostId: "h",
+      gameId: "g",
+      gameTitle: "К",
+      mechanic: "quiz",
+      gameSnapshot: null,
+      themeId: "joyrest",
+      playMode: "teams",
+      screenMode,
+      state: { ...startState(), phase: "playing" },
+      leaderboard: {
+        a: { name: "Лисы", kind: "team", score: 400 },
+        b: { name: "Совы", kind: "team", score: 400 },
+        c: { name: "Тигры", kind: "team", score: 400 },
+      },
+      createdAt: 0,
+    }) as Session;
+  const ans = (pid: string, value: unknown, at = 10) => ({ id: `1_${pid}`, step: 1, pid, uid: pid, value, submittedAt: at });
+  const vote = (pid: string, levelVote: number, at = 10) => ({ id: `1_${pid}`, step: 1, pid, uid: pid, value: { levelVote }, submittedAt: at });
+  const pick = (pid: string, level: number, text: string) => ({ id: `1_${pid}`, step: 1, pid, uid: pid, value: { level, text }, submittedAt: 10 });
+
+  it("новая суперигра — зал голосует; старые игры без поля — тоже", () => {
+    expect(newQuestion("super").superPick).toBe("vote");
+    expect(parseContent({ questions: [{ ...superQ(), superPick: undefined }] }).questions[0]?.superPick).toBe("vote");
+    expect(parseContent({ questions: [superQ({ superPick: "each" })] }).questions[0]?.superPick).toBe("each");
+  });
+
+  it("большинство за «Золото»: играем его, на экране одна картинка, ответы других уровней не считаются", () => {
+    const content: QuizContent = { questions: [choice(), superQ()], settings: { ...DEFAULT_SETTINGS, intro: false } };
+    let s = session();
+    s = applyChange(s, nextQuestion(s, content), 1);
+    expect(primaryAction(s, content)).toBe("levelVote");
+    s = applyChange(s, openLevelVote(s, content), 2);
+    expect(levelVoteOf(s)?.phase).toBe("open");
+    expect(primaryAction(s, content)).toBe("levelVoteDone");
+    const started = s.state.startedAt ?? 0;
+    const votes = [vote("a", 2, started + 1), vote("b", 2, started + 1), vote("c", 0, started + 1)];
+    // Пока голосуют — уровни на экран не пишутся.
+    expect(superSync(s, content, votes)).toBeNull();
+    const sync = levelVoteSync(s, content, votes);
+    if (!sync) throw new Error("нет записи");
+    s = applyChange(s, sync, 3);
+    expect(levelVoteOf(s)?.counts).toEqual([1, 0, 2, 0]);
+    s = applyChange(s, closeLevelVote(s, content, votes, 5_000), 4);
+    expect(s.state.stage).toBe("ready");
+    expect(levelVoteOf(s)).toMatchObject({ phase: "done", level: 2 });
+    expect(levelVoteOf(s)?.tie).toBeUndefined();
+    expect(s.state.slide ?? null).toBeNull();
+    expect(chosenLevel(s)).toBe(2);
+    expect(primaryAction(s, content)).toBe("show");
+    expect(actionLabel(s, content, "show")).toBe("Открыть вопрос «Золото»");
+    s = applyChange(s, showQuestion(s, content), 5);
+    expect(chosenLevel(s)).toBe(2);
+    expect(superAllowed(content.questions[1]!, s.state.result)).toEqual([2]);
+    // Кто-то прислал ответ другого уровня (старый телефон) — не считается.
+    const answers = [pick("a", 2, "Булгаков"), pick("b", 2, "Пушкин"), pick("c", 3, "1961")];
+    s = applyChange(s, reveal(s, content, answers, []), 6);
+    expect(s.leaderboard.a).toMatchObject({ score: 700, last: 300 });
+    expect(s.leaderboard.b).toMatchObject({ score: 250, last: -150 });
+    expect(s.leaderboard.c?.score).toBe(400);
+    expect(Object.keys(parseResult(s.state.result).verdicts ?? {}).sort()).toEqual(["a", "b"]);
+    // «Назад» с ответов — к вопросу того же уровня, без переголосования.
+    let plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    s = applyChange(s, plan.change, 7);
+    expect(s.leaderboard.a?.score).toBe(400);
+    expect(chosenLevel(s)).toBe(2);
+    plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    s = applyChange(s, plan.change, 8);
+    expect(s.state.stage).toBe("ready");
+    expect(chosenLevel(s)).toBe(2);
+    // Ещё «Назад» — переголосовать за уровень.
+    plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    s = applyChange(s, plan.change, 9);
+    expect(levelVoteOf(s)).toBeUndefined();
+    expect(primaryAction(s, content)).toBe("levelVote");
+  });
+
+  it("поровну — жребий на экране: двое — монетка, трое — колесо; без экрана — без слайда; ведущий меняет уровень", () => {
+    const content: QuizContent = { questions: [choice(), superQ()], settings: { ...DEFAULT_SETTINGS, intro: false } };
+    let s = session();
+    s = applyChange(s, nextQuestion(s, content), 1);
+    s = applyChange(s, openLevelVote(s, content), 2);
+    const t = (s.state.startedAt ?? 0) + 1;
+    const two = applyChange(s, closeLevelVote(s, content, [vote("a", 1, t), vote("b", 3, t)], 5_000, () => 0.9), 3);
+    expect(levelVoteOf(two)).toMatchObject({ level: 3, tie: [1, 3] });
+    expect(isSuperCoin(two)).toBe(true);
+    expect(two.state.slide).toMatchObject({ kind: "draw", title: "Бриллиант" });
+    expect(two.state.slide?.lines).not.toContain("wheel");
+    const three = applyChange(s, closeLevelVote(s, content, [vote("a", 0, t), vote("b", 1, t), vote("c", 2, t)], 5_000, () => 0.1), 3);
+    expect(levelVoteOf(three)).toMatchObject({ level: 0, tie: [0, 1, 2] });
+    expect(three.state.slide?.lines).toContain("wheel");
+    // Никто не голосовал — жребий среди всех уровней игры.
+    const none = applyChange(s, closeLevelVote(s, content, [], 5_000, () => 0.1), 3);
+    expect(levelVoteOf(none)?.tie).toEqual([0, 1, 2, 3]);
+    // Без экрана зала — решение без слайда.
+    const quiet = session("none");
+    const q1 = applyChange(quiet, nextQuestion(quiet, content), 1);
+    const q2 = applyChange(q1, openLevelVote(q1, content), 2);
+    const change = closeLevelVote(q2, content, [vote("a", 1, (q2.state.startedAt ?? 0) + 1), vote("b", 3, (q2.state.startedAt ?? 0) + 1)], 5_000, () => 0.1);
+    expect(change.state?.slide).toBeUndefined();
+    // Ведущий ставит другой уровень — жребий уходит с экрана.
+    const own = chooseLevel(two, content, 0);
+    if (!own) throw new Error("нет записи");
+    expect(own.state?.slide).toBeNull();
+    const after = applyChange(two, own, 4);
+    expect(levelVoteOf(after)).toMatchObject({ level: 0, host: true });
+    expect(chooseLevel(after, content, 0)).toBeNull();
+    // «Открыть вопрос» убирает жребий.
+    expect(showQuestion(two, content).state?.slide).toBeNull();
+  });
+
+  it("сначала «Играем?», потом «Какой уровень»", () => {
+    const content: QuizContent = { questions: [choice(), superQ({ superVote: true })], settings: { ...DEFAULT_SETTINGS, intro: false } };
+    let s = session();
+    s = applyChange(s, nextQuestion(s, content), 1);
+    expect(primaryAction(s, content)).toBe("vote");
+    s = applyChange(s, openSuperVote(s, content), 2);
+    const t = (s.state.startedAt ?? 0) + 1;
+    const yes = [ans("a", { vote: "yes" }, t), ans("b", { vote: "yes" }, t)];
+    s = applyChange(s, closeSuperVote(s, yes), 3);
+    expect(primaryAction(s, content)).toBe("levelVote");
+    s = applyChange(s, openLevelVote(s, content), 4);
+    expect(superVoteOf(s)?.passed).toBe(true);
+    // «Назад» с голосования за уровень — к итогу «Играем?».
+    const plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    s = applyChange(s, plan.change, 5);
+    expect(s.state.stage).toBe("ready");
+    expect(superVoteOf(s)?.phase).toBe("done");
+    expect(primaryAction(s, content)).toBe("levelVote");
+  });
+
+  it("уровней от двух: выключенный уровень не проверяется, не голосуется и не считается", () => {
+    const lv = levels().map((l, i) => (i === 2 || i === 3 ? { ...l, off: true, text: "", answers: [""] } : l));
+    const q = superQ({ levels: lv });
+    expect(validateQuestion(q)).toEqual([]);
+    expect(parseContent({ questions: [q] }).questions[0]?.levels?.[2]?.off).toBe(true);
+    const one = superQ({ levels: levels().map((l, i) => (i > 0 ? { ...l, off: true } : l)) });
+    expect(validateQuestion(one).map((e) => e.message).join(" ")).toContain("хотя бы 2");
+    const content: QuizContent = { questions: [choice(), q], settings: { ...DEFAULT_SETTINGS, intro: false } };
+    let s = session();
+    s = applyChange(s, nextQuestion(s, content), 1);
+    s = applyChange(s, openLevelVote(s, content), 2);
+    const t = (s.state.startedAt ?? 0) + 1;
+    // Голоса за выключенный уровень не считаются.
+    s = applyChange(s, closeLevelVote(s, content, [vote("a", 3, t), vote("b", 3, t), vote("c", 1, t)], 5_000), 3);
+    expect(levelVoteOf(s)).toMatchObject({ level: 1, counts: [0, 1, 0, 0] });
+    // Каждый свой: ответ на выключенный уровень не считается.
+    const each = superQ({ levels: lv, superPick: "each" });
+    expect(superAllowed(each, null)).toEqual([0, 1]);
   });
 });
 

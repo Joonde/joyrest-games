@@ -4,17 +4,18 @@ import { parseBuzz } from "../../core/buzz";
 import { correctSet, drawEffectOfSettings, settingsOf, usesAnswers, type QuizContent, type QuizQuestion } from "./content";
 import { closeBets, isAuctionDraw } from "./auction";
 import { parseResult } from "./logic";
-import { parseSuperAnswer, parseVoteAnswer } from "../../core/supergame";
-import { actionLabel, buzzRightAnswer, closeSuperVote, openSuperVote, skipSuper, superVoteSync, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, superSync } from "./flow";
+import { activeLevels, parseLevelVoteAnswer, parseSuperAnswer, parseVoteAnswer } from "../../core/supergame";
+import { actionLabel, buzzRightAnswer, chosenLevel, closeLevelVote, closeSuperVote, coinSuperVote, levelVoteSync, openLevelVote, openSuperVote, skipSuper, superVoteSync, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, superSync } from "./flow";
 
 /** Ответ телефона на вопрос — как его шлёт телефон гостя; `right` — верный или нет. */
-function answerFor(q: QuizQuestion, right: boolean, i: number): unknown {
+function answerFor(q: QuizQuestion, right: boolean, i: number, fixedLevel: number | null = null): unknown {
   if (q.kind === "open" || (q.kind === "auction" && usesAnswers(q))) return right ? (q.answers[i % Math.max(1, q.answers.length)] ?? "") : "не помню";
   if (q.kind === "pictures") return (q.pictures ?? []).map((p, k) => (right || k === 0 ? (p.answers[0] ?? "") : "не знаю"));
   if (q.kind === "super") {
-    // Уровни разные: кто посмелее — дороже.
+    // Уровни разные: кто посмелее — дороже; зал выбрал уровень — все отвечают на него.
     const levels = q.levels ?? [];
-    const level = Math.min(Math.max(0, levels.length - 1), i);
+    const active = activeLevels(levels);
+    const level = fixedLevel ?? active[Math.min(Math.max(0, active.length - 1), i)] ?? 0;
     const l = levels[level];
     const kind = l?.kind ?? "open";
     if (kind === "choice") {
@@ -65,6 +66,22 @@ export const quizPreview: PreviewDriver<QuizContent> = ({ session, content, part
     }
     case "skip":
       return { label: "Пульт: «Пропустить суперигру»", change: skipSuper(session) };
+    case "levelVote":
+      return { label: "Пульт: «Голосование: какой уровень играем?»", change: openLevelVote(session, content) };
+    case "levelVoteDone": {
+      // Голоса делятся между двумя уровнями поровну — видно жребий.
+      const active = activeLevels(q?.levels);
+      if (!answers.some((a) => parseLevelVoteAnswer(a.value) !== null)) {
+        return { label: "Гости голосуют: какой уровень играем", answers: teams.map((pid, i) => ({ pid, value: { levelVote: active[i % Math.min(2, active.length)] ?? 0 } })) };
+      }
+      const sync = levelVoteSync(session, content, answers);
+      if (sync) return { label: "На экране: голоса за уровни", change: sync };
+      return { label: "Пульт: «Подвести итог: какой уровень»", change: closeLevelVote(session, content, answers, session.state.startedAt ?? 0, () => 0.99) };
+    }
+    case "coin": {
+      const change = coinSuperVote(session, Date.now(), () => 0.1);
+      return change ? { label: "Голоса поровну — пульт: «Бросить монетку»", change } : null;
+    }
     case "show":
       return { label: `Пульт: «${actionLabel(session, content, action)}»`, change: showQuestion(session, content) };
     case "reveal": {
@@ -100,8 +117,8 @@ export const quizPreview: PreviewDriver<QuizContent> = ({ session, content, part
         // Верно отвечают не все: у каждого вопроса ошибается кто-то свой.
         const wrong = step % Math.max(1, teams.length);
         return {
-          label: q.kind === "super" ? `${who} выбирают уровень и пишут ответ` : `${who} отвечают`,
-          answers: teams.map((pid, i) => ({ pid, value: answerFor(q, i !== wrong, i) })),
+          label: q.kind === "super" ? (chosenLevel(session) !== null ? `${who} отвечают на вопрос уровня` : `${who} выбирают уровень и пишут ответ`) : `${who} отвечают`,
+          answers: teams.map((pid, i) => ({ pid, value: answerFor(q, i !== wrong, i, q.kind === "super" ? chosenLevel(session) : null) })),
         };
       }
       const picks = superSync(session, content, answers);

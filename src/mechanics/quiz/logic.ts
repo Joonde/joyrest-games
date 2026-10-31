@@ -1,5 +1,5 @@
 import { EMPTY_BUZZ, parseBuzz, type BuzzState } from "../../core/buzz";
-import { parsePenalty, parsePicks, parseVerdicts, superRight, superVerdicts, parseSuperAnswer, type SuperVerdict } from "../../core/supergame";
+import { activeLevels, parseLevelVote, parsePenalty, parsePickMode, parsePicks, parseVerdicts, superRight, superVerdicts, parseSuperAnswer, type SuperVerdict } from "../../core/supergame";
 import type { Answer } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
 import { correctSet, usesAnswers, type QuizContent, type QuizQuestion } from "./content";
@@ -236,6 +236,18 @@ function answerTime(answer: Answer, startedAt: number | null, limitMs: number): 
 }
 
 /**
+ * Суперигра: на какие уровни ответы считаются. Зал голосовал — только выбранный уровень (все отвечают на его вопрос),
+ * иначе — все уровни игры.
+ */
+export function superAllowed(q: Pick<QuizQuestion, "levels" | "superPick">, result: unknown): number[] {
+  const active = activeLevels(q.levels);
+  if (parsePickMode(q.superPick) !== "vote") return active;
+  const raw = typeof result === "object" && result !== null ? (result as Record<string, unknown>).levelVote : undefined;
+  const vote = parseLevelVote(raw);
+  return vote?.phase === "done" && vote.level !== undefined && active.includes(vote.level) ? [vote.level] : active;
+}
+
+/**
  * Очки за шаг. Обычный вопрос: верный ответ — очки вопроса. На скорость: самый быстрый
  * верный ответ получает максимум, ответ в последнюю секунду — половину, между ними — по
  * прямой. Время ответа = submittedAt − startedAt, оба значения ставит сервер.
@@ -263,7 +275,7 @@ export function score(step: QuizStep, answers: Answer[], { state }: ScoreContext
   }
   // Суперигра: верно — очки выбранного уровня, ошибка — минус по правилу.
   if (q.kind === "super") {
-    const verdicts = superVerdicts(q.levels ?? [], parsePenalty(q.penalty), answers, accepted);
+    const verdicts = superVerdicts(q.levels ?? [], parsePenalty(q.penalty), answers, accepted, superAllowed(q, state.result));
     return Object.entries(verdicts)
       .filter(([, v]) => v.delta !== 0)
       .map(([pid, v]) => ({ pid, delta: v.delta }));
@@ -310,13 +322,13 @@ export function auctionAnswers(answers: Answer[], startedAt: number | null): Ans
 }
 
 /** Распределение ответов для экрана зала. */
-export function resultOf(q: QuizQuestion, answers: Answer[], accepted: string[], buzz?: BuzzState): QuizResult {
+export function resultOf(q: QuizQuestion, answers: Answer[], accepted: string[], buzz?: BuzzState, stateResult?: unknown): QuizResult {
   if (q.kind === "buzz") {
     const b = buzz ?? EMPTY_BUZZ;
     return { counts: [], correct: b.winner ? 1 : 0, total: b.order.length, accepted, buzz: b };
   }
   if (q.kind === "super") {
-    const verdicts = superVerdicts(q.levels ?? [], parsePenalty(q.penalty), answers, accepted);
+    const verdicts = superVerdicts(q.levels ?? [], parsePenalty(q.penalty), answers, accepted, superAllowed(q, stateResult));
     const list = Object.values(verdicts);
     return { counts: [], correct: list.filter((v) => v.right).length, total: list.length, accepted, verdicts };
   }

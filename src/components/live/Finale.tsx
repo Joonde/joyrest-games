@@ -8,6 +8,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { edition, errorCodeOf, finaleRepo, type Finale } from "../../data";
 import { QrCode } from "../QrCode";
+import { StoryShare } from "./StoryCard";
+import type { StoryCardInput } from "../../core/storyCard";
+import type { GameResult } from "../../data";
 
 export const CHANNEL_URL = "https://t.me/JoyRest";
 export const CHANNEL_TEXT = "Мы начали вести Telegram-канал — будем благодарны за подписку. Так вам будет легче найти нас, когда снова захотите праздник.";
@@ -194,20 +197,24 @@ function TipsQr({ url }: { url: string }) {
 }
 
 /** Телефон гостя после игры: те же дела кнопками, отзыв — прямо здесь. */
-export function FinalePhone({ sessionId }: { sessionId: string }) {
+export function FinalePhone({ sessionId, story }: { sessionId: string; story?: { input: StoryCardInput; result: GameResult } | null }) {
   const [finale, setFinale] = useFinale(sessionId);
   if (!JOYREST_LINKS) return null;
+  // Личная карточка для сторис (31 октября 2026) — первой в блоке: её хочется отправить сразу.
+  const card = story ? <StoryShare input={story.input} result={story.result} /> : null;
   if (!finaleRepo) {
-    if (!TIPS_URL) return null;
+    if (!TIPS_URL && !card) return null;
     return (
       <section className="card stack finale-phone">
-        <TipsButton />
+        {card}
+        {TIPS_URL && <TipsButton />}
       </section>
     );
   }
   return (
     <section className="card stack finale-phone" aria-labelledby="finale-title">
       <h2 id="finale-title">Спасибо, что были с нами!</h2>
+      {card}
       {TIPS_URL && <TipsButton />}
       <ReviewForm sessionId={sessionId} initial={finale?.myReview ?? null} onSaved={(r) => finale && setFinale({ ...finale, myReview: r })} />
       <FinaleLinks avito={!finale?.myReview} />

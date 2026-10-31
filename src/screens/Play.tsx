@@ -9,7 +9,8 @@ import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { VPN_HINT } from "../core/texts";
 import { snapshotContent } from "../core/games";
 import { placeOf } from "../core/leaderboard";
-import { pointsLabel } from "../core/results";
+import { compactBoard, pointsLabel } from "../core/results";
+import type { StoryCardInput } from "../core/storyCard";
 import {
   answersRepo,
   clock,
@@ -23,6 +24,7 @@ import {
   withRetry,
   type OfflinePlayer,
   type Participant,
+  type GameResult,
   type Session,
 } from "../data";
 import { PodiumPhone } from "../components/live/Podium";
@@ -677,6 +679,33 @@ function forgetAnswer(sessionId: string, slot: string): void {
 function FinalCard({ session, pid }: { session: Session; pid: string }) {
   const place = placeOf(session.leaderboard, pid);
   const entry = session.leaderboard[pid];
+  // Карточка для сторис — у каждого своя: имя, место, игра и дата (рисует телефон, `StoryCard.tsx`).
+  const story = useMemo(() => {
+    if (!place || !entry) return null;
+    const result: GameResult = {
+      id: session.id,
+      hostId: session.hostId,
+      code: session.code,
+      gameTitle: session.gameTitle,
+      mechanic: session.mechanic,
+      themeId: session.themeId,
+      playMode: session.playMode,
+      playedAt: session.createdAt,
+      participantsCount: 0,
+      board: compactBoard(session.leaderboard),
+    };
+    const input: StoryCardInput = {
+      name: entry.name,
+      teams: session.playMode === "teams",
+      place: place.place,
+      total: place.total,
+      gameTitle: session.gameTitle,
+      formatTitle: session.program ? null : getMechanic(session.mechanic)?.title ?? null,
+      mechanic: session.program ? null : session.mechanic,
+      playedAt: session.createdAt,
+    };
+    return { input, result };
+  }, [session.id, session.hostId, session.code, session.gameTitle, session.mechanic, session.themeId, session.playMode, session.createdAt, session.leaderboard, session.program, place, entry]);
   return (
     <div className="card card--center">
       <p className="eyebrow">Игра завершена</p>
@@ -697,7 +726,7 @@ function FinalCard({ session, pid }: { session: Session; pid: string }) {
           Итоги игры
         </Link>
       </div>
-      <FinalePhone sessionId={session.id} />
+      <FinalePhone sessionId={session.id} story={story} />
     </div>
   );
 }

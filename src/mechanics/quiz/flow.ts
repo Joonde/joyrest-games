@@ -323,7 +323,7 @@ const COIN_NO = "Не играем";
 export function coinSuperVote(session: Session, serverNow: number, random?: () => number): SessionChange | null {
   const vote = superVoteOf(session);
   if (!voteUndecided(vote) || !vote) return null;
-  const passed = drawWinner([true, false], random) ?? true;
+  const passed = drawWinner([false, true], random) ?? true;
   const state: NonNullable<SessionChange["state"]> = { result: { ...asRecord(session.state.result), superVote: { ...vote, passed, coin: true } } };
   if (session.screenMode !== "none") {
     state.slide = drawSlide(
@@ -677,7 +677,7 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
       clearAnswers: step,
     };
   }
-  if (stage === "ready" && levelVoteOf(session)?.phase === "done") {
+  if (stage === "ready" && levelVoteOf(session)?.phase === "done" && step < 0) {
     // С выбранного уровня — переголосовать за уровень (жребий, если крутился, уходит).
     const { levelVote: _vote, ...rest } = carry(session);
     return { change: { state: { ...(isSuperCoin(session) ? { slide: null } : {}), result: Object.keys(rest).length > 0 ? rest : null } } };

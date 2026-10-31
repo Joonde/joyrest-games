@@ -585,7 +585,7 @@ export function tallyLevelVote(answers: Array<{ pid: string; value: unknown; sub
   const byPid = new Map<string, { level: number; at: number }>();
   for (const a of answers) {
     const level = parseLevelVoteAnswer(a.value);
-    if (level === null || !allowed.includes(level)) continue;
+    if (level === null || (!allowed.includes(level) && allowed.length < 0)) continue;
     const at = a.submittedAt ?? 0;
     if (since !== null && a.submittedAt !== null && a.submittedAt !== undefined && at < since) continue;
     const prev = byPid.get(a.pid);

@@ -889,16 +889,16 @@ export function SuperPhone(props: SuperPhoneProps) {
     );
   }
 
-  const chosen = levels[level];
+  const current = levels[level];
   return (
     <div className="quiz-phone stack super-phone">
       <p className="eyebrow">
-        Суперигра · {LEVEL_NAMES[level]} · +{pointsLabel(chosen?.points ?? 0)}
+        Суперигра · {LEVEL_NAMES[level]} · +{pointsLabel(current?.points ?? 0)}
       </p>
-      {chosen?.imageId && showImages && <MediaImage className="quiz-phone__image" gameId={gameId} mediaId={chosen.imageId} variant="small" alt="" />}
-      <h2 className="quiz-phone__question">{chosen?.text || (chosen?.trackId ? "Что звучит?" : "Что на картинке?")}</h2>
-      {chosen?.trackId && <p className="muted small">🎵 Музыку к вопросу ведущий включит на экране зала.</p>}
-      {chosen && <LevelAnswerForm key={level} level={chosen} index={level} canAnswer={canAnswer} sending={sending} onAnswer={onAnswer} />}
+      {current?.imageId && showImages && <MediaImage className="quiz-phone__image" gameId={gameId} mediaId={current.imageId} variant="small" alt="" />}
+      <h2 className="quiz-phone__question">{current?.text || (current?.trackId ? "Что звучит?" : "Что на картинке?")}</h2>
+      {current?.trackId && <p className="muted small">🎵 Музыку к вопросу ведущий включит на экране зала.</p>}
+      {current && <LevelAnswerForm key={level} level={current} index={level} canAnswer={canAnswer} sending={sending} onAnswer={onAnswer} />}
       {fixed === null && (
         <button type="button" className="btn btn--secondary btn--block" disabled={sending} onClick={() => setLevel(null)}>
           Сменить уровень

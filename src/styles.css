@@ -22949,6 +22949,15 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border: 0.25cqh solid var(--color-border);
   font-size: 2.2cqh;
   white-space: nowrap;
+  display: inline-flex;
+  gap: 0.5cqw;
+}
+
+/* Длинное имя на шкале — с многоточием: подписи в одном ряду не наезжают (полное имя — в местах ниже). */
+.quiz-screen__chip-name {
+  max-width: 8cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .quiz-screen__chip.is-best {
@@ -22956,19 +22965,40 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border-color: var(--color-highlight);
   color: var(--color-accent-text);
   font-weight: 600;
+  z-index: 1;
+}
+
+/* Каждый ответ — точка на линии шкалы; подпись с именем есть только у лучших. */
+.quiz-screen__dot {
+  position: absolute;
+  bottom: calc(2.3cqh - 0.9cqh);
+  width: 1.8cqh;
+  height: 1.8cqh;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  border: 0.25cqh solid var(--color-surface);
+}
+
+.quiz-screen__dot.is-best {
+  background: var(--color-highlight);
+  z-index: 1;
 }
 
 .quiz-screen__places {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 1.6cqh 2cqw;
   font-size: 2.8cqh;
 }
 
 .quiz-screen__places li {
+  flex: 0 1 30%;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 1.4cqw;
@@ -22976,6 +23006,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border-radius: 1.6cqh;
   background: var(--color-surface);
   border: 0.25cqh solid var(--color-border);
+}
+
+.quiz-screen__places-who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quiz-screen__places-n {
@@ -22998,8 +23034,24 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .quiz-screen__places-pts {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.05;
   font-weight: 600;
+  white-space: nowrap;
   color: var(--color-success);
+  font-variant-numeric: tabular-nums;
+}
+
+.quiz-screen__places-pts small {
+  font-size: 0.6em;
+  font-weight: 500;
+}
+
+.quiz-screen__places-name small {
+  white-space: nowrap;
 }
 
 .quiz-phone__order-num {

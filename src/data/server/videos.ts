@@ -50,7 +50,12 @@ export const serverVideosRepository: VideosRepository = {
   async list() {
     const d = asRecord(await api("GET", "/api/videos"));
     const videos = (Array.isArray(d.videos) ? d.videos : []).map(parseVideo).filter((v) => v.id !== "");
-    return { videos, usedBytes: typeof d.usedBytes === "number" ? d.usedBytes : 0, folders: folderList(d) };
+    const u = asRecord(d.usage);
+    const usage =
+      typeof u.usedBytes === "number" && typeof u.limitBytes === "number" && u.limitBytes > 0
+        ? { usedBytes: Math.max(0, u.usedBytes), limitBytes: u.limitBytes }
+        : undefined;
+    return { videos, usedBytes: typeof d.usedBytes === "number" ? d.usedBytes : 0, folders: folderList(d), usage };
   },
   async upload({ id, title, folder, file, durationMs }, onProgress, signal) {
     let video = parseVideo(await api("POST", "/api/videos", { id, title, folder, size: file.size, durationMs }));

@@ -1,7 +1,8 @@
 /**
  * Видео JoyRest на сервере (решение владельца 15 октября 2026; CLAUDE.md, раздел 7, «Видео JoyRest»).
  *
- * Загружают владелец и заместитель (`permissions.canUploadVideo`; убрать чужое видео — только владелец), видят и ставят в игры все, кто работает с играми,
+ * Загружают владелец, заместитель и ведущие — ведущие в своё место 2 ГБ вместе с музыкой (`permissions.canUploadVideo`,
+ * `videoCountsToHostSpace`, `hostSpace`; убрать чужое видео — только владелец), видят и ставят в игры все, кто работает с играми,
  * файл открывает любой вошедший (экран зала входит устройством). Видео большое, связь на площадке плохая, а Caddy
  * пускает в обычный запрос до 2 МБ — поэтому файл идёт частями (`PUT /api/videos/:id/chunk?offset=N`): сервер пишет
  * часть, только если она ровно там, где кончаются уже полученные байты, и всегда отвечает, сколько у него есть, —
@@ -19,6 +20,7 @@ import * as permissions from "../../src/data/permissions";
 import type { LibraryVideo } from "../../src/data/types";
 import { actorOf, apiGuard, identityOf, sessionUser, type SessionRow, uploadGuard } from "./auth";
 import { byteRange, cleanLine, FOLDER_MAX } from "./tracks";
+import { HOST_SPACE_BYTES, hostSpace } from "./hostSpace";
 
 export interface VideosOptions {
   sql: Sql;
@@ -36,12 +38,15 @@ export interface VideoLimits {
   chunkBytes: number;
   /** После загрузки на диске должно остаться не меньше — иначе отказ (507). */
   minFreeBytes: number;
+  /** Место ведущего под музыку и видео вместе (`hostSpace`); владельца и заместителя не касается. */
+  perHostBytes: number;
 }
 
 export const DEFAULT_VIDEO_LIMITS: VideoLimits = {
   fileBytes: 1024 * 1024 * 1024,
   chunkBytes: 1536 * 1024,
   minFreeBytes: 3 * 1024 * 1024 * 1024,
+  perHostBytes: HOST_SPACE_BYTES,
 };
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -116,8 +121,8 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
     api.addHook("onRequest", uploadGuard(sql));
     api.addContentTypeParser("application/octet-stream", { parseAs: "buffer", bodyLimit: limits.chunkBytes + 1024 }, (_request, body, done) => done(null, body));
 
-    function fail(reply: FastifyReply, status: number, code: string) {
-      return reply.code(status).send({ error: code });
+    function fail(reply: FastifyReply, status: number, code: string, extra: Record<string, unknown> = {}) {
+      return reply.code(status).send({ error: code, ...extra });
     }
 
     async function requireUser(request: FastifyRequest, reply: FastifyReply, check: (actor: permissions.Actor) => boolean): Promise<SessionRow | null> {
@@ -143,12 +148,16 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
     api.get("/api/videos", async (request, reply) => {
       const user = await requireUser(request, reply, permissions.canUseVideos);
       if (!user) return reply;
-      const uploader = permissions.canUploadVideo(actorOf(user));
+      // Недогруженные — только свои (владельцу — все): у ведущих видео тоже своё (решение владельца 31 октября 2026).
+      const admin = permissions.isAdmin(actorOf(user));
       const rows = await sql<VideoRow[]>`
-        ${select()} where v.sha256 is not null or ${uploader} order by v.folder, v.title limit ${LIST_LIMIT}`;
+        ${select()} where v.sha256 is not null or v.owner_id = ${user.id} or ${admin} order by v.folder, v.title limit ${LIST_LIMIT}`;
       const [{ used }] = await sql<{ used: string }[]>`
         select coalesce(sum(size), 0)::text as used from (select distinct sha256, size from videos where sha256 is not null) d`;
-      return { videos: rows.map(videoOf), usedBytes: Number(used), folders: await folderList() };
+      const own = permissions.videoCountsToHostSpace(actorOf(user))
+        ? { usage: { usedBytes: (await hostSpace(sql, user.id)).usedBytes, limitBytes: limits.perHostBytes } }
+        : {};
+      return { videos: rows.map(videoOf), usedBytes: Number(used), folders: await folderList(), ...own };
     });
 
     /**
@@ -166,7 +175,7 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
     }
 
     api.post<{ Body: unknown }>("/api/video-folders", { bodyLimit: 1024 }, async (request, reply) => {
-      const user = await requireUser(request, reply, permissions.canUploadVideo);
+      const user = await requireUser(request, reply, permissions.canManageVideoFolders);
       if (!user) return reply;
       const name = cleanLine(isRecord(request.body) ? request.body.name : undefined, FOLDER_MAX);
       if (!name) return fail(reply, 400, "invalid-argument");
@@ -191,7 +200,7 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
     }
 
     api.post<{ Body: unknown }>("/api/video-folders/rename", { bodyLimit: 1024 }, async (request, reply) => {
-      const user = await requireUser(request, reply, permissions.canUploadVideo);
+      const user = await requireUser(request, reply, permissions.canManageVideoFolders);
       if (!user) return reply;
       const body = isRecord(request.body) ? request.body : {};
       const from = cleanLine(body.from, FOLDER_MAX);
@@ -211,7 +220,7 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
     });
 
     api.post<{ Body: unknown }>("/api/video-folders/delete", { bodyLimit: 1024 }, async (request, reply) => {
-      const user = await requireUser(request, reply, permissions.canUploadVideo);
+      const user = await requireUser(request, reply, permissions.canManageVideoFolders);
       if (!user) return reply;
       const name = cleanLine(isRecord(request.body) ? request.body.name : undefined, FOLDER_MAX);
       if (!name) return fail(reply, 400, "invalid-argument");
@@ -239,7 +248,14 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
       if (!id || !title || size <= 0) return fail(reply, 400, "invalid-argument");
       const existing = await findVideo(id);
       if (existing) return Number(existing.size) === size ? videoOf(existing) : fail(reply, 409, "already-exists");
-      if (size > limits.fileBytes) return fail(reply, 413, "resource-exhausted");
+      if (size > limits.fileBytes) return fail(reply, 413, "resource-exhausted", { reason: "file" });
+      if (permissions.videoCountsToHostSpace(actorOf(user))) {
+        const used = (await hostSpace(sql, user.id)).usedBytes;
+        if (used + size > limits.perHostBytes) {
+          request.log.info({ video: "quota" }, "video");
+          return fail(reply, 413, "resource-exhausted", { reason: "quota", usedBytes: used, limitBytes: limits.perHostBytes });
+        }
+      }
       if ((await freeBytes(options.mediaDir)) - size < limits.minFreeBytes) {
         request.log.warn("videos: мало места на диске, загрузка отклонена");
         return fail(reply, 507, "resource-exhausted");

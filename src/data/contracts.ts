@@ -494,7 +494,8 @@ export interface FinaleRepository {
 
 export interface VideosRepository {
   /** Все видео JoyRest (загруженные; у загружающих — и недогруженные), сколько места заняли все видео. */
-  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number; folders?: string[] }>;
+  /** `usage` — место ведущего под музыку и видео (у владельца и заместителя его нет: общая библиотека без лимита). */
+  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number; folders?: string[]; usage?: TrackUsage }>;
   /**
    * Загрузить файл частями (видео большое, связь на площадке плохая): обрыв — повтор с того же места; тот же id
    * и тот же файл после закрытия вкладки — дозагрузка. `onProgress` — сколько байт уже на сервере.

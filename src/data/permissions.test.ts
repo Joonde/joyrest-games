@@ -395,8 +395,10 @@ describe("роли доступа помощников", () => {
         expect(p.canReviewTracks(a)).toBe(false);
         expect(p.canCleanupSessions(a)).toBe(false);
         expect(p.canArchiveVenues(a)).toBe(false);
-        // Видео JoyRest загружают ещё создатель игр и заместитель (решение владельца 15 октября 2026) — остальные нет.
-        if (role !== "creator") expect(p.canUploadVideo(a)).toBe(false);
+        // Видео JoyRest загружают ведущие (в своё место 2 ГБ — решение владельца 31 октября 2026), создатель игр и
+        // заместитель; не ведущие по профессии с другими ролями — нет. Без лимита — только владелец и заместитель.
+        expect(p.canUploadVideo(a)).toBe(role === "creator" || p.hostsGames(a));
+        expect(p.videoCountsToHostSpace(a)).toBe(p.canUploadVideo(a));
       }
     }
   });
@@ -486,7 +488,9 @@ describe("роли доступа помощников", () => {
     }
     expect(p.canDeleteGame(owner, agencyGame)).toBe(true);
     expect(p.canUploadVideo(owner)).toBe(true);
-    expect(p.canUploadVideo(host)).toBe(false);
+    expect(p.videoCountsToHostSpace(owner)).toBe(false);
+    expect(p.canUploadVideo(host)).toBe(true);
+    expect(p.videoCountsToHostSpace(host)).toBe(true);
     expect(p.canUseVideos(host)).toBe(true);
     expect(p.canUploadVideo({ uid: "x", role: "host", active: false, profession: "host", accessRole: "deputy" })).toBe(false);
   });
@@ -533,7 +537,8 @@ describe("роли доступа помощников", () => {
       expect(p.isAdmin(a)).toBe(false);
       expect(p.canManageHosts(a)).toBe(false);
       expect(p.canSetAccessRole(a, other)).toBe(false);
-      expect(p.canUploadVideo(a)).toBe(false);
+      // Ведущий с ролью менеджера остаётся ведущим: видео в своё место может; не ведущий — нет.
+      expect(p.canUploadVideo(a)).toBe(p.hostsGames(a));
       expect(p.canSeeAllSessions(a)).toBe(false);
     }
     // Не ведущий по профессии — игр нет.

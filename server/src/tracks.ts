@@ -18,6 +18,7 @@ import type { Track, TrackCategory, TrackLicense, TrackShareStatus } from "../..
 import { actorOf, apiGuard, identityOf, newUserId, sessionUser, type SessionRow, uploadGuard } from "./auth";
 import { cleanReason } from "./proposals";
 import { takeTracks } from "./libraryTracks";
+import { HOST_SPACE_BYTES, hostSpace } from "./hostSpace";
 
 export interface TracksOptions {
   sql: Sql;
@@ -31,7 +32,7 @@ export interface TracksOptions {
 export interface TrackLimits {
   /** Самый большой файл. */
   fileBytes: number;
-  /** Сколько байт музыки на ведущего (по владельцу треков). */
+  /** Сколько байт музыки и видео на ведущего вместе (по владельцу, `hostSpace`). */
   perHostBytes: number;
   /** Меньше свободного места на диске — загрузка отклоняется. */
   minFreeBytes: number;
@@ -39,7 +40,7 @@ export interface TrackLimits {
 
 export const DEFAULT_TRACK_LIMITS: TrackLimits = {
   fileBytes: 15 * 1024 * 1024,
-  perHostBytes: 2 * 1024 * 1024 * 1024,
+  perHostBytes: HOST_SPACE_BYTES,
   minFreeBytes: 3 * 1024 * 1024 * 1024,
 };
 
@@ -169,19 +170,9 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       return reply.code(status).send({ error: code, ...extra });
     }
 
-    /**
-     * Сколько места занимает личная музыка ведущего (решение владельца 31 октября 2026): каждый файл — один раз
-     * (тот же трек, загруженный дважды или скопированный в другую папку, места на диске больше не занимает), файлы,
-     * которые есть в общей музыке, не считаются.
-     */
+    /** Место ведущего под музыку и видео (`hostSpace`): файл считается один раз, общая музыка — нет. */
     async function usedBytes(ownerId: string): Promise<number> {
-      const [{ used }] = await sql<{ used: string }[]>`
-        select coalesce(sum(size), 0)::text as used from (
-          select distinct on (t.sha256) t.size from tracks t
-          where t.owner_id = ${ownerId} and t.sha256 is not null and t.scope = 'personal'
-            and not exists (select 1 from tracks a where a.scope = 'agency' and a.sha256 = t.sha256)
-        ) files`;
-      return Number(used);
+      return (await hostSpace(sql, ownerId)).usedBytes;
     }
 
     async function requireHost(request: FastifyRequest, reply: FastifyReply): Promise<SessionRow | null> {

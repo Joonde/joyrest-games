@@ -23,7 +23,7 @@ import { registerProposals } from "./proposals";
 import { registerStaff } from "./staff";
 import { registerTeam } from "./team";
 import { registerTracks, type TrackLimits } from "./tracks";
-import { registerVideos } from "./videos";
+import { registerVideos, type VideoLimits } from "./videos";
 import { registerFinale, registerSiteReviews, saveSiteReview } from "./finale";
 import { registerPhotos } from "./photos";
 import { registerBranding } from "./branding";
@@ -75,6 +75,8 @@ export interface AppOptions {
   decks?: Omit<DecksOptions, "sql" | "isSite" | "mediaDir">;
   /** Лимиты музыки (тесты); нет — `DEFAULT_TRACK_LIMITS`. */
   trackLimits?: Partial<TrackLimits>;
+  /** Лимиты видео (тесты); нет — `DEFAULT_VIDEO_LIMITS`. */
+  videoLimits?: Partial<VideoLimits>;
   /** Рисунки «Аквариума и Ёлки» (тесты подменяют свободное место). */
   drawings?: Omit<DrawingsOptions, "sql" | "isSite" | "mediaDir">;
   /** Игра в реальном времени — настройки для тестов (часы, «я жив» в потоке). */
@@ -176,7 +178,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       registerStaff(app, { sql: options.sql, isSite });
     }
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null, limits: options.trackLimits });
-    registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null, limits: options.videoLimits });
     registerDecks(app, { ...options.decks, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDrawings(app, { ...options.drawings, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerPolls(app, { sql: options.sql, isSite });

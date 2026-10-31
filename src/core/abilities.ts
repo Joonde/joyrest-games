@@ -102,7 +102,12 @@ export function abilitiesOf(actor: Actor, p: Permissions): Abilities {
     !p.canUploadTrack(actor, "personal") && p.canUseTracks(actor) && { text: "Слушать общую музыку JoyRest.", where: "«Студия» → «Музыка»" },
     p.canShareTrack(actor, { scope: "personal", ownerId: uid }) && { text: "Предложить трек или папку в общую музыку (принимает владелец)." },
     p.canReviewTracks(actor) && { text: "Принимать треки в общую музыку и загружать сразу в общую." },
-    p.canUploadVideo(actor) && { text: "Загружать видео JoyRest (видят все ведущие), папки; переименовывать, перекладывать в другую папку и убирать — своё видео.", where: "«Студия» → «Видео»" },
+    p.canUploadVideo(actor) && {
+      text: p.videoCountsToHostSpace(actor)
+        ? "Загружать видео JoyRest (видят все ведущие) — в своё место 2 ГБ вместе с музыкой; переименовывать, перекладывать в другую папку и убирать — своё видео."
+        : "Загружать видео JoyRest (видят все ведущие), папки; переименовывать, перекладывать в другую папку и убирать — своё видео.",
+      where: "«Студия» → «Видео»",
+    },
     !p.canUploadVideo(actor) && p.canUseVideos(actor) && { text: "Ставить видео JoyRest в свои игры.", where: "«Студия» → «Видео»" },
   ]);
 

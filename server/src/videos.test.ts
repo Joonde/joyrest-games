@@ -42,6 +42,8 @@ describe.skipIf(!url)("видео JoyRest на PostgreSQL", () => {
     sql,
     mediaDir,
     auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } },
+    // Место ведущего под музыку и видео — маленькое, чтобы проверить лимит; владельца и заместителя не касается.
+    videoLimits: { perHostBytes: 300_000 },
   });
   let owner = "";
   let deputy = "";
@@ -92,8 +94,27 @@ describe.skipIf(!url)("видео JoyRest на PostgreSQL", () => {
     await admin.end();
   });
 
-  it("загружают владелец и заместитель, ведущий — нет", async () => {
-    expect((await post("/api/videos", host, { id: "v0", title: "Танец", size: 1000 })).statusCode).toBe(403);
+  it("ведущий загружает видео в своё место (музыка + видео), владелец и заместитель — без лимита", async () => {
+    expect((await post("/api/videos", host, { id: "h1", title: "Мой танец", size: 200_000 })).statusCode).toBe(200);
+    // Недогруженное видео бронирует место целиком: второе не влезает, ответ говорит, сколько занято.
+    const full = await post("/api/videos", host, { id: "h2", title: "Ещё танец", size: 150_000 });
+    expect(full.statusCode).toBe(413);
+    expect(full.json()).toMatchObject({ error: "resource-exhausted", reason: "quota", usedBytes: 200_000, limitBytes: 300_000 });
+    expect((await get("/api/videos", host)).json().usage).toEqual({ usedBytes: 200_000, limitBytes: 300_000 });
+    // Заместитель и владелец — общая библиотека: лимита нет, место им не показывается.
+    expect((await post("/api/videos", deputy, { id: "dz", title: "Зам", size: 250_000 })).statusCode).toBe(200);
+    expect((await get("/api/videos", deputy)).json().usage).toBeUndefined();
+    // Чужое недогруженное видео ведущий не видит, своё — видит.
+    const ids = ((await get("/api/videos", host)).json().videos as Array<{ id: string }>).map((v) => v.id);
+    expect(ids).toContain("h1");
+    expect(ids).not.toContain("dz");
+    // Убрал своё — место освободилось.
+    expect((await app.inject({ method: "DELETE", url: "/api/videos/h1", headers: headers(host) })).statusCode).toBe(200);
+    expect((await get("/api/videos", host)).json().usage.usedBytes).toBe(0);
+    expect((await app.inject({ method: "DELETE", url: "/api/videos/dz", headers: headers(deputy) })).statusCode).toBe(200);
+  });
+
+  it("загружают владелец и заместитель; чужое ведущий не трогает", async () => {
     expect((await post("/api/videos", deputy, { id: "v1", title: "Танец 1", folder: "Just Dance", size: 150_000, durationMs: 120_000 })).statusCode).toBe(200);
     expect((await post("/api/videos", owner, { id: "big", title: "Огромное", size: 5 * 1024 * 1024 * 1024 })).statusCode).toBe(413);
     // Повтор с тем же размером — то же видео (дозагрузка), другой размер — id занят.

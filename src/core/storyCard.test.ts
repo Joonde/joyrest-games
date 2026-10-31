@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { storyCardText, storyDate, storyGameTitle, type StoryCardInput } from "./storyCard";
+import { closestSlide, STORY_STYLES, storyCardText, storyDate, storyEyebrow, storyGameTitle, type StoryCardInput } from "./storyCard";
 
 const base: StoryCardInput = {
   name: "🦊 Аня",
@@ -59,5 +59,32 @@ describe("карточка для сторис", () => {
     expect(storyGameTitle("Вечер", null)).toBe("Вечер");
     // 31 октября, 22:30 по UTC — уже 1 ноября в Москве.
     expect(storyDate(Date.UTC(2026, 9, 31, 22, 30))).toBe("01.11.2026");
+  });
+});
+
+describe("стили карточки и лента", () => {
+  it("три стиля, первым — «Венок», id не повторяются", () => {
+    expect(STORY_STYLES.map((s) => s.title)).toEqual(["Венок", "Ар-деко", "Светлый"]);
+    expect(new Set(STORY_STYLES.map((s) => s.id)).size).toBe(STORY_STYLES.length);
+  });
+
+  it("надпись над цифрой — по месту и стилю", () => {
+    expect(storyEyebrow("wreath", "gold")).toBe("ПОБЕДИТЕЛЬ");
+    expect(storyEyebrow("deco", "gold")).toBe("ЧЕМПИОН ВЕЧЕРА");
+    expect(storyEyebrow("light", "silver")).toBe("СЕРЕБРО");
+    expect(storyEyebrow("deco", "bronze")).toBe("БРОНЗА");
+    expect(storyEyebrow("wreath", null)).toBe("ИГРОВОЙ ВЕЧЕР");
+  });
+
+  it("по центру — ближайший к центру окна слайд, где бы ни остановилась лента", () => {
+    const centers = [180, 430, 680];
+    expect(closestSlide(centers, 180)).toBe(0);
+    expect(closestSlide(centers, 300)).toBe(0);
+    expect(closestSlide(centers, 310)).toBe(1);
+    expect(closestSlide(centers, 430)).toBe(1);
+    expect(closestSlide(centers, 556)).toBe(2);
+    expect(closestSlide(centers, 9999)).toBe(2);
+    expect(closestSlide(centers, -50)).toBe(0);
+    expect(closestSlide([], 100)).toBe(0);
   });
 });

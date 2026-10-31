@@ -411,23 +411,33 @@ try {
   await shot(pult, "пульт-после-игры");
 
   // ===== 4. Отзыв с телефона гостя =====
-  await anna.getByRole("heading", { name: "Спасибо, что были с нами!" }).waitFor({ timeout: WAIT });
+  // Дела гостя по шагам (31 октября 2026): сторис → оценка → чаевые → канал, подсвечен первый несделанный.
+  await anna.locator(".finale-steps").waitFor({ timeout: WAIT });
+  const stepNames = await anna.locator(".finale-steps__item").allInnerTexts();
+  check(stepNames.map((t) => t.replace(/\s+/g, " ").trim()).join("|") === "1 Сторис|2 Оценка|3 Чаевые|4 Канал", "Телефон гостя: шаги по порядку — Сторис, Оценка, Чаевые, Канал", `Телефон гостя: шаги — ${stepNames.join(", ")}`);
+  check((await anna.locator(".finale-steps__item.is-active").innerText()).includes("Сторис"), "Телефон гостя: подсвечен первый шаг — «Сторис»");
   const tipsLink = anna.getByRole("link", { name: /Оставить чаевые/ });
   check((await tipsLink.getAttribute("href")) === TIPS, "Телефон гостя: кнопка «Оставить чаевые» ведёт на общие чаевые JoyRest");
-  check((await anna.getByRole("link", { name: "Подписаться на канал JoyRest" }).getAttribute("href")) === "https://t.me/JoyRest", "Телефон гостя: кнопка канала ведёт в t.me/JoyRest");
-  check((await anna.getByRole("link", { name: "Наш сайт — joy-rest.ru" }).first().getAttribute("href")) === "https://joy-rest.ru/calc/", "Телефон гостя: кнопка сайта ведёт в калькулятор joy-rest.ru/calc/");
+  check((await anna.getByRole("link", { name: /Telegram/ }).first().getAttribute("href")) === "https://t.me/JoyRest", "Телефон гостя: кнопка канала ведёт в t.me/JoyRest");
+  check((await anna.getByRole("link", { name: "joy-rest.ru" }).first().getAttribute("href")) === "https://joy-rest.ru/calc/", "Телефон гостя: ссылка сайта ведёт в калькулятор joy-rest.ru/calc/");
   check((await anna.getByText("Мы начали вести Telegram-канал").count()) === 1, "Телефон гостя: текст про канал на месте");
-  // Карточка для сторис (31 октября 2026): рисует телефон, у каждого своя; без меню «Поделиться» — сохраняется.
-  const cardButton = anna.getByRole("button", { name: /Поделиться (победой|результатом|карточкой)/ });
+  // Карточка для сторис: три стиля в ленте, делимся тем, что по центру (без меню «Поделиться» — сохраняется).
+  const cardButton = anna.getByRole("button", { name: /Поделиться (победой|результатом|карточкой) · «Венок»/ });
   await cardButton.waitFor({ timeout: WAIT });
-  const size = await anna.locator("img.story-share__preview").evaluate((img) => [img.naturalWidth, img.naturalHeight]).catch(() => [0, 0]);
-  check(size[0] === 1080 && size[1] === 1920, "Телефон гостя: карточка для сторис нарисована (1080×1920)", `Телефон гостя: карточка для сторис ${size.join("×")}`);
-  const download = anna.waitForEvent("download", { timeout: 10_000 }).catch(() => null);
-  await cardButton.click();
-  const file = await download;
-  check(Boolean(file && /^joyrest-.*\.png$/.test(file.suggestedFilename())), "Телефон гостя: без меню «Поделиться» карточка сохраняется картинкой");
-  check((await anna.getByRole("button", { name: "Поделиться итогами игры" }).count()) === 1, "Телефон гостя: есть «Поделиться итогами игры»");
+  await anna.waitForFunction(() => document.querySelectorAll(".story-pick__slide img").length === 3, null, { timeout: WAIT });
+  const size = await anna.locator(".story-pick__slide.is-active img").evaluate((img) => [img.naturalWidth, img.naturalHeight]).catch(() => [0, 0]);
+  check(size[0] === 1080 && size[1] === 1920, "Телефон гостя: карточка для сторис нарисована (1080×1920), три стиля", `Телефон гостя: карточка для сторис ${size.join("×")}`);
   await shot(anna, "телефон-карточка-сторис");
+  await anna.getByRole("button", { name: "Следующий стиль" }).click();
+  await anna.getByText("«Ар-деко» · 2 из 3").waitFor({ timeout: WAIT });
+  const decoButton = anna.getByRole("button", { name: /· «Ар-деко»/ });
+  const download = anna.waitForEvent("download", { timeout: 10_000 }).catch(() => null);
+  await decoButton.click();
+  const file = await download;
+  check(Boolean(file && /^joyrest-.*-art-deco\.png$/.test(file.suggestedFilename())), "Телефон гостя: листнули на «Ар-деко» — сохраняется именно «Ар-деко»", `Телефон гостя: сохранилось ${file?.suggestedFilename() ?? "ничего"}`);
+  await anna.getByText("Карточка отправлена").waitFor({ timeout: WAIT });
+  check((await anna.locator(".finale-steps__item.is-active").innerText()).includes("Оценка"), "Телефон гостя: карточка отправлена — шаг свернулся, подсвечена «Оценка»");
+  check((await anna.getByRole("button", { name: "Поделиться итогами игры" }).count()) === 1, "Телефон гостя: есть «Поделиться итогами игры»");
   const send = anna.getByRole("button", { name: "Отправить отзыв" });
   check(await send.isDisabled(), "Телефон гостя: без оценки и согласия «Отправить отзыв» не нажать");
   await writeReview(anna, { stars: 4, text: `Было весело ${MARK}`, name: "Аня, проверка" });
@@ -444,7 +454,9 @@ try {
   await anna.getByRole("button", { name: "Отправить отзыв" }).click();
   await anna.getByText("Спасибо за отзыв! Нам очень приятно.").waitFor({ timeout: WAIT });
   await anna.reload();
-  await anna.getByText("Спасибо за отзыв! Нам очень приятно.").waitFor({ timeout: WAIT });
+  await anna.getByText("Отзыв отправлен ★★★★★").waitFor({ timeout: WAIT });
+  ok("Телефон гостя: после перезагрузки шаг «Оценка» свёрнут — «Отзыв отправлен ★★★★★», карточка — «Карточка отправлена»");
+  await anna.locator("#finale-review").getByRole("button", { name: "исправить" }).click();
   check((await anna.getByLabel("Ваша оценка: 5 из 5").count()) === 1, "Телефон гостя: исправленный отзыв (5 звёзд) на месте после перезагрузки");
 
   // По QR со «Спасибо»: /review/:id — другой гость, без входа в игру.
@@ -621,7 +633,10 @@ try {
 
   // ===== 7. Видео JoyRest =====
   if (VIDEO && existsSync(VIDEO)) {
-    check((await api("POST", "/api/videos", host.cookie, { id: `v${MARK}x`, title: "x", size: 1000 })).status === 403, "API: ведущий не загружает видео (403)");
+    // С 31 октября 2026 ведущие загружают видео сами (в своё место вместе с музыкой, 2 ГБ).
+    const hostVideo = await api("POST", "/api/videos", host.cookie, { id: `v${MARK}x`, title: "x", size: 1000 });
+    check(hostVideo.status === 200, "API: ведущий может начать загрузку своего видео", `API: ведущий начинает загрузку видео — ${hostVideo.status}`);
+    if (hostVideo.status === 200) await api("DELETE", `/api/videos/v${MARK}x`, host.cookie);
     await ap.goto(`${BASE}/studio?tab=video`);
     // Поле новой папки: «Папка (по желанию)», а если папки уже есть — «Или новая папка» (папки видео, 15 октября 2026).
     await ap.getByLabel(/^(Папка \(по желанию\)|Или новая папка)$/).fill(`Проверка ${MARK}`);
@@ -638,10 +653,10 @@ try {
     check((v?.durationMs ?? 0) > 1000, "Видео: длительность определилась на телефоне");
     await layout(ap, "Студия: видео");
     await shot(ap, "владелец-видео");
-    // Ведущий видит, загрузить не может; файл играет в браузере.
+    // Ведущий видит видео и может загрузить своё; файл играет в браузере.
     await hp.goto(`${BASE}/studio?tab=video`);
     await folderOf(hp).first().waitFor({ timeout: WAIT });
-    check((await hp.getByRole("button", { name: /Выбрать видео/ }).count()) === 0, "Видео: ведущий видит видео, кнопки загрузки у него нет");
+    check((await hp.getByRole("button", { name: /Выбрать видео/ }).count()) > 0, "Видео: ведущий видит видео и кнопку загрузки своего");
     const plays = await hp.evaluate(async (src) => {
       const el = document.createElement("video");
       el.muted = true;

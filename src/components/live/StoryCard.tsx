@@ -208,7 +208,7 @@ export function StoryShare({
   function current(): { style: StoryStyle; card: Card | undefined } {
     const i = measure();
     if (i !== active) setActive(i);
-    const style = STORY_STYLES[i].id;
+    const style = (STORY_STYLES[i] ?? STORY_STYLES[0]).id;
     return { style, card: cards[style] };
   }
 
@@ -240,7 +240,7 @@ export function StoryShare({
   }
 
   if (failed) return null;
-  const style = STORY_STYLES[active];
+  const style = STORY_STYLES[active] ?? STORY_STYLES[0];
   const ready = Boolean(cards[style.id]);
   return (
     <div className="stack stack--tight story-share">

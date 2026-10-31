@@ -53,7 +53,7 @@ function spaced(ctx: Ctx, text: string, cx: number, y: number, spacing: number) 
   ctx.textAlign = "left";
   chars.forEach((c, i) => {
     ctx.fillText(c, x, y);
-    x += widths[i] + spacing;
+    x += (widths[i] ?? 0) + spacing;
   });
   ctx.textAlign = align;
 }
@@ -115,7 +115,7 @@ function confetti(ctx: Ctx, colors: readonly string[], spark: string, seed: numb
       ctx.fillText("✦", 0, 0);
     } else {
       ctx.rotate(rot);
-      ctx.fillStyle = colors[i % colors.length];
+      ctx.fillStyle = colors[i % colors.length] ?? spark;
       ctx.fillRect(-7, -13, 14, 26);
     }
     ctx.restore();

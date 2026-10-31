@@ -22,7 +22,7 @@ import { registerLive, type LiveOptions } from "./live";
 import { registerProposals } from "./proposals";
 import { registerStaff } from "./staff";
 import { registerTeam } from "./team";
-import { registerTracks } from "./tracks";
+import { registerTracks, type TrackLimits } from "./tracks";
 import { registerVideos } from "./videos";
 import { registerFinale, registerSiteReviews, saveSiteReview } from "./finale";
 import { registerPhotos } from "./photos";
@@ -73,6 +73,8 @@ export interface AppOptions {
   games?: Omit<GamesOptions, "sql" | "isSite" | "mediaDir">;
   /** Показы (фото и PDF) — настройки для тестов (лимит места ведущего, свободное место на диске). */
   decks?: Omit<DecksOptions, "sql" | "isSite" | "mediaDir">;
+  /** Лимиты музыки (тесты); нет — `DEFAULT_TRACK_LIMITS`. */
+  trackLimits?: Partial<TrackLimits>;
   /** Рисунки «Аквариума и Ёлки» (тесты подменяют свободное место). */
   drawings?: Omit<DrawingsOptions, "sql" | "isSite" | "mediaDir">;
   /** Игра в реальном времени — настройки для тестов (часы, «я жив» в потоке). */
@@ -173,7 +175,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       registerProposals(app, { sql: options.sql, isSite });
       registerStaff(app, { sql: options.sql, isSite });
     }
-    registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null, limits: options.trackLimits });
     registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDecks(app, { ...options.decks, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDrawings(app, { ...options.drawings, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });

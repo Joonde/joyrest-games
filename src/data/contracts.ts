@@ -390,9 +390,15 @@ export interface TrackFolders {
   library: string[];
 }
 
+/** Сколько места занимает своя музыка ведущего и сколько можно (файл считается один раз, общая музыка — нет). */
+export interface TrackUsage {
+  usedBytes: number;
+  limitBytes: number;
+}
+
 export interface TracksRepository {
-  /** Свои треки и общая библиотека (только загруженные). */
-  list(): Promise<{ mine: Track[]; library: Track[]; folders?: TrackFolders }>;
+  /** Свои треки и общая библиотека (только загруженные), сколько места занято. */
+  list(): Promise<{ mine: Track[]; library: Track[]; folders?: TrackFolders; usage?: TrackUsage }>;
   /** Папки «Музыки»: создать (можно пустую), переименовать (треки переезжают), удалить (треки остаются без папки). */
   createFolder(scope: "personal" | "agency", name: string): Promise<TrackFolders>;
   renameFolder(scope: "personal" | "agency", from: string, to: string): Promise<TrackFolders>;

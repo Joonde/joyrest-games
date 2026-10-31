@@ -51,6 +51,8 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     sql,
     mediaDir,
     auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } },
+    // Маленький лимит, чтобы проверить место: тестовые файлы — по ~2 КБ.
+    trackLimits: { perHostBytes: 7000, minFreeBytes: 0 },
   });
   let owner = "";
   let anna = "";
@@ -104,6 +106,32 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     expect(lists.mine.map((t: { id: string }) => t.id).filter((id: string) => id !== "t0")).toEqual(["t1"]);
     expect(lists.library).toEqual([]);
     expect((await get("/api/tracks", boris)).json().mine).toEqual([]);
+  });
+
+  it("место для музыки: файл считается один раз, общая музыка не считается, занятое видно в списке", async () => {
+    const make = async (id: string) => expect((await post("/api/tracks", boris, { id, title: id, license: "own" })).statusCode).toBe(200);
+    for (const id of ["q1", "q2", "q3", "q4", "q5"]) await make(id);
+    expect((await upload("q1", boris, mp3(11))).statusCode).toBe(200);
+    // Тот же файл ещё раз — места на диске не прибавилось.
+    expect((await upload("q2", boris, mp3(11))).statusCode).toBe(200);
+    expect((await upload("q3", boris, mp3(12))).statusCode).toBe(200);
+    expect((await upload("q4", boris, mp3(13))).statusCode).toBe(200);
+    let usage = (await get("/api/tracks", boris)).json().usage;
+    expect(usage).toEqual({ usedBytes: 3 * 2003, limitBytes: 7000 });
+    // Четвёртый разный файл в лимит не влезает — ответ говорит, сколько занято.
+    const full = await upload("q5", boris, mp3(14));
+    expect(full.statusCode).toBe(413);
+    expect(full.json()).toMatchObject({ error: "resource-exhausted", reason: "quota", usedBytes: 6009, limitBytes: 7000 });
+    // Повтор уже загруженного файла проходит и при полном лимите.
+    expect((await upload("q5", boris, mp3(13))).statusCode).toBe(200);
+    // Удалили трек, у которого есть двойник, — место не освободилось; удалили последний — освободилось.
+    expect((await app.inject({ method: "DELETE", url: "/api/tracks/q2", headers: headers(boris) })).statusCode).toBe(200);
+    expect((await get("/api/tracks", boris)).json().usage.usedBytes).toBe(6009);
+    expect((await app.inject({ method: "DELETE", url: "/api/tracks/q3", headers: headers(boris) })).statusCode).toBe(200);
+    usage = (await get("/api/tracks", boris)).json().usage;
+    expect(usage.usedBytes).toBe(4006);
+    // Убираем за собой, чтобы следующие проверки шли с пустой музыкой Бориса.
+    for (const id of ["q1", "q4", "q5"]) await app.inject({ method: "DELETE", url: `/api/tracks/${id}`, headers: headers(boris) });
   });
 
   it("большой файл без входа отклоняется до чтения тела", async () => {

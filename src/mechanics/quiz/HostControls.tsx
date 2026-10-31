@@ -372,8 +372,9 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </p>
       )}
       <div className="actions">
-        <button type="button" className={speaking ? "btn btn--quiet btn--block" : "btn btn--block host-quiz__primary"} disabled={busy} onClick={onPrimary}>
-          {q.kind === "buzz" && action === "reveal" ? "Никто не угадал — показать ответ" : actionLabel(session, content, action)}
+        <button type="button" className={speaking ? "btn btn--quiet btn--block" : "btn btn--block host-quiz__primary"} disabled={busy || coinSpinning} onClick={onPrimary}>
+          {/* Пока на экране крутится жребий суперигры, кнопка не выдаёт итог и не обрывает его. */}
+          {coinSpinning ? "🪙 Жребий крутится на экране…" : q.kind === "buzz" && action === "reveal" ? "Никто не угадал — показать ответ" : actionLabel(session, content, action)}
         </button>
         {q.trackId && session.screenMode !== "none" && (stage === "question" || stage === "reveal") && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replayTrack(session))}>

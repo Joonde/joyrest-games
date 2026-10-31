@@ -79,7 +79,7 @@ export const quizPreview: PreviewDriver<QuizContent> = ({ session, content, part
       return { label: "Пульт: «Подвести итог: какой уровень»", change: closeLevelVote(session, content, answers, session.state.startedAt ?? 0, () => 0.99) };
     }
     case "coin": {
-      const change = coinSuperVote(session, session.state.startedAt ?? 0, () => 0.1);
+      const change = coinSuperVote(session, Date.now(), () => 0.1);
       return change ? { label: "Голоса поровну — пульт: «Бросить монетку»", change } : null;
     }
     case "show":

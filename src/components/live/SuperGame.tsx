@@ -276,7 +276,8 @@ export function SuperScreen(props: SuperScreenProps) {
     return undefined;
   }, [stage, wrongCount]);
 
-  if (stage === "ready" && chosen !== null) {
+  // «Всё равно пропустить» после выбора уровня — на экране итог «не играем», а не выбранный уровень.
+  if (stage === "ready" && chosen !== null && vote?.passed !== false) {
     const l = levels[chosen];
     const fine = l ? penaltyFor(penalty, chosen, l.points) : 0;
     return (
@@ -715,7 +716,7 @@ export function SuperPhone(props: SuperPhoneProps) {
     );
   }
 
-  if (stage === "ready" && chosen !== null) {
+  if (stage === "ready" && chosen !== null && vote?.passed !== false) {
     const l = levels[chosen];
     return (
       <div className="quiz-phone quiz-phone--center super-phone">

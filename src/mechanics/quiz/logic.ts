@@ -236,11 +236,6 @@ function answerTime(answer: Answer, startedAt: number | null, limitMs: number): 
 }
 
 /**
- * Очки за шаг. Обычный вопрос: верный ответ — очки вопроса. На скорость: самый быстрый
- * верный ответ получает максимум, ответ в последнюю секунду — половину, между ними — по
- * прямой. Время ответа = submittedAt − startedAt, оба значения ставит сервер.
- */
-/**
  * Суперигра: на какие уровни ответы считаются. Зал голосовал — только выбранный уровень (все отвечают на его вопрос),
  * иначе — все уровни игры.
  */
@@ -252,6 +247,11 @@ export function superAllowed(q: Pick<QuizQuestion, "levels" | "superPick">, resu
   return vote?.phase === "done" && vote.level !== undefined && active.includes(vote.level) ? [vote.level] : active;
 }
 
+/**
+ * Очки за шаг. Обычный вопрос: верный ответ — очки вопроса. На скорость: самый быстрый
+ * верный ответ получает максимум, ответ в последнюю секунду — половину, между ними — по
+ * прямой. Время ответа = submittedAt − startedAt, оба значения ставит сервер.
+ */
 export function score(step: QuizStep, answers: Answer[], { state }: ScoreContext): ScoreDelta[] {
   const q = step.question;
   const result = parseResult(state.result);

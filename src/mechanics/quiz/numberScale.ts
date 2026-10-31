@@ -25,7 +25,7 @@ export function scaleLabelLimit(players: number): number {
 /** Рядов подписей над шкалой. */
 export const SCALE_ROWS = 3;
 /** Подписи в одном ряду не ближе этой доли ширины шкалы — иначе наезжают друг на друга. */
-export const SCALE_GAP = 0.22;
+export const SCALE_GAP = 0.27;
 /** Подпись не ближе к краю шкалы: она стоит серединой на своём числе. */
 export const SCALE_EDGE = 0.1;
 

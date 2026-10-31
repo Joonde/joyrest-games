@@ -148,7 +148,8 @@ export function NumberScreen({ q, revealed, result, leaderboard }: { q: QuizQues
             </span>
           </li>
         ))}
-      </ol>    </div>
+      </ol>
+    </div>
   );
 }
 

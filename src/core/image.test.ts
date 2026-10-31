@@ -14,5 +14,8 @@ describe("formatBytes", () => {
   it("КБ и МБ по-русски", () => {
     expect(formatBytes(150 * 1024)).toBe("150 КБ");
     expect(formatBytes(1.25 * 1024 * 1024)).toBe("1,3 МБ");
+    expect(formatBytes(493 * 1024 * 1024)).toBe("493 МБ");
+    expect(formatBytes(2 * 1024 * 1024 * 1024)).toBe("2 ГБ");
+    expect(formatBytes(1.5 * 1024 * 1024 * 1024)).toBe("1,5 ГБ");
   });
 });

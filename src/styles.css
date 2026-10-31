@@ -25235,3 +25235,27 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   min-width: 44px;
   padding-inline: 6px;
 }
+
+/* Место для своей музыки (31 октября 2026): «Занято 493 МБ из 2 ГБ» и полоска над «Моими треками». */
+.track-usage {
+  margin-bottom: 16px;
+}
+.track-usage__text {
+  margin: 0;
+}
+.track-usage__text.is-full {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.track-usage__bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+.track-usage__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: inherit;
+}

@@ -3,7 +3,8 @@ import { categoryTitle, durationLabel, folderNames, groupByFolder, LICENSE_TITLE
 import { matchesSearch } from "../../core/search";
 import { Fold } from "../../components/Fold";
 import { SearchField } from "../../components/SearchField";
-import { isClipped, permissions, tracksRepo, useLoad, type Track, type TrackCategory, type TrackClip, type UserProfile } from "../../data";
+import { isClipped, permissions, tracksRepo, useLoad, type Track, type TrackCategory, type TrackClip, type TrackUsage, type UserProfile } from "../../data";
+import { TrackUsageLine } from "../../components/media/SpaceUsage";
 import { TrackClipEditor } from "../../components/music/TrackClipEditor";
 import { forgetTracks } from "../../components/music/TrackPicker";
 
@@ -14,7 +15,8 @@ function clipLabel(clip: TrackClip): string {
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ActionMenu, type MenuAction } from "../../components/Menu";
 import { ListSkeleton } from "../../components/Skeleton";
-import { DISK_FULL_TEXT, isServerDiskFull, LoadFailedInline } from "../../components/Status";
+import { LoadFailedInline } from "../../components/Status";
+import { uploadErrorText } from "../../components/music/uploadTrack";
 import { audioDuration, usePreview } from "../../components/music/usePreview";
 
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -38,7 +40,7 @@ function TrackSource({ text }: { text: string }) {
     </p>
   );
 }
-const EMPTY = { mine: [] as Track[], library: [] as Track[], folders: { mine: [] as string[], library: [] as string[] } };
+const EMPTY = { mine: [] as Track[], library: [] as Track[], folders: { mine: [] as string[], library: [] as string[] }, usage: undefined as TrackUsage | undefined };
 const NONE: Track[] = [];
 
 type Scope = "personal" | "agency";
@@ -92,6 +94,14 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
 
   if (!repo) return <p className="muted">Музыка доступна на своём сервере JoyRest.</p>;
 
+  /** Занятое место пересчитывает сервер (файл — один раз, общая музыка не в счёт): после загрузки и удаления — тихо. */
+  function refreshUsage() {
+    repo
+      ?.list()
+      .then((fresh) => update((d) => ({ ...d, usage: fresh.usage })))
+      .catch(() => undefined);
+  }
+
   const replace = (track: Track) =>
     update((data) => ({
       ...data,
@@ -119,6 +129,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
       update((data) => ({ ...data, mine: data.mine.filter((t) => t.id !== id), library: data.library.filter((t) => t.id !== id) }));
       setToDelete(null);
       onToast("Трек удалён");
+      refreshUsage();
     } catch {
       setDialogError("Не удалось удалить. Проверьте интернет.");
     } finally {
@@ -428,6 +439,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
         onUploaded={(track) => {
           update((d) => (track.scope === "agency" ? { ...d, library: [track, ...d.library] } : { ...d, mine: [track, ...d.mine] }));
           onToast("Трек загружен");
+          refreshUsage();
         }}
       />}
       {preview.error && (
@@ -521,6 +533,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
             <>
               <section className="card" aria-labelledby="tracks-mine">
                 <h2 id="tracks-mine">Мои треки</h2>
+                {data.usage && <TrackUsageLine usage={data.usage} />}
                 {data.mine.length === 0 ? (
                   <p className="muted">Пока пусто. Загрузите трек — он появится на пульте в плеере.</p>
                 ) : (
@@ -725,16 +738,7 @@ function UploadCard({ profile, folders, onUploaded }: { profile: UserProfile; fo
       setSource("");
       if (fileRef.current) fileRef.current.value = "";
     } catch (e) {
-      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-      setError(
-        code === "invalid-argument"
-          ? "Это не похоже на mp3, m4a или ogg. Выберите другой файл."
-          : isServerDiskFull(e)
-            ? DISK_FULL_TEXT
-              : code === "resource-exhausted"
-              ? "Место для музыки закончилось. Удалите старые треки."
-              : "Не удалось загрузить. Проверьте интернет и попробуйте снова.",
-      );
+      setError(uploadErrorText(e));
     } finally {
       setBusy(false);
     }

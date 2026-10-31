@@ -30,11 +30,11 @@ describe("«Мои возможности» — все профессии и р�
     }
   });
 
-  it("ведущий проводит игры, музыка своя, видео JoyRest только ставит в игры", () => {
+  it("ведущий проводит игры, музыка и видео — в своё место 2 ГБ", () => {
     const a = texts(abilitiesOf(person("host", null), permissions));
     expect(a).toContain("Проводить игры");
     expect(a).toContain("Загружать свою музыку");
-    expect(a).toContain("Ставить видео JoyRest в свои игры");
+    expect(a).toContain("в своё место 2 ГБ вместе с музыкой");
     expect(a).not.toContain("База клиентов");
   });
 

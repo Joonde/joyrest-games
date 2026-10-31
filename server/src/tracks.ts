@@ -18,6 +18,7 @@ import type { Track, TrackCategory, TrackLicense, TrackShareStatus } from "../..
 import { actorOf, apiGuard, identityOf, newUserId, sessionUser, type SessionRow, uploadGuard } from "./auth";
 import { cleanReason } from "./proposals";
 import { takeTracks } from "./libraryTracks";
+import { HOST_SPACE_BYTES, hostSpace } from "./hostSpace";
 
 export interface TracksOptions {
   sql: Sql;
@@ -31,7 +32,7 @@ export interface TracksOptions {
 export interface TrackLimits {
   /** Самый большой файл. */
   fileBytes: number;
-  /** Сколько байт музыки на ведущего (по владельцу треков). */
+  /** Сколько байт музыки и видео на ведущего вместе (по владельцу, `hostSpace`). */
   perHostBytes: number;
   /** Меньше свободного места на диске — загрузка отклоняется. */
   minFreeBytes: number;
@@ -39,7 +40,7 @@ export interface TrackLimits {
 
 export const DEFAULT_TRACK_LIMITS: TrackLimits = {
   fileBytes: 15 * 1024 * 1024,
-  perHostBytes: 500 * 1024 * 1024,
+  perHostBytes: HOST_SPACE_BYTES,
   minFreeBytes: 3 * 1024 * 1024 * 1024,
 };
 
@@ -165,8 +166,13 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       (_request, body, done) => done(null, body),
     );
 
-    function fail(reply: FastifyReply, status: number, code: string) {
-      return reply.code(status).send({ error: code });
+    function fail(reply: FastifyReply, status: number, code: string, extra: Record<string, unknown> = {}) {
+      return reply.code(status).send({ error: code, ...extra });
+    }
+
+    /** Место ведущего под музыку и видео (`hostSpace`): файл считается один раз, общая музыка — нет. */
+    async function usedBytes(ownerId: string): Promise<number> {
+      return (await hostSpace(sql, ownerId)).usedBytes;
     }
 
     async function requireHost(request: FastifyRequest, reply: FastifyReply): Promise<SessionRow | null> {
@@ -204,7 +210,12 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
         ${select()} where t.owner_id = ${user.id} and t.scope = 'personal' order by t.created_at desc limit ${LIST_LIMIT}`;
       const library = await sql<TrackRow[]>`
         ${select()} where t.scope = 'agency' and t.sha256 is not null order by t.category, t.title limit ${LIST_LIMIT}`;
-      return { mine: mine.map(trackOf), library: library.map(trackOf), folders: await folderLists(user.id) };
+      return {
+        mine: mine.map(trackOf),
+        library: library.map(trackOf),
+        folders: await folderLists(user.id),
+        usage: { usedBytes: await usedBytes(user.id), limitBytes: limits.perHostBytes },
+      };
     });
 
     // Папки «Музыки»: создать (можно пустую), переименовать (треки переезжают), удалить (треки остаются без папки).
@@ -369,7 +380,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       if (!Buffer.isBuffer(bytes)) return fail(reply, 400, "invalid-argument");
       const mime = audioMime(bytes);
       if (!mime) return fail(reply, 400, "invalid-argument");
-      if (bytes.length > limits.fileBytes) return fail(reply, 413, "resource-exhausted");
+      if (bytes.length > limits.fileBytes) return fail(reply, 413, "resource-exhausted", { reason: "file" });
       const sha = createHash("sha256").update(bytes).digest("hex");
       if (track.sha256) return track.sha256 === sha ? trackOf(track) : fail(reply, 409, "already-exists");
 
@@ -377,10 +388,19 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
         request.log.warn("tracks: мало места на диске, загрузка отклонена");
         return fail(reply, 507, "resource-exhausted");
       }
-      const [{ used }] = await sql<{ used: string }[]>`
-        select coalesce(sum(t.size), 0)::text as used from tracks t where t.owner_id = ${track.owner_id} and t.sha256 is not null and t.scope = 'personal'
-          and not exists (select 1 from tracks a where a.scope = 'agency' and a.sha256 = t.sha256)`;
-      if (Number(used) + bytes.length > limits.perHostBytes) return fail(reply, 413, "resource-exhausted");
+      // Тот же файл у ведущего уже есть (или он в общей музыке) — места он больше не займёт.
+      const [{ known }] = await sql<{ known: boolean }[]>`
+        select exists (
+          select 1 from tracks t where t.sha256 = ${sha}
+            and ((t.owner_id = ${track.owner_id} and t.scope = 'personal') or t.scope = 'agency')
+        ) as known`;
+      if (!known) {
+        const used = await usedBytes(track.owner_id);
+        if (used + bytes.length > limits.perHostBytes) {
+          request.log.info({ track: "quota" }, "track");
+          return fail(reply, 413, "resource-exhausted", { reason: "quota", usedBytes: used, limitBytes: limits.perHostBytes });
+        }
+      }
 
       await mkdir(audioDir, { recursive: true });
       const path = join(audioDir, sha);

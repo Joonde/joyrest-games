@@ -14,7 +14,8 @@ import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
 import { formatBytes, formatDuration, MAX_VIDEO_BYTES, UploadProgress, uploadVideo, VIDEO_ACCEPT, videoErrorText, videosByFolder } from "../../components/media/libraryVideo";
 import { matchesSearch } from "../../core/search";
-import { permissions, useLoad, videosRepo, type LibraryVideo, type UserProfile } from "../../data";
+import { TrackUsageLine } from "../../components/media/SpaceUsage";
+import { permissions, useLoad, videosRepo, type LibraryVideo, type TrackUsage, type UserProfile } from "../../data";
 
 interface Props {
   profile: UserProfile;
@@ -28,7 +29,7 @@ interface QueueItem {
   error: string | null;
 }
 
-const EMPTY = { videos: [] as LibraryVideo[], usedBytes: 0, folders: [] as string[] };
+const EMPTY = { videos: [] as LibraryVideo[], usedBytes: 0, folders: [] as string[], usage: undefined as TrackUsage | undefined };
 
 const FOLDER_HINT = "Например: Танцы, Караоке, Батлы";
 
@@ -36,6 +37,8 @@ export function VideoTab({ profile, onToast }: Props) {
   const repo = videosRepo;
   const [state, retry, update] = useLoad(() => (repo ? repo.list() : Promise.resolve(EMPTY)), [repo]);
   const canUpload = permissions.canUploadVideo(profile);
+  /** Папки общей библиотеки — владелец, заместитель, создатель игр; ведущий кладёт своё видео в существующую папку или новую при загрузке. */
+  const canFolders = permissions.canManageVideoFolders(profile);
   const [query, setQuery] = useState("");
   const [folder, setFolder] = useState("");
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -185,6 +188,11 @@ export function VideoTab({ profile, onToast }: Props) {
       await repo.remove(toDelete.id);
       update((d) => ({ ...d, videos: d.videos.filter((v) => v.id !== toDelete.id) }));
       onToast(`Видео «${toDelete.title}» убрано`);
+      // Занятое место считает сервер — тихо берём свежее.
+      repo
+        .list()
+        .then((fresh) => update((d) => ({ ...d, usedBytes: fresh.usedBytes, usage: fresh.usage })))
+        .catch(() => undefined);
       setToDelete(null);
     } catch {
       setDialogError("Не получилось убрать видео. Проверьте интернет и попробуйте снова.");
@@ -251,7 +259,7 @@ export function VideoTab({ profile, onToast }: Props) {
       <p className="muted">
         Видео для «Танцуй как звезда и Караоке на поле», «Танцевального батла» и музыкального лото. Видео лежит на сервере JoyRest: в игре выберите «Видео JoyRest» — экран зала
         возьмёт его сам.
-        {canUpload ? " Загружают владелец и заместитель, видят все ведущие." : " Загружают владелец и заместитель."}
+        {canUpload ? " Загружают ведущие (в своё место 2 ГБ вместе с музыкой), владелец и заместитель; видят все ведущие." : " Загружают ведущие, владелец и заместитель."}
       </p>
 
       {canUpload && (
@@ -295,7 +303,7 @@ export function VideoTab({ profile, onToast }: Props) {
               ))}
             </ul>
           )}
-          {data && <p className="muted small">Все видео занимают {formatBytes(data.usedBytes)}.</p>}
+          {data?.usage ? <TrackUsageLine usage={data.usage} /> : data && <p className="muted small">Все видео занимают {formatBytes(data.usedBytes)}.</p>}
         </div>
       )}
 
@@ -313,7 +321,7 @@ export function VideoTab({ profile, onToast }: Props) {
             )
           ) : (
             <>
-              {canUpload && (
+              {canFolders && (
                 <>
                   <p className="muted small">Разложите видео по папкам: «+ Новая папка», потом у видео «⋯ → В папку».</p>
                   <button
@@ -341,8 +349,8 @@ export function VideoTab({ profile, onToast }: Props) {
                     ) : (
                       <ul className="tracks">{items.map(row)}</ul>
                     )}
-                    {canUpload && !ownFolder && <p className="muted small">В папке есть видео других людей — переименовать или удалить её может только владелец.</p>}
-                    {canUpload && ownFolder && (
+                    {canFolders && !ownFolder && <p className="muted small">В папке есть видео других людей — переименовать или удалить её может только владелец.</p>}
+                    {canFolders && ownFolder && (
                       <div className="actions">
                         <button
                           type="button"

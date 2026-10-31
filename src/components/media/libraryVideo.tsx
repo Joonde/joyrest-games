@@ -1,5 +1,5 @@
 /**
- * Видео JoyRest на сервере (решение владельца 15 октября 2026): загружают владелец и заместитель, все остальные
+ * Видео JoyRest на сервере (решение владельца 15 октября 2026; ведущие — с 31 октября, в своё место 2 ГБ): загружают владелец и заместитель, все остальные
  * выбирают из готовых. Загрузка частями с дозагрузкой: тот же файл после обрыва или закрытой вкладки продолжает
  * с того места, где остановился (id недогруженного видео запоминается на устройстве по имени, размеру и дате файла).
  * Используют конструкторы игр с видео и вкладка «Видео» в студии.
@@ -65,14 +65,20 @@ export function formatDuration(ms: number | null): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Место ведущего под музыку и видео (2 ГБ) закончилось. */
+export const SPACE_FULL_TEXT =
+  "Ваше место под музыку и видео (2 ГБ) закончилось. Уберите ненужные видео или треки — или сожмите видео (720p, MP4), оно станет в разы меньше.";
+
 /** Понятный текст ошибки загрузки видео. */
 export function videoErrorText(e: unknown): string {
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
   const status = typeof e === "object" && e !== null && "status" in e ? Number((e as { status: unknown }).status) : 0;
+  const reason = typeof e === "object" && e !== null && "reason" in e ? String((e as { reason: unknown }).reason) : "";
+  if (reason === "quota") return SPACE_FULL_TEXT;
   if (code === "too-big" || status === 413) return "Файл больше 1 ГБ. Сожмите видео (720p, MP4) и загрузите снова.";
   if (status === 507 || code === "resource-exhausted") return "На сервере мало места. Уберите ненужные видео или напишите владельцу.";
   if (code === "invalid-argument") return "Это не похоже на видео MP4, MOV или WebM. Выберите другой файл.";
-  if (code === "permission-denied") return "Загружать видео могут только владелец и заместитель.";
+  if (code === "permission-denied") return "Загружать видео могут ведущие, владелец и заместитель.";
   return "Связь прервалась. Выберите тот же файл ещё раз — загрузка продолжится с того же места.";
 }
 
@@ -185,7 +191,7 @@ export function LibraryVideoPicker({ value, editable, onPick }: { value: string;
       ) : videos === null ? (
         <p className="muted small">Загружаем список видео…</p>
       ) : videos.length === 0 && !canUpload ? (
-        <p className="muted small">Видео JoyRest пока нет — их загружают владелец и заместитель (студия → «Видео»).</p>
+        <p className="muted small">Видео JoyRest пока нет — их загружают ведущие, владелец и заместитель (студия → «Видео»).</p>
       ) : (
         <label className="field">
           Видео

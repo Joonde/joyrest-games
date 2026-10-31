@@ -390,9 +390,15 @@ export interface TrackFolders {
   library: string[];
 }
 
+/** Сколько места занимает своя музыка ведущего и сколько можно (файл считается один раз, общая музыка — нет). */
+export interface TrackUsage {
+  usedBytes: number;
+  limitBytes: number;
+}
+
 export interface TracksRepository {
-  /** Свои треки и общая библиотека (только загруженные). */
-  list(): Promise<{ mine: Track[]; library: Track[]; folders?: TrackFolders }>;
+  /** Свои треки и общая библиотека (только загруженные), сколько места занято. */
+  list(): Promise<{ mine: Track[]; library: Track[]; folders?: TrackFolders; usage?: TrackUsage }>;
   /** Папки «Музыки»: создать (можно пустую), переименовать (треки переезжают), удалить (треки остаются без папки). */
   createFolder(scope: "personal" | "agency", name: string): Promise<TrackFolders>;
   renameFolder(scope: "personal" | "agency", from: string, to: string): Promise<TrackFolders>;
@@ -488,7 +494,8 @@ export interface FinaleRepository {
 
 export interface VideosRepository {
   /** Все видео JoyRest (загруженные; у загружающих — и недогруженные), сколько места заняли все видео. */
-  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number; folders?: string[] }>;
+  /** `usage` — место ведущего под музыку и видео (у владельца и заместителя его нет: общая библиотека без лимита). */
+  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number; folders?: string[]; usage?: TrackUsage }>;
   /**
    * Загрузить файл частями (видео большое, связь на площадке плохая): обрыв — повтор с того же места; тот же id
    * и тот же файл после закрытия вкладки — дозагрузка. `onProgress` — сколько байт уже на сервере.

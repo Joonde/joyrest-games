@@ -17,14 +17,20 @@ export function newTrackId(): string {
   return "t" + Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 20);
 }
 
+/** Лимит своей музыки закончился (сколько занято — во вкладке «Музыка», над «Моими треками»). */
+export const QUOTA_TEXT =
+  "Ваше место под музыку и видео (2 ГБ) закончилось. Удалите треки или видео, которые больше не нужны, или предложите треки в общую музыку — принятые в общую место не занимают.";
+
 /** Понятный текст ошибки загрузки. */
 export function uploadErrorText(e: unknown): string {
   if (isServerDiskFull(e)) return DISK_FULL_TEXT;
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  const reason = typeof e === "object" && e !== null && "reason" in e ? String((e as { reason: unknown }).reason) : "";
+  if (code === "too-big" || (code === "resource-exhausted" && reason === "file")) return "Файл больше 15 МБ. Выберите mp3 поменьше (128–192 кбит/с).";
   return code === "invalid-argument"
     ? "Это не похоже на mp3, m4a или ogg. Выберите другой файл."
     : code === "resource-exhausted"
-      ? "Место для музыки закончилось. Удалите старые треки."
+      ? QUOTA_TEXT
       : "Не удалось загрузить. Проверьте интернет и попробуйте снова.";
 }
 

@@ -47,7 +47,12 @@ const path = (id: string) => `/api/tracks/${encodeURIComponent(id)}`;
 export const serverTracksRepository: TracksRepository = {
   async list() {
     const data = asRecord(await api("GET", "/api/tracks"));
-    return { mine: list(data.mine), library: list(data.library), folders: folderLists(data.folders) };
+    const u = asRecord(data.usage);
+    const usage =
+      typeof u.usedBytes === "number" && typeof u.limitBytes === "number" && u.limitBytes > 0
+        ? { usedBytes: Math.max(0, u.usedBytes), limitBytes: u.limitBytes }
+        : undefined;
+    return { mine: list(data.mine), library: list(data.library), folders: folderLists(data.folders), usage };
   },
   async createFolder(scope, name) {
     return folderLists(await api("POST", "/api/track-folders", { scope, name }));

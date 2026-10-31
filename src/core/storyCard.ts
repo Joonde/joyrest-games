@@ -84,7 +84,7 @@ export function storyCardText(input: StoryCardInput, now = Date.now()): StoryCar
   const emoji = split.emoji ?? other?.[1] ?? null;
   const name = other?.[2] ?? split.name;
   const clean = name.trim() || (input.teams ? "Команда" : "Игрок");
-  const who = input.teams ? (/^команда\b/i.test(clean) ? clean : `Команда «${clean}»`) : clean;
+  const who = input.teams ? (/^команда(\s|$)/iu.test(clean) ? clean : `Команда «${clean}»`) : clean;
   const medal = input.place === 1 ? "gold" : input.place === 2 && input.total >= 3 ? "silver" : input.place === 3 && input.total >= 4 ? "bronze" : null;
   const what = (input.mechanic && PLAYED_IN[input.mechanic]) || "игру";
   const played = input.teams ? `Мы играли в ${what} JoyRest!` : `Я играл(а) в ${what} JoyRest!`;

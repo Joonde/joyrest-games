@@ -436,6 +436,10 @@ export interface SuperVote {
   no: number;
   /** После итога: играем ли (ведущий может решить иначе — «Всё равно играть» / «Всё равно пропустить»). */
   passed?: boolean;
+  /** Голоса разделились поровну: решает монетка на экране зала или ведущий (решение владельца 31 октября 2026). */
+  tie?: boolean;
+  /** Решила монетка (а не голоса и не ведущий). */
+  coin?: boolean;
 }
 
 /** Секунд на голосование по умолчанию и границы. */
@@ -447,6 +451,8 @@ export function parseSuperVote(raw: unknown): SuperVote | undefined {
   const count = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0);
   const out: SuperVote = { phase: d.phase, yes: count(d.yes), no: count(d.no) };
   if (typeof d.passed === "boolean") out.passed = d.passed;
+  if (d.tie === true) out.tie = true;
+  if (d.coin === true) out.coin = true;
   return out;
 }
 
@@ -476,9 +482,19 @@ export function tallySuperVote(answers: Array<{ pid: string; value: unknown; sub
   return { yes, no };
 }
 
-/** Играем, если «за» больше половины поданных голосов (поровну или никто не голосовал — не играем). */
+/** Играем, если «за» больше половины поданных голосов (никто не голосовал — не играем; поровну — см. `voteTied`). */
 export function votePassed(yes: number, no: number): boolean {
   return yes > no;
+}
+
+/** Голоса разделились поровну (и кто-то голосовал): решает монетка или ведущий. */
+export function voteTied(yes: number, no: number): boolean {
+  return yes === no && yes > 0;
+}
+
+/** Ничья, а решения ещё нет — ждём монетку или ведущего. */
+export function voteUndecided(vote: SuperVote | undefined): boolean {
+  return vote?.phase === "done" && vote.tie === true && vote.passed === undefined;
 }
 
 /** Доля «за» в процентах (0, если голосов нет). */

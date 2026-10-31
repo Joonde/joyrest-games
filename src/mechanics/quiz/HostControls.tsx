@@ -29,7 +29,11 @@ import {
   showQuestion,
   showTotal,
   closeSuperVote,
+  coinSuperVote,
+  isSuperCoin,
   openSuperVote,
+  SUPER_COIN_HOLD_MS,
+  superCoinSpinning,
   overrideSuperVote,
   playLevelTrack,
   skipSuper,
@@ -43,7 +47,7 @@ import {
 import { auctionAnswers, groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
 import { SuperHostAnswers } from "../../components/live/SuperGame";
-import { LEVEL_NAMES, parseSuperAnswer, superGroups, tallySuperVote, votePercent } from "../../core/supergame";
+import { LEVEL_NAMES, parseSuperAnswer, superGroups, tallySuperVote, voteUndecided, votePercent } from "../../core/supergame";
 
 /**
  * Пульт квиза: одна главная кнопка на каждом этапе («Показать вопрос» → «Показать ответ» →
@@ -135,11 +139,15 @@ export function QuizHostControls({ session, content, answers, participants, cont
     }
   };
 
-  // Жребий «Аукциона» докрутился и постоял — убираем сами, на экране вопрос.
-  const drawSlideNow = isAuctionDraw(session) ? session.state.slide : null;
+  // Жребий «Аукциона» и монетка суперигры докрутились и постояли — убираем сами, на экране снова игра.
+  const coinSlide = isSuperCoin(session);
+  const drawSlideNow = isAuctionDraw(session) || coinSlide ? session.state.slide : null;
+  const coinNow = useServerNow(250, coinSlide);
+  const coinSpinning = superCoinSpinning(session, coinNow);
   useEffect(() => {
     if (!drawSlideNow) return;
-    const wait = Math.max(0, (drawSlideNow.endsAt ?? 0) + QUIZ_AUCTION_HOLD_MS - (Date.now() + clock.offset()));
+    const hold = coinSlide ? SUPER_COIN_HOLD_MS : QUIZ_AUCTION_HOLD_MS;
+    const wait = Math.max(0, (drawSlideNow.endsAt ?? 0) + hold - (Date.now() + clock.offset()));
     const id = drawSlideNow.id;
     const timer = window.setTimeout(() => {
       if (latest.current.state.slide?.id !== id) return;
@@ -260,6 +268,10 @@ export function QuizHostControls({ session, content, answers, participants, cont
     if (action === "vote") void run(openSuperVote(session, content));
     if (action === "voteDone") void run(voteDoneChange, step);
     if (action === "skip") void run(skipSuper(session));
+    if (action === "coin") {
+      const c = coinSuperVote(latest.current, Date.now() + clock.offset());
+      if (c) void run({ ...c, expect: { result: resultKey(latest.current.state.result) } });
+    }
     if (action === "show") void run(showQuestion(session, content));
     if (action === "reveal" && q?.kind === "auction" && result.auction?.phase === "bets") {
       void run(closeChange);
@@ -396,13 +408,44 @@ export function QuizHostControls({ session, content, answers, participants, cont
 
       {q.kind === "super" && superVote && (
         <section className="stack stack--tight host-super-vote" aria-label="Голосование за суперигру" aria-live="polite">
-          <h3 className="host-quiz__subtitle">{superVote.phase === "open" ? "Голосование: играем суперигру?" : superVote.passed ? "Итог: играем суперигру" : "Итог: суперигру не играем"}</h3>
+          <h3 className="host-quiz__subtitle">
+            {superVote.phase === "open"
+              ? "Голосование: играем суперигру?"
+              : voteUndecided(superVote)
+                ? "Голоса разделились поровну"
+                : coinSpinning
+                  ? "🪙 Монетка крутится на экране…"
+                  : `${superVote.coin ? "Монетка решила: " : "Итог: "}${superVote.passed ? "играем суперигру" : "суперигру не играем"}`}
+          </h3>
           <p>
             За — <strong>{liveVote.yes}</strong> · против — <strong>{liveVote.no}</strong> · проголосовали {liveVote.yes + liveVote.no}
             {liveVote.yes + liveVote.no > 0 ? ` · за ${votePercent(liveVote.yes, liveVote.no)}%` : ""}
           </p>
           {superVote.phase === "open" && <p className="muted small">Играем, если «за» больше, чем «против». Голос можно поменять до итога.</p>}
-          {superVote.phase === "done" && stage === "ready" && (
+          {voteUndecided(superVote) && stage === "ready" && (
+            <>
+              <p className="muted small">
+                {session.screenMode === "none"
+                  ? "Бросьте монетку — пульт решит за вас и покажет на телефонах. Или решите сами."
+                  : "Бросьте монетку — она закрутится на экране зала. Или решите сами."}
+              </p>
+              <div className="actions">
+                <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => {
+                    const c = overrideSuperVote(session, true);
+                    if (c) void run(c);
+                  }}>
+                  Решить самому: играем
+                </button>
+                <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => {
+                    const c = overrideSuperVote(session, false);
+                    if (c) void run(c);
+                  }}>
+                  Решить самому: пропускаем
+                </button>
+              </div>
+            </>
+          )}
+          {superVote.phase === "done" && !voteUndecided(superVote) && !coinSpinning && stage === "ready" && (
             <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => {
                 const c = overrideSuperVote(session, !superVote.passed);
                 if (c) void run(c);

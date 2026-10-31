@@ -5,7 +5,7 @@ import { correctSet, drawEffectOfSettings, settingsOf, usesAnswers, type QuizCon
 import { closeBets, isAuctionDraw } from "./auction";
 import { parseResult } from "./logic";
 import { parseSuperAnswer, parseVoteAnswer } from "../../core/supergame";
-import { actionLabel, buzzRightAnswer, closeSuperVote, openSuperVote, skipSuper, superVoteSync, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, superSync } from "./flow";
+import { actionLabel, buzzRightAnswer, closeSuperVote, coinSuperVote, openSuperVote, skipSuper, superVoteSync, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, superSync } from "./flow";
 
 /** Ответ телефона на вопрос — как его шлёт телефон гостя; `right` — верный или нет. */
 function answerFor(q: QuizQuestion, right: boolean, i: number): unknown {
@@ -65,6 +65,10 @@ export const quizPreview: PreviewDriver<QuizContent> = ({ session, content, part
     }
     case "skip":
       return { label: "Пульт: «Пропустить суперигру»", change: skipSuper(session) };
+    case "coin": {
+      const change = coinSuperVote(session, session.state.startedAt ?? 0, () => 0.1);
+      return change ? { label: "Голоса поровну — пульт: «Бросить монетку»", change } : null;
+    }
     case "show":
       return { label: `Пульт: «${actionLabel(session, content, action)}»`, change: showQuestion(session, content) };
     case "reveal": {

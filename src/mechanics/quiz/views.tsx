@@ -19,7 +19,7 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { clipOf, correctSet, KIND_TITLES, LIMITS, roundAt, roundTitle, settingsOf, usesAnswers, type QuizContent, type QuizQuestion } from "./content";
 import { AuctionBetForm, AuctionScreenPlate, AuctionScreenSplash, AuctionWatch, auctionMyTurn, signed, useDrawSpinning } from "./auctionViews";
 import { parseBet } from "./auction";
-import { boardView, startsRound, superSkipped, superVoteOf } from "./flow";
+import { boardView, isSuperCoin, startsRound, superCoinSpinning, superSkipped, superVoteOf } from "./flow";
 import { isCorrect, parseGuess, parseOrder, parseResult, picturesRight } from "./logic";
 import { SuperPhone, SuperScreen } from "../../components/live/SuperGame";
 import { NumberPhone, NumberScreen, OrderNumberVerdict, OrderPhone, OrderScreenCards, orderNumberText } from "./orderNumber";
@@ -437,6 +437,9 @@ export function QuizPlayerView({
 
   useEffect(() => setText(""), [q?.id]);
   const spinning = useDrawSpinning(session);
+  // Монетка суперигры крутится на экране зала — телефон не выдаёт решение раньше.
+  const coinNow = useServerNow(250, isSuperCoin(session));
+  const coinSpinning = superCoinSpinning(session, coinNow);
 
   if (!q) return null;
   const { stage, step } = session.state;
@@ -481,6 +484,7 @@ export function QuizPlayerView({
         showImages
         onAnswer={(a) => onAnswer(a)}
         vote={vote}
+        coinSpinning={coinSpinning}
         skipped={superSkipped(session)}
         myVote={myVote}
         voteSending={personal ? personal.sending : sending}

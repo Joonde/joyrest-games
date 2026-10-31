@@ -19,7 +19,7 @@ import { DEMO_QUIZ_FORMATS } from "./demo";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { LeaderboardEntry, Session, SessionState } from "../../data/types";
-import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, closeSuperVote, extraAction, nextQuestion, openSuperVote, overrideSuperVote, primaryAction, reveal, showBoard, showQuestion, showTotal, skipSuper, superSkipped, superSync, superVoteOf, superVoteSync, toggleAccepted } from "./flow";
+import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, closeSuperVote, coinSuperVote, extraAction, isSuperCoin, nextQuestion, openSuperVote, overrideSuperVote, primaryAction, reveal, showBoard, showQuestion, showTotal, skipSuper, superCoinSpinning, superSkipped, superSync, superVoteOf, superVoteSync, toggleAccepted } from "./flow";
 import { acceptKey } from "../../core/supergame";
 import { QUESTION_FORMATS } from "./content";
 import { emptyResult, groupOpenAnswers, isCorrect, numberDeltas, orderShown, parseResult, resultOf, score, steps } from "./logic";
@@ -837,7 +837,7 @@ describe("суперигра: форматы уровней и голосова�
     expect(superVoteOf(s)?.phase).toBe("done");
   });
 
-  it("голосование: поровну — не играем; старые голоса до старта не считаются", () => {
+  it("голосование: поровну — решает монетка на экране или ведущий; старые голоса до старта не считаются", () => {
     const content: QuizContent = { questions: [choice(), superQ()], settings: { ...DEFAULT_SETTINGS, intro: false } };
     let s = session();
     s = applyChange(s, nextQuestion(s, content), 1);
@@ -845,8 +845,52 @@ describe("суперигра: форматы уровней и голосова�
     const started = s.state.startedAt ?? 0;
     const votes = [ans("a", { vote: "yes" }, started + 1), ans("b", { vote: "no" }, started + 1), ans("c", { vote: "yes" }, started - 100)];
     s = applyChange(s, closeSuperVote(s, votes), 3);
-    expect(superVoteOf(s)).toMatchObject({ yes: 1, no: 1, passed: false });
-    expect(primaryAction(s, content)).toBe("skip");
+    const tied = s;
+    expect(superVoteOf(s)).toMatchObject({ yes: 1, no: 1, tie: true });
+    expect(superVoteOf(s)?.passed).toBeUndefined();
+    expect(primaryAction(s, content)).toBe("coin");
+    expect(actionLabel(s, content, "coin")).toContain("монетку");
+    // Монетка выпала «играем»: решение сразу, на экране — слайд монетки до endsAt.
+    const coin = coinSuperVote(s, 50_000, () => 0.1);
+    if (!coin) throw new Error("нет монетки");
+    s = applyChange(s, coin, 4);
+    expect(superVoteOf(s)).toMatchObject({ passed: true, coin: true, tie: true });
+    expect(isSuperCoin(s)).toBe(true);
+    expect(s.state.slide).toMatchObject({ kind: "draw", title: "Играем суперигру" });
+    expect(superCoinSpinning(s, 50_001)).toBe(true);
+    expect(superCoinSpinning(s, 50_000 + 60_000)).toBe(false);
+    expect(primaryAction(s, content)).toBe("show");
+    // Второй бросок не нужен — решение уже есть.
+    expect(coinSuperVote(s, 51_000)).toBeNull();
+    // «Открыть уровни» убирает монетку с экрана.
+    const show = showQuestion(s, content);
+    expect(show.state?.slide).toBeNull();
+    // «Назад» — переголосовать, монетка уходит.
+    const plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    expect(plan.change.state?.slide).toBeNull();
+    // Монетка выпала «не играем» — пропуск, без экрана зала — без слайда.
+    const noScreen = { ...tied, screenMode: "none" as const };
+    const coinNo = coinSuperVote(noScreen, 50_000, () => 0.9);
+    if (!coinNo) throw new Error("нет монетки");
+    expect(coinNo.state?.slide).toBeUndefined();
+    const decided = applyChange(noScreen, coinNo, 5);
+    expect(superVoteOf(decided)).toMatchObject({ passed: false, coin: true });
+    expect(primaryAction(decided, content)).toBe("skip");
+    // Ведущий решает сам — без монетки.
+    const own = overrideSuperVote(tied, true);
+    if (!own) throw new Error("нет записи");
+    const ownS = applyChange(tied, own, 6);
+    expect(superVoteOf(ownS)).toMatchObject({ passed: true });
+    expect(superVoteOf(ownS)?.coin).toBeUndefined();
+    expect(primaryAction(ownS, content)).toBe("show");
+    // Никто не голосовал — не ничья: не играем.
+    let empty = session();
+    empty = applyChange(empty, nextQuestion(empty, content), 1);
+    empty = applyChange(empty, openSuperVote(empty, content), 2);
+    empty = applyChange(empty, closeSuperVote(empty, []), 3);
+    expect(superVoteOf(empty)).toMatchObject({ yes: 0, no: 0, passed: false });
+    expect(primaryAction(empty, content)).toBe("skip");
   });
 });
 

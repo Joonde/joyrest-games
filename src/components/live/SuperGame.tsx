@@ -14,6 +14,7 @@ import {
   superAnswerText,
   superOrderShown,
   votePercent,
+  voteUndecided,
   type SuperAnswer,
   type SuperGroup,
   type SuperLevel,
@@ -168,9 +169,13 @@ function VotePanel({ vote, left, timeLimit }: { vote: SuperVote; left: number | 
     );
   }
   const passed = vote.passed === true;
+  const undecided = voteUndecided(vote);
   return (
     <div className="super-vote super-vote--done">
-      <p className={passed ? "super-vote__verdict is-yes" : "super-vote__verdict is-no"}>{passed ? "Играем суперигру!" : "Суперигру не играем"}</p>
+      {vote.coin && <p className="super-vote__risk">Голоса разделились поровну — монетка решила</p>}
+      <p className={undecided ? "super-vote__verdict" : passed ? "super-vote__verdict is-yes" : "super-vote__verdict is-no"}>
+        {undecided ? "Голоса поровну! Решит монетка" : passed ? "Играем суперигру!" : "Суперигру не играем"}
+      </p>
       <div className="super-vote__bars" aria-label={`За ${yes}%, против ${total === 0 ? 0 : 100 - yes}%`}>
         <div className="super-vote__bar is-yes" style={{ ["--share" as string]: `${total === 0 ? 0 : yes}%` }}>
           <span>За</span>
@@ -393,6 +398,8 @@ export interface SuperPhoneProps {
   onAnswer: (answer: SuperAnswer) => void;
   /** Голосование «Играем?»: идёт или итог. */
   vote?: SuperVote;
+  /** Монетка «играем ли» ещё крутится на экране зала — решение не выдаём. */
+  coinSpinning?: boolean;
   /** Суперигру пропустили. */
   skipped?: boolean;
   /** Свой голос этого телефона (в командах голосует каждый телефон). */
@@ -542,10 +549,19 @@ export function SuperPhone(props: SuperPhoneProps) {
   if (stage === "ready" && vote?.phase === "done") {
     const yes = votePercent(vote.yes, vote.no);
     const total = vote.yes + vote.no;
+    const verdictText = props.coinSpinning
+      ? "🪙 Монетка крутится — смотрите на экран"
+      : voteUndecided(vote)
+        ? "Голоса поровну — решит монетка или ведущий"
+        : vote.coin
+          ? `Монетка решила: ${vote.passed ? "играем суперигру!" : "суперигру не играем"}`
+          : vote.passed
+            ? "Играем суперигру!"
+            : "Суперигру не играем";
     return (
       <div className="quiz-phone quiz-phone--center super-phone">
         <p className="eyebrow">Суперигра · итог голосования</p>
-        <h2 className="quiz-phone__question">{vote.passed ? "Играем суперигру!" : "Суперигру не играем"}</h2>
+        <h2 className="quiz-phone__question">{verdictText}</h2>
         <p className="muted">
           За — {total === 0 ? 0 : yes}% ({vote.yes}) · против — {total === 0 ? 0 : 100 - yes}% ({vote.no})
         </p>

@@ -417,6 +417,17 @@ try {
   check((await anna.getByRole("link", { name: "Подписаться на канал JoyRest" }).getAttribute("href")) === "https://t.me/JoyRest", "Телефон гостя: кнопка канала ведёт в t.me/JoyRest");
   check((await anna.getByRole("link", { name: "Наш сайт — joy-rest.ru" }).first().getAttribute("href")) === "https://joy-rest.ru/calc/", "Телефон гостя: кнопка сайта ведёт в калькулятор joy-rest.ru/calc/");
   check((await anna.getByText("Мы начали вести Telegram-канал").count()) === 1, "Телефон гостя: текст про канал на месте");
+  // Карточка для сторис (31 октября 2026): рисует телефон, у каждого своя; без меню «Поделиться» — сохраняется.
+  const cardButton = anna.getByRole("button", { name: /Поделиться (победой|результатом|карточкой)/ });
+  await cardButton.waitFor({ timeout: WAIT });
+  const size = await anna.locator("img.story-share__preview").evaluate((img) => [img.naturalWidth, img.naturalHeight]).catch(() => [0, 0]);
+  check(size[0] === 1080 && size[1] === 1920, "Телефон гостя: карточка для сторис нарисована (1080×1920)", `Телефон гостя: карточка для сторис ${size.join("×")}`);
+  const download = anna.waitForEvent("download", { timeout: 10_000 }).catch(() => null);
+  await cardButton.click();
+  const file = await download;
+  check(Boolean(file && /^joyrest-.*\.png$/.test(file.suggestedFilename())), "Телефон гостя: без меню «Поделиться» карточка сохраняется картинкой");
+  check((await anna.getByRole("button", { name: "Поделиться итогами игры" }).count()) === 1, "Телефон гостя: есть «Поделиться итогами игры»");
+  await shot(anna, "телефон-карточка-сторис");
   const send = anna.getByRole("button", { name: "Отправить отзыв" });
   check(await send.isDisabled(), "Телефон гостя: без оценки и согласия «Отправить отзыв» не нажать");
   await writeReview(anna, { stars: 4, text: `Было весело ${MARK}`, name: "Аня, проверка" });

@@ -22394,6 +22394,31 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .finale-phone h2 {
   text-wrap: balance;
 }
+/* Карточка для сторис (31 октября 2026): превью картинки 9:16 по центру, не выше трети экрана. */
+.story-share__preview {
+  display: block;
+  width: auto;
+  height: min(46vh, 420px);
+  aspect-ratio: 9 / 16;
+  margin: 0 auto;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.35);
+  object-fit: cover;
+}
+.story-share__preview--wait {
+  background: linear-gradient(180deg, #2e2622, #15110f);
+  animation: story-wait 1.4s ease-in-out infinite alternate;
+}
+@keyframes story-wait {
+  to {
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story-share__preview--wait {
+    animation: none;
+  }
+}
 .finale-review__title {
   font-weight: 600;
   margin: 0;

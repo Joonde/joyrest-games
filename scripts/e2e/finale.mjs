@@ -633,7 +633,10 @@ try {
 
   // ===== 7. Видео JoyRest =====
   if (VIDEO && existsSync(VIDEO)) {
-    check((await api("POST", "/api/videos", host.cookie, { id: `v${MARK}x`, title: "x", size: 1000 })).status === 403, "API: ведущий не загружает видео (403)");
+    // С 31 октября 2026 ведущие загружают видео сами (в своё место вместе с музыкой, 2 ГБ).
+    const hostVideo = await api("POST", "/api/videos", host.cookie, { id: `v${MARK}x`, title: "x", size: 1000 });
+    check(hostVideo.status === 200, "API: ведущий может начать загрузку своего видео", `API: ведущий начинает загрузку видео — ${hostVideo.status}`);
+    if (hostVideo.status === 200) await api("DELETE", `/api/videos/v${MARK}x`, host.cookie);
     await ap.goto(`${BASE}/studio?tab=video`);
     // Поле новой папки: «Папка (по желанию)», а если папки уже есть — «Или новая папка» (папки видео, 15 октября 2026).
     await ap.getByLabel(/^(Папка \(по желанию\)|Или новая папка)$/).fill(`Проверка ${MARK}`);
@@ -650,10 +653,10 @@ try {
     check((v?.durationMs ?? 0) > 1000, "Видео: длительность определилась на телефоне");
     await layout(ap, "Студия: видео");
     await shot(ap, "владелец-видео");
-    // Ведущий видит, загрузить не может; файл играет в браузере.
+    // Ведущий видит видео и может загрузить своё; файл играет в браузере.
     await hp.goto(`${BASE}/studio?tab=video`);
     await folderOf(hp).first().waitFor({ timeout: WAIT });
-    check((await hp.getByRole("button", { name: /Выбрать видео/ }).count()) === 0, "Видео: ведущий видит видео, кнопки загрузки у него нет");
+    check((await hp.getByRole("button", { name: /Выбрать видео/ }).count()) > 0, "Видео: ведущий видит видео и кнопку загрузки своего");
     const plays = await hp.evaluate(async (src) => {
       const el = document.createElement("video");
       el.muted = true;

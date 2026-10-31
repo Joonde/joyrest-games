@@ -52,7 +52,7 @@ import { QuizPreview } from "./Preview";
 import { errorsFor, validateContent, type QuestionField } from "./validate";
 import { LETTERS } from "./views";
 import { LevelIcon } from "../../components/live/SuperGame";
-import { LEVEL_NAMES, levelKind, newLevels, parsePenalty, parseStyle, PENALTY_TITLES, penaltyFor, STYLE_TITLES, SUPER_KIND_HINTS, SUPER_KIND_TITLES, SUPER_KINDS, SUPER_LIMITS, VOTE_TIME, withLevelKind, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
+import { activeLevels, LEVEL_NAMES, levelKind, newLevels, parsePenalty, parsePickMode, parseStyle, PENALTY_TITLES, penaltyFor, PICK_MODE_TITLES, STYLE_TITLES, SUPER_MIN_LEVELS, SUPER_KIND_HINTS, SUPER_KIND_TITLES, SUPER_KINDS, SUPER_LIMITS, VOTE_TIME, withLevelKind, type SuperLevel, type SuperPenalty, type SuperPickMode, type SuperStyle } from "../../core/supergame";
 
 /**
  * Новый вопрос в конструкторе: правильный вариант не отмечен заранее — ведущий отмечает сам
@@ -75,9 +75,11 @@ function foldKey(round: { title: string }): string {
 
 /** Подпись суперигры в списке: «4 уровня · Сундуки · 100–500 очк.». */
 function superMeta(q: QuizQuestion): string {
-  const points = (q.levels ?? []).map((l) => l.points).filter((n) => Number.isFinite(n));
+  const points = (q.levels ?? []).filter((l) => !l.off).map((l) => l.points).filter((n) => Number.isFinite(n));
   const range = points.length > 0 ? `${Math.min(...points)}–${Math.max(...points)} очк.` : "";
-  return [`${q.levels?.length ?? 4} уровня`, STYLE_TITLES[parseStyle(q.superStyle)], range].filter(Boolean).join(" · ");
+  const n = activeLevels(q.levels ?? newLevels()).length;
+  // Уровней 2–4: «2 уровня», «3 уровня», «4 уровня».
+  return [`${n} уровня`, STYLE_TITLES[parseStyle(q.superStyle)], range].filter(Boolean).join(" · ");
 }
 
 // Суперигра — не формат вопроса, а отдельный финал раунда (своя кнопка «👑 Суперигра»); её уровни берут форматы ниже.
@@ -1517,8 +1519,22 @@ function SuperEditor({
   const levels = q.levels ?? newLevels();
   const style = parseStyle(q.superStyle);
   const penalty = parsePenalty(q.penalty);
+  const pickMode = parsePickMode(q.superPick);
+  const active = activeLevels(levels);
   const setLevel = (i: number, patch: Partial<SuperLevel>) =>
     onChange((cur) => ({ ...cur, levels: (cur.levels ?? newLevels()).map((l, k) => (k === i ? { ...l, ...patch } : l)) }));
+  const toggleLevel = (i: number, on: boolean) =>
+    onChange((cur) => ({
+      ...cur,
+      levels: (cur.levels ?? newLevels()).map((l, k) => {
+        if (k !== i) return l;
+        if (on) {
+          const { off: _off, ...rest } = l;
+          return rest;
+        }
+        return { ...l, off: true };
+      }),
+    }));
   return (
     <div className="stack super-editor">
       <div className="field">
@@ -1553,7 +1569,25 @@ function SuperEditor({
             <span className="choice__hint">Гости на телефонах жмут «Голосовать за» или «Против»: суперигра может стоить очков раунда. На экране — сколько за и против.</span>
           </span>
         </label>
-        {q.superVote === true && (
+      </fieldset>
+      <fieldset>
+        <legend>Как выбирают уровень</legend>
+        <div className="stack stack--tight">
+          {(Object.keys(PICK_MODE_TITLES) as SuperPickMode[]).map((id) => (
+            <label key={id} className="choice">
+              <input type="radio" name={`pick-${q.id}`} checked={pickMode === id} onChange={() => onChange({ superPick: id })} />
+              <span className="choice__text">
+                <span className="choice__title">{PICK_MODE_TITLES[id]}</span>
+                <span className="choice__hint">
+                  {id === "vote"
+                    ? "Гости касаются уровня на телефонах, играем тот, за который больше голосов (поровну — жребий на экране). На экране — одна картинка и её вопрос, отвечают все."
+                    : "Каждый капитан (или игрок) выбирает свой уровень и отвечает на его вопрос. На экране — все уровни сразу."}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {(q.superVote === true || pickMode === "vote") && (
           <label className="field">
             Время на голосование, секунд
             <input
@@ -1568,14 +1602,29 @@ function SuperEditor({
           </label>
         )}
       </fieldset>
+      <p className="muted small">Уровней в суперигре — от {SUPER_MIN_LEVELS} до 4: снимите галочку у уровня, которого не будет (например, только Бронза и Серебро).</p>
       {levels.map((l, i) => (
-        <fieldset key={i} className={`super-editor__level super-level--${["bronze", "silver", "gold", "diamond"][i]}`}>
+        <fieldset key={i} className={`super-editor__level super-level--${["bronze", "silver", "gold", "diamond"][i]}${l.off ? " is-off" : ""}`}>
           <legend className="super-editor__legend">
             <span className="super-editor__icon">
               <LevelIcon style={style} level={i} />
             </span>
             {LEVEL_NAMES[i]}
           </legend>
+          <label className="choice super-editor__on">
+            <input
+              type="checkbox"
+              checked={!l.off}
+              disabled={!l.off && active.length <= SUPER_MIN_LEVELS}
+              onChange={(e) => toggleLevel(i, e.target.checked)}
+            />
+            <span className="choice__text">
+              <span className="choice__title">{l.off ? `«${LEVEL_NAMES[i]}» не играем` : `«${LEVEL_NAMES[i]}» есть в суперигре`}</span>
+              {!l.off && active.length <= SUPER_MIN_LEVELS && <span className="choice__hint">Меньше {SUPER_MIN_LEVELS} уровней нельзя.</span>}
+            </span>
+          </label>
+          {!l.off && (
+          <>
           <label className="field">
             Очки за верный ответ
             <input
@@ -1640,12 +1689,15 @@ function SuperEditor({
               />
             </Fold>
           )}
+          </>
+          )}
         </fieldset>
       ))}
       <FieldErrors errors={errors} field="levels" questionId={q.id} />
       <p className="muted small">
-        Капитаны выбирают уровень на телефоне, видят вопрос только своего уровня и отвечают в его формате. Экран зала показывает, кто какой уровень выбрал, а после «Показать ответы» —
-        верно или нет и сколько очков.
+        {pickMode === "vote"
+          ? "Зал голосует за уровень на телефонах, играем один — его вопрос на экране и у всех капитанов. После «Показать ответы» — кто угадал и сколько очков."
+          : "Капитаны выбирают уровень на телефоне, видят вопрос только своего уровня и отвечают в его формате. Экран зала показывает, кто какой уровень выбрал, а после «Показать ответы» — верно или нет и сколько очков."}
       </p>
     </div>
   );

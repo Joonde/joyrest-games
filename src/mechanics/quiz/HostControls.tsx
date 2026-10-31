@@ -29,7 +29,13 @@ import {
   showQuestion,
   showTotal,
   closeSuperVote,
+  chooseLevel,
+  chosenLevel,
+  closeLevelVote,
   coinSuperVote,
+  levelVoteOf,
+  levelVoteSync,
+  openLevelVote,
   isSuperCoin,
   openSuperVote,
   SUPER_COIN_HOLD_MS,
@@ -44,10 +50,10 @@ import {
   toggleAccepted,
   type QuizAction,
 } from "./flow";
-import { auctionAnswers, groupOpenAnswers, parseResult } from "./logic";
+import { auctionAnswers, groupOpenAnswers, parseResult, superAllowed } from "./logic";
 import { correctText, LETTERS } from "./views";
 import { SuperHostAnswers } from "../../components/live/SuperGame";
-import { LEVEL_NAMES, parseSuperAnswer, superGroups, tallySuperVote, voteUndecided, votePercent } from "../../core/supergame";
+import { activeLevels, LEVEL_NAMES, parsePickMode, parseSuperAnswer, superGroups, tallyLevelVote, tallySuperVote, voteUndecided, votePercent } from "../../core/supergame";
 
 /**
  * Пульт квиза: одна главная кнопка на каждом этапе («Показать вопрос» → «Показать ответ» →
@@ -96,11 +102,14 @@ export function QuizHostControls({ session, content, answers, participants, cont
   }, [superKey, busy]);
 
   // Голосование «Играем суперигру?»: сколько «за» и «против» — на экран зала.
-  const voteOpen = q?.kind === "super" && stage === "question" && superVoteOf(session)?.phase === "open";
+  const playVoteOpen = q?.kind === "super" && stage === "question" && superVoteOf(session)?.phase === "open";
+  const levelVoteOpen = q?.kind === "super" && stage === "question" && levelVoteOf(session)?.phase === "open";
+  // Любое голосование суперигры: ответов уровней сейчас нет.
+  const voteOpen = playVoteOpen || levelVoteOpen;
   const voteKey = voteOpen ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${JSON.stringify(a.value)}:${a.submittedAt ?? 0}`).sort().join(",") : "";
   useEffect(() => {
     if (!voteKey || busy) return;
-    const change = superVoteSync(latest.current, answers);
+    const change = playVoteOpen ? superVoteSync(latest.current, answers) : levelVoteSync(latest.current, content, answers);
     if (!change) return;
     const { phase, step: atStep, stage: atStage } = latest.current.state;
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
@@ -144,6 +153,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const drawSlideNow = isAuctionDraw(session) || coinSlide ? session.state.slide : null;
   const coinNow = useServerNow(250, coinSlide);
   const coinSpinning = superCoinSpinning(session, coinNow);
+  // Крутится именно монетка «играем ли» (а не жребий уровня).
+  const playCoinSpinning = coinSpinning && (session.state.slide?.id.startsWith("svc") ?? false);
   useEffect(() => {
     if (!drawSlideNow) return;
     const hold = coinSlide ? SUPER_COIN_HOLD_MS : QUIZ_AUCTION_HOLD_MS;
@@ -182,6 +193,10 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const action = primaryAction(session, content);
   const superVote = q?.kind === "super" ? superVoteOf(session) : undefined;
   // Пока голосуют — счёт по ответам, пришедшим на пульт (на экране — то же через минуту синхронизации).
+  // Уровни, на которые сейчас отвечают: выбранный залом или все уровни игры.
+  const allowed = q?.kind === "super" ? superAllowed(q, session.state.result) : [];
+  const levelVote = q?.kind === "super" ? levelVoteOf(session) : undefined;
+  const liveLevels = levelVote?.phase === "open" ? tallyLevelVote(stepAnswers, typeof session.state.startedAt === "number" ? session.state.startedAt : null, activeLevels(q?.levels)) : (levelVote?.counts ?? []);
   const liveVote = superVote?.phase === "open" ? tallySuperVote(stepAnswers, typeof session.state.startedAt === "number" ? session.state.startedAt : null) : { yes: superVote?.yes ?? 0, no: superVote?.no ?? 0 };
 
   /** Новое состояние пришло (или прошло 3 с) — кнопку можно нажимать снова. */
@@ -253,6 +268,17 @@ export function QuizHostControls({ session, content, answers, participants, cont
     return change ? { ...change, expect: { result: resultKey(cur.state.result) } } : null;
   }
 
+  /** «Подвести итог: какой уровень» — по свежим голосам с сервера; голоса шага стираются, поровну — жребий на экране. */
+  async function levelVoteDoneChange(): Promise<SessionChange> {
+    let all: Answer[] = stepAnswers;
+    try {
+      all = await control.freshAnswers(step);
+    } catch {
+      // Нет связи — по тому, что уже пришло.
+    }
+    return closeLevelVote(latest.current, content, all, Date.now() + clock.offset());
+  }
+
   /** «Подвести итог голосования» — по свежим голосам с сервера; голоса шага стираются, дальше — уровни или пропуск. */
   async function voteDoneChange(): Promise<SessionChange> {
     let all: Answer[] = stepAnswers;
@@ -268,6 +294,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
     if (action === "vote") void run(openSuperVote(session, content));
     if (action === "voteDone") void run(voteDoneChange, step);
     if (action === "skip") void run(skipSuper(session));
+    if (action === "levelVote") void run(openLevelVote(session, content));
+    if (action === "levelVoteDone") void run(levelVoteDoneChange, step);
     if (action === "coin") {
       const c = coinSuperVote(latest.current, Date.now() + clock.offset());
       if (c) void run({ ...c, expect: { result: resultKey(latest.current.state.result) } });
@@ -413,7 +441,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
               ? "Голосование: играем суперигру?"
               : voteUndecided(superVote)
                 ? "Голоса разделились поровну"
-                : coinSpinning
+                : playCoinSpinning
                   ? "🪙 Монетка крутится на экране…"
                   : `${superVote.coin ? "Монетка решила: " : "Итог: "}${superVote.passed ? "играем суперигру" : "суперигру не играем"}`}
           </h3>
@@ -445,7 +473,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
               </div>
             </>
           )}
-          {superVote.phase === "done" && !voteUndecided(superVote) && !coinSpinning && stage === "ready" && (
+          {superVote.phase === "done" && !voteUndecided(superVote) && !playCoinSpinning && stage === "ready" && (
             <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => {
                 const c = overrideSuperVote(session, !superVote.passed);
                 if (c) void run(c);
@@ -456,12 +484,47 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </section>
       )}
 
-      {q.kind === "super" && stage === "question" && !voteOpen && (q.levels ?? []).some((l) => l.trackId) && session.screenMode !== "none" && (
+      {q.kind === "super" && parsePickMode(q.superPick) === "vote" && levelVote && (
+        <section className="stack stack--tight host-super-vote" aria-label="Голосование за уровень" aria-live="polite">
+          <h3 className="host-quiz__subtitle">
+            {levelVote.phase === "open"
+              ? "Голосование: какой уровень играем?"
+              : coinSpinning
+                ? "🎡 Жребий крутится на экране…"
+                : `Играем уровень «${LEVEL_NAMES[chosenLevel(session) ?? 0]}»${levelVote.tie && !levelVote.host ? " — решил жребий" : levelVote.host ? " — выбрали вы" : ""}`}
+          </h3>
+          <p>
+            {activeLevels(q.levels)
+              .map((i) => `${LEVEL_NAMES[i]} — ${liveLevels[i] ?? 0}`)
+              .join(" · ")}
+          </p>
+          {levelVote.phase === "open" && <p className="muted small">Каждый телефон касается уровня, до итога можно передумать. Поровну — решит жребий на экране.</p>}
+          {levelVote.phase === "done" && stage === "ready" && !coinSpinning && (
+            <>
+              <p className="muted small">Поставить другой уровень:</p>
+              <div className="actions">
+                {activeLevels(q.levels)
+                  .filter((i) => i !== chosenLevel(session))
+                  .map((i) => (
+                    <button key={i} type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => {
+                        const c = chooseLevel(session, content, i);
+                        if (c) void run(c);
+                      }}>
+                      Играем «{LEVEL_NAMES[i]}»
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      {q.kind === "super" && stage === "question" && !voteOpen && (q.levels ?? []).some((l, i) => l.trackId && allowed.includes(i)) && session.screenMode !== "none" && (
         <section className="stack stack--tight" aria-label="Музыка уровней">
           <h3 className="host-quiz__subtitle">Музыка уровней на экран зала</h3>
           <div className="actions">
             {(q.levels ?? []).map((l, i) =>
-              l.trackId ? (
+              l.trackId && allowed.includes(i) ? (
                 <button key={i} type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(playLevelTrack(session, i))}>
                   ▶ Трек: {LEVEL_NAMES[i]}
                 </button>
@@ -536,6 +599,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
           levels={q.levels ?? []}
           groups={superGroups(q.levels ?? [], own, result.accepted)}
           picksCount={(q.levels ?? []).map((_, i) => own.filter((a) => parseSuperAnswer(a.value)?.level === i).length)}
+          only={allowed}
           editable={stage === "question"}
           busy={busy}
           onToggle={(key) => void run(toggleAccepted(session, key))}

@@ -51,6 +51,11 @@ export interface SuperLevel {
   trackLength?: number;
   fadeIn?: number;
   fadeOut?: number;
+  /**
+   * Уровня нет в этой суперигре (решение владельца 31 октября 2026: от двух уровней — «Бронза и Серебро», «Бронза,
+   * Серебро и Бриллиант»). Номер уровня — всегда его медаль: картинки, названия и штраф «на золоте» не сдвигаются.
+   */
+  off?: boolean;
 }
 
 /** Формат уровня (старые уровни — свой ответ). */
@@ -59,6 +64,14 @@ export function levelKind(level: Pick<SuperLevel, "kind"> | undefined): SuperKin
 }
 
 export const SUPER_LEVELS = 4;
+
+/** Сколько уровней должно быть в суперигре хотя бы. */
+export const SUPER_MIN_LEVELS = 2;
+
+/** Номера уровней, которые есть в суперигре (по возрастанию). */
+export function activeLevels(levels: Array<Pick<SuperLevel, "off">> | undefined): number[] {
+  return (levels ?? []).flatMap((l, i) => (l.off ? [] : [i]));
+}
 
 export const LEVEL_NAMES = ["Бронза", "Серебро", "Золото", "Бриллиант"] as const;
 
@@ -152,6 +165,7 @@ export function parseLevels(value: unknown): SuperLevel[] {
       level.unit = typeof d.unit === "string" ? d.unit.slice(0, SUPER_LIMITS.unit).trim() : "";
       level.tolerance = typeof d.tolerance === "number" && Number.isFinite(d.tolerance) && d.tolerance > 0 ? Math.min(SUPER_LIMITS.maxNumber, Math.round(d.tolerance * 1000) / 1000) : 0;
     }
+    if (d.off === true) level.off = true;
     if (trackId) {
       level.trackId = trackId;
       level.trackStart = num(d.trackStart, 0, 0, 3600);
@@ -313,11 +327,13 @@ export function superVerdicts(
   rule: SuperPenalty,
   answers: Array<{ pid: string; value: unknown }>,
   accepted: string[] = [],
+  /** Уровни, ответы на которые считаются (уровни игры или один выбранный залом); нет — все включённые. */
+  allowed: number[] = activeLevels(levels),
 ): Record<string, SuperVerdict> {
   const out: Record<string, SuperVerdict> = {};
   for (const a of answers) {
     const answer = parseSuperAnswer(a.value);
-    if (!answer) continue;
+    if (!answer || !allowed.includes(answer.level)) continue;
     const points = levels[answer.level]?.points ?? 0;
     const right = superRight(levels, answer, accepted);
     const text = superAnswerText(levels, answer).slice(0, SUPER_LIMITS.answer * 3);
@@ -402,7 +418,9 @@ export function superGroups(levels: SuperLevel[], answers: Array<{ value: unknow
 export function levelProblems(levels: SuperLevel[]): string[] {
   const problems: string[] = [];
   if (levels.length !== SUPER_LEVELS) problems.push("Нужно четыре уровня.");
+  if (activeLevels(levels).length < SUPER_MIN_LEVELS) problems.push(`Включите хотя бы ${SUPER_MIN_LEVELS} уровня.`);
   levels.forEach((l, i) => {
+    if (l.off) return;
     const name = LEVEL_NAMES[i] ?? `Уровень ${i + 1}`;
     const kind = levelKind(l);
     const options = l.options ?? [];
@@ -501,4 +519,85 @@ export function voteUndecided(vote: SuperVote | undefined): boolean {
 export function votePercent(yes: number, no: number): number {
   const total = yes + no;
   return total === 0 ? 0 : Math.round((yes * 100) / total);
+}
+
+// ---------------------------------------------------------------- как выбирают уровень
+
+/**
+ * Как выбирают уровень (решение владельца 31 октября 2026): `vote` — весь зал голосует на телефонах, играем один уровень,
+ * на экране — одна картинка и её вопрос (по умолчанию, и у игр без поля); `each` — каждая команда (игрок) выбирает свой
+ * уровень, как было до этого.
+ */
+export type SuperPickMode = "vote" | "each";
+
+export const PICK_MODE_TITLES: Record<SuperPickMode, string> = {
+  vote: "Весь зал голосует — играем один уровень",
+  each: "Каждый выбирает свой уровень",
+};
+
+export function parsePickMode(value: unknown): SuperPickMode {
+  return value === "each" ? "each" : "vote";
+}
+
+/** Голосование «какой уровень играем»: голоса по уровням (номер — медаль), после итога — выбранный уровень. */
+export interface LevelVote {
+  phase: "open" | "done";
+  /** Голосов за каждый из четырёх уровней. */
+  counts: number[];
+  /** После итога: какой уровень играем. */
+  level?: number;
+  /** Голоса разделились: между какими уровнями тянули жребий. */
+  tie?: number[];
+  /** Уровень поменял ведущий. */
+  host?: boolean;
+}
+
+function isLevel(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v < SUPER_LEVELS;
+}
+
+export function parseLevelVote(raw: unknown): LevelVote | undefined {
+  const d = record(raw);
+  if (d.phase !== "open" && d.phase !== "done") return undefined;
+  const list = Array.isArray(d.counts) ? d.counts : [];
+  const counts = Array.from({ length: SUPER_LEVELS }, (_, i) => {
+    const v = list[i];
+    return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0;
+  });
+  const out: LevelVote = { phase: d.phase, counts };
+  if (isLevel(d.level)) out.level = d.level;
+  if (Array.isArray(d.tie)) {
+    const tie = [...new Set(d.tie.filter(isLevel))].sort((a, b) => a - b);
+    if (tie.length > 1) out.tie = tie;
+  }
+  if (d.host === true) out.host = true;
+  return out;
+}
+
+/** Голос телефона за уровень: номер уровня; иначе null. */
+export function parseLevelVoteAnswer(value: unknown): number | null {
+  const v = record(value).levelVote;
+  return isLevel(v) ? v : null;
+}
+
+/** Голоса за уровни: по одному на телефон (последний), только после открытия и только за уровни игры. */
+export function tallyLevelVote(answers: Array<{ pid: string; value: unknown; submittedAt?: number | null }>, since: number | null, allowed: number[]): number[] {
+  const byPid = new Map<string, { level: number; at: number }>();
+  for (const a of answers) {
+    const level = parseLevelVoteAnswer(a.value);
+    if (level === null || !allowed.includes(level)) continue;
+    const at = a.submittedAt ?? 0;
+    if (since !== null && a.submittedAt !== null && a.submittedAt !== undefined && at < since) continue;
+    const prev = byPid.get(a.pid);
+    if (!prev || at >= prev.at) byPid.set(a.pid, { level, at });
+  }
+  const counts = Array.from({ length: SUPER_LEVELS }, () => 0);
+  for (const { level } of byPid.values()) counts[level] = (counts[level] ?? 0) + 1;
+  return counts;
+}
+
+/** Уровни с наибольшим числом голосов (никто не голосовал — все уровни игры: решит жребий). */
+export function levelVoteLeaders(counts: number[], allowed: number[]): number[] {
+  const best = Math.max(0, ...allowed.map((i) => counts[i] ?? 0));
+  return allowed.filter((i) => (counts[i] ?? 0) === best);
 }

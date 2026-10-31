@@ -15752,7 +15752,8 @@ button.dance-card:active {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Уровней в игре 2–4 (решение владельца 31 октября 2026). */
+  grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
   gap: 2cqw;
   min-height: 0;
 }
@@ -15823,8 +15824,161 @@ button.dance-card:active {
 .super-level__question {
   display: grid;
   gap: 0.8cqh;
+  min-height: 0;
   font-size: 2.8cqh;
   animation: super-rise 0.6s ease-out both;
+}
+
+/* Длинный вопрос уровня в общей сетке — не больше четырёх строк, ответ и имена всегда видны. */
+.super-level__question > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  font-size: 2.4cqh;
+  line-height: 1.25;
+}
+
+.super-screen--reveal .super-level {
+  min-height: 0;
+}
+
+.super-screen--reveal.super-screen--vault .super-levels:not(.super-levels--intro) .super-level__icon {
+  width: 11cqh;
+  height: 11cqh;
+}
+
+/* Голосование «какой уровень играем»: число голосов под уровнем. */
+.super-level__votes {
+  font-size: 3.2cqh;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.super-levels--vote {
+  max-width: calc(var(--n, 4) * 21cqw);
+}
+
+.super-screen--vault.super-screen--intro .super-levels--vote .super-level__icon {
+  width: 17cqh;
+  height: 17cqh;
+}
+
+.super-screen--intro:has(.super-levels--vote) {
+  gap: 2.4cqh;
+}
+
+/* Зал выбрал уровень: одна крупная картинка. */
+.super-chosen__eyebrow {
+  margin: 0;
+  font-size: 4cqh;
+  color: var(--color-text-muted);
+}
+
+.super-chosen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.6cqh;
+  animation: super-rise 0.8s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.super-chosen__icon {
+  position: relative;
+  display: block;
+  width: 38cqh;
+  height: 38cqh;
+  filter: drop-shadow(0 1.4cqh 2.4cqh rgba(0, 0, 0, 0.55)) drop-shadow(0 0 4cqh color-mix(in srgb, var(--lvl) 45%, transparent));
+}
+
+.super-chosen .super-level__name {
+  font-size: 4.6cqh;
+}
+
+.super-chosen .super-level__points {
+  font-size: 7cqh;
+}
+
+/* Один уровень на весь экран: картинка слева, вопрос справа крупно. */
+.super-screen--single {
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "top" "levels";
+}
+
+.super-single {
+  grid-area: levels;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 30%) minmax(0, 1fr);
+  gap: 3cqw;
+  align-items: center;
+}
+
+.super-single__art {
+  align-self: stretch;
+  justify-content: center;
+}
+
+.super-screen--vault .super-single__art .super-level__icon {
+  width: 26cqh;
+  height: 26cqh;
+}
+
+.super-single__body {
+  min-height: 0;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2.4cqh;
+  overflow: hidden;
+}
+
+.super-single__img {
+  width: 100%;
+  max-height: 34cqh;
+  object-fit: contain;
+  border-radius: 1.6cqh;
+}
+
+.super-single__q {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 7cqh;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.super-single__q.is-long {
+  font-size: 5cqh;
+}
+
+.super-screen--reveal .super-single__q {
+  font-size: 4.4cqh;
+}
+
+.super-single__answer {
+  margin: 0;
+  font-size: 4.4cqh;
+}
+
+.super-single__answer strong {
+  color: var(--color-highlight);
+}
+
+.super-single__who {
+  justify-content: flex-start;
+  margin-top: 0;
+  max-height: 22cqh;
+  overflow: hidden;
+}
+
+.super-pick__btn.is-on {
+  outline: 3px solid var(--color-highlight);
+  outline-offset: 2px;
 }
 
 .super-level__img {
@@ -16083,6 +16237,11 @@ button.dance-card:active {
 }
 
 /* Конструктор */
+/* Уровня нет в суперигре — карточка тусклая, видна только галочка. */
+.super-editor__level.is-off {
+  opacity: 0.6;
+}
+
 .super-editor__level {
   border-left: 4px solid var(--lvl-deep);
   padding-left: 16px;

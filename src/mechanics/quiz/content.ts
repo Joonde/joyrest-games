@@ -2,7 +2,7 @@
 // Картинок здесь нет — только imageId (документ games/{id}/media/{imageId}).
 import { clipFields, parseClip, type Clip, type ClipJoin } from "../../core/clip";
 import { parseDrawEffect, type DrawEffect } from "../../core/draw";
-import { newLevels, parseLevels, parsePenalty, parseStyle, superTrackIds, VOTE_TIME, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
+import { newLevels, parseLevels, parsePenalty, parsePickMode, parseStyle, superTrackIds, VOTE_TIME, type SuperLevel, type SuperPenalty, type SuperPickMode, type SuperStyle } from "../../core/supergame";
 
 /**
  * Форматы вопроса. Классика: варианты, открытый, на скорость. Гонка «Кто быстрее» (`buzz`): кнопка,
@@ -74,6 +74,11 @@ export interface QuizQuestion {
    */
   superVote?: boolean;
   voteTime?: number;
+  /**
+   * Суперигра: как выбирают уровень — `vote` весь зал голосует, играем один уровень (по умолчанию, и у игр без поля);
+   * `each` — каждая команда выбирает свой (решение владельца 31 октября 2026). Время голосования — `voteTime`.
+   */
+  superPick?: SuperPickMode;
   /** С этого вопроса начинается раунд с таким названием; null — продолжается прежний. */
   round: string | null;
   /** Заметка ведущему (факт, шутка, подводка): видна только на пульте, не на экране и телефонах. */
@@ -402,7 +407,7 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
     ...(kind === "auction" ? { topic: "", auctionAnswer: "choice" as const, betTime: DEFAULT_BET_TIME } : {}),
     steps: 1,
     pictures: kind === "pictures" ? [newPicture(), newPicture()] : [],
-    ...(kind === "super" ? { levels: newLevels(), superStyle: "chests" as const, penalty: "halfTop" as const, superVote: true, voteTime: VOTE_TIME.def } : {}),
+    ...(kind === "super" ? { levels: newLevels(), superStyle: "chests" as const, penalty: "halfTop" as const, superVote: true, voteTime: VOTE_TIME.def, superPick: "vote" as const } : {}),
     ...(kind === "order" ? { partial: true } : {}),
     ...(kind === "number" ? { number: null, unit: "", scoring: "places" as const } : {}),
     ...DEFAULTS[kind],
@@ -584,6 +589,7 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
           penalty: parsePenalty(data.penalty),
           superVote: data.superVote === true,
           voteTime: int(data.voteTime, VOTE_TIME.def, VOTE_TIME.min, VOTE_TIME.max),
+          superPick: parsePickMode(data.superPick),
         }
       : {}),
     round: parseRound(data.round),

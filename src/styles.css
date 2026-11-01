@@ -5262,6 +5262,37 @@ kbd {
   border-color: var(--color-highlight);
 }
 
+.role-picker__col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.role-picker__qr,
+.role-picker__hint {
+  display: none;
+  margin: 0;
+  text-align: center;
+}
+
+.role-picker__qr p {
+  margin: 0;
+}
+
+.role-picker__qr .qr {
+  width: min(200px, 100%);
+  margin: 0 auto 8px;
+}
+
+/* QR пульта — только там, где его есть чем сканировать: ноутбук, планшет, телевизор. На телефоне он не нужен. */
+@media (min-width: 700px) {
+  .role-picker__qr,
+  .role-picker__hint {
+    display: block;
+  }
+}
+
 .active-game {
   gap: 8px;
 }

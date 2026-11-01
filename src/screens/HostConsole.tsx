@@ -50,7 +50,7 @@ import { TechBreak, useTechBreakAutoEnd } from "../components/live/TechBreak";
 import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
-import { joinHost, playUrl, playUrlHint } from "../components/links";
+import { joinHost, playUrl, playUrlHint, pultUrl } from "../components/links";
 import { Icon, type IconName } from "../components/Icon";
 import { NameText } from "../components/NameText";
 import { getMechanic } from "../mechanics/registry";
@@ -743,19 +743,30 @@ function RolePicker({ code, onPult }: { code: string; onPult: () => void }) {
     <section className="card role-picker" aria-labelledby="role-title">
       <h2 id="role-title">Это устройство —</h2>
       <div className="tiles tiles--two">
-        <button type="button" className="tile tile--big" onClick={onPult}>
-          <Icon name="remote" className="tile__icon" />
-          <span className="tile__label">Пульт</span>
-        </button>
-        <button type="button" className="tile tile--big" onClick={() => navigate(`/screen/${code}?pult=1`)}>
-          <Icon name="screen" className="tile__icon" />
-          <span className="tile__label">Экран зала</span>
-        </button>
+        <div className="role-picker__col">
+          <button type="button" className="tile tile--big" onClick={onPult}>
+            <Icon name="remote" className="tile__icon" />
+            <span className="tile__label">Пульт</span>
+          </button>
+          {/* QR пульта (решение владельца 1 ноября 2026): на ноутбуке ведущий наводит камеру телефона — телефон
+              сразу становится пультом этой игры, а здесь он жмёт «Экран зала». На телефоне QR не нужен — он скрыт. */}
+          <div className="role-picker__qr">
+            <QrCode value={pultUrl(code)} label={`QR-код пульта игры ${formatSessionCode(code)}`} />
+            <p className="muted small">Наведите камеру телефона — он станет пультом</p>
+          </div>
+        </div>
+        <div className="role-picker__col">
+          <button type="button" className="tile tile--big" onClick={() => navigate(`/screen/${code}`)}>
+            <Icon name="screen" className="tile__icon" />
+            <span className="tile__label">Экран зала</span>
+          </button>
+          <p className="role-picker__hint muted small">Потом нажмите здесь — на ноутбуке или телевизоре</p>
+        </div>
       </div>
       <p className="muted small">
-        Выбрали «Экран зала» — на нём появится QR-код пульта: отсканируйте его телефоном, и пульт откроется сразу. Ещё
-        второе устройство: войдите в студию — сверху будет «Идёт игра» с кнопками «Пульт» и «Экран зала». Экран без входа —
-        откройте {joinHost()}/s и введите код {formatSessionCode(code)}.
+        Телефон не входил в студию — после сканирования введите почту и пароль. Ещё второе устройство: войдите в студию —
+        сверху будет «Идёт игра» с кнопками «Пульт» и «Экран зала». Экран без входа — откройте {joinHost()}/s и введите код{" "}
+        {formatSessionCode(code)}.
       </p>
     </section>
   );

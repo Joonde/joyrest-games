@@ -4,7 +4,7 @@ import { setHallBusy } from "../components/UpdateBanner";
 import { EVENING_MECHANIC } from "../core/program";
 import { shortName } from "../core/emoji";
 import { EveningTable } from "../mechanics/evening/views";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
@@ -197,7 +197,7 @@ function PultQr({ code, onClose }: { code: string; onClose: () => void }) {
         <p className="pult-qr__text">Отсканируйте камерой телефона — откроется пульт этой игры. Телефон не входил в студию — введите свою почту и пароль.</p>
         <p className="pult-qr__note">Гостям этот код не нужен: их QR — на экране после «Готово».</p>
         <button type="button" className="btn" onClick={onClose}>
-          Готово — показать экран гостям
+          Готово — вернуться к экрану
         </button>
       </div>
     </div>
@@ -223,23 +223,11 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   const [leaving, setLeaving] = useState(false);
   // Ведущий случайно сделал это устройство экраном зала (например, телефон) — вернуться к выбору «Пульт / Экран зала».
   const [repicking, setRepicking] = useState(false);
-  // QR пульта (решение владельца 1 ноября 2026): ведущий выбрал на этом устройстве «Экран зала» — сразу показываем QR,
-  // телефоном его сканируют и попадают на пульт этой игры. «auto» — открылось само и уйдёт с началом игры.
-  const [params, setParams] = useSearchParams();
-  // isHost может прийти чуть позже (профиль ведущего грузится) — окно показывается, только когда он есть.
-  const [pultQr, setPultQr] = useState<"auto" | "manual" | null>(() => (params.get("pult") === "1" && session.state.phase === "lobby" ? "auto" : null));
+  // QR пульта по кнопке «📱 Пульт на телефон» (запасной путь; основной — QR под «Пульт» при выборе устройства).
+  const [pultQr, setPultQr] = useState(false);
   useEffect(() => {
-    if (params.get("pult") === null) return;
-    // Метку из адреса убираем: перезагрузка экрана не должна снова показывать QR поверх игры.
-    const next = new URLSearchParams(params);
-    next.delete("pult");
-    setParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- один раз при открытии
-  }, []);
-  useEffect(() => {
-    if (pultQr === "auto" && session.state.phase !== "lobby") setPultQr(null);
-    if (session.state.phase === "finished") setPultQr(null);
-  }, [pultQr, session.state.phase]);
+    if (session.state.phase === "finished") setPultQr(false);
+  }, [session.state.phase]);
   useTheme(session.themeId, session.branding);
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
@@ -296,10 +284,10 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
       <ScreenControls
         toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null}
         toPick={isHost && phase !== "finished" ? () => setRepicking(true) : null}
-        toPultQr={isHost && phase !== "finished" ? () => setPultQr("manual") : null}
+        toPultQr={isHost && phase !== "finished" ? () => setPultQr(true) : null}
         bed={builtinNow && soundReady}
       />
-      {isHost && pultQr && <PultQr code={session.code} onClose={() => setPultQr(null)} />}
+      {isHost && pultQr && <PultQr code={session.code} onClose={() => setPultQr(false)} />}
       {isHost && (
         <ConfirmDialog
           open={repicking}

@@ -231,7 +231,7 @@ export function GameRow({ game, own, admin = false, helper = false, onChanged }:
             </Link>
           )}
           {live && own && game.screenMode !== "none" && (
-            <Link className="tile tile--small" to={`/screen/${game.code}?pult=1`}>
+            <Link className="tile tile--small" to={`/screen/${game.code}`}>
               <Icon name="screen" className="tile__icon" />
               <span className="tile__label">Экран</span>
             </Link>

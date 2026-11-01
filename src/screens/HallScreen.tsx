@@ -4,7 +4,7 @@ import { setHallBusy } from "../components/UpdateBanner";
 import { EVENING_MECHANIC } from "../core/program";
 import { shortName } from "../core/emoji";
 import { EveningTable } from "../mechanics/evening/views";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
@@ -40,7 +40,7 @@ import { VPN_HINT } from "../core/texts";
 import { QrCode } from "../components/QrCode";
 import { ScreenSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
-import { joinHint, playUrl } from "../components/links";
+import { joinHint, playUrl, pultUrl } from "../components/links";
 import { getMechanic } from "../mechanics/registry";
 import { getTheme, teamColorVar, useTheme } from "../themes/registry";
 
@@ -104,7 +104,7 @@ function SoundOffIcon() {
 }
 
 /** Полноэкранный режим, звук и (ведущему) «Пульт или экран» и «В студию»: кнопки в углу экрана зала. */
-function ScreenControls({ toStudio, toPick, bed }: { toStudio: (() => void) | null; toPick: (() => void) | null; bed: boolean }) {
+function ScreenControls({ toStudio, toPick, toPultQr, bed }: { toStudio: (() => void) | null; toPick: (() => void) | null; toPultQr: (() => void) | null; bed: boolean }) {
   const muted = useMuted();
   const ready = useSoundReady();
   const bedVolume = useBedVolume();
@@ -160,6 +160,11 @@ function ScreenControls({ toStudio, toPick, bed }: { toStudio: (() => void) | nu
           {full ? "Выйти из полного экрана" : "Во весь экран"}
         </button>
       )}
+      {toPultQr && (
+        <button type="button" className="btn btn--secondary" onClick={toPultQr}>
+          📱 Пульт на телефон
+        </button>
+      )}
       {toPick && (
         <button type="button" className="btn btn--secondary" onClick={toPick}>
           Пульт или экран?
@@ -170,6 +175,31 @@ function ScreenControls({ toStudio, toPick, bed }: { toStudio: (() => void) | nu
           В студию
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * QR пульта поверх экрана зала — только у вошедшего ведущего. Адрес сам прав не даёт: на телефоне без входа откроется
+ * вход ведущего, а пульт — только у ведущего этой игры (и владельца).
+ */
+function PultQr({ code, onClose }: { code: string; onClose: () => void }) {
+  return (
+    <div className="pult-qr" role="dialog" aria-modal="true" aria-labelledby="pult-qr-title">
+      <div className="pult-qr__card">
+        <p className="eyebrow">Для ведущего</p>
+        <h2 id="pult-qr-title" className="pult-qr__title">
+          Пульт на телефоне
+        </h2>
+        <div className="pult-qr__code">
+          <QrCode value={pultUrl(code)} label={`QR-код пульта игры ${formatSessionCode(code)}`} />
+        </div>
+        <p className="pult-qr__text">Отсканируйте камерой телефона — откроется пульт этой игры. Телефон не входил в студию — введите свою почту и пароль.</p>
+        <p className="pult-qr__note">Гостям этот код не нужен: их QR — на экране после «Готово».</p>
+        <button type="button" className="btn" onClick={onClose}>
+          Готово — показать экран гостям
+        </button>
+      </div>
     </div>
   );
 }
@@ -193,6 +223,23 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   const [leaving, setLeaving] = useState(false);
   // Ведущий случайно сделал это устройство экраном зала (например, телефон) — вернуться к выбору «Пульт / Экран зала».
   const [repicking, setRepicking] = useState(false);
+  // QR пульта (решение владельца 1 ноября 2026): ведущий выбрал на этом устройстве «Экран зала» — сразу показываем QR,
+  // телефоном его сканируют и попадают на пульт этой игры. «auto» — открылось само и уйдёт с началом игры.
+  const [params, setParams] = useSearchParams();
+  // isHost может прийти чуть позже (профиль ведущего грузится) — окно показывается, только когда он есть.
+  const [pultQr, setPultQr] = useState<"auto" | "manual" | null>(() => (params.get("pult") === "1" && session.state.phase === "lobby" ? "auto" : null));
+  useEffect(() => {
+    if (params.get("pult") === null) return;
+    // Метку из адреса убираем: перезагрузка экрана не должна снова показывать QR поверх игры.
+    const next = new URLSearchParams(params);
+    next.delete("pult");
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- один раз при открытии
+  }, []);
+  useEffect(() => {
+    if (pultQr === "auto" && session.state.phase !== "lobby") setPultQr(null);
+    if (session.state.phase === "finished") setPultQr(null);
+  }, [pultQr, session.state.phase]);
   useTheme(session.themeId, session.branding);
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
@@ -249,8 +296,10 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
       <ScreenControls
         toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null}
         toPick={isHost && phase !== "finished" ? () => setRepicking(true) : null}
+        toPultQr={isHost && phase !== "finished" ? () => setPultQr("manual") : null}
         bed={builtinNow && soundReady}
       />
+      {isHost && pultQr && <PultQr code={session.code} onClose={() => setPultQr(null)} />}
       {isHost && (
         <ConfirmDialog
           open={repicking}

@@ -747,13 +747,14 @@ function RolePicker({ code, onPult }: { code: string; onPult: () => void }) {
           <Icon name="remote" className="tile__icon" />
           <span className="tile__label">Пульт</span>
         </button>
-        <button type="button" className="tile tile--big" onClick={() => navigate(`/screen/${code}`)}>
+        <button type="button" className="tile tile--big" onClick={() => navigate(`/screen/${code}?pult=1`)}>
           <Icon name="screen" className="tile__icon" />
           <span className="tile__label">Экран зала</span>
         </button>
       </div>
       <p className="muted small">
-        Второе устройство: войдите в студию — сверху будет «Идёт игра» с кнопками «Пульт» и «Экран зала». Без входа —
+        Выбрали «Экран зала» — на нём появится QR-код пульта: отсканируйте его телефоном, и пульт откроется сразу. Ещё
+        второе устройство: войдите в студию — сверху будет «Идёт игра» с кнопками «Пульт» и «Экран зала». Экран без входа —
         откройте {joinHost()}/s и введите код {formatSessionCode(code)}.
       </p>
     </section>

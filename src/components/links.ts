@@ -3,6 +3,14 @@ export function playUrl(code: string): string {
   return `${window.location.origin}/play/${code}`;
 }
 
+/**
+ * Пульт этой игры (решение владельца 1 ноября 2026): QR на экране зала — ведущий сканирует телефоном и сразу
+ * попадает на пульт. Сам адрес прав не даёт: пульт открывается только у вошедшего ведущего этой игры.
+ */
+export function pultUrl(code: string): string {
+  return `${window.location.origin}/host/${code}`;
+}
+
 /** Адрес без протокола для показа на экране зала. */
 export function joinHint(): string {
   return `${window.location.host}/j`;

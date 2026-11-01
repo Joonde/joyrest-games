@@ -1,0 +1,93 @@
+# Проверка «QR пульта» (решение владельца 1 ноября 2026): настоящий браузер на test.games.joy-rest.ru —
+# QR под «Пульт» на ноутбуке, телефон по нему сразу пульт, кнопка «📱 Пульт на телефон» (scripts/e2e/pult-qr.mjs).
+# Только вручную (Run workflow) или коммитом с [pult-qr] в ветке claude/* (~3 минуты).
+# Код ветки работает без права записи в репозиторий; снимки в ветку e2e-shots (папка pult-qr/) кладёт
+# отдельная задача, которая код ветки не запускает.
+name: Проверка QR пульта
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: QR пульта на test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[pult-qr]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Браузер
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/pult-qr.mjs /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm pkg set type=module && npm i --no-audit --no-fund playwright@1.48.2 jsqr@1.4.0 pngjs@7.0.0
+          npx playwright install --with-deps chromium
+      - name: Ждём выкладку на test
+        if: ${{ !contains(github.event.head_commit.message, '[no-test]') }}
+        run: |
+          for i in $(seq 1 40); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
+      - name: QR пульта
+        working-directory: /tmp/e2e
+        run: node pult-qr.mjs
+        env:
+          E2E_BASE: https://test.games.joy-rest.ru
+          E2E_SHOTS: /tmp/e2e/shots
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
+      - name: Снимки
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pult-qr-shots
+          path: /tmp/e2e/shots
+          if-no-files-found: ignore
+          retention-days: 7
+
+  shots:
+    name: Снимки в e2e-shots
+    needs: check
+    if: always() && needs.check.result != 'skipped'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pult-qr-shots
+          path: /tmp/shots
+        continue-on-error: true
+      - name: В ветку e2e-shots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -d /tmp/shots ] && ls /tmp/shots/*.png >/dev/null 2>&1 || { echo "::notice::Снимков нет"; exit 0; }
+          git init -q repo && cd repo
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth 1 origin e2e-shots && git checkout -q -B e2e-shots FETCH_HEAD || git checkout -q --orphan e2e-shots
+          rm -rf pult-qr && mkdir -p pult-qr && cp /tmp/shots/*.png pult-qr/
+          git add -A pult-qr
+          git commit -qm "Снимки проверки QR пульта ${GITHUB_SHA::7}" || { echo "::notice::Нечего отправлять"; exit 0; }
+          for i in 1 2 3 4 5; do
+            git push -q origin HEAD:e2e-shots && exit 0
+            git fetch -q --depth 1 origin e2e-shots && git rebase -q FETCH_HEAD || break
+          done
+          echo "::warning::Снимки не отправлены в e2e-shots"

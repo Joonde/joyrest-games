@@ -153,8 +153,9 @@ function saveMarks(key: string, marks: string[]): void {
  * «Последний шанс»). Без подсказки — отметки как есть, всё на слух. Пульт проверяет заявку честно (`honestClaim`): отмеченная, но ещё не звучавшая песня — заявка не засчитана.
  */
 export function LottoPlayerView({ session, content, pid, role, myAnswer, sending, onAnswer }: PlayerViewProps<LottoContent, { marks: string[] }>) {
-  const card = useMemo(() => cardFor(content, pid), [content, pid]);
-  const key = `${MARKS_KEY}.${storeScope(session)}.${pid}`;
+  const scope = storeScope(session);
+  const card = useMemo(() => cardFor(content, pid, scope), [content, pid, scope]);
+  const key = `${MARKS_KEY}.${scope}.${pid}`;
   const pendingKey = `${key}.claim`;
   const [marks, setMarks] = useState<string[]>(() => loadMarks(key));
   const [pending, setPending] = useState<number | null>(() => loadPending(pendingKey));

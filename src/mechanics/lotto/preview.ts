@@ -1,3 +1,4 @@
+import { storeScope } from "../../core/program";
 import type { PreviewDriver } from "../preview";
 import { scoringIds } from "../preview";
 import type { LottoContent } from "./content";
@@ -16,8 +17,9 @@ export const lottoPreview: PreviewDriver<LottoContent> = ({ session, content, pa
         const played = playedUpTo(content, session.state.step, orderOf(content, result.order));
         const claims = players.flatMap((pid) => {
           if (won.has(pid)) return [];
-          const marks = cardFor(content, pid).filter((t) => played.has(t));
-          return isWin(cardFor(content, pid), new Set(marks), content.size, content.rule) ? [{ pid, value: { marks } }] : [];
+          const card = cardFor(content, pid, storeScope(session));
+          const marks = card.filter((t) => played.has(t));
+          return isWin(card, new Set(marks), content.size, content.rule) ? [{ pid, value: { marks } }] : [];
         });
         if (claims.length > 0) return { label: "Гость собрал линию и жмёт «Лото!»", answers: claims };
       }

@@ -87,6 +87,44 @@ describe("карточки", () => {
     expect(cards.size).toBeGreaterThan(3);
   });
 
+  it("в новой игре у того же телефона — новая карточка, в одной игре — одна и та же (решение владельца 1 ноября 2026)", () => {
+    const c = game({ songs: songs(30), size: 4 });
+    // id участника — устройство гостя, оно одно на все игры; карточку меняет id игры.
+    expect(cardFor(c, "anna", "s1")).toEqual(cardFor(c, "anna", "s1"));
+    const games = new Set(["s1", "s2", "s3", "s4", "s5", "s1.b1"].map((g) => cardFor(c, "anna", g).join()));
+    expect(games.size).toBe(6);
+    // Без игры — прежняя карточка (как у старых записей и тестов).
+    expect(cardFor(c, "anna", "")).toEqual(cardFor(c, "anna"));
+  });
+
+  it("пульт проверяет «Лото!» по карточке этой игры", () => {
+    const c = game();
+    // Шаг и две игры: в игре A карточка Ани уже собрана, в игре B — ещё нет.
+    let found: { k: number; a: string; b: string } | null = null;
+    for (let k = 0; k < c.songs.length && !found; k++) {
+      const played = playedUpTo(c, k);
+      const ids = Array.from({ length: 40 }, (_, i) => `game${i}`);
+      const a = ids.find((g) => isWin(cardFor(c, "anna", g), played, c.size, c.rule));
+      const b = ids.find((g) => !isWin(cardFor(c, "anna", g), played, c.size, c.rule));
+      if (a && b) found = { k, a, b };
+    }
+    if (!found) throw new Error("не нашли шаг");
+    const { k, a, b } = found;
+    const step = lottoSteps(c)[k];
+    if (!step) throw new Error("нет шага");
+    const ask = (g: string): Answer => ({ id: `${k}_anna`, step: k, pid: "anna", uid: "anna", value: { marks: cardFor(c, "anna", g).filter((t) => playedUpTo(c, k).has(t)) }, submittedAt: 1 });
+    const state = { ...startState(), stage: "question" as const, step: k };
+    expect(score(step, [ask(a)], { state, scope: a })).toEqual([{ pid: "anna", delta: 300 }]);
+    expect(score(step, [ask(a)], { state, scope: b })).toEqual([]);
+    // revealSong берёт игру из самой сессии.
+    const at = (id: string): Session => ({
+      id, code: "123456", hostId: "h", gameId: "g", gameTitle: "", mechanic: "lotto", gameSnapshot: null, themeId: "joyrest",
+      playMode: "solo", screenMode: "laptop", state, leaderboard: { anna: { name: "Аня", kind: "player", score: 0 } }, createdAt: 0,
+    });
+    expect(applyChange(at(a), revealSong(at(a), c, [ask(a)], []), 1).leaderboard.anna?.score).toBe(300);
+    expect(applyChange(at(b), revealSong(at(b), c, [ask(a)], []), 1).leaderboard.anna?.score).toBe(0);
+  });
+
   it("линии: ряды, столбцы, диагонали", () => {
     expect(cardLines(3)).toHaveLength(8);
     const card = ["a", "b", "c", "d", "e", "f", "g", "h", "i"];

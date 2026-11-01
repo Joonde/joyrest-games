@@ -1,6 +1,7 @@
 // Музыкальное лото: карточки игроков, проверка «Лото!», очки и ход игры на пульте. Чистые функции:
 // пульт отправляет результат в базу, репетиция и тесты применяют его в памяти.
 import { leaderboardAdditions } from "../../core/leaderboard";
+import { storeScope } from "../../core/program";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
@@ -41,12 +42,14 @@ function random(seed: number): () => number {
 }
 
 /**
- * Карточка игрока (или команды): size² песен в случайном порядке. Зависит только от игры и id
- * участника — телефон и пульт получают одну и ту же карточку без лишних записей в базу.
+ * Карточка игрока (или команды): size² песен в случайном порядке. Зависит от песен игры, id участника и
+ * `scope` — чья это игра (`storeScope`: id сессии, у вечера — с номером блока): телефон и пульт получают одну и ту же
+ * карточку без лишних записей в базу, а в новой игре у того же телефона карточка новая (решение владельца 1 ноября
+ * 2026: id участника — это устройство гостя, оно одно на все игры, и раньше карточка повторялась).
  */
-export function cardFor(content: LottoContent, pid: string): string[] {
+export function cardFor(content: LottoContent, pid: string, scope = ""): string[] {
   const ids = content.songs.map((s) => s.id);
-  const next = random(hash(`${pid}|${ids.join(",")}`));
+  const next = random(hash(`${scope ? `${scope}|` : ""}${pid}|${ids.join(",")}`));
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(next() * (i + 1));
     [ids[i], ids[j]] = [ids[j] as string, ids[i] as string];
@@ -280,7 +283,7 @@ export function honestClaim(card: string[], marks: readonly unknown[], played: S
  * Очки за песню. Заявка верна, если она честная (`honestClaim`): карточка собрана по правилу из уже прозвучавших
  * песен, а среди отметок нет ещё не звучавших. Кто уже выиграл, второй раз не получает. Порядок — по времени заявки.
  */
-export function score(step: LottoStep, answers: Answer[], { state }: ScoreContext): ScoreDelta[] {
+export function score(step: LottoStep, answers: Answer[], { state, scope = "" }: ScoreContext): ScoreDelta[] {
   const parsed = parseLottoResult(state.result);
   const prior = new Set(parsed.winners);
   const played = playedUpTo(step.content, step.index, orderOf(step.content, parsed.order));
@@ -291,7 +294,7 @@ export function score(step: LottoStep, answers: Answer[], { state }: ScoreContex
     .filter((a) => {
       if (seen.has(a.pid)) return false;
       seen.add(a.pid);
-      return honestClaim(cardFor(step.content, a.pid), (a.value as { marks: string[] }).marks, played, step.content.size, step.content.rule);
+      return honestClaim(cardFor(step.content, a.pid, scope), (a.value as { marks: string[] }).marks, played, step.content.size, step.content.rule);
     });
   return winners.map((a, i) => ({ pid: a.pid, delta: prizeFor(step.content, prior.size + i) }));
 }
@@ -363,7 +366,7 @@ export function revealSong(session: Session, content: LottoContent, answers: Ans
     ...session.leaderboard,
     ...leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
-  const deltas = score(step, own, { state: session.state });
+  const deltas = score(step, own, { state: session.state, scope: storeScope(session) });
   const won = new Map(deltas.map((d) => [d.pid, d.delta]));
   const leaderboard: Record<string, LeaderboardEntry> = {};
   for (const [pid, entry] of Object.entries(board)) {

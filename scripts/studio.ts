@@ -608,7 +608,7 @@ async function main() {
     };
     check((await act({ state: { phase: "playing", step: 0, stage: "ready", startedAt: null, revealed: false, timeLimit: null, answered: 0, result: null } })) === 200, "лото началось");
     check((await act(playSong(await get(), lotto))) === 200, "первая песня звучит (барабан: случайный порядок)");
-    const card = cardFor(lotto, me.uid);
+    const card = cardFor(lotto, me.uid, sid);
     check(card.length === lotto.size * lotto.size, `у гостя карточка ${lotto.size}×${lotto.size}`);
     let won = false;
     for (let guard = 0; guard < lotto.songs.length && !won; guard++) {

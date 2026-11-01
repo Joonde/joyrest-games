@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
 import { podiumLabel, podiumNext, startPodium } from "../../core/podium";
+import { storeScope } from "../../core/program";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { canSeek } from "../stage/video";
@@ -252,7 +253,7 @@ export function LottoHostControls({ session, content, answers, participants, con
           ) : (
             <ul className="open-answers">
               {own.map((a) => {
-                const ok = honestClaim(cardFor(content, a.pid), isClaim(a.value) ? a.value.marks : [], played, content.size, content.rule) && !result.winners.includes(a.pid);
+                const ok = honestClaim(cardFor(content, a.pid, storeScope(session)), isClaim(a.value) ? a.value.marks : [], played, content.size, content.rule) && !result.winners.includes(a.pid);
                 return (
                   <li key={a.id} className={`open-answers__item open-answers__item--${ok ? "correct" : "wrong"}`}>
                     <span className="open-answers__text">{nameOf(a.pid)}</span>

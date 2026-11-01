@@ -72,6 +72,8 @@ export interface PersonalAnswer {
 /** Что нужно для подсчёта очков, кроме самих ответов. */
 export interface ScoreContext {
   state: SessionState;
+  /** Чья это игра — id сессии (у вечера из блоков — с номером блока, `storeScope`). От неё зависят личные карточки лото. */
+  scope?: string;
 }
 
 /** Моменты игры со встроенной музыкой (файлы — `BUILTIN_MUSIC` в `sound.ts`). */

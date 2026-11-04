@@ -1,0 +1,38 @@
+# Разовая проверка связи с сервером (4 ноября 2026, после атаки на Beget): только чтение — DNS, порты, /health.
+# Ничего не меняет на сервере и не входит на него. Запускается пушем в ветку claude/net-check.
+name: Проверка связи с сервером
+
+on:
+  push:
+    branches: ["claude/net-check"]
+
+permissions:
+  contents: read
+
+jobs:
+  net:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: DNS, порты, /health
+        run: |
+          sudo apt-get install -y -qq dnsutils netcat-openbsd >/dev/null 2>&1 || true
+          IP=217.114.13.92
+          echo "=== NS joy-rest.ru"; dig +short NS joy-rest.ru @8.8.8.8; dig +short NS joy-rest.ru @1.1.1.1
+          for h in joy-rest.ru games.joy-rest.ru test.games.joy-rest.ru test.joy-rest.ru; do
+            echo "=== A $h: google=$(dig +short A $h @8.8.8.8 | tr '\n' ' ') cloudflare=$(dig +short A $h @1.1.1.1 | tr '\n' ' ')"
+          done
+          echo "=== SOA"; dig +short SOA joy-rest.ru @8.8.8.8
+          echo "=== Авторитетные NS отвечают?"
+          for ns in $(dig +short NS joy-rest.ru @8.8.8.8); do echo "$ns: $(dig +short +time=3 +tries=1 A games.joy-rest.ru @$ns 2>&1 | tr '\n' ' ')"; done
+          echo "=== Порты $IP"
+          for p in 22 80 443; do nc -z -w 6 $IP $p && echo "порт $p открыт" || echo "порт $p НЕ отвечает"; done
+          echo "=== /health напрямую по IP (мимо DNS)"
+          for h in games.joy-rest.ru test.games.joy-rest.ru; do
+            echo "$h: $(curl -sS -m 15 --resolve $h:443:$IP https://$h/health 2>&1 | head -c 300)"
+          done
+          echo "joy-rest.ru: $(curl -sS -m 15 -o /dev/null -w '%{http_code}' --resolve joy-rest.ru:443:$IP https://joy-rest.ru/ 2>&1)"
+          echo "=== /health по имени"
+          for h in games.joy-rest.ru test.games.joy-rest.ru; do echo "$h: $(curl -sS -m 15 https://$h/health 2>&1 | head -c 300)"; done
+          echo "=== Сертификат"
+          echo | timeout 10 openssl s_client -connect $IP:443 -servername games.joy-rest.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates 2>&1 | head -5

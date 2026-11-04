@@ -1,41 +1,98 @@
 {
  "runs": [
   {
-   "name": "lotto-0-solo-projector",
-   "views": 20,
-   "findings": 0,
+   "name": "quest-0-teams-projector",
+   "views": 38,
+   "findings": 2,
    "finished": true
   },
   {
-   "name": "lotto-0-solo-tv",
-   "views": 20,
-   "findings": 0,
+   "name": "quest-0-teams-tv",
+   "views": 37,
+   "findings": 1,
    "finished": true
   },
   {
-   "name": "lotto-0-teams-tv",
-   "views": 30,
-   "findings": 0,
+   "name": "quest-1-teams-tv",
+   "views": 46,
+   "findings": 1,
    "finished": true
   },
   {
-   "name": "lotto-0-solo-laptop",
-   "views": 32,
-   "findings": 0,
+   "name": "quest-0-teams-crowd",
+   "views": 53,
+   "findings": 1,
    "finished": true
   },
   {
-   "name": "lotto-0-teams-projector",
-   "views": 30,
-   "findings": 0,
+   "name": "quest-1-teams-projector",
+   "views": 39,
+   "findings": 2,
    "finished": true
   },
   {
-   "name": "lotto-0-teams-laptop",
-   "views": 26,
-   "findings": 0,
+   "name": "quest-1-teams-crowd",
+   "views": 50,
+   "findings": 1,
    "finished": true
   }
  ],
- "findings": []
+ "findings": [
+  {
+   "key": "экран зала|мелко для зала|div.quest-screen.qx--classic > aside.qx-panel > p.qx-panel__head > span.qx-panel__cols|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 16.2 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.quest-screen.qx--classic > aside.qx-panel > p.qx-panel__head > span.qx-panel__cols",
+   "text": "клетка · очки",
+   "at": "playing/0/ready/",
+   "count": 16,
+   "shot": "shots/quest-0-teams-tv-hall-1.jpg",
+   "where": [
+    "quest 1-й шаблон, команды ×4, телевизор full hd",
+    "quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quest 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|ol.qx-panel__list > li.qx-row > span.qx-row__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«🐺» закрыт элементом span.qx-row__cell",
+   "path": "ol.qx-panel__list > li.qx-row > span.qx-row__name > span.name-emoji",
+   "text": "🐺",
+   "at": "playing/0/ready/",
+   "count": 32,
+   "shot": "shots/quest-0-teams-projector-hall-1.jpg",
+   "where": [
+    "quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.quest-screen.qx--adult > aside.qx-panel > p.qx-panel__head > span.qx-panel__cols|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 16.2 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.quest-screen.qx--adult > aside.qx-panel > p.qx-panel__head > span.qx-panel__cols",
+   "text": "клетка · очки",
+   "at": "playing/0/ready/",
+   "count": 15,
+   "shot": "shots/quest-1-teams-tv-hall-1.jpg",
+   "where": [
+    "quest 2-й шаблон, команды ×4, телевизор full hd",
+    "quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quest 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quest"
+   ]
+  }
+ ]
 }

@@ -12021,7 +12021,8 @@ button.dance-card:active {
 .quest-track__line {
   position: relative;
   height: 12px;
-  margin: 22px 14px 6px;
+  /* Поля по бокам — половина своей фишки (34 px), чтобы на старте и финише она не вылезала за край. */
+  margin: 22px 20px 6px;
   border-radius: 6px;
   background: var(--color-border);
 }
@@ -12059,6 +12060,7 @@ button.dance-card:active {
 }
 
 .quest-track__ends {
+  padding: 0 4px;
   display: flex;
   justify-content: space-between;
   gap: 8px;

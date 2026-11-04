@@ -466,10 +466,10 @@ export function QuestPlayerView({ session, content, pid, role, myAnswer, sending
       </p>
       {task ? (
         <div className={mine ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
-          <strong>{mine ? (teams ? "Задание вашей команды" : "Ваше задание") : <>Задание для <NameText name={nameOf(session, r.mover)} /></>}</strong>
+          <strong>{mine ? (teams ? "Задание вашей команды" : "Ваше задание") : <>Выполняет <NameText name={nameOf(session, r.mover)} /></>}</strong>
         </div>
       ) : (
-        <p className="muted">{mine ? "Ваша клетка" : <>Клетка <NameText name={nameOf(session, r.mover)} /></>}</p>
+        <p className="muted">{mine ? "Ваша клетка" : <>Ходит <NameText name={nameOf(session, r.mover)} /></>}</p>
       )}
       {move && <p className="muted">{move}</p>}
       <TaskCard content={content} result={r} session={session} />

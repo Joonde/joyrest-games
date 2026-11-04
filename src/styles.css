@@ -11654,7 +11654,7 @@ button.dance-card:active {
 
 .qx-row {
   display: grid;
-  grid-template-columns: 1.2cqw 3.2cqh minmax(0, 1fr) auto 2.4cqw;
+  grid-template-columns: 1.2cqw 3.2cqh minmax(0, 1fr) auto 3.4cqw;
   align-items: center;
   gap: 0.45cqw;
   padding: 0.45cqh 0.6cqw;
@@ -11838,6 +11838,253 @@ button.dance-card:active {
   margin: 0;
   font: 500 2.2cqh Jost, sans-serif;
   color: #f5ebdd;
+}
+
+.qx-center__note + .qx-center__note {
+  margin-top: 1cqh;
+}
+
+/* Подписи колонок панели команд. */
+.qx-panel__cols {
+  float: right;
+  margin-top: 0.5cqh;
+  font: 400 1.5cqh Jost, sans-serif;
+  color: #cfc3ae;
+}
+
+/* Легенда клеток — под командами. */
+.qx-legend {
+  list-style: none;
+  margin: 1.2cqh 0 0;
+  padding: 1cqh 0 0;
+  border-top: 1px solid rgba(227, 198, 140, 0.35);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6cqh 0.9cqw;
+  font: 500 1.85cqh Jost, sans-serif;
+  color: #f5ebdd;
+}
+
+.qx-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4cqw;
+  white-space: nowrap;
+}
+
+.qx-legend__dot {
+  display: grid;
+  place-items: center;
+  min-width: 2.8cqh;
+  height: 2.8cqh;
+  padding: 0 0.3cqh;
+  box-sizing: border-box;
+  border-radius: 1.4cqh;
+  border: 2px solid #fff;
+  font: 700 1.45cqh Jost, sans-serif;
+  color: #1c1424;
+}
+
+.qx-legend__item--task .qx-legend__dot { background: #e8b64c; }
+.qx-legend__item--question .qx-legend__dot { background: #3fb6b0; }
+.qx-legend__item--dance .qx-legend__dot { background: #e46fa5; }
+.qx-legend__item--karaoke .qx-legend__dot { background: #9b6fe0; }
+.qx-legend__item--bonus .qx-legend__dot { background: #4cb86a; }
+.qx-legend__item--trap .qx-legend__dot { background: #d9534f; color: #fff; }
+.qx-legend__item--skip .qx-legend__dot { background: #8a8f98; color: #fff; }
+
+/* Последний круг и пропуски — под плашкой хода. */
+.qx-notes {
+  position: absolute;
+  top: 11.5cqh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 0.6cqh;
+  max-width: 56cqw;
+}
+
+.qx-note {
+  margin: 0;
+  padding: 0.6cqh 1.2cqw;
+  border-radius: 2cqh;
+  background: rgba(21, 16, 31, 0.84);
+  border: 1.5px solid rgba(227, 198, 140, 0.6);
+  font: 600 2cqh Jost, sans-serif;
+  color: #f5ebdd;
+  text-align: center;
+  backdrop-filter: blur(9px);
+}
+
+.qx-note--final {
+  border-color: #ffe7a3;
+  color: #ffe7a3;
+  box-shadow: 0 0 2cqh rgba(255, 231, 163, 0.35);
+}
+
+/* Карточка хода выходит, когда фишка дошла (задержку ставит экран: ход случился при открытом экране). */
+.qx-delayed {
+  animation: qx-in 0.45s ease-out both;
+  animation-delay: var(--qx-delay, 0ms);
+}
+
+@keyframes qx-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Задание открыто — крупно по центру, поле под ним темнеет. */
+.qx-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 6, 16, 0.55);
+}
+
+.qx-card--focus {
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  width: 52cqw;
+}
+
+.qx-card--focus .quest-task {
+  padding: 3cqh 2.6cqw;
+  gap: 1.6cqh;
+  text-align: center;
+  border-width: 3px;
+  box-shadow: 0 0 5cqh rgba(232, 182, 76, 0.55);
+}
+
+.qx-card--focus .quest-task__kind {
+  font-size: 2.6cqh;
+}
+
+.qx-card--focus .quest-task__text {
+  font-size: 5.2cqh;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.qx-card--focus .quest-task__video {
+  max-height: 46cqh;
+}
+
+.qx-card .quest-task__answer,
+.qx-card .quest-task__outcome.is-ok {
+  color: #a3c2aa;
+}
+
+/* Финиш и итоги круга. */
+.qx-center--finish {
+  border-color: #ffe7a3;
+  box-shadow: 0 0 6cqh rgba(255, 231, 163, 0.5);
+}
+
+.qx-center__bonus {
+  margin: 0 0 1cqh;
+  font: 700 4cqh Jost, sans-serif;
+  color: #a3c2aa;
+}
+
+.qx-finishers {
+  list-style: none;
+  margin: 0 0 1.4cqh;
+  padding: 0;
+  display: grid;
+  gap: 0.6cqh;
+  font: 600 2.6cqh Jost, sans-serif;
+  color: #f5ebdd;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qx-delayed {
+    animation: none;
+  }
+}
+
+/* Телефон: дорожка «старт → финиш», очередь, последний круг. */
+.quest-track {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.quest-track__line {
+  position: relative;
+  height: 12px;
+  margin: 22px 14px 6px;
+  border-radius: 6px;
+  background: var(--color-border);
+}
+
+.quest-track__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 6px;
+  background: var(--color-highlight);
+}
+
+.quest-track__dot,
+.quest-track__me {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid var(--color-surface);
+}
+
+.quest-track__dot {
+  width: 14px;
+  height: 14px;
+}
+
+.quest-track__me {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font: 700 16px Jost, sans-serif;
+  color: #221e1b;
+  box-shadow: 0 0 0 2px var(--color-highlight);
+  z-index: 1;
+}
+
+.quest-track__ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.quest-phone__queue {
+  margin: 0;
+  font-weight: 600;
+}
+
+.quest-phone__queue.is-soon {
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--color-highlight);
+}
+
+.quest-phone__final,
+.quest-host__final {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-highlight);
+  font-weight: 600;
+}
+
+.quest-task__answer {
+  margin: 0;
 }
 
 .quest-board {
@@ -12046,8 +12293,9 @@ button.dance-card:active {
   font-weight: 700;
 }
 
+/* На телефоне и пульте — цвет темы (светлая пастель на белой карточке не читается); на экране зала — свой. */
 .quest-task__outcome.is-ok {
-  color: #a3c2aa;
+  color: var(--color-success);
 }
 
 .quest-roll {

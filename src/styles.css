@@ -11619,7 +11619,8 @@ button.dance-card:active {
   position: absolute;
   left: 1.25cqw;
   top: 8.9cqh;
-  width: 19.5cqw;
+  /* На проекторе 4:3 — шире (иначе имена не помещаются). */
+  width: max(19.5cqw, 32cqh);
   max-height: 72cqh;
   padding: 1.6cqh 1cqw;
   box-sizing: border-box;
@@ -11654,7 +11655,8 @@ button.dance-card:active {
 
 .qx-row {
   display: grid;
-  grid-template-columns: 1.2cqw 3.2cqh minmax(0, 1fr) auto 3.4cqw;
+  /* Имени — не меньше 6cqw (длинные имена на проекторе 4:3 сжимали его в ноль). */
+  grid-template-columns: 1.2cqw 3.2cqh minmax(6cqw, 1fr) auto minmax(2.4cqw, auto);
   align-items: center;
   gap: 0.45cqw;
   padding: 0.45cqh 0.6cqw;
@@ -11847,8 +11849,9 @@ button.dance-card:active {
 /* Подписи колонок панели команд. */
 .qx-panel__cols {
   float: right;
-  margin-top: 0.5cqh;
-  font: 400 1.5cqh Jost, sans-serif;
+  margin-top: 0.4cqh;
+  margin-left: 0.6cqw;
+  font: 400 1.75cqh Jost, sans-serif;
   color: #cfc3ae;
 }
 

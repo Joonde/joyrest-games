@@ -1,7 +1,7 @@
-• quest-0-teams-projector: видов 38, находок 2
-• quest-0-teams-tv: видов 37, находок 1
-• quest-1-teams-tv: видов 46, находок 1
-• quest-0-teams-crowd: видов 53, находок 1
-• quest-1-teams-projector: видов 39, находок 2
-• quest-1-teams-crowd: видов 50, находок 1
-Ревизор: 3 находок → /tmp/inspect/README.md
+✓ quest-0-teams-projector: видов 38, находок 0
+✓ quest-0-teams-tv: видов 38, находок 0
+✓ quest-1-teams-tv: видов 46, находок 0
+✓ quest-0-teams-crowd: видов 51, находок 0
+✓ quest-1-teams-projector: видов 39, находок 0
+✓ quest-1-teams-crowd: видов 54, находок 0
+Ревизор: 0 находок → /tmp/inspect/README.md

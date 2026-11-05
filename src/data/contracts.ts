@@ -608,7 +608,7 @@ export interface RoomSenderOptions {
 export interface RoomSender {
   /** Событие в следующую пачку; `now` — сразу отдельным маленьким запросом (движения приборов «Бубликатора»). */
   push(event: RoomInputEvent, options?: { now?: boolean }): void;
-  /** Отправить накопленное сейчас (конец испытания). */
+  /** Отправить накопленное сейчас (конец испытания); нечего — пустая пачка «я на связи». */
   flush(): void;
   stop(): void;
 }
@@ -619,8 +619,11 @@ export interface RoomSender {
  */
 export interface RoomsRepository {
   sender(sessionId: string, options?: RoomSenderOptions): RoomSender;
-  /** Команда комнате (только ведущий): повтор после обрыва не выполнится дважды. */
-  command(sessionId: string, cmd: string, args?: unknown): Promise<unknown>;
+  /**
+   * Команда комнате (только ведущий): повтор после обрыва не выполнится дважды. `expect` — этап игры, который видел
+   * ведущий (`moment` из сводки пульта): игра ушла дальше — отказ `failed-precondition` (второй пульт, двойное касание).
+   */
+  command(sessionId: string, cmd: string, args?: unknown, options?: { expect?: string }): Promise<unknown>;
   /** Поток комнаты: сразу снимок, дальше события; обрыв — переподключение со свежим снимком. */
   subscribe(sessionId: string, kind: RoomStreamKind, onEvent: (event: RoomStreamEvent) => void, onError: (error: Error) => void): Unsubscribe;
 }

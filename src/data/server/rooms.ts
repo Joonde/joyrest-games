@@ -1,24 +1,28 @@
 /**
- * Быстрый канал своего сервера (CLAUDE.md, «Быстрый канал (комнаты)»): пачки телефона `POST /api/rooms/:id/input`,
- * команды пульта `POST /api/rooms/:id/command`, потоки `GET /api/stream/room/:id/me|screen|host` (опрос без потока —
- * `GET /api/rooms/:id/me|screen|host`).
+ * Быстрый канал своего сервера (CLAUDE.md, «Быстрый канал (комнаты)», логика — docs/fast-room.md): пачки телефона
+ * `POST /api/rooms/:id/input`, команды пульта `POST /api/rooms/:id/command`, потоки
+ * `GET /api/stream/room/:id/me|screen|host` (опрос без потока — `GET /api/rooms/:id/me|screen|host`).
  *
  * Отправитель копит события и раз в `every` мс (по умолчанию 1 с; первый раз — со случайным сдвигом до 0,3 с, чтобы
- * 500 телефонов не стучались в одну миллисекунду) шлёт пачку; пустая пачка — «я на связи». У каждой пачки свой номер
- * (`seq`) в потоке этой страницы (`stream`): повтор после обрыва сервер не обработает второй раз. Пачку с событиями
- * повторяем, пока не дойдёт (пауза 0,5 → 5 с); пустую — нет, следующая и так скоро. `ago` считается заново перед
- * каждой попыткой: сервер сам решает, верить ли старому событию (не дальше 4 с).
+ * 500 телефонов не стучались в одну миллисекунду) шлёт пачку; пустая пачка — «я на связи», без номера. У каждой пачки
+ * с событиями свой номер (`seq`) в потоке этой страницы (`stream`): повтор после обрыва сервер не обработает второй
+ * раз. Пачку с событиями повторяем, пока не дойдёт (пауза 0,5 → 5 с, в очереди повтора — до 30, при переполнении
+ * уходит самая старая); пустую — нет. `ago` считается заново перед каждой попыткой. Пачка больше 3,5 КБ делится.
  */
 import type { RoomSender, RoomSenderOptions, RoomsRepository } from "../contracts";
 import { errorCodeOf, isPermanentError, retryBriefly } from "../retry";
 import type { RoomInputEvent, RoomInputReply, RoomStreamEvent, RoomStreamKind } from "../types";
-import { api, asRecord, newId } from "./api";
+import { api, ApiError, asRecord, newId } from "./api";
 import { openStream } from "./stream";
 
 /** Событий в одной пачке — не больше (как на сервере). */
 export const ROOM_BATCH_MAX = 64;
-/** Пачек с событиями в очереди повтора — не больше: дольше без связи старое уже не нужно игре. */
+/** Размер пачки в байтах — не больше (сервер принимает до 4 КБ; запас на `stream`, `seq` и `ago`). */
+export const ROOM_BATCH_BYTES = 3500;
+/** Пачек с событиями в очереди повтора — не больше: при переполнении уходит самая старая. */
 export const ROOM_RETRY_MAX = 30;
+/** Отказ «не игрок» повторяем столько раз (вход мог ещё не записаться), потом — настоящая ошибка. */
+export const ROOM_FORBIDDEN_RETRIES = 2;
 const RETRY_MS = [500, 1000, 2000, 4000, 5000];
 const JITTER_MS = 300;
 const INPUT_TIMEOUT_MS = 8000;
@@ -42,17 +46,35 @@ const defaultDeps: SenderDeps = {
 function replyOf(data: unknown): RoomInputReply {
   const r = asRecord(data);
   const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
-  return { at: num(r.at, 0), every: num(r.every, 1000), paused: r.paused === true, dropped: num(r.dropped, 0), dup: r.dup === true };
+  return { at: num(r.at, 0), every: num(r.every, 1000), paused: r.paused === true, dropped: num(r.dropped, 0), dup: r.dup === true, stale: r.stale === true };
 }
 
-/** Лимит запросов (429) и обрыв — повторяемы; остальное «настоящее» (не игрок, игра завершена) — стоп. */
-function isFatal(error: unknown): boolean {
-  return errorCodeOf(error) !== "resource-exhausted" && isPermanentError(error);
+function statusOf(error: unknown): number {
+  return error instanceof ApiError ? error.status : 0;
 }
 
 interface Pending {
   event: RoomInputEvent;
   at: number;
+}
+
+/** События по пачкам: не больше 64 и не больше `ROOM_BATCH_BYTES` в каждой (одно огромное событие — отдельно). */
+export function splitBatches(items: Pending[]): Pending[][] {
+  const batches: Pending[][] = [];
+  let current: Pending[] = [];
+  let size = 0;
+  for (const item of items) {
+    const bytes = new TextEncoder().encode(JSON.stringify(item.event)).length + 16;
+    if (current.length > 0 && (current.length >= ROOM_BATCH_MAX || size + bytes > ROOM_BATCH_BYTES)) {
+      batches.push(current);
+      current = [];
+      size = 0;
+    }
+    current.push(item);
+    size += bytes;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
 }
 
 export function createRoomSender(sessionId: string, options: RoomSenderOptions = {}, deps: SenderDeps = defaultDeps): RoomSender {
@@ -63,45 +85,76 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
   let queue: Pending[] = [];
   let stopped = false;
   let timer: unknown = null;
-  let retrying = 0;
+  let forbidden = 0;
+  /** Пачки, ждущие повтора: при переполнении отменяется самая старая. */
+  const retries: Array<{ handle: unknown }> = [];
 
   function fail(error: unknown) {
     if (stopped) return;
-    stopped = true;
-    if (timer !== null) deps.clearTimer(timer);
+    stop();
     options.onError?.(error instanceof Error ? error : new Error(String(error)));
   }
 
-  function send(items: Pending[], attempt = 0, number = ++seq) {
+  function stop() {
+    stopped = true;
+    if (timer !== null) deps.clearTimer(timer);
+    timer = null;
+    for (const r of retries.splice(0)) deps.clearTimer(r.handle);
+  }
+
+  function retry(items: Pending[], attempt: number, number: number, ms: number) {
+    if (retries.length >= ROOM_RETRY_MAX) {
+      const oldest = retries.shift();
+      if (oldest) deps.clearTimer(oldest.handle);
+    }
+    const slot: { handle: unknown } = { handle: null };
+    slot.handle = deps.setTimer(() => {
+      const i = retries.indexOf(slot);
+      if (i >= 0) retries.splice(i, 1);
+      send(items, attempt + 1, number);
+    }, ms);
+    retries.push(slot);
+  }
+
+  function send(items: Pending[], attempt = 0, number: number | null = items.length > 0 ? ++seq : null) {
     if (stopped) return;
     const at = deps.now();
     // Сколько мс назад случилось событие — заново перед каждой попыткой.
     const events = items.map(({ event, at: t }) => ({ ...event, ago: Math.max(0, Math.round(at - t)) }));
-    deps.post(path, { stream, seq: number, events }).then(
+    deps.post(path, number === null ? { stream, events } : { stream, seq: number, events }).then(
       (data) => {
         if (stopped) return;
+        forbidden = 0;
         const reply = replyOf(data);
         if (reply.every >= 250 && reply.every <= 10_000) every = reply.every;
         options.onReply?.(reply);
       },
       (error: unknown) => {
-        if (isFatal(error)) return fail(error);
+        if (stopped) return;
+        // Пачка больше, чем принимает сервер: эту пачку не повторяем (повтор тоже не пройдёт), отправка идёт дальше.
+        if (statusOf(error) === 413) return;
+        const code = errorCodeOf(error);
+        if (code === "permission-denied" && forbidden < ROOM_FORBIDDEN_RETRIES) {
+          // Вход мог ещё не дойти до комнаты (первая пачка сразу после входа) — пару раз пробуем снова.
+          forbidden += 1;
+          if (items.length > 0 && number !== null) retry(items, attempt, number, 1000 * forbidden);
+          return;
+        }
+        // Лимит запросов (429) и обрыв — повторяемы; остальное «настоящее» (не игрок, игра завершена) — стоп.
+        if (code !== "resource-exhausted" && isPermanentError(error)) return fail(error);
         // «Я на связи» не повторяем: следующая пачка уже скоро.
-        if (items.length === 0 || stopped || retrying >= ROOM_RETRY_MAX) return;
-        retrying += 1;
-        deps.setTimer(() => {
-          retrying -= 1;
-          send(items, attempt + 1, number);
-        }, RETRY_MS[Math.min(attempt, RETRY_MS.length - 1)] ?? 5000);
+        if (items.length === 0 || number === null) return;
+        retry(items, attempt, number, RETRY_MS[Math.min(attempt, RETRY_MS.length - 1)] ?? 5000);
       },
     );
   }
 
   function flush() {
     if (stopped) return;
-    const items = queue.slice(0, ROOM_BATCH_MAX);
-    queue = queue.slice(items.length);
-    send(items);
+    if (queue.length === 0) return send([]);
+    const items = queue;
+    queue = [];
+    for (const batch of splitBatches(items)) send(batch);
   }
 
   function schedule(ms: number) {
@@ -126,11 +179,7 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
       }
     },
     flush,
-    stop() {
-      stopped = true;
-      if (timer !== null) deps.clearTimer(timer);
-      timer = null;
-    },
+    stop,
   };
 }
 
@@ -139,25 +188,76 @@ function streamEventOf(value: unknown): RoomStreamEvent | null {
   return typeof r.type === "string" && typeof r.at === "number" ? (r as unknown as RoomStreamEvent) : null;
 }
 
+export interface SubscribeDeps {
+  get: (path: string) => Promise<unknown>;
+  open: typeof openStream;
+}
+
+const defaultSubscribeDeps: SubscribeDeps = { get: (path) => api("GET", path), open: openStream };
+
+/**
+ * Поток комнаты. «Закрыто» с `finished` — дальше браузер получит 409 и остановится сам; `removed` (участника убрали,
+ * за него вошёл другой телефон) и `replaced` (этот телефон открыл поток ещё раз) — останавливаемся сразу, не
+ * переподключаясь. Опрос: «не игрок» пару раз и лимит опросов — не окончательно (повтор).
+ */
+export function subscribeRoom(
+  sessionId: string,
+  kind: RoomStreamKind,
+  onEvent: (event: RoomStreamEvent) => void,
+  onError: (error: Error) => void,
+  deps: SubscribeDeps = defaultSubscribeDeps,
+): () => void {
+  const id = encodeURIComponent(sessionId);
+  let stopped = false;
+  let forbidden = 0;
+  let unsubscribe: () => void = () => undefined;
+  const halt = (error: Error) => {
+    if (stopped) return;
+    stopped = true;
+    unsubscribe();
+    onError(error);
+  };
+  const deliver = (value: unknown) => {
+    if (stopped) return;
+    const event = streamEventOf(value);
+    if (!event) return;
+    onEvent(event);
+    if (event.type === "closed" && (event.reason === "removed" || event.reason === "replaced")) {
+      halt(new ApiError(event.reason === "removed" ? "permission-denied" : "already-exists", event.reason === "removed" ? 403 : 409, event.reason));
+    }
+  };
+  unsubscribe = deps.open<unknown>({
+    url: `/api/stream/room/${id}/${kind}`,
+    poll: async () => {
+      try {
+        deliver(await deps.get(`/api/rooms/${id}/${kind}`));
+        forbidden = 0;
+      } catch (error) {
+        const code = errorCodeOf(error);
+        if (code === "resource-exhausted" || (code === "permission-denied" && forbidden++ < ROOM_FORBIDDEN_RETRIES)) {
+          throw new ApiError("unavailable", 0);
+        }
+        throw error;
+      }
+    },
+    onEvent: deliver,
+    onError: (error) => halt(error),
+  });
+  if (stopped) unsubscribe();
+  return () => {
+    stopped = true;
+    unsubscribe();
+  };
+}
+
 export const serverRoomsRepository: RoomsRepository = {
   sender: (sessionId, options) => createRoomSender(sessionId, options),
-  async command(sessionId, cmd, args) {
+  async command(sessionId, cmd, args, options) {
     // id команды — один на все повторы: дошедшая команда второй раз не выполнится.
     const id = newId();
-    const data = await retryBriefly(() => api("POST", `/api/rooms/${encodeURIComponent(sessionId)}/command`, { cmd, args: args ?? null, id }, { timeoutMs: INPUT_TIMEOUT_MS }));
+    const body = { cmd, args: args ?? null, id, expect: options?.expect ?? null };
+    const data = await retryBriefly(() => api("POST", `/api/rooms/${encodeURIComponent(sessionId)}/command`, body, { timeoutMs: INPUT_TIMEOUT_MS }));
     return asRecord(data).result ?? null;
   },
-  subscribe(sessionId, kind: RoomStreamKind, onEvent, onError) {
-    const id = encodeURIComponent(sessionId);
-    const deliver = (value: unknown) => {
-      const event = streamEventOf(value);
-      if (event) onEvent(event);
-    };
-    return openStream<unknown>({
-      url: `/api/stream/room/${id}/${kind}`,
-      poll: async () => deliver(await api("GET", `/api/rooms/${id}/${kind}`)),
-      onEvent: deliver,
-      onError,
-    });
-  },
+  subscribe: (sessionId, kind, onEvent, onError) => subscribeRoom(sessionId, kind, onEvent, onError),
 };

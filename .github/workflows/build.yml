@@ -223,8 +223,9 @@ jobs:
           chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
           ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null \
             || { echo "::error::DEPLOY_SSH_KEY не читается — скопирован не целиком?"; exit 1; }
-          grep -q '^217\.114\.13\.92 ssh-ed25519 ' ~/.ssh/known_hosts \
-            || { echo "::error::DEPLOY_KNOWN_HOSTS не похож на ключ сервера"; exit 1; }
+          # Ключ сервера должен быть записан именно для адреса SERVER_IP (не для прежнего сервера).
+          awk -v host="$SERVER" '$1 == host && $2 == "ssh-ed25519" { found = 1 } END { exit !found }' ~/.ssh/known_hosts \
+            || { echo "::error::DEPLOY_KNOWN_HOSTS не похож на ключ сервера $SERVER — обновите его (RUNBOOK)"; exit 1; }
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Выкладка по SSH

@@ -20,6 +20,7 @@ import { registerTelegram, type Bot } from "./telegram";
 import { parseLinks } from "../../src/core/clients";
 import { registerLive, type LiveOptions } from "./live";
 import { registerProposals } from "./proposals";
+import { registerRooms, type RoomsOptions } from "./room";
 import { registerStaff } from "./staff";
 import { registerTeam } from "./team";
 import { registerTracks, type TrackLimits } from "./tracks";
@@ -81,6 +82,8 @@ export interface AppOptions {
   drawings?: Omit<DrawingsOptions, "sql" | "isSite" | "mediaDir">;
   /** Игра в реальном времени — настройки для тестов (часы, «я жив» в потоке). */
   live?: Omit<LiveOptions, "sql" | "isSite">;
+  /** Быстрый канал — настройки для тестов (часы, цикл, сроки снимков и выгрузки). */
+  rooms?: Omit<RoomsOptions, "sql" | "isSite" | "hub">;
   /**
    * База площадок: анкеты без входа открыты только при VENUE_FORMS=on (`sudo joyrest venues on`).
    * Уведомления — бот заявок сайта (`lead.telegram`).
@@ -172,7 +175,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const isSite = site ? site.isSite : undefined;
     registerAuth(app, { ...options.auth, sql: options.sql, isSite });
     registerGames(app, { ...options.games, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
-    registerLive(app, { ...options.live, sql: options.sql, isSite, brandings: !lite });
+    const hub = registerLive(app, { ...options.live, sql: options.sql, isSite, brandings: !lite });
+    // Быстрый канал: игровые комнаты в памяти (CLAUDE.md, «Быстрый канал (комнаты)»).
+    registerRooms(app, { ...options.rooms, sql: options.sql, isSite, hub });
     if (!lite) {
       registerProposals(app, { sql: options.sql, isSite });
       registerStaff(app, { sql: options.sql, isSite });

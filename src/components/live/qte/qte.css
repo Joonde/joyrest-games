@@ -1,0 +1,405 @@
+/* QTE на телефоне гостя и на экране зала (src/core/qte.ts). Только токены темы; движение — transform/opacity. */
+
+.qte {
+  --qte-gold: var(--color-highlight);
+  --qte-soft: color-mix(in srgb, var(--color-highlight) 26%, transparent);
+  --qte-line: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 0;
+  position: relative;
+}
+
+.qte__eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.qte__plate {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 18px;
+  padding: 14px 18px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.qte__plate strong {
+  font-size: 19px;
+}
+
+.qte__plate span {
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.qte__grade {
+  font-family: var(--font-display);
+  font-size: 30px !important;
+}
+
+.qte__grade--perfect {
+  color: var(--qte-gold);
+}
+
+.qte__grade--good {
+  color: var(--color-success);
+}
+
+.qte__grade--weak {
+  color: var(--color-text-muted);
+}
+
+/* Вспышка старта: на iPhone вибрации нет — сигнал виден по всему экрану. */
+.qte::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: var(--qte-gold);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .qte.is-live::after {
+    animation: qte-flash 0.45s ease-out 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qte.is-live::after {
+    opacity: 0.12;
+  }
+}
+
+@keyframes qte-flash {
+  0% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- кольцо ---------- */
+
+.qte-ring {
+  position: relative;
+  width: min(78vw, 320px);
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: radial-gradient(circle at 50% 40%, var(--color-surface-alt) 0%, var(--color-surface) 70%);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+  color: var(--color-text);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: visible;
+}
+
+.qte-ring:disabled {
+  cursor: default;
+}
+
+.qte-ring__zone,
+.qte-hall .qte-ring__zone {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    transparent calc(var(--zone-in) - 0.5%),
+    var(--qte-soft) var(--zone-in),
+    var(--qte-soft) var(--zone-out),
+    transparent calc(var(--zone-out) + 0.5%)
+  );
+}
+
+.qte-ring__gold {
+  position: absolute;
+  left: 30%;
+  top: 30%;
+  width: 40%;
+  height: 40%;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: max(5px, 1.6vw) solid var(--qte-gold);
+  box-shadow: 0 0 18px var(--qte-soft);
+}
+
+.qte-ring__move {
+  position: absolute;
+  left: 30%;
+  top: 30%;
+  width: 40%;
+  height: 40%;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: max(3px, 1vw) solid var(--qte-line);
+  transform: scale(2.4);
+  will-change: transform;
+}
+
+.qte-ring__label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(30px, 11vw, 46px);
+  letter-spacing: 0.08em;
+}
+
+.qte.is-done .qte-ring__move {
+  opacity: 0.35;
+}
+
+.qte.is-perfect .qte-ring__gold {
+  box-shadow: 0 0 36px var(--qte-gold);
+}
+
+/* ---------- уворот ---------- */
+
+.qte-swipe {
+  position: relative;
+  width: 100%;
+  min-height: min(56vw, 260px);
+  border-radius: 24px;
+  background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-danger) 28%, var(--color-surface)) 0%, var(--color-surface) 75%);
+  border: 1px solid var(--color-border);
+  display: grid;
+  place-items: center;
+  /* Свайп не прокручивает страницу и не листает назад. */
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.qte-swipe__digit {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(64px, 26vw, 120px);
+  line-height: 1;
+}
+
+.qte-swipe__arrow {
+  font-size: clamp(88px, 34vw, 150px);
+  line-height: 1;
+  font-weight: 700;
+  color: var(--qte-gold);
+  text-shadow: 0 0 24px var(--qte-soft);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .qte.is-live .qte-swipe__arrow--left {
+    animation: qte-nudge-left 0.6s ease-in-out infinite;
+  }
+  .qte.is-live .qte-swipe__arrow--right {
+    animation: qte-nudge-right 0.6s ease-in-out infinite;
+  }
+}
+
+@keyframes qte-nudge-left {
+  50% {
+    transform: translateX(-14px);
+  }
+}
+
+@keyframes qte-nudge-right {
+  50% {
+    transform: translateX(14px);
+  }
+}
+
+.qte-swipe__drain {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+  height: 10px;
+  border-radius: 6px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.qte-swipe__drain > div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-danger), var(--qte-gold));
+  transform-origin: left center;
+}
+
+.qte-swipe__buttons {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.qte-swipe__btn {
+  min-height: 72px;
+  border-radius: 18px;
+  border: 1.5px solid var(--qte-gold);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 46px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.qte-swipe__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.qte.is-done .qte-swipe__arrow {
+  opacity: 0.4;
+}
+
+/* ---------- добивание ---------- */
+
+.qte-mash__time {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 34px;
+  min-height: 1.2em;
+}
+
+.qte-mash__btn {
+  width: min(66vw, 260px);
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 50%;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: clamp(44px, 16vw, 64px);
+  letter-spacing: 0.04em;
+  color: var(--color-primary-text);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--qte-gold) 70%, white) 0%, var(--qte-gold) 50%, color-mix(in srgb, var(--qte-gold) 60%, black) 100%);
+  box-shadow: 0 0 0 14px var(--qte-soft), 0 10px 0 color-mix(in srgb, var(--qte-gold) 45%, black);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.qte-mash__btn:active:not(:disabled) {
+  transform: translateY(6px);
+  box-shadow: 0 0 0 14px var(--qte-soft), 0 4px 0 color-mix(in srgb, var(--qte-gold) 45%, black);
+}
+
+.qte-mash__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.qte-mash__count b {
+  font-size: 26px;
+  color: var(--qte-gold);
+  margin-left: 4px;
+}
+
+/* ---------- экран зала ---------- */
+
+.qte-hall {
+  --qte-gold: var(--color-highlight);
+  --qte-soft: color-mix(in srgb, var(--color-highlight) 26%, transparent);
+  --qte-line: var(--color-text);
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4cqw;
+}
+
+.qte-hall__ring {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  /* Подложка под кольцом — цвет фона темы: кольцо читается поверх дракона и картинок сцены. */
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-bg) 75%, transparent) 0%, transparent 72%);
+}
+
+.qte-hall .qte-ring__gold {
+  border-width: 3.4cqw;
+}
+
+.qte-hall .qte-ring__move {
+  border-width: 2cqw;
+}
+
+.qte-hall__digit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22cqw;
+  color: var(--color-text);
+}
+
+.qte-hall__caption {
+  font-weight: 600;
+  font-size: 6.5cqw;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--qte-gold);
+  white-space: nowrap;
+}
+
+/* ---------- стенд /qte ---------- */
+
+.qte-lab__hint {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.qte-lab__hall {
+  width: min(70vw, 260px);
+  margin: 8px auto 0;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+.qte-lab__log {
+  margin: 8px 0 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+  color: var(--color-text-muted);
+}
+
+.qte-lab__log li:first-child {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.qte-lab__label {
+  margin: 12px 0 8px;
+}
+
+.qte-lab__seg4 {
+  grid-template-columns: repeat(4, 1fr);
+}

@@ -39,6 +39,7 @@ const Results = lazy(() => import("./screens/Results").then((m) => ({ default: m
 const HostConsole = lazy(() => import("./screens/HostConsole").then((m) => ({ default: m.HostConsole })));
 const HallScreen = lazy(() => import("./screens/HallScreen").then((m) => ({ default: m.HallScreen })));
 const Brand = lazy(() => import("./screens/Brand").then((m) => ({ default: m.Brand })));
+const QteLab = lazy(() => import("./screens/QteLab").then((m) => ({ default: m.QteLab })));
 const VenueForm = lazy(() => import("./screens/venues/VenueForm").then((m) => ({ default: m.VenueForm })));
 const RequestForm = lazy(() => import("./screens/venues/RequestForm").then((m) => ({ default: m.RequestForm })));
 const OfferPage = lazy(() => import("./screens/venues/OfferPage").then((m) => ({ default: m.OfferPage })));
@@ -78,6 +79,8 @@ export function App() {
           <Route path="/s" element={<JoinByCode target="screen" />} />
           <Route path="/results/:resultId" element={<Results />} />
           <Route path="/brand" element={<Brand />} />
+          {/* Стенд QTE «Боя с драконом» — служебная страница без входа, как /brand. */}
+          <Route path="/qte" element={<QteLab />} />
           {/* Разделы агентства (команда, клиенты, площадки, отзывы, фотоотчёты) — только у агентства; в Лайте — «не найдено». */}
           {agency && (
             <>

@@ -622,11 +622,14 @@ describe("быстрый канал: комната без базы", () => {
       for (let i = 0; i < 100 && res?.writableNeedDrain; i++) await new Promise((r) => setTimeout(r, 10));
       await new Promise((r) => setTimeout(r, 200));
       expect(res?.destroyed).toBe(false);
-      // Сеть встала надолго (телефон уснул) — через предел поток оборван.
+      // Сеть встала надолго (телефон уснул), а игра шлёт дальше (как сводки экрана) — через предел поток оборван. Без новых
+      // записей ядро может успеть принять остаток («drain»), поэтому шлём маленькие события и ждём, не дольше 3 с.
       c()?.pause();
       await fill();
-      expect(res?.writableNeedDrain).toBe(true);
-      await new Promise((r) => setTimeout(r, 400));
+      for (let i = 0; i < 150 && !res?.destroyed; i++) {
+        l?.send({ type: "event", at: i, data: { tick: i } });
+        await new Promise((r) => setTimeout(r, 20));
+      }
       expect(res?.destroyed).toBe(true);
       expect(l?.closed?.()).toBe(true);
     } finally {

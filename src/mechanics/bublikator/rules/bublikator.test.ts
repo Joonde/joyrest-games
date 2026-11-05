@@ -230,17 +230,18 @@ describe("раздача приборов", () => {
     expect(kidsTinted({ name: "Яблоко", acc: "яблоко", icon: "apple" }, 7)).toEqual({ name: "Голубое яблоко", acc: "голубое яблоко" });
     expect(kidsTinted({ name: "Мяч", acc: "мяч", icon: "ball" }, 0)).toEqual({ name: "Красный мяч", acc: "красный мяч" });
   });
-  it("200 и 500 гостей, все темы, все перелёты: названия уникальны на весь зал (по ТЗ), в экипаже — на 3 буквы, у каждого пара-близнец в третьем", () => {
-    // 500 гостей — те же 20 экипажей по 10 игроков (остальные дублёры делят их пульты): 800 приборов в третьем перелёте.
+  it("50 гостей (и с запасом 200), все темы, все перелёты: названия уникальны на весь зал (по ТЗ), в экипаже — на 3 буквы, у каждого пара-близнец в третьем", () => {
+    // 50 гостей — 8 экипажей (ceil(50 / 7)) по 6–7 игроков; 200 — 20 экипажей по 10 (800 приборов в третьем перелёте).
     for (const theme of ["space", "pirates", "newyear", "submarine", "wedding"] as const) {
       expect(THEME_ROOTS[theme]).toHaveLength(40);
-      for (const guests of [200, 500]) {
+      for (const guests of [50, 200]) {
+        const crewCount = crewCountFor(guests, 3);
         for (const legNo of [0, 1, 2]) {
           let id = 0;
-          const crews = Array.from({ length: 20 }, (_, c) => ({ id: c, players: Array.from({ length: Math.min(10, guests / 20) }, (_, i) => `c${c}p${i}`) }));
-          const r = dealPanels({ theme, difficulty: "normal", legNo, drill: false, crews, crewNames: CREW_NAMES[theme].slice(0, 20), customNames: [], rand: seq(`${theme}${guests}${legNo}`), nextId: () => `k${id++}` });
+          const crews = Array.from({ length: crewCount }, (_, c) => ({ id: c, players: Array.from({ length: Math.floor(guests / crewCount) + (c < guests % crewCount ? 1 : 0) }, (_, i) => `c${c}p${i}`) }));
+          const r = dealPanels({ theme, difficulty: "normal", legNo, drill: false, crews, crewNames: CREW_NAMES[theme].slice(0, crewCount), customNames: [], rand: seq(`${theme}${guests}${legNo}`), nextId: () => `k${id++}` });
           expect(r.relaxed).toBe(false);
-          expect(r.controls).toHaveLength(legNo === 2 ? 800 : 600);
+          expect(r.controls).toHaveLength(guests * (legNo === 2 ? 4 : 3));
           expect(new Set(r.controls.map((c) => norm(c.name))).size).toBe(r.controls.length);
           for (const crew of crews) {
             const names = r.controls.filter((x) => x.crew === crew.id).map((x) => x.name);

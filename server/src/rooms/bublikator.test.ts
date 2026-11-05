@@ -462,31 +462,35 @@ describe("«Бубликатор» в игровой комнате", () => {
     expect(s2.leg?.stage).toBe("launch");
   });
 
-  it("500 гостей, полная игра в настоящей комнате: рассылка всем и любая команда пульта — не дольше 20 мс; объём и снимок", () => {
+  it("50 гостей (решение владельца 6 ноября 2026), полная игра в настоящей комнате: рассылка всем и любая команда пульта — не дольше 10 мс; объём и снимок не растут", () => {
     // Сервер работает долго: первая игра в процессе «прогревает» код (JIT). Дальше — три игры; у каждой команды берём
     // лучшее из трёх (выброс сборщика мусора общего сборщика CI — не скорость игры), у рассылки — медиана и 95%.
-    playFull500(false);
-    const runs = [playFull500(false), playFull500(false), playFull500(true)];
+    playFull(50, false);
+    const runs = [playFull(50, false), playFull(50, false), playFull(50, true)];
     const cmds = (runs[0]?.cmds ?? []).map((c, i) => ({ name: c.name, ms: Math.min(...runs.map((r) => r.cmds[i]?.ms ?? Infinity)) }));
-    console.log("Бубликатор, 500 гостей, лучшее из трёх:", cmds.map((c) => `${c.name} ${c.ms.toFixed(1)}`).join(", "));
-    for (const c of cmds) expect(c.ms, c.name).toBeLessThanOrEqual(20);
+    console.log("Бубликатор, 50 гостей, лучшее из трёх:", cmds.map((c) => `${c.name} ${c.ms.toFixed(1)}`).join(", "));
+    for (const c of cmds) expect(c.ms, c.name).toBeLessThanOrEqual(10);
     for (const m of runs) {
-      expect(m.sweepMedian).toBeLessThanOrEqual(20);
-      expect(m.sweepP95).toBeLessThanOrEqual(20);
-      expect(m.snapshotKb).toBeLessThanOrEqual(600);
-      expect(m.kbPerSecHall).toBeLessThanOrEqual(400);
+      expect(m.sweepMedian).toBeLessThanOrEqual(10);
+      expect(m.sweepP95).toBeLessThanOrEqual(10);
+      expect(m.snapshotKb).toBeLessThanOrEqual(120);
+      expect(m.kbPerSecHall).toBeLessThanOrEqual(60);
     }
-  }, 240_000);
+    // Ничего не растёт без предела: после трёх перелётов служебное (отправленное, лимиты) — не больше числа гостей.
+    const last = runs[2];
+    expect(last?.runtime.sent).toBeLessThanOrEqual(50);
+    expect(last?.runtime.moves).toBeLessThanOrEqual(50);
+    expect(last?.runtime.taps).toBeLessThanOrEqual(50);
+  }, 120_000);
 });
 
-/** Полная игра на 500 гостей (20 экипажей по 10 игроков, остальные — дублёры) с замерами. */
-function playFull500(log: boolean) {
+/** Полная игра на N гостей с замерами. */
+function playFull(N: number, log: boolean) {
   let now = 1_000_000;
-  const N = 500;
   const r = room(N, { saboteur: true, legMinutes: 3 });
   const s = () => state(r);
-  // 20 телефонов подписаны на личный поток — по ним считаем байты на телефон (личное готовится всем 500).
-  const phones = Array.from({ length: 20 }, (_, i) => new Phone(`b${i * 25}`, r, now));
+  // Каждый пятый телефон подписан на личный поток — по ним считаем байты на телефон (личное готовится всем).
+  const phones = Array.from({ length: Math.ceil(N / 5) }, (_, i) => new Phone(`b${i * 5}`, r, now));
   const all = Array.from({ length: N }, (_, i) => `b${i}`);
   const cmds: Array<{ name: string; ms: number }> = [];
   let k = 0;
@@ -527,7 +531,6 @@ function playFull500(log: boolean) {
   };
   alive();
   timed("gather");
-  expect(s().crews).toHaveLength(20);
   timed("drill");
   fly(DRILL_MS + 500);
   timed("start");
@@ -555,9 +558,10 @@ function playFull500(log: boolean) {
     sweepP95: +(sorted[Math.floor(sorted.length * 0.95)] ?? 0).toFixed(1),
     cmds,
     snapshotKb: Math.round(JSON.stringify(bublikator.snapshot(s())).length / 1024),
-    // Личное подписанных телефонов → на весь зал из 500, КБ в секунду.
+    // Личное подписанных телефонов → на весь зал, КБ в секунду.
     kbPerSecHall: Math.round(((bytes / phones.length) * N) / (span / 1000) / 1024),
+    runtime: { sent: s().rt.sent.size, moves: s().rt.moves.size, taps: s().rt.taps.size },
   };
-  if (log) console.log("Бубликатор, 500 гостей:", JSON.stringify({ ...m, cmds: cmds.map((c) => `${c.name} ${c.ms.toFixed(1)}`) }));
+  if (log) console.log(`Бубликатор, ${N} гостей:`, JSON.stringify({ ...m, cmds: cmds.map((c) => `${c.name} ${c.ms.toFixed(1)}`) }));
   return m;
 }

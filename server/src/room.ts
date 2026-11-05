@@ -61,6 +61,8 @@ export interface RoomsOptions {
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const COMMAND_ID = /^[A-Za-z0-9_-]{1,40}$/;
+/** Подписка браузера на поток (`?sub=`): одна на все её переподключения. */
+const SUB_ID = /^[A-Za-z0-9_-]{1,40}$/;
 export const ROOM_BODY = 4 * 1024;
 /** Задержка цикла больше этого — в журнал (не чаще раза в минуту). */
 export const LOOP_LAG_WARN_MS = 100;
@@ -85,8 +87,24 @@ export const STREAMS_PER_ROOM = 1100;
  */
 export const SCREENS_PER_ROOM = 50;
 export const SCREENS_PER_IP = 10;
-/** Поток закрыт (`end()`), а клиент не дочитал — через столько он обрывается (буфер не живёт вечно). */
-export const END_GRACE_MS = 5000;
+/**
+ * Поток закрыт (`end()`), а клиент не дочитал — через столько он обрывается (буфер не живёт вечно, а пока живёт — он в общем
+ * счёте 48 МБ). 20 с хватает медленному телефону дочитать «закрыто».
+ */
+export const END_GRACE_MS = 20_000;
+/**
+ * Сеть не принимает данные потока (`writableNeedDrain`) дольше этого — поток обрывается: телефон спит или пропал, а буфер
+ * сокета в ядре (его Node не видит и в 16/48 МБ не считает) держится, пока соединение живо. Живой клиент переподключится со
+ * свежим снимком.
+ */
+export const ROOM_STREAM_STALL_MS = 30_000;
+/**
+ * Экран не ведущего закрылся — его место с этого адреса держится столько: настоящий экран зала после обрыва сети или
+ * перезагрузки возвращается на своё место, а не уступает его приватным окнам гостя, открытым позже.
+ */
+export const SCREEN_HOLD_MS = 10 * 60_000;
+/** Вытесненная подписка (`replaced`) столько не может вытеснить никого сама — только новое явное «Открыть здесь». */
+export const EVICTED_MEMORY_MS = 30 * 60_000;
 /** Отдельный запас потоков ведущего этой сессии (пульты и экраны) — вне общего предела: гости его не займут. */
 export const HOST_STREAMS_PER_ROOM = 30;
 /** Поток комнаты, у которого ждёт отправки больше этого, обрывается (переподключится со свежим снимком). */
@@ -112,6 +130,8 @@ interface SessionRoomRow {
   program: unknown;
   /** `updated_at` моложе 12 часов (по часам базы): пульт что-то делал — сессия не забыта. */
   fresh: boolean;
+  /** Сколько мс назад пульт что-то делал (`now() − updated_at` по часам базы; строкой из `numeric`). */
+  idle_ms: string | number | null;
 }
 
 interface ParticipantRoomRow {
@@ -151,9 +171,18 @@ interface StreamItem {
   device: string;
   pool: StreamPool;
   ip: string;
+  /** Подписка браузера (`?sub=`): одна на все её переподключения; пусто — старый клиент. */
+  sub: string;
   listener: RoomListener;
   detach: () => void;
 }
+
+/**
+ * Как открыть поток устройства: `same` — переподключение той же подписки (её прежний поток мёртв, заменяем молча),
+ * `new` — свободное место у устройства (дальше — проверка мест комнаты), `take` — явное «Открыть здесь» при трёх открытых
+ * (самый старый получает `replaced`), `busy` — у устройства уже три таких потока, а запроса «Открыть здесь» нет.
+ */
+export type StreamSlot = "same" | "new" | "take" | "busy";
 
 /** Механика и блок вечера: другой блок — другая комната, снимок прежнего не подходит. */
 export function roomKey(mechanic: string | null, program: unknown): string {
@@ -186,6 +215,10 @@ export class RoomManager {
   private lastBacklogCheck = -Infinity;
   /** Закрытые (вытесненные, выгруженные) потоки, которые ещё не дописаны: их буфер тоже в счёте, пока не оборвутся. */
   private readonly ending = new Set<RoomListener>();
+  /** Вытесненные подписки (`комната:устройство:подписка` → когда): сами, переподключаясь, никого не вытесняют. */
+  private readonly evicted = new Map<string, number>();
+  /** Места экранов не ведущего, удержанные после закрытия: комната → устройство → адрес и до какого времени. */
+  private readonly screenHolds = new Map<string, Map<string, { ip: string; until: number }>>();
   private readonly stopDevices: () => void;
   /** Кто шлёт пачки: cookie → uid (без базы на каждую пачку); uid → ключи cookie (сбросить при перехвате). */
   private readonly identities = new Map<string, { uid: string; until: number }>();
@@ -307,7 +340,8 @@ export class RoomManager {
     try {
       const [row] = await this.sql<SessionRoomRow[]>`
         select id, host_id, mechanic, game_snapshot, play_mode, phase, program,
-          updated_at > now() - make_interval(secs => ${this.abandonedMs / 1000}) as fresh
+          updated_at > now() - make_interval(secs => ${this.abandonedMs / 1000}) as fresh,
+          round(extract(epoch from (now() - updated_at)) * 1000) as idle_ms
         from sessions where id = ${id}`;
       if (!row) return this.cancel(stop, "missing");
       if (row.phase === "finished") return this.cancel(stop, "finished");
@@ -353,6 +387,10 @@ export class RoomManager {
         stop,
         errorsAt,
       };
+      // Время активности — и по сессии: пульт что-то делал (лобби с утра, «Начать игру» вечером) — снимок помнит только
+      // игру, и без этого цикл через 100 мс снова выгрузил бы комнату как забытую.
+      const idle = Number(row.idle_ms);
+      if (Number.isFinite(idle)) room.sessionActive(now - Math.max(0, idle));
       entry = created;
       this.rooms.set(id, created);
       for (const b of buffered) this.onHub(created, b.channel, b.event);
@@ -485,17 +523,52 @@ export class RoomManager {
     pool: StreamPool,
     options: { ip?: string; limit?: number; screens?: number; screensPerIp?: number } = {},
   ): boolean {
-    if ((this.deviceStreams.get(`${room.id}:${device}`)?.length ?? 0) >= STREAMS_PER_DEVICE) return true;
-    let count = 0;
-    let fromIp = 0;
-    for (const item of this.roomStreams.get(room.id) ?? []) {
-      if (item.pool !== pool) continue;
-      count += 1;
-      if (options.ip !== undefined && item.ip === options.ip) fromIp += 1;
+    const key = `${room.id}:${device}`;
+    if ((this.deviceStreams.get(key)?.length ?? 0) >= STREAMS_PER_DEVICE) return true;
+    if (pool === "screen") {
+      // Экраны считаются устройствами: открытые сейчас и удержанные после закрытия (`SCREEN_HOLD_MS`). Своё место
+      // устройство получает всегда — экран зала после обрыва возвращается, даже если приватные окна гостя заняли остальные.
+      const devices = this.screenDevices(room.id);
+      if (devices.has(key)) return true;
+      let fromIp = 0;
+      if (options.ip !== undefined) for (const ip of devices.values()) if (ip === options.ip) fromIp += 1;
+      return devices.size < (options.screens ?? SCREENS_PER_ROOM) && fromIp < (options.screensPerIp ?? SCREENS_PER_IP);
     }
+    let count = 0;
+    for (const item of this.roomStreams.get(room.id) ?? []) if (item.pool === pool) count += 1;
     if (pool === "host") return count < HOST_STREAMS_PER_ROOM;
-    if (pool === "screen") return count < (options.screens ?? SCREENS_PER_ROOM) && fromIp < (options.screensPerIp ?? SCREENS_PER_IP);
     return count < (options.limit ?? STREAMS_PER_ROOM);
+  }
+
+  /** Устройства экранов не ведущего у комнаты (открытые и удержанные) → адрес. Истёкшие удержания убираются. */
+  private screenDevices(id: string): Map<string, string> {
+    const devices = new Map<string, string>();
+    for (const item of this.roomStreams.get(id) ?? []) if (item.pool === "screen") devices.set(item.device, item.ip);
+    const holds = this.screenHolds.get(id);
+    if (holds) {
+      const now = this.now();
+      for (const [device, hold] of holds) {
+        if (hold.until <= now) holds.delete(device);
+        else if (!devices.has(device)) devices.set(device, hold.ip);
+      }
+      if (holds.size === 0) this.screenHolds.delete(id);
+    }
+    return devices;
+  }
+
+  /**
+   * Как открыть поток (`StreamSlot`). Переподключение той же подписки (`sub`) — всегда на своё место. Четвёртый поток
+   * устройства — только по явному «Открыть здесь» (`take`) новой подписки: вытесненная вкладка, проснувшись (браузер сам
+   * переподключает поток), не вытеснит активную — получит `busy`, а не `replaced` по кругу.
+   */
+  streamSlot(room: Room, device: string, sub: string, take: boolean): StreamSlot {
+    const key = `${room.id}:${device}`;
+    const list = this.deviceStreams.get(key) ?? [];
+    if (sub && list.some((item) => item.sub === sub)) return "same";
+    if (list.length < STREAMS_PER_DEVICE) return "new";
+    const at = sub ? this.evicted.get(`${key}:${sub}`) : undefined;
+    const wasEvicted = at !== undefined && this.now() - at < EVICTED_MEMORY_MS;
+    return take && sub && !wasEvicted ? "take" : "busy";
   }
 
   /** Сколько потоков комнаты в учёте (тестам). */
@@ -508,18 +581,30 @@ export class RoomManager {
    * «повисший» после смены сети) сначала отписывается от комнаты (в закрытый поток сводки больше не пишутся), потом
    * получает «закрыто» (`replaced`) и закрывается. Число потоков комнаты проверяет маршрут до ответа (`streamAllowed`).
    */
-  attachStream(room: Room, device: string, listener: RoomListener, attach: () => () => void, pool: StreamPool = "me", ip = ""): () => void {
+  attachStream(room: Room, device: string, listener: RoomListener, attach: () => () => void, pool: StreamPool = "me", ip = "", sub = ""): () => void {
     const key = `${room.id}:${device}`;
     const list = this.deviceStreams.get(key) ?? [];
+    const same = sub ? list.findIndex((item) => item.sub === sub) : -1;
+    if (same >= 0) {
+      // Та же подписка переподключилась: прежний поток мёртв (браузер его уже бросил) — закрываем молча.
+      const [old] = list.splice(same, 1);
+      if (old) {
+        this.dropStream(old);
+        old.listener.end();
+        this.ending.add(old.listener);
+      }
+    }
     while (list.length >= STREAMS_PER_DEVICE) {
       const old = list.shift();
       if (!old) break;
       this.dropStream(old);
+      if (old.sub) this.rememberEvicted(`${key}:${old.sub}`);
       old.listener.send({ type: "closed", at: this.now(), reason: "replaced" });
       old.listener.end();
       this.ending.add(old.listener);
     }
-    const item: StreamItem = { room: room.id, device: key, pool, ip, listener, detach: attach() };
+    if (pool === "screen") this.screenHolds.get(room.id)?.delete(key);
+    const item: StreamItem = { room: room.id, device: key, pool, ip, sub, listener, detach: attach() };
     list.push(item);
     this.deviceStreams.set(key, list);
     let set = this.roomStreams.get(room.id);
@@ -531,9 +616,23 @@ export class RoomManager {
     return () => this.dropStream(item);
   }
 
-  /** Поток больше не в комнате и не в учёте (повторный вызов ничего не делает). */
+  private rememberEvicted(key: string): void {
+    const now = this.now();
+    this.evicted.set(key, now);
+    if (this.evicted.size > 5000) for (const [k, at] of this.evicted) if (now - at >= EVICTED_MEMORY_MS) this.evicted.delete(k);
+  }
+
+  /** Поток больше не в комнате и не в учёте (повторный вызов ничего не делает). Экран оставляет место за собой. */
   private dropStream(item: StreamItem): void {
     item.detach();
+    if (item.pool === "screen" && this.roomStreams.get(item.room)?.has(item)) {
+      let holds = this.screenHolds.get(item.room);
+      if (!holds) {
+        holds = new Map();
+        this.screenHolds.set(item.room, holds);
+      }
+      holds.set(item.device, { ip: item.ip, until: this.now() + SCREEN_HOLD_MS });
+    }
     const current = this.deviceStreams.get(item.device);
     if (current) {
       const rest = current.filter((l) => l !== item);
@@ -720,6 +819,7 @@ export class RoomManager {
     entry.stop();
     entry.room.close("finished", this.now());
     this.releaseStreams(id);
+    this.screenHolds.delete(id);
   }
 
   /** Выгрузить комнату: снимок, «закрыто» в потоки, отписка от Hub. */
@@ -730,6 +830,7 @@ export class RoomManager {
     entry.stop();
     entry.room.close(reason, this.now());
     this.releaseStreams(id);
+    if (reason === "finished") this.screenHolds.delete(id);
     const saved = this.save(entry);
     this.unloading.set(id, saved);
     try {
@@ -798,7 +899,16 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
     }
 
     /** Комната или уже отправленный отказ. `revive` — запрос с игрой (поднимает и забытую комнату). */
-    async function roomOf(id: string, reply: FastifyReply, revive = false): Promise<Room | null> {
+    /** Поток, которому сразу ответили событием и закрыли (забытая комната, «Открыто в другой вкладке»). */
+    function closedStream(reply: FastifyReply, reason: RoomClosedReason): void {
+      openRoomStream(reply, keepAliveMs, (listener) => {
+        listener.send({ type: "closed", at: now(), reason });
+        listener.end();
+        return () => undefined;
+      });
+    }
+
+    async function roomOf(id: string, reply: FastifyReply, revive = false, stream = false): Promise<Room | null> {
       if (!ID.test(id)) {
         fail(reply, 404, "not-found");
         return null;
@@ -806,7 +916,9 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
       const found = await manager.get(id, revive);
       if (found === "missing" || found === "no-room") fail(reply, 404, "not-found");
       else if (found === "finished") fail(reply, 409, "failed-precondition", "finished");
-      // 12 часов без игры: подписка, опрос и «я на связи» её не поднимают (клиент перестаёт).
+      // 12 часов без игры: подписка, опрос и «я на связи» её не поднимают. Поток не молчит: сразу «закрыто: abandoned» —
+      // экран покажет «Ждём ведущего» и через минуту попробует снова; опрос и пачка — 409.
+      else if (found === "abandoned" && stream) closedStream(reply, "abandoned");
       else if (found === "abandoned") fail(reply, 409, "failed-precondition", "abandoned");
       // Мест нет или сервер останавливается — повторяемо (не «нет такой игры»: клиент не сдастся).
       else if (found === "full" || found === "closing") fail(reply, 503, "unavailable");
@@ -815,9 +927,9 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
     }
 
     /** Комната, в которой состоит телефон: пока проверяли вход, её могли выгрузить — тогда берём новую. */
-    async function memberRoom(id: string, uid: string, reply: FastifyReply, revive = false): Promise<{ room: Room; member: boolean } | null> {
+    async function memberRoom(id: string, uid: string, reply: FastifyReply, revive = false, stream = false): Promise<{ room: Room; member: boolean } | null> {
       for (let attempt = 0; attempt < 2; attempt++) {
-        const room = await roomOf(id, reply, revive);
+        const room = await roomOf(id, reply, revive, stream);
         if (!room) return null;
         const member = await manager.knowMember(room, uid);
         if (manager.loaded(id) === room) return { room, member };
@@ -867,13 +979,13 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
     });
 
     /** Право на поток или снимок; отказ уже отправлен — null. */
-    async function watchable(kind: RoomStreamKind, request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply): Promise<{ room: Room; uid: string; device: string } | null> {
+    async function watchable(kind: RoomStreamKind, request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply, stream = false): Promise<{ room: Room; uid: string; device: string } | null> {
       const who = await identityOf(sql, request, reply);
       if (!who) {
         fail(reply, 401, "unauthenticated");
         return null;
       }
-      const found = await memberRoom(request.params.id, who.uid, reply);
+      const found = await memberRoom(request.params.id, who.uid, reply, false, stream);
       if (!found) return null;
       const { room, member } = found;
       const allowed =
@@ -903,15 +1015,21 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
         return snapshotOf(kind, ok.room, ok.uid);
       });
 
-      api.get<{ Params: { id: string } }>(`/api/stream/room/:id/${kind}`, async (request, reply) => {
-        const ok = await watchable(kind, request, reply);
+      api.get<{ Params: { id: string }; Querystring: { sub?: string; take?: string } }>(`/api/stream/room/:id/${kind}`, async (request, reply) => {
+        const ok = await watchable(kind, request, reply, true);
         if (!ok) return reply;
         // Проверка до ответа: дальше до подключения нет ожиданий, число не изменится (отказ — 429, а не молчаливое закрытие).
-        // Ведущий этой сессии — в своём запасе мест; своё повисшее место устройство занимает и при полной комнате.
         const device = `${kind}:${ok.device}`;
+        const sub = typeof request.query.sub === "string" && SUB_ID.test(request.query.sub) ? request.query.sub : "";
+        const slot = manager.streamSlot(ok.room, device, sub, request.query.take === "1");
+        // У устройства три таких потока, а «Открыть здесь» не нажимали: сразу «закрыто: busy» (а не вытеснение по кругу).
+        if (slot === "busy") {
+          closedStream(reply, "busy");
+          return reply;
+        }
         // Места: ведущий — свой запас; экран не ведущего — свой (на комнату и адрес); личные потоки игроков — общий.
         const pool: StreamPool = ok.uid === ok.room.hostId ? "host" : kind === "screen" ? "screen" : "me";
-        if (!manager.streamAllowed(ok.room, device, pool, { ...streamLimits, ip: request.ip })) return fail(reply, 429, "resource-exhausted");
+        if (slot === "new" && !manager.streamAllowed(ok.room, device, pool, { ...streamLimits, ip: request.ip })) return fail(reply, 429, "resource-exhausted");
         openRoomStream(reply, keepAliveMs, (listener) => {
           // Комнату выгрузили, пока проверяли вход: «закрыто» — браузер переподключится к новой.
           if (manager.loaded(ok.room.id) !== ok.room) {
@@ -919,7 +1037,7 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
             listener.end();
             return () => undefined;
           }
-          return manager.attachStream(ok.room, device, listener, () => ok.room.listen(kind, listener, now(), ok.uid), pool, request.ip);
+          return manager.attachStream(ok.room, device, listener, () => ok.room.listen(kind, listener, now(), ok.uid), pool, request.ip, sub);
         });
         return reply;
       });
@@ -935,7 +1053,13 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
  * не копятся: пока прошлое не ушло в сеть (`writableNeedDrain`), держим одну последнюю и отправляем её по `drain`. Закрытый
  * (`end()`) и не дочитанный за `endGraceMs` поток обрывается: буфер не живёт, пока клиент не прочтёт.
  */
-export function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach: (listener: RoomListener) => () => void, endGraceMs = END_GRACE_MS): void {
+export function openRoomStream(
+  reply: FastifyReply,
+  keepAliveMs: number,
+  attach: (listener: RoomListener) => () => void,
+  endGraceMs = END_GRACE_MS,
+  stallMs = ROOM_STREAM_STALL_MS,
+): void {
   const cookie = reply.getHeader("set-cookie");
   reply.hijack();
   const res = reply.raw;
@@ -954,10 +1078,24 @@ export function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach:
   const gone = () => closed || res.destroyed || res.writableEnded;
   let held: RoomStreamEvent | null = null;
   let waiting = false;
+  /** С какого момента сеть не принимает данные (`writableNeedDrain`); `drain` — снова принимает. */
+  let stalledAt: number | null = null;
+  res.on("drain", () => {
+    stalledAt = null;
+  });
+  /** Сеть стоит дольше `stallMs` — оборвать (true). */
+  const stalled = () => {
+    if (!res.writableNeedDrain) return false;
+    const t = Date.now();
+    stalledAt ??= t;
+    if (t - stalledAt < stallMs) return false;
+    res.destroy();
+    return true;
+  };
   const listener: RoomListener = {
     send(event) {
       if (gone()) return;
-      if (res.writableLength > ROOM_STREAM_BACKLOG_BYTES) {
+      if (res.writableLength > ROOM_STREAM_BACKLOG_BYTES || stalled()) {
         res.destroy();
         return;
       }
@@ -995,7 +1133,8 @@ export function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach:
     closed: () => closed || res.destroyed,
   };
   const ping = setInterval(() => {
-    if (!gone() && !res.writableNeedDrain) res.write("event: ping\ndata:1\n\n");
+    if (gone() || stalled()) return;
+    if (!res.writableNeedDrain) res.write("event: ping\ndata:1\n\n");
   }, keepAliveMs);
   let detach: () => void = () => undefined;
   const close = () => {

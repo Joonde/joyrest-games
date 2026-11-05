@@ -32,6 +32,12 @@ export const ROOM_FORBIDDEN_RETRIES = 2;
  * идут раз в секунду и не должны тратить повторы пачек с событиями.
  */
 export const ROOM_FORBIDDEN_BEATS = 5;
+/**
+ * «Сейчас» (`push(e, { now: true })`) уходит отдельным запросом не чаще раза в столько; остальные «сейчас» этого окна —
+ * одной пачкой в его конце (время событий — по `ago`, не теряется). Так «движения сразу» дают не больше ~7 запросов в
+ * секунду и с обычными пачками не упираются в лимит сервера 10 в секунду на телефон.
+ */
+export const ROOM_NOW_GAP_MS = 150;
 const RETRY_MS = [500, 1000, 2000, 4000, 5000];
 const JITTER_MS = 300;
 const INPUT_TIMEOUT_MS = 8000;
@@ -96,6 +102,9 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
   let timer: unknown = null;
   let forbidden = 0;
   let forbiddenBeats = 0;
+  let lastNowAt = -Infinity;
+  let nowQueue: Pending[] = [];
+  let nowTimer: unknown = null;
   /** Пачки, ждущие повтора: при переполнении отменяется самая старая. */
   const retries: Array<{ handle: unknown }> = [];
 
@@ -109,6 +118,9 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
     stopped = true;
     if (timer !== null) deps.clearTimer(timer);
     timer = null;
+    if (nowTimer !== null) deps.clearTimer(nowTimer);
+    nowTimer = null;
+    nowQueue = [];
     for (const r of retries.splice(0)) deps.clearTimer(r.handle);
   }
 
@@ -190,8 +202,23 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
     push(event, opts) {
       if (stopped) return;
       const item = { event, at: deps.now() };
-      if (opts?.now) send([item]);
-      else {
+      if (opts?.now) {
+        if (nowTimer === null && item.at - lastNowAt >= ROOM_NOW_GAP_MS) {
+          lastNowAt = item.at;
+          send([item]);
+        } else {
+          nowQueue.push(item);
+          if (nowTimer === null) {
+            nowTimer = deps.setTimer(() => {
+              nowTimer = null;
+              lastNowAt = deps.now();
+              const items = nowQueue;
+              nowQueue = [];
+              for (const batch of splitBatches(items)) send(batch);
+            }, Math.max(0, lastNowAt + ROOM_NOW_GAP_MS - item.at));
+          }
+        }
+      } else {
         queue.push(item);
         if (queue.length >= ROOM_BATCH_MAX) flush();
       }
@@ -220,12 +247,13 @@ const defaultSubscribeDeps: SubscribeDeps = { get: (path) => api("GET", path), o
 
 /**
  * Поток комнаты. «Закрыто» с `finished` — дальше браузер получит 409 и остановится сам; `unloaded` — переподключение.
+ * У подписки свой id (`?sub=`, один на все её переподключения): сервер заменяет её прежний (мёртвый) поток, а не чужой.
  * Останавливаемся сразу (`onError`, код и причина — в `ApiError`): `removed` (участника убрали, за него вошёл другой
- * телефон), `replaced` (это устройство открыло такой же поток в четвёртой вкладке: экран показывает «Открыто в другой
- * вкладке — Открыть здесь», а не переподключается — иначе вкладки вытесняли бы друг друга по кругу; пульт ведущего на
- * другом устройстве экран больше не вытесняет — у них разные ключи). `abandoned` (12 часов без игры, ведущий ничего не
- * делал) — не навсегда: поток закрывается, и раз в минуту подписка пробует снова (экран лобби, открытый утром, оживает, когда
- * вечером начнут игру). Опрос: «не игрок» пару раз и лимит опросов — не окончательно (повтор).
+ * телефон), `replaced` (это устройство нажало «Открыть здесь» в другой вкладке) и `busy` (у устройства уже три таких потока):
+ * экран показывает «Открыто в другой вкладке — Открыть здесь» — новая подписка с `take`. Сама вкладка не вытесняет никого:
+ * проснувшаяся фоновая получит `busy`, а не закроет активную. `abandoned` (12 часов без игры, ведущий ничего не делал) — не
+ * навсегда: событие уходит в `onEvent` (экран — «Ждём ведущего»), поток закрывается, раз в минуту подписка пробует снова.
+ * Опрос: «не игрок» пару раз и лимит опросов — не окончательно (повтор).
  */
 export function subscribeRoom(
   sessionId: string,
@@ -233,8 +261,11 @@ export function subscribeRoom(
   onEvent: (event: RoomStreamEvent) => void,
   onError: (error: Error) => void,
   deps: SubscribeDeps = defaultSubscribeDeps,
+  options: { take?: boolean } = {},
 ): () => void {
   const id = encodeURIComponent(sessionId);
+  const sub = newId().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 16);
+  const url = `/api/stream/room/${id}/${kind}?sub=${sub}${options.take ? "&take=1" : ""}`;
   const setTimer = deps.setTimer ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
   const clearTimer = deps.clearTimer ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>));
   let stopped = false;
@@ -265,20 +296,22 @@ export function subscribeRoom(
     if (event.type === "closed") {
       if (event.reason === "removed") halt(new ApiError("permission-denied", 403, "removed"));
       else if (event.reason === "replaced") halt(new ApiError("already-exists", 409, "replaced"));
+      else if (event.reason === "busy") halt(new ApiError("already-exists", 409, "busy"));
       else if (event.reason === "abandoned") sleep();
     }
   };
   function start() {
     let ended = false;
     const stop = deps.open<unknown>({
-      url: `/api/stream/room/${id}/${kind}`,
+      url,
       poll: async () => {
         try {
           deliver(await deps.get(`/api/rooms/${id}/${kind}`));
           forbidden = 0;
         } catch (error) {
           if (error instanceof ApiError && error.reason === "abandoned") {
-            sleep();
+            // Опрос не молчит так же, как поток: экран узнаёт «забыта» и покажет «Ждём ведущего».
+            deliver({ type: "closed", at: Date.now(), reason: "abandoned" });
             return;
           }
           const code = errorCodeOf(error);
@@ -316,5 +349,5 @@ export const serverRoomsRepository: RoomsRepository = {
     const data = await retryBriefly(() => api("POST", `/api/rooms/${encodeURIComponent(sessionId)}/command`, body, { timeoutMs: INPUT_TIMEOUT_MS }));
     return asRecord(data).result ?? null;
   },
-  subscribe: (sessionId, kind, onEvent, onError) => subscribeRoom(sessionId, kind, onEvent, onError),
+  subscribe: (sessionId, kind, onEvent, onError, options) => subscribeRoom(sessionId, kind, onEvent, onError, defaultSubscribeDeps, options),
 };

@@ -1,6 +1,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { EventEmitter } from "node:events";
 import { createServer, request as httpRequest } from "node:http";
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from "fastify";
 import postgres from "postgres";
@@ -18,6 +19,7 @@ import {
   ROOMS_BACKLOG_BYTES,
   RoomManager,
   roomKey,
+  SCREEN_HOLD_MS,
   SCREENS_PER_IP,
   SCREENS_PER_ROOM,
   STREAMS_PER_DEVICE,
@@ -377,6 +379,60 @@ describe("быстрый канал: комната без базы", () => {
     expect(fromOne).toBe(SCREENS_PER_IP);
   });
 
+  it("экран зала держит своё место с адреса: после обрыва приватные окна гостя его не займут, через 10 минут место свободно", () => {
+    const log = { info: () => undefined, warn: () => undefined, error: () => undefined } as unknown as FastifyBaseLogger;
+    let t = 0;
+    const manager = new RoomManager({} as never, new Hub(), log, { loopMs: 0, now: () => t });
+    const room = newRoom(0);
+    const ip = "192.168.1.5";
+    // Экран зала открылся первым и оборвался (смена Wi‑Fi, перезагрузка телевизора).
+    expect(manager.streamAllowed(room, "screen:u:tv", "screen", { ip })).toBe(true);
+    const detach = manager.attachStream(room, "screen:u:tv", collector().listener, () => () => undefined, "screen", ip, "tv1");
+    detach();
+    // Гость открывает приватные окна (каждое — новое устройство) с того же адреса: место экрана занято.
+    let guest = 0;
+    for (let i = 0; i < 30; i++) {
+      if (!manager.streamAllowed(room, `screen:u:p${i}`, "screen", { ip })) continue;
+      manager.attachStream(room, `screen:u:p${i}`, collector().listener, () => () => undefined, "screen", ip, `p${i}`);
+      guest += 1;
+    }
+    expect(guest).toBe(SCREENS_PER_IP - 1);
+    // Экран возвращается — на своё место, хотя адрес «полон».
+    t += 5 * 60_000;
+    expect(manager.streamAllowed(room, "screen:u:tv", "screen", { ip })).toBe(true);
+    // Туда и обратно: экран ушёл насовсем — через 10 минут его место свободно для другого.
+    t += SCREEN_HOLD_MS + 1;
+    expect(manager.streamAllowed(room, "screen:u:other", "screen", { ip })).toBe(true);
+  });
+
+  it("вкладки устройства: четвёртая — «busy»; «Открыть здесь» (take) — вытесняет самую старую; вытесненная сама не возвращается; та же подписка — на своё место", () => {
+    const log = { info: () => undefined, warn: () => undefined, error: () => undefined } as unknown as FastifyBaseLogger;
+    let t = 0;
+    const manager = new RoomManager({} as never, new Hub(), log, { loopMs: 0, now: () => t });
+    const room = newRoom(0);
+    const tabs = ["a", "b", "c"].map((sub) => {
+      const c = collector();
+      manager.attachStream(room, "screen:u:x", c.listener, () => () => undefined, "screen", "1.1.1.1", sub);
+      return c;
+    });
+    expect(manager.streamSlot(room, "screen:u:x", "b", false)).toBe("same");
+    expect(manager.streamSlot(room, "screen:u:x", "d", false)).toBe("busy");
+    expect(manager.streamSlot(room, "screen:u:x", "", true)).toBe("busy");
+    expect(manager.streamSlot(room, "screen:u:x", "d", true)).toBe("take");
+    manager.attachStream(room, "screen:u:x", collector().listener, () => () => undefined, "screen", "1.1.1.1", "d");
+    expect(tabs[0]?.got.at(-1)).toMatchObject({ type: "closed", reason: "replaced" });
+    // Вытесненная «a» проснулась и переподключается (даже с take) — «busy», активные не трогает.
+    expect(manager.streamSlot(room, "screen:u:x", "a", true)).toBe("busy");
+    // Через полчаса память о вытеснении уходит.
+    t += 30 * 60_000;
+    expect(manager.streamSlot(room, "screen:u:x", "a", true)).toBe("take");
+    // Та же подписка «c» переподключилась — прежний поток закрыт молча, без «replaced».
+    manager.attachStream(room, "screen:u:x", collector().listener, () => () => undefined, "screen", "1.1.1.1", "c");
+    expect(tabs[2]?.got.some((e) => e.type === "closed")).toBe(false);
+    expect(tabs[1]?.got.some((e) => e.type === "closed")).toBe(false);
+    expect(manager.streamCount(room.id)).toBe(STREAMS_PER_DEVICE);
+  });
+
   it("общий буфер всех комнат — 48 МБ: обрываются самые отставшие из разных комнат", () => {
     const log = { info: () => undefined, warn: () => undefined, error: () => undefined } as unknown as FastifyBaseLogger;
     const manager = new RoomManager({} as never, new Hub(), log, { loopMs: 0 });
@@ -524,6 +580,55 @@ describe("быстрый канал: комната без базы", () => {
       req.destroy();
       await new Promise<void>((r) => server.close(() => r()));
     }
+  });
+
+  it("поток комнаты: сеть не принимает дольше предела — поток оборван (буфер ядра не держится); догнала вовремя — живёт", async () => {
+    // Ответ понарошку: «сеть не принимает» (`writableNeedDrain`) задаёт тест — на localhost ядро принимает мегабайты, и
+    // настоящий сокет встаёт когда придётся.
+    class FakeResponse extends EventEmitter {
+      writableNeedDrain = false;
+      writableLength = 0;
+      writableEnded = false;
+      destroyed = false;
+      writes = 0;
+      writeHead() {
+        return this;
+      }
+      write() {
+        this.writes += 1;
+        return !this.writableNeedDrain;
+      }
+      end() {
+        this.writableEnded = true;
+      }
+      destroy() {
+        if (this.destroyed) return;
+        this.destroyed = true;
+        this.emit("close");
+      }
+    }
+    const res = new FakeResponse();
+    let listener: RoomListener | null = null;
+    const reply = { getHeader: () => undefined, hijack: () => undefined, raw: res } as unknown as FastifyReply;
+    openRoomStream(reply, 20, (l) => {
+      listener = l;
+      return () => undefined;
+    }, 60_000, 150);
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    // Сеть встала, но догнала раньше предела — поток живёт, «я жив» снова пишется.
+    res.writableNeedDrain = true;
+    await wait(80);
+    res.writableNeedDrain = false;
+    res.emit("drain");
+    const before = res.writes;
+    await wait(250);
+    expect(res.destroyed).toBe(false);
+    expect(res.writes).toBeGreaterThan(before);
+    // Сеть встала надолго (телефон уснул) — через предел поток оборван даже без новых событий (проверка при «я жив»).
+    res.writableNeedDrain = true;
+    await wait(400);
+    expect(res.destroyed).toBe(true);
+    expect((listener as RoomListener | null)?.closed?.()).toBe(true);
   });
 
   it("поток комнаты по HTTP: запись после закрытия не роняет процесс (ни сводка, ни «я жив»)", async () => {
@@ -1163,8 +1268,11 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     await sql`update sessions set updated_at = now() - interval '13 hours' where id = 'r6a'`;
     const base = await listening();
     for (let i = 0; i < 3; i++) {
+      // Поток не молчит: сразу «закрыто: abandoned» (экран покажет «Ждём ведущего») и конец.
       const screen = await openReader(base, "/api/stream/room/r6a/screen", anya.cookie);
-      expect(screen.status).toBe(409);
+      expect(screen.status).toBe(200);
+      expect(await screen.next()).toMatchObject({ type: "closed", reason: "abandoned" });
+      expect(await screen.next()).toBeNull();
       const poll = await call("GET", "/api/rooms/r6a/screen", anya.cookie);
       expect(poll.json()).toEqual({ error: "failed-precondition", reason: "abandoned" });
       expect((await input("r6a", anya.cookie)).statusCode).toBe(409);
@@ -1207,10 +1315,14 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     while (event && event.type === "screen") event = await s1.next();
     expect(event).toMatchObject({ type: "closed", reason: "abandoned" });
     await settle(async () => rooms().loaded("r6m") === null);
-    expect((await openReader(base, "/api/stream/room/r6m/screen", host)).status).toBe(409);
+    const asleep = await openReader(base, "/api/stream/room/r6m/screen", host);
+    expect(await asleep.next()).toMatchObject({ type: "closed", reason: "abandoned" });
     expect((await call("POST", "/api/sessions/r6m/phase", host, { phase: "playing" })).statusCode).toBe(200);
     const s2 = await openReader(base, "/api/stream/room/r6m/screen", host);
     expect(s2.status).toBe(200);
+    // Поднятая комната берёт время активности и из сессии: цикл не выгружает её снова как забытую.
+    rooms().step(clock);
+    expect(rooms().loaded("r6m")).not.toBeNull();
     expect(await s2.next()).toMatchObject({ type: "screen" });
     s2.controller.abort();
   });
@@ -1281,19 +1393,36 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     second.controller.abort();
   });
 
-  it("потоков у телефона — не больше 3: четвёртый закрывает самый старый («replaced»); опрос снимка — не чаще раза в секунду", async () => {
+  it("потоков у телефона — не больше 3: четвёртая вкладка — «busy», «Открыть здесь» (take) закрывает самую старую («replaced»), проснувшаяся вытесненная — снова «busy»; переподключение той же подписки — на своё место; опрос — не чаще раза в секунду", async () => {
     await newSession("r8l");
     const anya = await guestIn("r8l", "Аня");
     const base = await listening();
+    const path = (sub: string, take = false) => `/api/stream/room/r8l/me?sub=${sub}${take ? "&take=1" : ""}`;
     const streams = [];
-    for (let i = 0; i < STREAMS_PER_DEVICE + 1; i++) {
-      const s = await openReader(base, "/api/stream/room/r8l/me", anya.cookie);
+    for (let i = 0; i < STREAMS_PER_DEVICE; i++) {
+      const s = await openReader(base, path(`tab${i}`), anya.cookie);
       expect(await s.next()).toMatchObject({ type: "snapshot" });
       streams.push(s);
     }
+    // Четвёртая вкладка сама никого не вытесняет: «Открыто в другой вкладке».
+    const fourth = await openReader(base, path("tab3"), anya.cookie);
+    expect(await fourth.next()).toMatchObject({ type: "closed", reason: "busy" });
+    expect(await fourth.next()).toBeNull();
+    expect(rooms().loaded("r8l")?.listeners).toBe(STREAMS_PER_DEVICE);
+    // «Открыть здесь» — та же вкладка с take: самая старая закрыта.
+    const taken = await openReader(base, path("tab3", true), anya.cookie);
+    expect(await taken.next()).toMatchObject({ type: "snapshot" });
     expect(await streams[0]?.next()).toMatchObject({ type: "closed", reason: "replaced" });
+    // Вытесненная вкладка проснулась (браузер сам переподключил тот же адрес, даже с take) — не вытесняет активную.
+    const woke = await openReader(base, path("tab0", true), anya.cookie);
+    expect(await woke.next()).toMatchObject({ type: "closed", reason: "busy" });
     expect(await settle(async () => rooms().loaded("r8l")?.listeners === STREAMS_PER_DEVICE)).toBe(true);
-    for (const s of streams) s.controller.abort();
+    // Переподключение живой подписки (смена сети) — на своё место: прежний поток закрыт молча, остальные целы.
+    const again = await openReader(base, path("tab1"), anya.cookie);
+    expect(await again.next()).toMatchObject({ type: "snapshot" });
+    expect(await streams[1]?.next()).toBeNull();
+    expect(rooms().loaded("r8l")?.listeners).toBe(STREAMS_PER_DEVICE);
+    for (const s of [...streams, taken, again]) s.controller.abort();
     const codes = [];
     for (let i = 0; i < 7; i++) codes.push((await call("GET", "/api/rooms/r8l/me", anya.cookie)).statusCode);
     expect(codes.filter((c) => c === 429).length).toBeGreaterThan(0);
@@ -1307,7 +1436,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     const base = await listening();
     const readers = [];
     for (let i = 0; i < 6; i++) {
-      const r = await openReader(base, "/api/stream/room/r8g/screen", `${anya.cookie}; __Host-jr_s=fake${i}x${Date.now()}`);
+      const r = await openReader(base, `/api/stream/room/r8g/screen?sub=w${i}&take=1`, `${anya.cookie}; __Host-jr_s=fake${i}x${Date.now()}`);
       expect(r.status).toBe(200);
       readers.push(r);
     }
@@ -1324,7 +1453,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     // Пульт на телефоне переподключается пять раз — экран на ноутбуке работает.
     const pults = [];
     for (let i = 0; i < 5; i++) {
-      const p = await openReader(base, "/api/stream/room/r8d/host", host);
+      const p = await openReader(base, `/api/stream/room/r8d/host?sub=phone${i}&take=1`, host);
       expect(await p.next()).toMatchObject({ type: "host" });
       pults.push(p);
     }
@@ -1364,13 +1493,18 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     expect((await openReader(base, "/api/stream/room/r8f/me", boris.cookie)).status).toBe(429);
     const pult = await openReader(base, "/api/stream/room/r8f/host", host);
     expect(pult.status).toBe(200);
-    // Аня переподключается в четвёртый раз (один поток повис) — проходит, старый получает «replaced».
-    const again = await openReader(base, "/api/stream/room/r8f/me", anya.cookie);
+    // Аня жмёт «Открыть здесь» (take) при полной комнате — проходит, старый получает «replaced».
+    const again = await openReader(base, "/api/stream/room/r8f/me?sub=again&take=1", anya.cookie);
     expect(again.status).toBe(200);
     expect(await a[0]?.next()).toMatchObject({ type: "snapshot" });
     expect(await a[0]?.next()).toMatchObject({ type: "closed", reason: "replaced" });
     expect((own as RoomManager | null)?.loaded("r8f")?.listeners).toBe(4);
-    for (const r of [...a, pult, again]) r.controller.abort();
+    // Та же подписка переподключилась (смена сети) при полной комнате — тоже проходит, на своё место.
+    const same = await openReader(base, "/api/stream/room/r8f/me?sub=again", anya.cookie);
+    expect(same.status).toBe(200);
+    expect(await same.next()).toMatchObject({ type: "snapshot" });
+    expect((own as RoomManager | null)?.loaded("r8f")?.listeners).toBe(4);
+    for (const r of [...a, pult, again, same]) r.controller.abort();
     await small.close();
   });
 

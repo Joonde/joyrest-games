@@ -199,7 +199,11 @@ const shownList = (sessionId: string) => questionShownAt.get(sessionId) ?? quest
 /** Гость входит в сессию (свой телефон, в режиме команд — своя или новая команда). */
 async function joinGuest(sessionId: string, index: number, teamIds: string[]): Promise<{ device: Device; uid: string; pid: string; captain: boolean }> {
   const device = new Device();
+  // Сначала открыть соединение (TLS с машины проверки — сотни мс на бота): «выдача устройства» меряет сервер, а не рукопожатие.
   let t = Date.now();
+  await device.call("GET", "/api/time");
+  measure("первое соединение (TLS, /api/time)", Date.now() - t);
+  t = Date.now();
   const me = await device.call<{ uid: string }>("POST", "/api/auth/device");
   measure("выдача устройства", Date.now() - t);
   const uid = me.uid;

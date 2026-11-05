@@ -3,7 +3,7 @@ import { isPermanentError } from "../retry";
 import { firebaseRoomsRepository } from "../rooms";
 import type { RoomStreamEvent } from "../types";
 import { ApiError } from "./api";
-import { createRoomSender, ROOM_ABANDONED_RETRY_MS, ROOM_BATCH_BYTES, ROOM_BATCH_MAX, ROOM_FORBIDDEN_BEATS, ROOM_RETRY_MAX, serverRoomsRepository, splitBatches, subscribeRoom, type SenderDeps, type SubscribeDeps } from "./rooms";
+import { createRoomSender, ROOM_ABANDONED_RETRY_MS, ROOM_NOW_GAP_MS, ROOM_BATCH_BYTES, ROOM_BATCH_MAX, ROOM_FORBIDDEN_BEATS, ROOM_RETRY_MAX, serverRoomsRepository, splitBatches, subscribeRoom, type SenderDeps, type SubscribeDeps } from "./rooms";
 import type { StreamOptions } from "./stream";
 
 /** Часы и таймеры понарошку: `advance(ms)` двигает время и запускает созревшие таймеры. */
@@ -254,6 +254,35 @@ describe("быстрый канал: отправитель пачек теле�
     sender.stop();
   });
 
+  it("«сейчас» подряд («движения сразу»): не чаще раза в 150 мс, остальные — пачкой в конце окна; ни одно событие не теряется, `ago` честный", async () => {
+    const sent: Body[] = [];
+    const { deps, advance } = fakeDeps(async (_path, body) => {
+      sent.push(JSON.parse(JSON.stringify(body)) as Body);
+      return {};
+    });
+    const sender = createRoomSender("s1", {}, deps);
+    // 100 «движений сразу» за секунду (раз в 10 мс) — без склейки это 100 запросов, лимит сервера — 10 в секунду.
+    for (let i = 0; i < 100; i++) {
+      sender.push({ t: "move", n: i }, { now: true });
+      await advance(10);
+    }
+    await advance(ROOM_NOW_GAP_MS);
+    const withEvents = sent.filter((b) => b.events.length > 0);
+    // Запросов за секунду: «сейчас» раз в 150 мс (7) и обычная пачка раз в секунду — меньше 10.
+    expect(withEvents.length).toBeLessThanOrEqual(9);
+    const moves = withEvents.flatMap((b) => b.events).filter((e) => e.t === "move").map((e) => e.n);
+    expect(moves).toEqual(Array.from({ length: 100 }, (_, i) => i));
+    // `ago` — сколько ждало в окне склейки (до 150 мс), а не время отправки.
+    expect(Math.max(...withEvents.flatMap((b) => b.events).map((e) => e.ago))).toBeLessThanOrEqual(ROOM_NOW_GAP_MS);
+    // Туда и обратно: окно прошло — следующее «сейчас» снова сразу.
+    await advance(1000);
+    const before = sent.length;
+    sender.push({ t: "move", n: 100 }, { now: true });
+    expect(sent.length).toBe(before + 1);
+    expect(sent.at(-1)?.events).toMatchObject([{ t: "move", n: 100, ago: 0 }]);
+    sender.stop();
+  });
+
   it("очередь повтора не больше 30: при переполнении уходит самая старая, новые события не теряются", async () => {
     const sent: Body[] = [];
     let online = false;
@@ -263,7 +292,10 @@ describe("быстрый канал: отправитель пачек теле�
       return {};
     });
     const sender = createRoomSender("s1", {}, deps);
-    for (let i = 0; i < ROOM_RETRY_MAX + 5; i++) sender.push({ t: "tap", n: i }, { now: true });
+    for (let i = 0; i < ROOM_RETRY_MAX + 5; i++) {
+      sender.push({ t: "tap", n: i });
+      sender.flush();
+    }
     online = true;
     await advance(1000);
     const delivered = new Set(sent.slice(ROOM_RETRY_MAX + 5).filter((b) => b.seq !== undefined).map((b) => b.seq));
@@ -295,7 +327,8 @@ describe("быстрый канал: поток и команды на клие�
     const got: RoomStreamEvent[] = [];
     const errors: Error[] = [];
     subscribeRoom("s1", "me", (e) => got.push(e), (e) => errors.push(e), { get: async () => null, open: f.open });
-    expect(f.options().url).toBe("/api/stream/room/s1/me");
+    // У подписки свой id: переподключаясь, она заменяет на сервере свой прежний поток, а не чужой.
+    expect(f.options().url).toMatch(/^\/api\/stream\/room\/s1\/me\?sub=[A-Za-z0-9_-]{8,}$/);
     f.options().onEvent({ type: "snapshot", at: 1, paused: false, every: 1000, offlineMs: 3000, data: {} });
     f.options().onEvent({ type: "closed", at: 2, reason: "unloaded" });
     f.options().onEvent({ type: "nonsense" });
@@ -309,17 +342,27 @@ describe("быстрый канал: поток и команды на клие�
     expect(got).toHaveLength(3);
   });
 
-  it("«closed: replaced»: любой поток останавливается сам (без вытеснения по кругу), причина — в ошибке; «unloaded» — переподключение", () => {
-    for (const kind of ["me", "screen", "host"] as const) {
-      const f = fakeOpen();
-      const errors: Error[] = [];
-      subscribeRoom("s1", kind, () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
-      f.options().onEvent({ type: "closed", at: 1, reason: "replaced" });
-      expect(errors).toHaveLength(1);
-      expect((errors[0] as ApiError).reason).toBe("replaced");
-      expect(isPermanentError(errors[0])).toBe(true);
-      expect(f.closed()).toBe(true);
+  it("«closed: replaced» и «busy»: любой поток останавливается сам (без вытеснения по кругу), причина — в ошибке; «Открыть здесь» — `take`; «unloaded» — переподключение", () => {
+    for (const reason of ["replaced", "busy"] as const) {
+      for (const kind of ["me", "screen", "host"] as const) {
+        const f = fakeOpen();
+        const errors: Error[] = [];
+        subscribeRoom("s1", kind, () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
+        expect(f.options().url).not.toContain("take");
+        f.options().onEvent({ type: "closed", at: 1, reason });
+        expect(errors).toHaveLength(1);
+        expect((errors[0] as ApiError).reason).toBe(reason);
+        expect(isPermanentError(errors[0])).toBe(true);
+        expect(f.closed()).toBe(true);
+      }
     }
+    // «Открыть здесь» — новая подписка с `take`: новый id подписки.
+    const a = fakeOpen();
+    const b = fakeOpen();
+    subscribeRoom("s1", "screen", () => undefined, () => undefined, { get: async () => null, open: a.open });
+    subscribeRoom("s1", "screen", () => undefined, () => undefined, { get: async () => null, open: b.open }, { take: true });
+    expect(b.options().url).toMatch(/&take=1$/);
+    expect(a.options().url.split("&")[0]).not.toBe(b.options().url.split("&")[0]);
     const f = fakeOpen();
     const errors: Error[] = [];
     subscribeRoom("s1", "screen", () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
@@ -340,7 +383,8 @@ describe("быстрый канал: поток и команды на клие�
     }) as SubscribeDeps["open"];
     const timers: Array<{ fn: () => void; ms: number }> = [];
     const errors: Error[] = [];
-    const unsubscribe = subscribeRoom("s1", "screen", () => undefined, (e) => errors.push(e), {
+    const got: RoomStreamEvent[] = [];
+    const unsubscribe = subscribeRoom("s1", "screen", (e) => got.push(e), (e) => errors.push(e), {
       get: async () => {
         throw new ApiError("failed-precondition", 409, "abandoned");
       },
@@ -354,9 +398,10 @@ describe("быстрый канал: поток и команды на клие�
     expect(timers.map((t) => t.ms)).toEqual([ROOM_ABANDONED_RETRY_MS]);
     timers[0]?.fn();
     expect(opens).toBe(2);
-    // Поток не открылся, опрос ответил 409 abandoned — снова спим, не ошибка.
+    // Поток не открылся, опрос ответил 409 abandoned — снова спим, не ошибка; и опрос не молчит — экран узнаёт «забыта».
     await (captured as unknown as StreamOptions<unknown>).poll();
     expect(errors).toEqual([]);
+    expect(got.map((e) => (e.type === "closed" ? e.reason : e.type))).toEqual(["abandoned", "abandoned"]);
     expect(stops).toBe(2);
     expect(timers).toHaveLength(2);
     unsubscribe();

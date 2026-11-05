@@ -10,7 +10,7 @@ import { buildApp } from "./app";
 import { Hub } from "./live";
 import { migrate } from "./migrate";
 import { MEMBER_RECHECK_MS, RoomManager, roomKey, STREAMS_PER_DEVICE } from "./room";
-import { roomCheck, TAPS_PER_SECOND, type CheckState } from "./rooms/check";
+import { roomCheck, TAPS_BURST, TAPS_PER_SECOND, type CheckState } from "./rooms/check";
 import {
   FRESH_AGO_SLACK_MS,
   MAX_AGO_MS,
@@ -150,23 +150,32 @@ describe("быстрый канал: комната без базы", () => {
     expect(room.input("a", batch(1, [{ t: "tap", n: 1 }], "s2"), 2600)).toMatchObject({ dup: false });
   });
 
-  it("не участник — отказ; касаний не больше 15 в секунду с телефона; лишние события срезаются, запросы — 429", () => {
+  it("не участник — отказ; касаний — запас 30 и дальше не больше 15 в секунду; лишние события срезаются, запросы — 429", () => {
     const room = newRoom(0);
     expect(room.input("zz", batch(1), 0)).toMatchObject({ ok: false, status: 403 });
     room.input("a", batch(1, [{ t: "tap", n: 999 }]), 500);
-    expect(total(room)).toBe(TAPS_PER_SECOND);
-    // Та же секунда — сверху ничего; несколько событий в пачке — тоже не обойти.
+    expect(total(room)).toBe(TAPS_BURST);
+    // Запас кончился: через 0,4 с — ещё 6 касаний, сколько бы ни прислал в нескольких событиях.
     room.input("a", batch(2, [{ t: "tap", n: 10 }, { t: "tap", n: 10 }]), 900);
-    expect(total(room)).toBe(TAPS_PER_SECOND);
-    // Следующая секунда — снова до 15.
-    room.input("a", batch(3, [{ t: "tap", n: 10 }, { t: "tap", n: 10 }]), 1500);
-    expect(total(room)).toBe(TAPS_PER_SECOND * 2);
+    expect(total(room)).toBe(TAPS_BURST + 6);
+    // Дальше 10 секунд по 20 в секунду — засчитывается по 15.
+    for (let sec = 1; sec <= 10; sec++) room.input("a", batch(2 + sec, [{ t: "tap", n: 20 }]), 900 + sec * 1000);
+    expect(total(room)).toBe(TAPS_BURST + 6 + TAPS_PER_SECOND * 10);
     // Событий — до 30 в секунду с запасом вдвое: 64 в одной пачке — 60 проходят.
     const many = Array.from({ length: 64 }, () => ({ t: "ping", id: "x" }));
     expect(room.input("b", batch(1, many), 0)).toMatchObject({ ok: true, dropped: 4 });
     const replies = Array.from({ length: REQUESTS_BURST + 2 }, (_, i) => room.input("b", batch(10 + i), 0));
     expect(replies.find((r) => !r.ok)).toMatchObject({ status: 429 });
     expect(room.input("b", batch(100), 1000)).toMatchObject({ ok: true });
+  });
+
+  it("честный игрок: две пачки по 9, попавшие в одну секунду (сдвиг отправки), не срезаются; минута по 9 в секунду — всё засчитано", () => {
+    const room = newRoom(0);
+    room.input("b", batch(1, [{ t: "tap", n: 9 }]), 1000);
+    room.input("b", batch(2, [{ t: "tap", n: 9 }]), 1900);
+    expect((room.state as CheckState).taps.b).toBe(18);
+    for (let sec = 1; sec <= 60; sec++) room.input("b", batch(2 + sec, [{ t: "tap", n: 9 }]), 1900 + sec * 1000 + (sec % 2) * 280);
+    expect((room.state as CheckState).taps.b).toBe(18 + 9 * 60);
   });
 
   it("«без связи» — кто ничего не прислал 3 с; пустая пачка — «я на связи»", () => {

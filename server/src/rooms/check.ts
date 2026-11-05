@@ -7,39 +7,41 @@
 import type { CommandOutcome, RoomContext, RoomEvent, RoomGame, RoomPlayer, RoomView } from "./engine";
 
 export const ROOM_CHECK = "room-check";
-/** Касаний в секунду с телефона — не больше (человек больше 15 в секунду не может), считая по времени событий. */
+/**
+ * Касаний с телефона — не больше 15 в секунду (человек больше не может), по времени событий: запас на 2 секунды (30),
+ * дальше 15 в секунду. Окно не по календарным секундам: две пачки, попавшие в одну секунду (сдвиг отправки), честного
+ * игрока не срезают, а подряд больше 15 в секунду не пройдёт.
+ */
 export const TAPS_PER_SECOND = 15;
+export const TAPS_BURST = 30;
 
 export interface CheckState {
   taps: Record<string, number>;
   total: number;
   echoes: number;
   resets: number;
-  /** Сколько касаний уже засчитано игроку в секунду события (по часам сервера). В снимок не идёт. */
-  window: Record<string, Record<number, number>>;
+  /** Запас касаний игрока (ведро жетонов по времени событий). В снимок не идёт. */
+  window: Record<string, { tokens: number; at: number }>;
 }
 
 function count(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(TAPS_PER_SECOND, Math.floor(value))) : 0;
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(TAPS_BURST, Math.floor(value))) : 0;
 }
 
 function fresh(): CheckState {
   return { taps: {}, total: 0, echoes: 0, resets: 0, window: {} };
 }
 
-/** Сколько секунд назад ещё помним засчитанные касания (событию старше — не засчитываем). */
-const WINDOW_SECONDS = 6;
-
-/** Сколько из `n` касаний ещё влезает в секунду события `at` у игрока (не больше 15 в каждую секунду). */
+/** Сколько из `n` касаний ещё влезает в запас игрока к моменту события `at`. */
 function fitTaps(state: CheckState, pid: string, at: number, n: number): number {
-  const sec = Math.floor(at / 1000);
-  const seconds = (state.window[pid] ??= {});
-  const newest = Math.max(sec, ...Object.keys(seconds).map(Number));
-  for (const key of Object.keys(seconds)) if (Number(key) <= newest - WINDOW_SECONDS) delete seconds[Number(key)];
-  if (sec <= newest - WINDOW_SECONDS) return 0;
-  const used = seconds[sec] ?? 0;
-  const ok = Math.max(0, Math.min(n, TAPS_PER_SECOND - used));
-  seconds[sec] = used + ok;
+  const bucket = (state.window[pid] ??= { tokens: TAPS_BURST, at });
+  // Событие из прошлого (повтор пачки) запас не пополняет — пополняет только ход времени вперёд.
+  if (at > bucket.at) {
+    bucket.tokens = Math.min(TAPS_BURST, bucket.tokens + ((at - bucket.at) / 1000) * TAPS_PER_SECOND);
+    bucket.at = at;
+  }
+  const ok = Math.max(0, Math.min(n, Math.floor(bucket.tokens)));
+  bucket.tokens -= ok;
   return ok;
 }
 

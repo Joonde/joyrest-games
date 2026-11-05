@@ -17,6 +17,14 @@ on:
       events:
         description: "Сколько мероприятий одновременно (гостей — на каждое)"
         default: "1"
+      mode:
+        description: "Что проверяем: quiz — демо-квиз, room — быстрый канал (комната room-check; на test — до 200 гостей)"
+        type: choice
+        options: ["quiz", "room"]
+        default: "quiz"
+      seconds:
+        description: "Быстрый канал: сколько секунд боты жмут"
+        default: "60"
   push:
     branches: ["claude/**"]
 
@@ -30,7 +38,7 @@ permissions:
 jobs:
   load:
     name: Нагрузка на test
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[load]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[load]') || contains(github.event.head_commit.message, '[load-room]')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -46,6 +54,9 @@ jobs:
           LOAD_BASE: https://test.games.joy-rest.ru
           LOAD_HOST_EMAIL: load@joy-rest.ru
           LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
-          GUESTS: ${{ inputs.guests || '500' }}
+          GUESTS: ${{ inputs.guests || (contains(github.event.head_commit.message, '[load-room]') && '200') || '500' }}
           TEAMS: ${{ inputs.teams && '1' || '0' }}
           EVENTS: ${{ inputs.events || '1' }}
+          # Коммит с [load-room] — быстрый канал на 200 гостях, иначе — как выбрано (по умолчанию квиз).
+          MODE: ${{ inputs.mode || (contains(github.event.head_commit.message, '[load-room]') && 'room') || 'quiz' }}
+          ROOM_SECONDS: ${{ inputs.seconds || '60' }}

@@ -6,6 +6,9 @@
  *
  *   LOAD_HOST_EMAIL=… LOAD_HOST_PASSWORD=… GUESTS=500 npx tsx scripts/load.ts
  *   TEAMS=1 — режим команд (по 10 телефонов в команде)
+ *   MODE=room — быстрый канал (CLAUDE.md, «Быстрый канал (комнаты)»): игра «room-check», каждый бот раз в
+ *   секунду шлёт пачку касаний и раз в ~2 с — «движение» отдельным запросом; экран и пульт подписаны на свои
+ *   потоки. ROOM_SECONDS — сколько длится (по умолчанию 60).
  *
  * Только test.games.joy-rest.ru: основной адрес — отказ (там могут идти игры).
  * Итог: время входа, доставка вопроса на телефоны, время ответа, ошибки. Код выхода 1 —
@@ -28,6 +31,11 @@ const PASSWORD = process.env.LOAD_HOST_PASSWORD ?? "";
 const DELIVERY_P95_LIMIT_MS = 2000;
 const ANSWERED_THROTTLE_MS = 2000;
 const QUESTIONS = DEMO_QUIZ.content.questions;
+/** quiz — демо-квиз (медленный путь), room — быстрый канал (игровая комната). */
+const MODE = process.env.MODE === "room" ? "room" : "quiz";
+const ROOM_SECONDS = Math.max(10, Math.min(600, Number(process.env.ROOM_SECONDS ?? 60) || 60));
+/** Быстрый канал: личное событие и сводка экрана должны доходить у 95% быстрее — иначе не пройдено. */
+const ROOM_P95_LIMIT_MS = 1000;
 
 // ---------- Отчёт ----------
 
@@ -184,7 +192,8 @@ const questionShownAt = new Map<string, number[]>();
 const answeredBy = new Map<string, Set<string>>();
 const shownList = (sessionId: string) => questionShownAt.get(sessionId) ?? questionShownAt.set(sessionId, []).get(sessionId) ?? [];
 
-async function startGuest(sessionId: string, index: number, teamIds: string[]): Promise<() => void> {
+/** Гость входит в сессию (свой телефон, в режиме команд — своя или новая команда). */
+async function joinGuest(sessionId: string, index: number, teamIds: string[]): Promise<{ device: Device; uid: string; pid: string; captain: boolean }> {
   const device = new Device();
   let t = Date.now();
   const me = await device.call<{ uid: string }>("POST", "/api/auth/device");
@@ -211,7 +220,11 @@ async function startGuest(sessionId: string, index: number, teamIds: string[]): 
     teamId: TEAMS ? pid : null,
   });
   measure("вход в игру", Date.now() - t);
+  return { device, uid, pid, captain };
+}
 
+async function startGuest(sessionId: string, index: number, teamIds: string[]): Promise<() => void> {
+  const { device, pid, captain } = await joinGuest(sessionId, index, teamIds);
   const seenSteps = new Set<number>();
   return follow(device, sessionId, (session) => {
     const { phase, stage, step } = session.state;
@@ -252,7 +265,9 @@ async function main() {
   }
   const started = Date.now();
   say(
-    EVENTS > 1
+    MODE === "room"
+      ? `Нагрузка быстрого канала на ${BASE}: ${EVENTS} × ${GUESTS} гостей, ${ROOM_SECONDS} с, пачка раз в секунду и «движение» раз в ~2 с с каждого телефона`
+      : EVENTS > 1
       ? `Нагрузка на ${BASE}: ${EVENTS} мероприятий одновременно по ${GUESTS} гостей (всего ${EVENTS * GUESTS}), ${TEAMS ? "команды по 10" : "каждый сам за себя"}, ${QUESTIONS.length} вопросов; параллельно — сайт, «Игры сейчас», анкеты площадок`
       : `Нагрузка на ${BASE}: ${GUESTS} гостей, ${TEAMS ? "команды по 10" : "каждый сам за себя"}, ${QUESTIONS.length} вопросов`,
   );
@@ -287,7 +302,7 @@ async function main() {
     }
   })();
 
-  const results = await Promise.allSettled(Array.from({ length: EVENTS }, (_, i) => runEvent(host, i)));
+  const results = await Promise.allSettled(Array.from({ length: EVENTS }, (_, i) => (MODE === "room" ? runRoomEvent(host, i) : runEvent(host, i))));
   background = false;
   await side;
   for (const r of results) if (r.status === "rejected") fail(`мероприятие сорвалось: ${String(r.reason).slice(0, 80)}`);
@@ -407,6 +422,138 @@ async function runEvent(host: Device, index: number): Promise<void> {
 
 let expectedTotal = 0;
 
+// ---------- Быстрый канал (MODE=room) ----------
+
+const roomStats = { movesSent: 0, pongsGot: 0, tapsAccepted: 0, tapsOnServer: 0, loopMaxLagMs: 0 };
+
+/** Смещение часов сервера относительно этой машины: три замера, лучший по задержке. */
+async function serverOffset(device: Device): Promise<number> {
+  let best = { rtt: Infinity, offset: 0 };
+  for (let i = 0; i < 3; i++) {
+    const sent = Date.now();
+    const { now } = await device.call<{ now: number }>("GET", "/api/time");
+    const received = Date.now();
+    if (received - sent < best.rtt) best = { rtt: received - sent, offset: now - (sent + received) / 2 };
+  }
+  return best.offset;
+}
+
+/** Бот-телефон: пачка касаний раз в секунду, «движение» отдельным запросом раз в ~2 с, личный поток. */
+async function roomBot(sessionId: string, index: number, teamIds: string[], endAt: number): Promise<void> {
+  const { device } = await joinGuest(sessionId, index, teamIds);
+  const stream = `b${index}${Math.random().toString(36).slice(2, 8)}`;
+  let seq = 0;
+  const waiting = new Map<string, number>();
+  let snapshot = false;
+  const stop = device.stream(`/api/stream/room/${sessionId}/me`, (event) => {
+    if (event.type === "snapshot") snapshot = true;
+    if (event.type !== "event") return;
+    const data = (event.data ?? {}) as { t?: string; id?: string };
+    const sentAt = data.t === "pong" && data.id ? waiting.get(data.id) : undefined;
+    if (sentAt === undefined || !data.id) return;
+    waiting.delete(data.id);
+    roomStats.pongsGot += 1;
+    measure("личное событие дошло", Date.now() - sentAt);
+  });
+  if (!(await until(() => snapshot, 15_000))) fail("личный поток не открылся");
+  const send = async (events: Array<Record<string, unknown>>) => {
+    const number = ++seq;
+    const t = Date.now();
+    try {
+      const reply = await device.call<{ dup?: boolean; dropped?: number }>("POST", `/api/rooms/${sessionId}/input`, { stream, seq: number, events });
+      measure("пачка принята сервером", Date.now() - t);
+      if (reply.dropped) fail("лимит срезал события");
+      if (!reply.dup) for (const e of events) if (e.t === "tap") roomStats.tapsAccepted += Number(e.n) || 0;
+    } catch (error) {
+      fail(`пачка не принята (${error instanceof Error ? error.message.replace(/^POST \S+: /, "").slice(0, 30) : "?"})`);
+    }
+  };
+  await wait(Math.random() * 300);
+  let moves = 0;
+  let nextMove = Date.now() + 500 + Math.random() * 1500;
+  const pending: Promise<void>[] = [];
+  while (Date.now() < endAt) {
+    pending.push(send([{ t: "tap", n: 1 + Math.floor(Math.random() * 9) }]));
+    if (Date.now() >= nextMove) {
+      const id = `${index}-${moves++}`;
+      waiting.set(id, Date.now());
+      roomStats.movesSent += 1;
+      pending.push(send([{ t: "move", id }]));
+      nextMove = Date.now() + 1500 + Math.random() * 1000;
+    }
+    await wait(1000);
+  }
+  await Promise.all(pending);
+  await until(() => waiting.size === 0, 5000);
+  for (let i = 0; i < waiting.size; i++) fail("личное событие потерялось");
+  stop();
+}
+
+
+async function runRoomEvent(host: Device, index: number): Promise<void> {
+  const playMode: PlayMode = TEAMS ? "teams" : "solo";
+  const sessionId = `loadr${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const created = await host.call<{ id: string; code: string }>("POST", "/api/sessions", {
+    id: sessionId,
+    gameTitle: `Нагрузка: быстрый канал ${GUESTS}`,
+    mechanic: "room-check",
+    gameSnapshot: { title: "room-check", mechanic: "room-check", content: {} },
+    themeId: "joyrest",
+    playMode,
+    screenMode: "laptop",
+  });
+  const tag = EVENTS > 1 ? `[${index + 1}] ` : "";
+  say(`${tag}Сессия ${created.code} (комната room-check)`);
+
+  // Экран зала — отдельное устройство: сводка до 5 раз в секунду. Пульт — сводка раз в секунду.
+  const screen = new Device();
+  await screen.call("POST", "/api/auth/device");
+  const offset = await serverOffset(screen);
+  let screens = 0;
+  const stopScreen = screen.stream(`/api/stream/room/${sessionId}/screen`, (event) => {
+    if (event.type !== "screen" || typeof event.at !== "number") return;
+    screens += 1;
+    if (screens > 1) measure("сводка экрана дошла", Math.max(0, Date.now() + offset - event.at));
+  });
+  let online = 0;
+  const stopHost = host.stream(`/api/stream/room/${sessionId}/host`, (event) => {
+    if (event.type !== "host") return;
+    online = Math.max(online, Number(event.online) || 0);
+    const loop = (event.loop ?? {}) as { maxLagMs?: number };
+    roomStats.loopMaxLagMs = Math.max(roomStats.loopMaxLagMs, Number(loop.maxLagMs) || 0);
+  });
+  await host.call("POST", `/api/rooms/${sessionId}/command`, { cmd: "reset", id: `reset${index}` });
+  await host.call("POST", `/api/sessions/${sessionId}/phase`, { phase: "playing" });
+
+  say(`${tag}Гости входят и играют ${ROOM_SECONDS} с…`);
+  const endAt = Date.now() + ROOM_SECONDS * 1000 + 20_000;
+  const teamIds: string[] = [];
+  const bots: Promise<void>[] = [];
+  const joinStart = Date.now();
+  for (let i = 0; i < GUESTS; i += 25) {
+    for (let k = 0; k < Math.min(25, GUESTS - i); k++) {
+      bots.push(roomBot(sessionId, i + k, teamIds, endAt).catch((error: unknown) => {
+        fail("гость не вошёл");
+        if ((errors["гость не вошёл"] ?? 0) <= 3) say(`  ${String(error).slice(0, 120)}`);
+      }));
+    }
+    await wait(400);
+  }
+  say(`${tag}Все боты запущены за ${((Date.now() - joinStart) / 1000).toFixed(1)} с`);
+  // Посреди игры — контрольная точка (снимок в базу), как на смене шага.
+  await wait(Math.max(0, (endAt - Date.now()) / 2));
+  await host.call("POST", `/api/rooms/${sessionId}/command`, { cmd: "checkpoint" });
+  await Promise.all(bots);
+  await wait(1500);
+  const final = await host.call<{ data?: { total?: number }; online?: number; loop?: { maxLagMs?: number } }>("GET", `/api/rooms/${sessionId}/host`);
+  roomStats.tapsOnServer += Number(final.data?.total) || 0;
+  roomStats.loopMaxLagMs = Math.max(roomStats.loopMaxLagMs, Number(final.loop?.maxLagMs) || 0);
+  say(`  ${tag}на связи было до ${online} из ${GUESTS}, сводок экрана ${screens}`);
+  await host.call("POST", `/api/sessions/${sessionId}/finish`, { participantsCount: GUESTS });
+  stopScreen();
+  stopHost();
+}
+
 function report_(started: number): void {
   // ---------- Итог ----------
   const answersExpected = expectedTotal;
@@ -415,12 +562,23 @@ function report_(started: number): void {
   for (const [what, list] of Object.entries(timings)) {
     say(`  ${what.padEnd(28)} медиана ${String(pct(list, 50)).padStart(5)} мс, 95% ${String(pct(list, 95)).padStart(5)} мс, макс ${String(Math.max(...list)).padStart(5)} мс (${list.length})`);
   }
-  say(`  ответов принято               ${answersGot} из ${answersExpected}`);
+  if (MODE === "quiz") say(`  ответов принято               ${answersGot} из ${answersExpected}`);
   say(`  переподключений потоков       ${reconnects}`);
   const errorTotal = Object.values(errors).reduce((a, b) => a + b, 0);
   say(`  ошибок                        ${errorTotal}`);
   for (const [what, n] of Object.entries(errors)) say(`    ${what}: ${n}`);
 
+  if (MODE === "room") {
+    say(`  личных событий дошло          ${roomStats.pongsGot} из ${roomStats.movesSent}`);
+    say(`  касаний принято / на сервере  ${roomStats.tapsAccepted} / ${roomStats.tapsOnServer}`);
+    say(`  задержка цикла комнат (худшая) ${roomStats.loopMaxLagMs} мс`);
+    const me95 = pct(timings["личное событие дошло"] ?? [], 95);
+    const screen95 = pct(timings["сводка экрана дошла"] ?? [], 95);
+    const lost = roomStats.movesSent - roomStats.pongsGot + Math.abs(roomStats.tapsAccepted - roomStats.tapsOnServer);
+    const ok = errorTotal === 0 && lost === 0 && roomStats.movesSent > 0 && me95 <= ROOM_P95_LIMIT_MS && screen95 <= ROOM_P95_LIMIT_MS;
+    say(ok ? "\n✅ Проверка пройдена" : `\n❌ Проверка не пройдена (порог доставки 95% — ${ROOM_P95_LIMIT_MS} мс, потерь — 0)`);
+    finish(ok ? 0 : 1);
+  }
   const delivery95 = pct(timings["вопрос дошёл до телефона"] ?? [], 95);
   const ok = errorTotal === 0 && answersGot === answersExpected && delivery95 <= DELIVERY_P95_LIMIT_MS;
   say(ok ? "\n✅ Проверка пройдена" : `\n❌ Проверка не пройдена (порог доставки 95% — ${DELIVERY_P95_LIMIT_MS} мс)`);

@@ -5,7 +5,7 @@
  * Пока экранов нет, игра есть только на тестовой версии (как `room-check`, `registry.ts`).
  */
 import { BATCH_MS, BUBLIKATOR, MOVES_PER_SECOND, OFFLINE_MS, TAPS_PER_SECOND } from "../../../src/mechanics/bublikator/rules/constants";
-import { command, createState, input, join, moment, restore, resume, snapshot, tick, type InEvent } from "../../../src/mechanics/bublikator/rules/game";
+import { command, createState, input, join, moment, pause, restore, resume, snapshot, tick, type InEvent } from "../../../src/mechanics/bublikator/rules/game";
 import { flushPersonal, hostView, personalView, screenView } from "../../../src/mechanics/bublikator/rules/views";
 import type { BubState } from "../../../src/mechanics/bublikator/rules/types";
 import type { RoomContext, RoomGame } from "./engine";
@@ -38,6 +38,8 @@ export const bublikator: RoomGame<BubState> = {
     tick(state, ctx);
     flushPersonal(state, ctx);
   },
+  // Пауза: время игры встаёт (команды пульта на паузе отсчитывают от момента паузы); продолжение сдвигает часы игры.
+  onPause: (state, ctx) => pause(state, ctx),
   onResume: (state, pausedMs, ctx) => resume(state, pausedMs, ctx),
   screen: (state, view) => screenView(state, view),
   personal: (state, pid, view) => personalView(state, pid, view),

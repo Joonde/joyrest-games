@@ -4,7 +4,7 @@
  */
 import { CREW_SPLIT, CREWS_MAX, HULL_MAX } from "./constants";
 import { crewLook, crewName } from "./names";
-import type { BubState, Crew, Member } from "./types";
+import type { BubState, Crew, Member, Roster } from "./types";
 
 export function newCrew(id: number, name: string, look: { color: number; icon: number | null }): Crew {
   return {
@@ -36,6 +36,7 @@ export function newCrew(id: number, name: string, look: { color: number; icon: n
     legs: [],
     voteBonus: 0,
     guessed: 0,
+    merged: 0,
   };
 }
 
@@ -48,24 +49,70 @@ export function crewCountFor(players: number, minSize: number): number {
 
 /** Экипажи на выбор в лобби: не меньше 2 и не меньше тех, кого уже выбрали. */
 export function lobbyCrewCount(s: BubState): number {
-  const active = activeMembers(s);
-  let highest = -1;
-  for (const m of active) if (m.crew !== null && m.crew > highest) highest = m.crew;
-  return Math.min(CREWS_MAX, Math.max(2, crewCountFor(active.length, s.content.crewSize.min), Math.ceil(active.length / s.content.crewSize.max), highest + 1));
+  const ix = roster(s);
+  const active = ix.active;
+  return Math.min(CREWS_MAX, Math.max(2, crewCountFor(active.length, s.content.crewSize.min), Math.ceil(active.length / s.content.crewSize.max), ix.highestChoice + 1));
 }
 
-export function activeMembers(s: BubState): Member[] {
-  return Object.values(s.members)
-    .filter((m) => !m.gone)
-    .sort((a, b) => a.join - b.join);
+/**
+ * Составы — один раз на изменение (а не на каждый вызов): кто в игре по порядку входа, кто в каком экипаже, игроки, сколько
+ * дублёров у каждого игрока. Любое изменение экипажа, роли, ухода или нового участника — `rosterChanged(s)`; в тестах
+ * сверяется с пересчётом с нуля (`rosterFresh`).
+ */
+const EMPTY: readonly Member[] = [];
+
+export function rosterChanged(s: BubState): void {
+  s.rt.rosterVer += 1;
 }
 
-export function crewMembers(s: BubState, crew: number): Member[] {
-  return activeMembers(s).filter((m) => m.crew === crew);
+export function rosterFresh(s: BubState): Roster {
+  const all = Object.values(s.members);
+  let sorted = true;
+  for (let i = 1; i < all.length; i += 1) if ((all[i - 1]?.join ?? 0) > (all[i]?.join ?? 0)) sorted = false;
+  if (!sorted) all.sort((a, b) => a.join - b.join);
+  const active: Member[] = [];
+  const byCrew = new Map<number, Member[]>();
+  const players = new Map<number, Member[]>();
+  const doublesOf = new Map<string, number>();
+  let highestChoice = -1;
+  for (const m of all) {
+    if (m.gone) continue;
+    active.push(m);
+    if (m.crew !== null) {
+      if (m.crew > highestChoice) highestChoice = m.crew;
+      const list = byCrew.get(m.crew);
+      if (list) list.push(m);
+      else byCrew.set(m.crew, [m]);
+      if (m.role === "player") {
+        const pl = players.get(m.crew);
+        if (pl) pl.push(m);
+        else players.set(m.crew, [m]);
+      }
+    }
+    if (m.role === "double" && m.doubleOf !== null) doublesOf.set(m.doubleOf, (doublesOf.get(m.doubleOf) ?? 0) + 1);
+  }
+  return { ver: s.rt.rosterVer, active, byCrew, players, doublesOf, highestChoice };
 }
 
-export function crewPlayers(s: BubState, crew: number): Member[] {
-  return crewMembers(s, crew).filter((m) => m.role === "player");
+export function roster(s: BubState): Roster {
+  const ix = s.rt.roster;
+  if (ix && ix.ver === s.rt.rosterVer) return ix;
+  const fresh = rosterFresh(s);
+  s.rt.roster = fresh;
+  return fresh;
+}
+
+/** В игре (не ушли), по порядку входа. Массив общий — не менять. */
+export function activeMembers(s: BubState): readonly Member[] {
+  return roster(s).active;
+}
+
+export function crewMembers(s: BubState, crew: number): readonly Member[] {
+  return roster(s).byCrew.get(crew) ?? EMPTY;
+}
+
+export function crewPlayers(s: BubState, crew: number): readonly Member[] {
+  return roster(s).players.get(crew) ?? EMPTY;
 }
 
 export function liveCrews(s: BubState): Crew[] {
@@ -89,11 +136,12 @@ export function smallestCrew(s: BubState, withPlayers = false): Crew | null {
 
 /** Дублёр делит пульт игрока, у которого меньше всего дублёров (при равенстве — кто раньше вошёл). */
 export function pickDoubleOf(s: BubState, crew: number, except: string | null = null): string | null {
-  const players = crewPlayers(s, crew).filter((p) => p.pid !== except);
+  const ix = roster(s);
   let best: string | null = null;
   let fewest = Infinity;
-  for (const p of players) {
-    const n = activeMembers(s).filter((m) => m.role === "double" && m.doubleOf === p.pid).length;
+  for (const p of ix.players.get(crew) ?? EMPTY) {
+    if (p.pid === except) continue;
+    const n = ix.doublesOf.get(p.pid) ?? 0;
     if (n < fewest) {
       fewest = n;
       best = p.pid;
@@ -106,11 +154,12 @@ export function pickDoubleOf(s: BubState, crew: number, except: string | null = 
  * Роли экипажа по порядку входа: первые max (кроме убранных) — игроки, остальные — дублёры. `keepPending` — посреди
  * перелёта опоздавшие остаются дублёрами до следующей раздачи; иначе (до перелёта, между перелётами) — сразу игроки.
  */
-export function assignRoles(s: BubState, crew: number, keepPending: boolean): void {
+export function assignRoles(s: BubState, crew: number, keepPending: boolean, touch = true): void {
   const max = s.content.crewSize.max;
-  const members = crewMembers(s, crew);
+  const members = [...crewMembers(s, crew)];
   let players = 0;
   const doubles: Member[] = [];
+  const owners: Member[] = [];
   for (const m of members) {
     if (m.role === "out") continue;
     if (keepPending && m.pending) {
@@ -122,20 +171,39 @@ export function assignRoles(s: BubState, crew: number, keepPending: boolean): vo
       m.doubleOf = null;
       m.pending = false;
       players += 1;
+      owners.push(m);
     } else {
       doubles.push(m);
     }
   }
+  // Дублёры — по кругу к игрокам, у кого их меньше (при равенстве — кто раньше вошёл).
+  const count = new Map<string, number>(owners.map((o) => [o.pid, 0]));
   for (const d of doubles) {
     d.role = "double";
-    d.doubleOf = null;
+    let best: Member | null = null;
+    let fewest = Infinity;
+    for (const o of owners) {
+      const n = count.get(o.pid) ?? 0;
+      if (n < fewest) {
+        fewest = n;
+        best = o;
+      }
+    }
+    d.doubleOf = best?.pid ?? null;
+    if (best) count.set(best.pid, fewest + 1);
   }
-  for (const d of doubles) d.doubleOf = pickDoubleOf(s, crew, d.pid);
+  if (touch) rosterChanged(s);
+}
+
+/** Роли во всех экипажах сразу: составы экипажей не меняются, поэтому пересчёт составов — один раз в конце. */
+export function assignAllRoles(s: BubState, keepPending: boolean): void {
+  for (const c of liveCrews(s)) assignRoles(s, c.id, keepPending, false);
+  rosterChanged(s);
 }
 
 /** «Собрать экипажи»: выбранные остаются, остальные — в самые маленькие; экипажей ceil(N / 7), но не меньше выбранных. */
 export function gatherCrews(s: BubState): void {
-  const active = activeMembers(s);
+  const active = [...activeMembers(s)];
   const chosen = [...new Set(active.map((m) => m.crew).filter((c): c is number => c !== null && c < CREWS_MAX))].sort((a, b) => a - b);
   // Экипажей хватает, чтобы никому не стать дублёром: не меньше ceil(N / max) (до 20 — дальше лишние станут дублёрами).
   const want = Math.min(CREWS_MAX, Math.max(crewCountFor(active.length, s.content.crewSize.min), Math.ceil(active.length / s.content.crewSize.max), chosen.length));
@@ -171,7 +239,9 @@ export function gatherCrews(s: BubState): void {
     m.crew = best;
     count.set(best, size + 1);
   }
-  for (const id of ids) assignRoles(s, id, false);
+  rosterChanged(s);
+  for (const id of ids) assignRoles(s, id, false, false);
+  rosterChanged(s);
 }
 
 /** Гость пришёл после сбора экипажей (или вернулся после «Убрать»): дублёр в самом маленьком (своём) экипаже. */
@@ -180,8 +250,11 @@ export function seatLate(s: BubState, m: Member, ownCrew: number | null, midLeg:
   m.crew = crew;
   m.pending = true;
   m.role = "double";
+  m.doubleOf = null;
+  rosterChanged(s);
   m.doubleOf = crew === null ? null : pickDoubleOf(s, crew, m.pid);
   m.order = null;
+  rosterChanged(s);
   if (crew !== null && !midLeg) assignRoles(s, crew, false);
 }
 
@@ -191,17 +264,19 @@ export function moveMember(s: BubState, m: Member, crew: number, midLeg: boolean
   m.order = null;
   if (m.role === "out") m.role = "double";
   m.pending = midLeg;
+  rosterChanged(s);
   if (from !== null) assignRoles(s, from, midLeg);
   assignRoles(s, crew, midLeg);
 }
 
 /** «Объединить экипажи»: все из `from` — в `to` (сверх 10 — дублёры), экипаж `from` исчезает. */
 export function mergeCrews(s: BubState, from: Crew, to: Crew): void {
-  for (const m of crewMembers(s, from.id)) {
+  for (const m of [...crewMembers(s, from.id)]) {
     m.crew = to.id;
     m.order = null;
   }
   from.gone = true;
+  rosterChanged(s);
   assignRoles(s, to.id, false);
 }
 

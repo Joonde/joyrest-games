@@ -4,6 +4,8 @@
  */
 
 export const BUBLIKATOR = "bublikator";
+/** Режимы платформы (ТЗ: «командный режим платформы здесь единственный»; экран зала обязателен). */
+export const BUBLIKATOR_SUPPORTS = { solo: false, teams: true, noScreen: false } as const;
 
 // ------------------------------------------------------------ приказы
 /** Приказ засчитан, когда прибор простоял в нужном положении столько (прохождение «через» цель не считается). */
@@ -28,6 +30,8 @@ export const ORDER_SECONDS: Record<"kids" | "normal" | "crazy", readonly [number
 export const ORDER_SHIFT_STEP_S = 2;
 export const ORDER_MIN_S = 4;
 export const ORDER_MAX_S = 30;
+/** Задним числом — не больше: время движения, «Тяги» и SOS не раньше «приход − столько». */
+export const BACKDATE_MS = 300;
 /** С одного телефона — не больше столько движений приборов в секунду (лишние не принимаются). */
 export const MOVES_PER_SECOND = 5;
 

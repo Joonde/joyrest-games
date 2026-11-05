@@ -21,11 +21,15 @@ import {
   VOTE_MS,
   WARN_MS,
   WRONG_STOP_MS,
+  BACKDATE_MS,
+  BUBLIKATOR_SUPPORTS,
+  DOCK_MS,
+  HOLD_MS,
 } from "./constants";
 import { defaultTasks, parseContent } from "./content";
-import { crewCountFor, crewMembers, crewPlayers } from "./crews";
-import { chooseControl, crewTotal, impulse, orderDamage, orderSeconds, places, restore, resume, scheduleEvents, snapshot, tallyVote } from "./game";
-import { CREW_NAMES, distance, ENDINGS, isBlocked, joinName, KIDS_ITEMS, nameCandidates, ROOTS, rootClashes, THEME_ROOTS } from "./names";
+import { activeMembers, crewCountFor, crewMembers, crewPlayers, roster, rosterFresh } from "./crews";
+import { chooseControl, crewTotal, gameNow, impulse, orderDamage, orderSeconds, places, restore, resume, scheduleEvents, snapshot, tallyVote, voteCandidates } from "./game";
+import { closer, CREW_NAMES, distance, ENDINGS, isBlocked, joinName, KIDS_ITEMS, kidsTinted, nameCandidates, norm, ROOTS, rootClashes, THEME_ROOTS } from "./names";
 import { cleanState, controlsPerPlayer, dealPanels, orderText, randomTarget, STATES } from "./panels";
 import type { Control, Crew, Member } from "./types";
 import { hostView, personalView, screenView } from "./views";
@@ -46,11 +50,14 @@ function crewOf(w: World, pid: string): Crew {
 }
 
 /** Игрок с активным приказом на прибор нужного вида (кнопка или «положенческий»). */
-function orderWith(w: World, button: boolean): { m: Member; ctl: Control } {
-  for (const m of Object.values(w.s.members)) {
-    const o = m.order;
-    const ctl = o ? w.s.controls[o.control] : undefined;
-    if (o && ctl && (ctl.type === "button") === button) return { m, ctl };
+function orderWith(w: World, button: boolean, wait = 0): { m: Member; ctl: Control } {
+  for (let i = 0; i <= wait; i += 1) {
+    for (const m of Object.values(w.s.members)) {
+      const o = m.order;
+      const ctl = o ? w.s.controls[o.control] : undefined;
+      if (o && ctl && (ctl.type === "button") === button) return { m, ctl };
+    }
+    if (i < wait) w.step();
   }
   throw new Error("нет подходящего приказа");
 }
@@ -196,29 +203,66 @@ describe("раздача приборов", () => {
     const drill = deal({ legNo: 2, crews: 2, per: 4, drill: true });
     for (const ids of Object.values(drill.panels)) expect(ids).toHaveLength(4);
   });
-  it("детская сложность: кнопка, тумблер, рычаг с картинками; без близнецов; 2 прибора, если в экипаже больше 6", () => {
+  it("детская сложность (по ТЗ): кнопка, тумблер, рычаг с картинками; без близнецов; всегда 3 прибора; предметы — на весь зал по одному", () => {
     const r = deal({ legNo: 2, crews: 3, per: 6, difficulty: "kids" });
     for (const ids of Object.values(r.panels)) expect(ids).toHaveLength(3);
     for (const c of r.controls) {
       expect(["button", "toggle", "lever"]).toContain(c.type);
-      expect(KIDS_ITEMS.some((k) => k.name === c.name && k.icon === c.icon && k.acc === c.acc)).toBe(true);
+      // Предмет из 20 ТЗ — сам или с цветом («Красная лягушка»): картинка того же предмета, падеж согласован.
+      const item = KIDS_ITEMS.find((k) => k.icon === c.icon);
+      expect(item).toBeDefined();
+      if (!item) continue;
+      if (c.tint === undefined) expect([c.name, c.acc]).toEqual([item.name, item.acc]);
+      else expect(c.acc?.endsWith(` ${item.acc}`)).toBe(true);
     }
-    for (let c = 0; c < 3; c += 1) {
-      const names = r.controls.filter((x) => x.crew === c).map((x) => x.name);
-      expect(new Set(names).size).toBe(names.length);
-    }
-    expect(controlsPerPlayer("kids", 0, 7)).toBe(2);
-    expect(controlsPerPlayer("kids", 2, 6)).toBe(3);
+    // 54 прибора на 18 детей: все названия разные на весь зал, первые 20 — предметы без цвета.
+    expect(new Set(r.controls.map((c) => c.name)).size).toBe(r.controls.length);
+    expect(r.controls.filter((c) => c.tint === undefined)).toHaveLength(20);
+    expect(r.relaxed).toBe(false);
+    for (const n of [1, 6, 7, 10]) expect(controlsPerPlayer("kids", 0, n)).toBe(3);
+    // В экипаже из 10 — 30 приборов: 20 разных картинок, дальше те же предметы с цветом; названия всё равно разные.
     const big = deal({ legNo: 0, crews: 1, per: 10, difficulty: "kids" });
-    expect(new Set(big.controls.map((c) => c.name)).size).toBe(20);
+    expect(new Set(big.controls.map((c) => c.icon)).size).toBe(20);
+    expect(new Set(big.controls.map((c) => c.name)).size).toBe(30);
+    // Падежи с цветом: «синюю лягушку», «синего кита», «синее яблоко».
+    expect(kidsTinted({ name: "Лягушка", acc: "лягушку", icon: "frog" }, 1)).toEqual({ name: "Синяя лягушка", acc: "синюю лягушку" });
+    expect(kidsTinted({ name: "Кит", acc: "кита", icon: "whale" }, 1)).toEqual({ name: "Синий кит", acc: "синего кита" });
+    expect(kidsTinted({ name: "Яблоко", acc: "яблоко", icon: "apple" }, 7)).toEqual({ name: "Голубое яблоко", acc: "голубое яблоко" });
+    expect(kidsTinted({ name: "Мяч", acc: "мяч", icon: "ball" }, 0)).toEqual({ name: "Красный мяч", acc: "красный мяч" });
   });
-  it("зал на 200 человек: сочетаний не хватает на весь зал — уникальны хотя бы в экипаже", () => {
-    const r = deal({ legNo: 2, crews: 20, per: 10 });
-    expect(r.controls).toHaveLength(800);
-    for (let c = 0; c < 20; c += 1) {
-      const names = r.controls.filter((x) => x.crew === c).map((x) => x.name.toLowerCase());
-      expect(new Set(names).size).toBe(names.length);
+  it("200 и 500 гостей, все темы, все перелёты: названия уникальны на весь зал (по ТЗ), в экипаже — на 3 буквы, у каждого пара-близнец в третьем", () => {
+    // 500 гостей — те же 20 экипажей по 10 игроков (остальные дублёры делят их пульты): 800 приборов в третьем перелёте.
+    for (const theme of ["space", "pirates", "newyear", "submarine", "wedding"] as const) {
+      expect(THEME_ROOTS[theme]).toHaveLength(40);
+      for (const guests of [200, 500]) {
+        for (const legNo of [0, 1, 2]) {
+          let id = 0;
+          const crews = Array.from({ length: 20 }, (_, c) => ({ id: c, players: Array.from({ length: Math.min(10, guests / 20) }, (_, i) => `c${c}p${i}`) }));
+          const r = dealPanels({ theme, difficulty: "normal", legNo, drill: false, crews, crewNames: CREW_NAMES[theme].slice(0, 20), customNames: [], rand: seq(`${theme}${guests}${legNo}`), nextId: () => `k${id++}` });
+          expect(r.relaxed).toBe(false);
+          expect(r.controls).toHaveLength(legNo === 2 ? 800 : 600);
+          expect(new Set(r.controls.map((c) => norm(c.name))).size).toBe(r.controls.length);
+          for (const crew of crews) {
+            const names = r.controls.filter((x) => x.crew === crew.id).map((x) => x.name);
+            let close = 0;
+            for (let i = 0; i < names.length; i += 1) for (let j = i + 1; j < names.length; j += 1) if (distance(names[i] ?? "", names[j] ?? "") < 3) close += 1;
+            // Близкие пары — только близнецы: по одной на игрока в третьем перелёте.
+            expect(close).toBe(legNo === 2 ? crew.players.length : 0);
+          }
+        }
+      }
     }
+  });
+  it("быстрая проверка похожести совпадает с полным расстоянием", () => {
+    const rand = seq("closer");
+    const all = nameCandidates("space", [], rand).map((c) => c.name);
+    for (let i = 0; i < 3000; i += 1) {
+      const a = all[Math.floor(rand() * all.length)] ?? "";
+      const b = all[Math.floor(rand() * all.length)] ?? "";
+      expect(closer(norm(a), norm(b), 3)).toBe(distance(a, b) < 3);
+    }
+    expect(closer("бубликатор", "бубликатрон", 3)).toBe(true);
+    expect(closer("бубликотор", "бубликомет", 3)).toBe(false);
   });
   it("цель приказа всегда отличается от текущего положения; у кнопки — «нажать»", () => {
     const rand = seq("t");
@@ -418,8 +462,8 @@ describe("экипажи", () => {
 
 describe("приказы", () => {
   it("80% приказов — про чужой прибор, 20% — свой (10 000 выдач, ±2%); только что использованный не повторяется", () => {
-    const own: Control[] = Array.from({ length: 3 }, (_, i) => ({ id: `own${i}`, crew: 0, owner: "me", name: "", type: "toggle", state: 0, movedAt: -1, by: null, lastOrder: -1 }));
-    const foreign: Control[] = Array.from({ length: 9 }, (_, i) => ({ id: `f${i}`, crew: 0, owner: `o${i % 3}`, name: "", type: "toggle", state: 0, movedAt: -1, by: null, lastOrder: -1 }));
+    const own: Control[] = Array.from({ length: 3 }, (_, i) => ({ id: `own${i}`, crew: 0, owner: "me", name: "", type: "toggle", state: 0, movedAt: -1, claim: -1, by: null, lastOrder: -1 }));
+    const foreign: Control[] = Array.from({ length: 9 }, (_, i) => ({ id: `f${i}`, crew: 0, owner: `o${i % 3}`, name: "", type: "toggle", state: 0, movedAt: -1, claim: -1, by: null, lastOrder: -1 }));
     const rand = seq("8020");
     let mine = 0;
     let last: string | null = null;
@@ -438,7 +482,7 @@ describe("приказы", () => {
     expect(chooseControl([], "me", null, rand)).toBeNull();
   });
   it("предпочтение приборам, о которых давно не было приказа", () => {
-    const list: Control[] = Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, crew: 0, owner: "o", name: "", type: "toggle", state: 0, movedAt: -1, by: null, lastOrder: i * 1000 }));
+    const list: Control[] = Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, crew: 0, owner: "o", name: "", type: "toggle", state: 0, movedAt: -1, claim: -1, by: null, lastOrder: i * 1000 }));
     const rand = seq("old");
     for (let i = 0; i < 200; i += 1) {
       const c = chooseControl(list, "me", null, rand);
@@ -624,21 +668,34 @@ describe("приказы", () => {
     const w = new World({ players: 6, content: { ...NOEV, difficulty: "crazy" } });
     w.toFlight();
     expect(orderSeconds(w.s)).toBe(10);
-    w.ok("time", { delta: 2 });
+    const shift = () => w.s.leg?.shift ?? 0;
+    w.ok("time", { delta: 2, from: shift() });
     expect(orderSeconds(w.s)).toBe(12);
-    for (let i = 0; i < 4; i += 1) w.ok("time", { delta: -2 });
+    for (let i = 0; i < 4; i += 1) w.ok("time", { delta: -2, from: shift() });
     expect(orderSeconds(w.s)).toBe(4);
-    expect(w.cmd("time", { delta: -2 })).toEqual({ ok: false, error: "limit" });
-    expect(w.cmd("time", { delta: 3 })).toEqual({ ok: false, error: "invalid-argument" });
+    expect(w.cmd("time", { delta: -2, from: shift() })).toEqual({ ok: false, error: "limit" });
+    expect(w.cmd("time", { delta: 3, from: shift() })).toEqual({ ok: false, error: "invalid-argument" });
+    expect(w.cmd("time", { delta: 2 })).toEqual({ ok: false, error: "invalid-argument" });
+    const shiftedAt = w.g;
     w.advance(1100);
-    const o = Object.values(w.s.members).find((m) => m.order)?.order;
+    const o = Object.values(w.s.members).find((m) => m.order && m.order.issuedAt > shiftedAt)?.order;
+    expect(o).toBeDefined();
     expect((o?.due ?? 0) - (o?.issuedClock ?? 0)).toBe(4000);
     expect(new World({ content: { difficulty: "kids" } }).s.content.difficulty).toBe("kids");
     const kids = new World({ players: 6, content: { difficulty: "kids" } });
     expect([0, 1, 2].map((i) => orderSeconds(kids.s, i, 0))).toEqual([16, 14, 12]);
     expect([0, 1, 2].map((i) => orderSeconds(w.s, i, 0))).toEqual([10, 8, 6]);
     endFlight(w);
-    expect(w.cmd("time", { delta: 2 })).toEqual({ ok: false, error: "wrong-phase" });
+    expect(w.cmd("time", { delta: 2, from: shift() })).toEqual({ ok: false, error: "wrong-phase" });
+  });
+  it("«Медленнее / Быстрее»: двойное касание и второй пульт со старым `from` — `moved`, прибавлено один раз", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.toFlight();
+    const seen = w.s.leg?.shift ?? 0;
+    w.ok("time", { delta: 2, from: seen });
+    expect(w.cmd("time", { delta: 2, from: seen })).toEqual({ ok: false, error: "moved" });
+    expect(w.s.leg?.shift).toBe(2);
+    expect(orderSeconds(w.s)).toBe(14);
   });
   it("пауза (туда и обратно): таймеры приказов стоят, после продолжения идут с того же места", () => {
     const w = new World({ players: 6, content: NOEV });
@@ -788,10 +845,13 @@ describe("события", () => {
     expect(crews).toHaveLength(3);
     startEvent(w, "meteor");
     const shake = [80, 40, 10];
-    crews.forEach((c, i) => {
-      for (const m of crewMembers(w.s, c.id)) w.send(m.pid, [{ t: "shake", p: shake[i] }]);
+    // Телефоны шлют сводку тряски раз в секунду (сила растёт не быстрее эталона — к концу дождя дорастает до своей).
+    w.advance(10_100, 100, () => {
+      if (w.env.now % 1000 !== 0) return;
+      crews.forEach((c, i) => {
+        for (const m of crewMembers(w.s, c.id)) w.send(m.pid, [{ t: "shake", p: shake[i] }]);
+      });
     });
-    w.advance(10_100);
     expect(w.s.leg?.event).toBeNull();
     expect(crews.map((c) => c.hull)).toEqual([5, 4, 3]);
     expect(crews.map((c) => c.bonus.meteor)).toEqual([METEOR_BONUS, 0, 0]);
@@ -962,7 +1022,7 @@ describe("события", () => {
     const [a, b, c] = w.s.crews;
     if (!a || !b || !c) throw new Error("три экипажа");
     a.hull = 0;
-    a.repair = { startedAt: w.g, taps: 0, target: 90 };
+    a.repair = { startedAt: w.g, taps: 0, target: 90, by: {} };
     b.finishedAt = 10_000;
     b.dist = 1000;
     startEvent(w, "meteor");
@@ -1014,7 +1074,7 @@ describe("особые эффекты перелётов", () => {
     }
     expect(screenView(w.s, w.env).glitchUntil).not.toBeNull();
     // Движение сразу после глюка: удержание считается с конца 0,7 с.
-    const { m, ctl } = orderWith(w, false);
+    const { m, ctl } = orderWith(w, false, 3);
     const id = m.order?.id;
     w.send(ctl.owner, [{ t: "move", c: ctl.id, s: m.order?.target }]);
     w.advance(700);
@@ -1267,8 +1327,30 @@ describe("личное — только своё", () => {
     }
     // Отправленное телефонам «me» — тоже только своё.
     for (const x of w.env.sent.filter((e) => e.data.t === "me")) {
-      const me = (x.data.me as { me: { pid: string } }).me;
-      expect(me.pid).toBe(x.pid);
+      const me = (x.data.me as { me?: { pid: string } }).me;
+      if (me) expect(me.pid).toBe(x.pid);
+      const text = JSON.stringify(x.data);
+      for (const o of Object.values(w.s.members)) if (o.pid !== x.pid && o.order) expect(text).not.toContain(`"id":"${o.order.id}"`);
+    }
+  });
+  it("рассылка — только изменившиеся поля: первое личное целиком, дальше кусочками; телефон, сложив их, видит то же, что снимок", () => {
+    const w = new World({ players: 8, content: NOEV });
+    w.toFlight();
+    const held = new Map<string, Record<string, unknown>>();
+    w.advance(20_000, 100, () => {
+      for (const x of w.env.sent.splice(0)) {
+        if (x.data.t !== "me") continue;
+        const part = x.data.me as Record<string, unknown>;
+        held.set(x.pid, x.data.full === true ? { ...part } : { ...(held.get(x.pid) ?? {}), ...part });
+      }
+      const m = Object.values(w.s.members).find((y) => y.order && w.env.now % 700 === 0);
+      if (m) w.fulfil(m.pid);
+    });
+    for (const m of Object.values(w.s.members)) {
+      const full = personalView(w.s, m.pid, w.env) as unknown as Record<string, unknown>;
+      const got = held.get(m.pid) ?? {};
+      for (const k of ["me", "panel", "phase", "stage", "ship", "repair", "event"]) expect(JSON.stringify(got[k])).toBe(JSON.stringify(full[k]));
+      expect((got.order as { id?: string } | null)?.id).toBe((full.order as { id?: string } | null)?.id);
     }
   });
   it("личное уходит только при переменах: одинаковое второй раз не шлётся", () => {
@@ -1340,7 +1422,7 @@ describe("команды пульта", () => {
     w.ok("gather");
     w.ok("drill");
     w.advance(DRILL_MS + 200);
-    const before = w.core();
+    const before = w.lean();
     w.ok("start");
     const firstNames = Object.values(w.s.controls).map((c) => c.name).join();
     w.advance(LAUNCH_MS + 20_000, 100, () => {
@@ -1351,8 +1433,11 @@ describe("команды пульта", () => {
     expect(hostView(w.s, w.env).canBack).toBe(true);
     w.ok("next");
     expect(w.s.leg?.stage).toBe("vote");
+    const seqs = { order: w.s.orderSeq, event: w.s.eventSeq, ctl: w.s.ctlSeq };
     w.ok("back");
-    expect(w.core()).toBe(before);
+    expect(w.lean()).toBe(before);
+    // Номера не откатываются: после «Назад» новый приказ, событие и прибор — с новыми номерами.
+    expect([w.s.orderSeq, w.s.eventSeq, w.s.ctlSeq]).toEqual([seqs.order, seqs.event, seqs.ctl]);
     expect(w.cmd("back")).toEqual({ ok: false, error: "nothing-to-undo" });
     w.ok("start");
     expect(w.s.attempts[0]).toBe(2);
@@ -1361,12 +1446,12 @@ describe("команды пульта", () => {
     endFlight(w);
     w.ok("vote");
     w.ok("vote-end");
-    const dock1 = w.core();
+    const dock1 = w.lean();
     w.ok("next");
     w.advance(LAUNCH_MS + 3000);
     endFlight(w);
     w.ok("back");
-    expect(w.core()).toBe(dock1);
+    expect(w.lean()).toBe(dock1);
   });
   it("«Назад»: вошедший за время перелёта остаётся в игре", () => {
     const w = new World({ players: 6, content: NOEV });
@@ -1450,5 +1535,351 @@ describe("команды пульта", () => {
     w.advance(DRILL_MS);
     expect(Object.values(w.s.members).every((m) => m.order === null)).toBe(true);
     expect(screenView(w.s, w.env).endsAt).toBeNull();
+  });
+});
+
+// ===================================================================== аудит Блока 2a (6 ноября 2026)
+
+describe("аудит 6 ноября 2026: пауза, время событий, номера, щит, пересадка, ремонт", () => {
+  it("команда на паузе (п. 2): «Старт» на паузе ставит взлёт от момента паузы — после «Продолжить» ровно 5 с", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.ok("gather");
+    w.pause();
+    const frozen = w.g;
+    w.env.now += 300_000;
+    expect(gameNow(w.s, w.env)).toBe(frozen);
+    w.ok("start");
+    w.env.now += 2000;
+    w.resume();
+    expect((w.s.leg?.launchEnds ?? 0) - gameNow(w.s, w.env)).toBe(LAUNCH_MS);
+    // В полёте: пауза — сроки приказов, время полёта и отсчёт «Медленнее» стоят; после — с того же места.
+    w.advance(LAUNCH_MS + 2000);
+    const m = Object.values(w.s.members).find((x) => x.order);
+    const left = personalView(w.s, m?.pid ?? "", w.env)?.order?.left;
+    const flight = w.s.leg?.flight;
+    w.pause();
+    w.env.now += 120_000;
+    w.ok("time", { delta: 2, from: 0 });
+    expect(personalView(w.s, m?.pid ?? "", w.env)?.order?.left).toBe(left);
+    w.resume();
+    w.step();
+    expect(w.s.leg?.flight).toBe((flight ?? 0) + 100);
+    expect(w.s.crews.every((c) => c.hull === HULL_MAX)).toBe(true);
+  });
+  it("перезапуск без «Пауза» (п. 2): время игры стоит на последнем шаге цикла; «Дальше» на паузе → «Продолжить» — взлёт 5 с", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.toFlight();
+    endFlight(w);
+    expect(w.s.leg?.stage).toBe("dock");
+    const back = restore(JSON.parse(JSON.stringify(snapshot(w.s))));
+    if (!back) throw new Error("снимок");
+    w.s = back;
+    // Комната поднялась на паузе (onPause не звали): простой — 7 минут.
+    w.env.paused = true;
+    const lastTick = w.s.lastTick ?? 0;
+    w.env.now += 420_000;
+    expect(gameNow(w.s, w.env)).toBe(lastTick);
+    w.ok("next");
+    w.env.now += 30_000;
+    w.env.paused = false;
+    resume(w.s, w.env.now - (lastTick + w.s.offset), w.env);
+    expect((w.s.leg?.launchEnds ?? 0) - gameNow(w.s, w.env)).toBe(LAUNCH_MS);
+  });
+  it("`delayed` (п. 3): старое движение, пришедшее повтором позже, не затирает свежее; удержание — от прихода", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.toFlight();
+    w.advance(1000);
+    const ctl = Object.values(w.s.controls).find((c) => c.owner === "p0" && c.type === "slider") ?? Object.values(w.s.controls).find((c) => c.owner === "p0" && c.type === "lever");
+    if (!ctl) throw new Error("прибор");
+    const fresh = (ctl.state + 1) % 3;
+    const old = (ctl.state + 2) % 3;
+    // Телефон: сначала двинул в old (пачка потерялась), потом в fresh (дошла сразу); old пришла повтором через 1 с.
+    w.send("p0", [{ t: "move", c: ctl.id, s: fresh }]);
+    const arrived = w.g;
+    w.advance(1000);
+    w.send("p0", [{ t: "move", c: ctl.id, s: old }], { ago: 3000, delayed: true });
+    expect(ctl.state).toBe(fresh);
+    expect(ctl.movedAt).toBe(arrived);
+    // Свежее, но заявленное раньше прошлого (два дублёра разом, порядок прихода перепутан) — тоже не затирает.
+    const w2 = new World({ players: 6, content: NOEV });
+    w2.toFlight();
+    w2.advance(1000);
+    const c2 = Object.values(w2.s.controls).find((c) => c.owner === "p1" && c.type !== "button" && c.type !== "toggle");
+    if (!c2) throw new Error("прибор 2");
+    w2.send("p1", [{ t: "move", c: c2.id, s: (c2.state + 1) % 3 }]);
+    const want = c2.state;
+    w2.send("p1", [{ t: "move", c: c2.id, s: (c2.state + 1) % 3 }], { ago: 200 });
+    expect(c2.state).toBe(want);
+    // Удержание `delayed` — от прихода: приказ засчитывается через 0,7 с после прихода, а не «задним числом».
+    const w3 = new World({ players: 6, content: NOEV });
+    w3.toFlight();
+    w3.advance(1100);
+    const { m, ctl: c3 } = orderWith(w3, false);
+    const id = m.order?.id;
+    w3.send(c3.owner, [{ t: "move", c: c3.id, s: m.order?.target }], { ago: 3000, delayed: true });
+    w3.advance(600);
+    expect(m.order?.id).toBe(id);
+    w3.advance(200);
+    expect(m.order?.id).not.toBe(id);
+  });
+  it("задним числом не больше 0,3 с (п. 8): движение, «Тяга» и SOS с большим `ago` — от «приход − 0,3 с»", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.toFlight();
+    w.advance(1100);
+    const { m, ctl } = orderWith(w, false);
+    const id = m.order?.id;
+    w.send(ctl.owner, [{ t: "move", c: ctl.id, s: m.order?.target }], { ago: 2000 });
+    expect(ctl.movedAt).toBe(w.g - BACKDATE_MS);
+    w.advance(HOLD_MS - BACKDATE_MS - 100);
+    expect(m.order?.id).toBe(id);
+    w.advance(200);
+    expect(m.order?.id).not.toBe(id);
+    // «Тяга» и SOS.
+    const e = new World({ players: 6, content: ALL_ON });
+    e.toFlight();
+    startEvent(e, "pull");
+    e.send("p0", [{ t: "hold", on: true }], { ago: 2500 });
+    expect(e.s.leg?.event?.holds?.p0?.at).toBe(e.g - BACKDATE_MS);
+    const sos = new World({ players: 6, content: ALL_ON });
+    sos.toFlight();
+    startEvent(sos, "sos");
+    const crew = sos.s.crews[0];
+    const cap = crewPlayers(sos.s, crew?.id ?? 0)[0];
+    const seqColors = sos.s.leg?.event?.seq ?? [];
+    sos.send(cap?.pid ?? "", [{ t: "sos", color: ((seqColors[0] ?? 0) + 1) % 4 }], { ago: 2500 });
+    expect(crew?.sos?.blockedUntil).toBe(sos.g - BACKDATE_MS + SOS_BLOCK_MS);
+  });
+  it("номера после «Назад» (п. 4): приказы, события и приборы нового перелёта — с новыми номерами", () => {
+    const w = new World({ players: 6, content: { legMinutes: 3, events: { meteor: false, pull: false, sos: false, captain: true } } });
+    w.toFlight();
+    const ids1 = new Set<string>();
+    const first = w.cmd("event", { kind: "captain" });
+    const ev1 = first.ok ? String(first.result) : "";
+    const ctl1 = new Set(Object.keys(w.s.controls));
+    w.advance(65_000, 100, () => {
+      for (const m of Object.values(w.s.members)) if (m.order) ids1.add(m.order.id);
+    });
+    endFlight(w);
+    w.ok("back");
+    w.ok("start");
+    w.advance(LAUNCH_MS + 100);
+    const second = w.cmd("event", { kind: "captain" });
+    expect(second.ok && second.result).not.toBe(ev1);
+    for (const id of Object.keys(w.s.controls)) expect(ctl1.has(id)).toBe(false);
+    const ids2 = new Set<string>();
+    w.advance(10_000, 100, () => {
+      for (const m of Object.values(w.s.members)) if (m.order) ids2.add(m.order.id);
+    });
+    expect(ids2.size).toBeGreaterThan(0);
+    for (const id of ids2) expect(ids1.has(id)).toBe(false);
+  });
+  it("щит «Метеоритного дождя» (п. 7): сила растёт не быстрее 100 × (время ÷ 10 с) — одним сообщением «100» щит не набрать", () => {
+    const w = new World({ players: 6, content: ALL_ON });
+    w.toFlight();
+    startEvent(w, "meteor");
+    for (const m of Object.values(w.s.members)) w.send(m.pid, [{ t: "shake", p: 100 }]);
+    w.advance(200);
+    expect(Math.max(...w.s.crews.map((c) => c.shield ?? 0))).toBeLessThanOrEqual(5);
+    w.advance(4800);
+    for (const m of Object.values(w.s.members)) w.send(m.pid, [{ t: "shake", p: 100 }]);
+    w.step();
+    for (const c of w.s.crews) expect(c.shield ?? 0).toBeLessThanOrEqual(52);
+    // Нажатия тоже: за 1 с больше 10 не набрать, сколько ни жми.
+    const t = new World({ players: 6, content: ALL_ON });
+    t.toFlight();
+    startEvent(t, "meteor");
+    for (const m of Object.values(t.s.members)) t.send(m.pid, [{ t: "tap", n: 30 }]);
+    t.advance(1000);
+    for (const c of t.s.crews) expect(c.shield ?? 0).toBeLessThanOrEqual(12);
+  });
+  it("пересадка (п. 11): во время голосования — нельзя; пересаженный на «Привале» диверсант остаётся кандидатом своего экипажа", () => {
+    const w = new World({ players: 12, content: { ...NOEV, saboteur: true } });
+    for (let i = 0; i < 12; i += 1) w.send(`p${i}`, [{ t: "crew", crew: i < 6 ? 0 : 1 }]);
+    w.toFlight();
+    const [a, b] = w.s.crews;
+    if (!a?.saboteur || !b) throw new Error("диверсант");
+    const sab = a.saboteur;
+    endFlight(w);
+    // На привале диверсанта пересадили в другой экипаж — голосует и угадывается он всё равно в своём.
+    w.ok("move", { pid: sab, crew: b.id });
+    expect(w.member(sab).crew).toBe(b.id);
+    w.ok("vote");
+    expect(w.cmd("move", { pid: sab, crew: a.id })).toEqual({ ok: false, error: "vote-running" });
+    expect(w.cmd("merge", { from: a.id, to: b.id })).toEqual({ ok: false, error: "vote-running" });
+    expect(voteCandidates(w.s, a.id).map((m) => m.pid)).toContain(sab);
+    expect(voteCandidates(w.s, b.id).map((m) => m.pid)).not.toContain(sab);
+    const honest = voteCandidates(w.s, a.id).filter((m) => m.pid !== sab);
+    for (const m of honest) w.send(m.pid, [{ t: "vote", pid: sab }]);
+    expect(personalView(w.s, honest[0]?.pid ?? "", w.env)?.vote?.candidates.map((c) => c.pid)).toContain(sab);
+    w.ok("vote-end");
+    expect(a.voteBonus).toBe(VOTE_BONUS);
+  });
+  it("«мои нажатия» в ремонте (п. 12) — по-настоящему, у каждого свои", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.toFlight();
+    const crew = w.s.crews[0];
+    if (!crew) throw new Error("экипаж");
+    crew.hull = 0.1;
+    const victim = crewPlayers(w.s, crew.id)[0];
+    if (!victim?.order) {
+      w.advance(1500);
+    }
+    // Корпус в ноль — ремонт.
+    const mm = crewPlayers(w.s, crew.id);
+    for (const m of mm) if (m.order) m.order.due = -1;
+    w.step();
+    expect(crew.repair).not.toBeNull();
+    w.send(mm[0]?.pid ?? "", [{ t: "tap", n: 7 }]);
+    w.send(mm[1]?.pid ?? "", [{ t: "tap", n: 3 }]);
+    expect(personalView(w.s, mm[0]?.pid ?? "", w.env)?.repair?.mine).toBe(7);
+    expect(personalView(w.s, mm[1]?.pid ?? "", w.env)?.repair?.mine).toBe(3);
+    expect(personalView(w.s, mm[2]?.pid ?? "", w.env)?.repair?.mine).toBe(0);
+    expect(crew.repair?.taps).toBe(10);
+  });
+});
+
+describe("решения владельца 6 ноября 2026 и сверка с ТЗ", () => {
+  it("№ 5: «Объединить экипажи» — очки влитого экипажа прибавляются; до голосования за диверсанта — нельзя", () => {
+    const w = new World({ players: 8, content: { ...NOEV, legMinutes: 3 } });
+    for (let i = 0; i < 8; i += 1) w.send(`p${i}`, [{ t: "crew", crew: i < 2 ? 0 : 1 }]);
+    w.toFlight();
+    w.advance(30_000, 100, () => {
+      const m = Object.values(w.s.members).find((x) => x.order && w.env.now % 500 === 0);
+      if (m) w.fulfil(m.pid);
+    });
+    endFlight(w);
+    const [a, b] = w.s.crews;
+    if (!a || !b) throw new Error("экипажи");
+    const ta = crewTotal(a);
+    const tb = crewTotal(b);
+    expect(ta).toBeGreaterThan(0);
+    w.ok("merge", { from: a.id, to: b.id });
+    expect(crewTotal(b)).toBe(ta + tb);
+    expect(screenView(w.s, w.env).crews.map((c) => c.total)).toEqual([ta + tb]);
+    // С диверсантом на привале: сначала голосование.
+    const s = new World({ players: 12, content: { ...NOEV, saboteur: true } });
+    for (let i = 0; i < 12; i += 1) s.send(`p${i}`, [{ t: "crew", crew: i < 6 ? 0 : 1 }]);
+    s.toFlight();
+    endFlight(s);
+    expect(s.cmd("merge", { from: 0, to: 1 })).toEqual({ ok: false, error: "vote-pending" });
+  });
+  it("№ 10: невыполненный ложный приказ — просто исчезает: без просрочки, рывка корабля, урона и сброса серии", () => {
+    const w = new World({ players: 10, content: { ...NOEV, saboteur: true } });
+    w.toFlight();
+    w.advance(1500);
+    const crew = w.s.crews.find((c) => c.saboteur !== null);
+    if (!crew?.saboteur) throw new Error("диверсант");
+    const sab = w.member(crew.saboteur);
+    // Ложный приказ у диверсанта.
+    if (!sab.order) w.advance(1500);
+    const order = sab.order;
+    if (!order) throw new Error("приказ");
+    order.fake = true;
+    crew.streak = 4;
+    const before = { failSeq: crew.failSeq, failed: crew.failed, hull: crew.hull, streak: crew.streak };
+    order.due = crew.clock;
+    w.step();
+    expect(sab.order?.id).not.toBe(order.id);
+    expect({ failSeq: crew.failSeq, failed: crew.failed, hull: crew.hull, streak: crew.streak }).toEqual(before);
+    expect(w.env.sent.some((x) => x.pid === sab.pid && x.data.t === "cancel" && x.data.order === order.id)).toBe(true);
+    expect(w.env.sent.some((x) => x.data.t === "fail" && x.data.order === order.id)).toBe(false);
+  });
+  it("голосование открывается само через 10 с «Привала», ведущий может раньше; «угадали» — единственный лидер, даже меньше половины", () => {
+    const w = new World({ players: 12, content: { ...NOEV, saboteur: true } });
+    w.toFlight();
+    endFlight(w);
+    expect(w.s.leg?.stage).toBe("dock");
+    w.advance(DOCK_MS - 200);
+    expect(w.s.leg?.stage).toBe("dock");
+    w.advance(300);
+    expect(w.s.leg?.stage).toBe("vote");
+    // Раньше — кнопкой.
+    const e = new World({ players: 12, content: { ...NOEV, saboteur: true } });
+    e.toFlight();
+    endFlight(e);
+    e.ok("vote");
+    expect(e.s.leg?.stage).toBe("vote");
+    // Лидер с 2 голосами из 6 (остальные — по одному за разных) — угадали; 2:2 — нет.
+    const crew = e.s.crews.find((c) => c.saboteur !== null);
+    if (!crew?.saboteur) throw new Error("диверсант");
+    const sab = crew.saboteur;
+    const others = voteCandidates(e.s, crew.id).filter((m) => m.pid !== sab);
+    const [x, y, z, ...rest] = others;
+    if (!x || !y || !z) throw new Error("мало игроков");
+    e.send(x.pid, [{ t: "vote", pid: sab }]);
+    e.send(y.pid, [{ t: "vote", pid: sab }]);
+    e.send(z.pid, [{ t: "vote", pid: x.pid }]);
+    for (const r of rest) e.send(r.pid, [{ t: "vote", pid: r.pid === rest[0]?.pid ? y.pid : z.pid }]);
+    expect(tallyVote(e.s, crew)?.guessed).toBe(true);
+    e.send(sab, [{ t: "vote", pid: x.pid }]);
+    e.send(rest[0]?.pid ?? "", [{ t: "vote", pid: x.pid }]);
+    expect(tallyVote(e.s, crew)?.votes[x.pid]).toBe(2);
+    expect(tallyVote(e.s, crew)?.guessed).toBe(false);
+  });
+  it("ТЗ: хозяин прибора пропал со связи — приказ на его прибор снимается, даже если его дублёр на связи", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.toFlight();
+    w.advance(1500);
+    // Опоздавший посреди перелёта — дублёр, делит пульт одного из игроков.
+    w.addPlayer("late");
+    const double = w.member("late");
+    if (!double?.doubleOf) throw new Error("дублёр");
+    const owner = double.doubleOf;
+    const target = Object.values(w.s.members).find((m) => m.order && w.s.controls[m.order.control]?.owner === owner);
+    w.offline(owner);
+    w.step();
+    if (target) expect(target.order === null || w.s.controls[target.order.control]?.owner !== owner).toBe(true);
+    w.advance(3000);
+    for (const m of Object.values(w.s.members)) if (m.order) expect(w.s.controls[m.order.control]?.owner).not.toBe(owner);
+  });
+  it("ТЗ: режим платформы — только команды, экран зала обязателен", () => {
+    expect(BUBLIKATOR_SUPPORTS).toEqual({ solo: false, teams: true, noScreen: false });
+  });
+  it("«Притяжение» у детей — по ТЗ с уроном (ТЗ освобождает от урона только «Метеоритный дождь»)", () => {
+    const w = new World({ players: 6, content: { ...ALL_ON, difficulty: "kids" } });
+    w.toFlight();
+    startEvent(w, "pull");
+    w.advance(20_100);
+    expect(w.s.crews.every((c) => c.hull === HULL_MAX - 1)).toBe(true);
+  });
+});
+
+describe("составы и скорость (п. 1, 13, 15)", () => {
+  it("составы, посчитанные один раз, всегда совпадают с пересчётом с нуля (вход, уход, пересадка, объединение, «Назад», убрать)", () => {
+    const w = new World({ players: 30, content: { ...NOEV, legMinutes: 3, crewSize: { min: 3, max: 6 } } });
+    const check = () => {
+      const a = roster(w.s);
+      const b = rosterFresh(w.s);
+      expect(a.active.map((m) => m.pid)).toEqual(b.active.map((m) => m.pid));
+      for (const c of w.s.crews) {
+        expect((a.byCrew.get(c.id) ?? []).map((m) => m.pid)).toEqual((b.byCrew.get(c.id) ?? []).map((m) => m.pid));
+        expect((a.players.get(c.id) ?? []).map((m) => m.pid)).toEqual((b.players.get(c.id) ?? []).map((m) => m.pid));
+      }
+      expect([...a.doublesOf].sort()).toEqual([...b.doublesOf].sort());
+    };
+    for (let i = 0; i < 30; i += 1) w.send(`p${i}`, [{ t: "crew", crew: i % 3 }]);
+    check();
+    w.ok("gather");
+    check();
+    w.addPlayer("late1");
+    check();
+    w.ok("start");
+    w.advance(LAUNCH_MS + 1000);
+    w.addPlayer("late2");
+    w.env.players = w.env.players.filter((p) => p.pid !== "p3");
+    w.step();
+    check();
+    w.offline("p4");
+    w.advance(61_000, 1000);
+    endFlight(w);
+    w.ok("remove", { pid: "p4" });
+    check();
+    w.ok("move", { pid: "p5", crew: w.s.crews[2]?.id });
+    check();
+    w.ok("merge", { from: w.s.crews[0]?.id, to: w.s.crews[1]?.id });
+    check();
+    w.ok("back");
+    check();
+    expect(activeMembers(w.s).every((m) => !m.gone)).toBe(true);
   });
 });

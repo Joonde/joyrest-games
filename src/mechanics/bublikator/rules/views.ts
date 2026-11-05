@@ -5,10 +5,77 @@
 import { FIRE_STREAK, GLITCH_SHOW_MS, FLIP_MS, KICK_AFTER_MS, REPAIR_MS, SPEED_WINDOW_MS } from "./constants";
 import { activeMembers, captainOf, crewMembers, crewPlayers, liveCrews, lobbyCrewCount } from "./crews";
 import { crewLook, crewName } from "./names";
-import { crewTotal, gameNow, legResultOf, meteorShield, orderSeconds, places, toServer, type Env } from "./game";
-import type { BubState, Crew, EventKind, HostView, PanelControlView, PersonalView, ScreenCrewView, ScreenView } from "./types";
+import { crewTotal, gameNow, legResultOf, meteorPower, meteorShield, orderSeconds, places, toServer, voteCandidates, voteVoters, type Env } from "./game";
+import type { BubState, Crew, CrewSummary, EventKind, HostView, Member, PanelControlView, PersonalView, ScreenCrewView, ScreenView } from "./types";
 
-type ViewEnv = Pick<Env, "now" | "online">;
+type ViewEnv = Pick<Env, "now" | "online" | "paused">;
+
+/**
+ * Общее для всех телефонов за одну рассылку — считается один раз, а не на каждый телефон: места, капитаны, щиты, лобби,
+ * сводки экипажей, кандидаты голосования.
+ */
+export interface Frame {
+  now: number;
+  st: Map<Crew, { score: number; place: number }>;
+  captains: Map<number, Member | null>;
+  shields: Map<number, number>;
+  lobby: { crews: Array<{ id: number; name: string; count: number; full: boolean }>; max: number } | null;
+  summaries: Map<number, { view: CrewSummary; key: string }>;
+  candidates: Map<number, Array<{ pid: string; name: string }>>;
+}
+
+export function frameOf(s: BubState, env: ViewEnv): Frame {
+  const now = gameNow(s, env);
+  const online = (pid: string) => env.online(pid);
+  const crews = liveCrews(s);
+  const ev = s.leg?.event ?? null;
+  const captains = new Map<number, Member | null>();
+  const shields = new Map<number, number>();
+  for (const c of crews) {
+    captains.set(c.id, captainOf(s, c.id, online));
+    if (ev?.kind === "meteor" && ev.started && ev.crews.includes(c.id)) shields.set(c.id, meteorShield(s, ev, c.id, online, now));
+  }
+  let lobby: Frame["lobby"] = null;
+  if (s.phase === "lobby") {
+    const count = new Map<number, number>();
+    for (const m of activeMembers(s)) if (m.crew !== null) count.set(m.crew, (count.get(m.crew) ?? 0) + 1);
+    const max = s.content.crewSize.max;
+    lobby = {
+      crews: Array.from({ length: lobbyCrewCount(s) }, (_, id) => ({ id, name: crewName(s.content.theme, id), count: count.get(id) ?? 0, full: (count.get(id) ?? 0) >= max })),
+      max,
+    };
+  }
+  return { now, st: standings(s), captains, shields, lobby, summaries: new Map(), candidates: new Map() };
+}
+
+/**
+ * Состав экипажа (кто, роль, на связи): уходит телефонам экипажа отдельно (`{ t: "crew" }`) и только при переменах — состав
+ * меняется редко. Корпус и место меняются часто — они в личном (`ship`), малым кусочком.
+ */
+function summaryOf(s: BubState, crew: Crew, env: ViewEnv, f: Frame): { view: CrewSummary; key: string } {
+  const known = f.summaries.get(crew.id);
+  if (known) return known;
+  const members = crewMembers(s, crew.id);
+  const view: CrewSummary = {
+    id: crew.id,
+    name: crew.name,
+    color: crew.color,
+    icon: crew.icon,
+    members: members.map((x) => ({ name: x.name, online: env.online(x.pid), role: x.role })),
+    offline: members.filter((x) => x.role !== "out" && !env.online(x.pid)).map((x) => x.name),
+  };
+  const out = { view, key: JSON.stringify(view) };
+  f.summaries.set(crew.id, out);
+  return out;
+}
+
+function candidatesOf(s: BubState, crew: number, f: Frame): Array<{ pid: string; name: string }> {
+  const known = f.candidates.get(crew);
+  if (known) return known;
+  const list = voteCandidates(s, crew).map((x) => ({ pid: x.pid, name: x.name }));
+  f.candidates.set(crew, list);
+  return list;
+}
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -84,6 +151,7 @@ function podiumView(s: BubState): ScreenView["podium"] {
 export function screenView(s: BubState, env: ViewEnv): ScreenView {
   const now = gameNow(s, env);
   const st = standings(s);
+  const online = (pid: string) => env.online(pid);
   const crews = liveCrews(s);
   const speeds = new Map(crews.map((c) => [c, speedOf(c)]));
   const moving = crews.filter((c) => c.finishedAt === null);
@@ -104,7 +172,7 @@ export function screenView(s: BubState, env: ViewEnv): ScreenView {
             drifting: !c.pull.escaped && !c.pull.failed,
           }
         : null;
-    const sos = ev?.kind === "sos" && ev.started && c.sos ? { progress: c.sos.progress, done: c.sos.done, captain: captainOf(s, c.id, (pid: string) => env.online(pid))?.name ?? null } : null;
+    const sos = ev?.kind === "sos" && ev.started && c.sos ? { progress: c.sos.progress, done: c.sos.done, captain: captainOf(s, c.id, online)?.name ?? null } : null;
     return {
       id: c.id,
       name: c.name,
@@ -124,7 +192,7 @@ export function screenView(s: BubState, env: ViewEnv): ScreenView {
       finished: c.finishedAt !== null,
       streak: c.streak,
       fire: c.streak >= FIRE_STREAK,
-      shield: ev?.kind === "meteor" && ev.started && ev.crews.includes(c.id) ? Math.round(meteorShield(s, ev, c.id, (pid: string) => env.online(pid))) : null,
+      shield: ev?.kind === "meteor" && ev.started && ev.crews.includes(c.id) ? Math.round(meteorShield(s, ev, c.id, online, now)) : null,
       pull,
       sos,
       okSeq: c.okSeq,
@@ -158,7 +226,7 @@ export function screenView(s: BubState, env: ViewEnv): ScreenView {
           const voters: Record<string, number> = {};
           for (const c of crews) {
             if (c.saboteur === null) continue;
-            const ms = crewMembers(s, c.id).filter((m) => m.role !== "out");
+            const ms = voteVoters(s, c.id);
             voters[String(c.id)] = ms.length;
             voted[String(c.id)] = ms.filter((m) => m.vote !== null).length;
           }
@@ -188,19 +256,24 @@ export function screenView(s: BubState, env: ViewEnv): ScreenView {
   };
 }
 
-export function personalView(s: BubState, pid: string, env: ViewEnv): PersonalView | null {
+/**
+ * Личное телефона. `withCrew` — со сводкой экипажа (снимок при подписке и опрос); рассылка шлёт сводку отдельно
+ * (`{ t: "crew" }`) и только при переменах.
+ */
+export function personalView(s: BubState, pid: string, env: ViewEnv, frame?: Frame, withCrew = true): PersonalView | null {
   const m = s.members[pid];
   if (!m) return null;
-  const now = gameNow(s, env);
+  const f = frame ?? frameOf(s, env);
+  const now = f.now;
   const crew = m.crew === null ? undefined : s.crews.find((c) => c.id === m.crew && !c.gone);
-  const st = standings(s);
+  const st = f.st;
   const leg = s.leg;
   const owner = m.role === "double" && m.doubleOf !== null ? m.doubleOf : pid;
   const ownerPanel = s.members[owner]?.panel ?? [];
   const panel: PanelControlView[] = ownerPanel
     .map((id) => s.controls[id])
     .filter((c): c is NonNullable<typeof c> => c !== undefined)
-    .map((c) => ({ id: c.id, name: c.name, type: c.type, state: c.state, icon: c.icon ?? null }));
+    .map((c) => ({ id: c.id, name: c.name, type: c.type, state: c.state, icon: c.icon ?? null, tint: c.tint ?? null }));
   const order = m.order;
   const frozen = s.phase === "leg" && (leg?.event?.started === true || crew?.repair !== null);
   const ctl = order ? s.controls[order.control] : undefined;
@@ -229,8 +302,7 @@ export function personalView(s: BubState, pid: string, env: ViewEnv): PersonalVi
         if (ev.task !== undefined) view.task = ev.task;
         if (crew && ev.started && joined) {
           if (ev.kind === "meteor") {
-            const p = ev.power?.[pid];
-            view.meteor = { power: p ? Math.round(Math.min(100, Math.max(p.shake, (p.taps / 60) * 100))) : 0, shield: Math.round(meteorShield(s, ev, crew.id, (pid: string) => env.online(pid))) };
+            view.meteor = { power: Math.round(meteorPower(ev, pid, now)), shield: Math.round(f.shields.get(crew.id) ?? 0) };
           }
           if (ev.kind === "pull" && crew.pull) {
             view.pull = {
@@ -244,7 +316,7 @@ export function personalView(s: BubState, pid: string, env: ViewEnv): PersonalVi
             };
           }
           if (ev.kind === "sos" && crew.sos) {
-            const cap = captainOf(s, crew.id, (pid: string) => env.online(pid));
+            const cap = f.captains.get(crew.id) ?? null;
             view.sos = {
               captain: cap?.pid === pid,
               captainName: cap?.name ?? null,
@@ -261,19 +333,20 @@ export function personalView(s: BubState, pid: string, env: ViewEnv): PersonalVi
   const stageNow = s.phase === "leg" ? (leg?.stage ?? null) : null;
   // Окно роли одного вида у всех экипажа с диверсантом: по телефону роль не угадать.
   const role = s.phase === "leg" && crew?.saboteur != null && (stageNow === "launch" || stageNow === "fly") ? { saboteur: crew.saboteur === pid, seen: m.roleSeen } : null;
+  // Голосуют экипажем, в котором были на старте перелёта (пересадка на «Привале» этого не меняет).
+  const voteAt = leg?.roster?.[pid] ?? m.crew;
+  const voteCrew = voteAt === null || voteAt === undefined ? undefined : s.crews.find((c) => c.id === voteAt);
   const vote =
-    stageNow === "vote" && leg?.voteEnds != null && crew
+    stageNow === "vote" && leg?.voteEnds != null && voteCrew
       ? {
           endsAt: toServer(s, leg.voteEnds),
-          candidates: crewMembers(s, crew.id)
-            .filter((x) => x.panel.length > 0 && x.pid !== pid)
-            .map((x) => ({ pid: x.pid, name: x.name })),
+          candidates: candidatesOf(s, voteCrew.id, f).filter((x) => x.pid !== pid),
           mine: m.vote,
-          none: crew.saboteur === null,
+          none: voteCrew.saboteur === null,
         }
       : null;
-  const result = stageNow === "voted" && crew ? (leg?.vote ?? []).find((r) => r.crew === crew.id) : undefined;
-  const voted = stageNow === "voted" && crew ? (result ? { guessed: result.guessed, saboteur: result.name, me: result.saboteur === pid, none: false } : { guessed: false, saboteur: "", me: false, none: true }) : null;
+  const result = stageNow === "voted" && voteCrew ? (leg?.vote ?? []).find((r) => r.crew === voteCrew.id) : undefined;
+  const voted = stageNow === "voted" && voteCrew ? (result ? { guessed: result.guessed, saboteur: result.name, me: result.saboteur === pid, none: false } : { guessed: false, saboteur: "", me: false, none: true }) : null;
   const flip = leg?.flip?.startedAt ?? null;
   const glitch = leg?.glitch?.startedAt ?? null;
   const card =
@@ -303,45 +376,23 @@ export function personalView(s: BubState, pid: string, env: ViewEnv): PersonalVi
       name: m.name,
       role: m.role,
       crew: m.crew,
-      captain: crew !== undefined && captainOf(s, crew.id, (pid: string) => env.online(pid))?.pid === pid,
+      captain: crew !== undefined && f.captains.get(crew.id)?.pid === pid,
       doubleOf: m.doubleOf !== null ? (s.members[m.doubleOf]?.name ?? null) : null,
       pending: m.pending,
       done: m.done,
       legDone: m.legDone,
       moved: m.moved,
     },
-    crew: crew
-      ? {
-          id: crew.id,
-          name: crew.name,
-          color: crew.color,
-          icon: crew.icon,
-          place: st.get(crew)?.place ?? 1,
-          hull: round1(crew.hull),
-          members: crewMembers(s, crew.id).map((x) => ({ name: x.name, online: env.online(x.pid), role: x.role })),
-          offline: crewMembers(s, crew.id)
-            .filter((x) => x.role !== "out" && !env.online(x.pid))
-            .map((x) => x.name),
-        }
-      : null,
-    lobby:
-      s.phase === "lobby"
-        ? {
-            crews: Array.from({ length: lobbyCrewCount(s) }, (_, id) => {
-              const count = activeMembers(s).filter((x) => x.crew === id).length;
-              return { id, name: crewName(s.content.theme, id), count, full: count >= s.content.crewSize.max };
-            }),
-            choice: m.crew,
-            max: s.content.crewSize.max,
-          }
-        : null,
+    ...(withCrew ? { crew: crew ? summaryOf(s, crew, env, f).view : null } : {}),
+    ship: crew ? { place: st.get(crew)?.place ?? 1, hull: round1(crew.hull) } : null,
+    lobby: f.lobby ? { crews: f.lobby.crews, choice: m.crew, max: f.lobby.max } : null,
     endsAt: endsAtOf(s),
     panel,
     flipUntil: flip !== null && now < flip + FLIP_MS ? toServer(s, flip + FLIP_MS) : null,
     glitchAt: glitch !== null ? toServer(s, glitch) : null,
     order: orderView,
     event,
-    repair: crew?.repair ? { until: toServer(s, crew.repair.startedAt + REPAIR_MS), mine: 0, taps: crew.repair.taps, target: crew.repair.target } : null,
+    repair: crew?.repair ? { until: toServer(s, crew.repair.startedAt + REPAIR_MS), mine: crew.repair.by?.[pid] ?? 0, taps: crew.repair.taps, target: crew.repair.target } : null,
     finished: crew?.finishedAt != null,
     role,
     vote,
@@ -422,24 +473,78 @@ export function hostView(s: BubState, env: ViewEnv): HostView {
 }
 
 /**
+ * Ключ поля личного для сравнения (рассылка всем 500 телефонам — часто, поэтому частые поля — без JSON): остаток времени
+ * приказа и «сколько держат» меняются каждый шаг — телефон считает их сам. Название, вид и текст у прибора и приказа с тем же
+ * id не меняются — в ключе только id и то, что меняется.
+ */
+function fieldKey(key: string, value: unknown): string {
+  if (value === null || typeof value !== "object") return typeof value === "string" ? `s${value}` : String(value);
+  switch (key) {
+    case "panel": {
+      let k = "";
+      for (const c of value as PanelControlView[]) k += `${c.id}:${c.state},`;
+      return k;
+    }
+    case "order": {
+      const o = value as NonNullable<PersonalView["order"]>;
+      return `${o.id}|${o.frozen ? "f" : Math.round((o.dueAt ?? 0) / 250)}|${o.mark === true ? 1 : 0}|${o.mine ? 1 : 0}`;
+    }
+    case "ship": {
+      const sh = value as NonNullable<PersonalView["ship"]>;
+      return `${sh.place}|${sh.hull}`;
+    }
+    case "me": {
+      const me = value as PersonalView["me"];
+      return `${me.name}|${me.role}|${me.crew}|${me.captain ? 1 : 0}|${me.doubleOf}|${me.pending ? 1 : 0}|${me.done}|${me.legDone}|${me.moved}`;
+    }
+    case "event": {
+      const e = value as NonNullable<PersonalView["event"]>;
+      return JSON.stringify({ ...e, pull: e.pull ? { ...e.pull, held: e.pull.held > 0 } : undefined });
+    }
+    default:
+      return JSON.stringify(value) ?? "null";
+  }
+}
+
+/**
  * Личное — только при переменах: сразу тем, у кого что-то случилось (приказ, прибор, событие), и всем раз в 0,5 с
- * (место, корпус, кто на связи). Одинаковое второй раз не уходит.
+ * (место, корпус, кто на связи). Уходят только изменившиеся поля (`{ t: "me", me: { …изменившееся } }`; первое — целиком,
+ * `full: true`): телефон дописывает их к последнему личному (снимок при подписке — всё сразу). Состав экипажа — отдельно.
  */
 export function flushPersonal(s: BubState, env: ViewEnv & Pick<Env, "send">): void {
   const now = gameNow(s, env);
   const sweep = now - s.rt.lastSweep >= 500;
+  if (!sweep && s.rt.dirty.size === 0) return;
   const pids = sweep ? Object.keys(s.members) : [...s.rt.dirty];
   if (sweep) s.rt.lastSweep = now;
   s.rt.dirty.clear();
+  const f = frameOf(s, env);
   for (const pid of pids) {
     const m = s.members[pid];
     if (!m || m.gone) continue;
-    const view = personalView(s, pid, env);
+    const crew = m.crew === null ? undefined : s.crews.find((c) => c.id === m.crew && !c.gone);
+    const summary = crew ? summaryOf(s, crew, env, f) : null;
+    const crewKey = summary?.key ?? "";
+    if (s.rt.sentCrew.get(pid) !== crewKey) {
+      s.rt.sentCrew.set(pid, crewKey);
+      env.send(pid, { t: "crew", crew: summary?.view ?? null });
+    }
+    const view = personalView(s, pid, env, f, false);
     if (!view) continue;
-    // Остаток времени приказа меняется каждый шаг — для сравнения его не берём (телефон считает сам по dueAt).
-    const key = JSON.stringify({ ...view, order: view.order ? { ...view.order, left: 0, dueAt: view.order.frozen ? null : Math.round((view.order.dueAt ?? 0) / 250) } : null, event: view.event ? { ...view.event, pull: view.event.pull ? { ...view.event.pull, held: view.event.pull.held > 0 } : undefined } : null });
-    if (s.rt.sent.get(pid) === key) continue;
-    s.rt.sent.set(pid, key);
-    env.send(pid, { t: "me", me: view });
+    const before = s.rt.sent.get(pid);
+    const keys: Record<string, string> = {};
+    const changed: Record<string, unknown> = {};
+    let any = false;
+    for (const [k, value] of Object.entries(view)) {
+      const key = fieldKey(k, value);
+      keys[k] = key;
+      if (before?.[k] !== key) {
+        changed[k] = value;
+        any = true;
+      }
+    }
+    if (!any) continue;
+    s.rt.sent.set(pid, keys);
+    env.send(pid, before ? { t: "me", me: changed } : { t: "me", me: view, full: true });
   }
 }

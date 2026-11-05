@@ -52,13 +52,15 @@ import {
   VOTE_MS,
   WARN_MS,
   WRONG_STOP_MS,
+  BACKDATE_MS,
+  DOCK_MS,
   CAPTAIN_STAR,
   CAPTAIN_STARS_MAX,
 } from "./constants";
 import { cleanTask, parseContent } from "./content";
 import {
   activeMembers,
-  assignRoles,
+  assignAllRoles,
   captainOf,
   crewMembers,
   crewPlayers,
@@ -67,6 +69,7 @@ import {
   lobbyCrewCount,
   mergeCrews,
   moveMember,
+  rosterChanged,
   seatLate,
 } from "./crews";
 import { dealPanels, cleanState, orderText, randomTarget } from "./panels";
@@ -101,22 +104,42 @@ const PHASES = ["lobby", "crews", "drill", "leg", "podium", "finished"] as const
 
 // ------------------------------------------------------------------ время и случайность
 
-export function gameNow(s: BubState, env: Pick<Env, "now">): number {
+/** Время игры. На паузе оно стоит: момент паузы (`pausedGame`, ставит `pause`), после перезапуска — последний шаг цикла. */
+export function gameNow(s: BubState, env: Pick<Env, "now" | "paused">): number {
+  if (env.paused) return s.pausedGame ?? s.lastTick ?? env.now - s.offset;
   return env.now - s.offset;
 }
 
-/** Время события телефона: `delayed` — по приходу (не даёт преимущества «кто первый»); не раньше конца паузы и не позже «сейчас». */
-export function eventTime(s: BubState, env: Pick<Env, "now">, e: Pick<InEvent, "at" | "delayed">): number {
+/**
+ * Время события телефона для игры (удержание, кнопка, «Тяга», SOS, лимиты): `delayed` — по приходу; свежее — заявленное
+ * телефоном, но не раньше «приход − 0,3 с» (задним числом не подправить), не раньше конца паузы и не позже «сейчас».
+ */
+export function eventTime(s: BubState, env: Pick<Env, "now" | "paused">, e: Pick<InEvent, "at" | "delayed">): number {
   const now = gameNow(s, env);
-  const t = (e.delayed ? env.now : e.at) - s.offset;
-  return Math.min(now, Math.max(s.floor, t));
+  if (e.delayed) return now;
+  return Math.min(now, Math.max(s.floor, now - BACKDATE_MS, e.at - s.offset));
 }
 
+/** Заявленное время события (по нему решается, какое движение прибора свежее): не раньше конца паузы и не позже «сейчас». */
+export function claimedTime(s: BubState, env: Pick<Env, "now" | "paused">, e: Pick<InEvent, "at">): number {
+  return Math.min(gameNow(s, env), Math.max(s.floor, e.at - s.offset));
+}
+
+/**
+ * Случайность пачкой: одно число из зерна комнаты (`env.random`, у сервера — sha256, дорого) на вызов `randomOf`, дальше —
+ * быстрый генератор от него (раздача на 800 приборов — тысячи чисел). Повторяемо: то же зерно и номер — те же числа.
+ */
 export function randomOf(s: BubState, env: Pick<Env, "random">): () => number {
+  const n = s.rng;
+  s.rng += 1;
+  let a = Math.floor(env.random(`b${n}`) * 4294967296) >>> 0;
   return () => {
-    const n = s.rng;
-    s.rng += 1;
-    return env.random(`b${n}`);
+    // mulberry32
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -125,7 +148,7 @@ export function toServer(s: BubState, gameTime: number): number {
 }
 
 function freshRuntime(): Runtime {
-  return { moves: new Map(), taps: new Map(), sent: new Map(), dirty: new Set(), lastSweep: -Infinity };
+  return { moves: new Map(), taps: new Map(), sent: new Map(), dirty: new Set(), lastSweep: -Infinity, rosterVer: 0, roster: null, sentCrew: new Map() };
 }
 
 function bucketTake(map: Map<string, { tokens: number; at: number }>, key: string, capacity: number, perSecond: number, at: number, want: number): number {
@@ -186,13 +209,16 @@ export function createState(contentRaw: unknown, teamsMode: boolean, env: Env): 
     base: null,
     offset: 0,
     floor: 0,
+    pausedGame: null,
     rng: 0,
     attempts: [],
     lastTick: null,
     podiumAt: null,
     rt: freshRuntime(),
   };
-  s.phaseAt = gameNow(s, env);
+  s.phaseAt = env.now - s.offset;
+  // Последний шаг цикла — от создания: на паузе (и после перезапуска) время игры стоит на нём.
+  s.lastTick = s.phaseAt;
   for (const p of env.players) join(s, p, env);
   return s;
 }
@@ -204,6 +230,7 @@ export function join(s: BubState, p: { pid: string; name: string; team: string |
     known.name = p.name;
     if (known.gone) {
       known.gone = false;
+      rosterChanged(s);
       if (s.phase !== "lobby" && s.phase !== "podium" && s.phase !== "finished") seatLate(s, known, known.crew, midLeg(s));
     }
     return;
@@ -211,11 +238,13 @@ export function join(s: BubState, p: { pid: string; name: string; team: string |
   const m = newMember(p.pid, p.name, s.joinSeq);
   s.joinSeq += 1;
   s.members[p.pid] = m;
+  rosterChanged(s);
   if (s.phase === "lobby") {
     if (s.teamsMode && p.team !== null) {
       const index = [...env.teams.keys()].indexOf(p.team);
       if (index >= 0 && index < lobbyCrewCount(s)) m.crew = index;
     }
+    rosterChanged(s);
   } else if (s.phase === "crews" || s.phase === "drill" || s.phase === "leg") {
     seatLate(s, m, null, midLeg(s));
   }
@@ -239,6 +268,7 @@ export function syncPresence(s: BubState, env: Env, now: number): void {
       if (!m.gone) {
         m.gone = true;
         m.order = null;
+        rosterChanged(s);
         env.changed();
       }
       continue;
@@ -263,11 +293,10 @@ export function crewN(s: BubState, crew: number, env: Pick<Env, "online">): numb
   return Math.max(MIN_N, crewPlayers(s, crew).filter((p) => env.online(p.pid)).length);
 }
 
-/** Пульт хозяина живой: хозяин-игрок на связи или на связи кто-то из его дублёров. */
+/** Хозяин прибора на связи (ТЗ: хозяин пропал — приказ на его прибор снимается, новых на его приборы нет; дублёр не в счёт). */
 function panelOnline(s: BubState, owner: string, env: Pick<Env, "online">): boolean {
   const m = s.members[owner];
-  if (m && !m.gone && m.role === "player" && env.online(owner)) return true;
-  return activeMembers(s).some((d) => d.role === "double" && d.doubleOf === owner && env.online(d.pid));
+  return m !== undefined && !m.gone && m.role === "player" && env.online(owner);
 }
 
 function receiverOk(m: Member, env: Pick<Env, "online">): boolean {
@@ -296,7 +325,7 @@ function damage(s: BubState, env: Env, crew: Crew, amount: number, now: number):
   crew.hull = Math.max(0, crew.hull - amount);
   if (crew.hull <= 1e-9 && crew.repair === null && crew.finishedAt === null) {
     crew.hull = 0;
-    crew.repair = { startedAt: now, taps: 0, target: REPAIR_TAPS_PER_PERSON * crewN(s, crew.id, env) };
+    crew.repair = { startedAt: now, taps: 0, target: REPAIR_TAPS_PER_PERSON * crewN(s, crew.id, env), by: {} };
     for (const m of crewMembers(s, crew.id)) s.rt.dirty.add(m.pid);
   }
   env.changed();
@@ -426,12 +455,18 @@ function expire(s: BubState, env: Env, crew: Crew, m: Member, now: number, drill
   const ctl = s.controls[order.control];
   if (ctl) ctl.lastOrder = crew.clock;
   m.lastControl = order.control;
+  if (order.fake && !drill) {
+    // Невыполненный ложный приказ (решение владельца 6 ноября 2026, как в ТЗ): просто исчезает — без рывка корабля,
+    // без просрочки и без сброса серии; на телефоне диверсанта — как снятый.
+    send(s, env, m.pid, { t: "cancel", order: order.id, reason: "expired" });
+    env.changed();
+    return;
+  }
   crew.failSeq += 1;
   if (!drill) {
     crew.failed += 1;
     crew.streak = 0;
-    // Невыполненный ложный приказ — ничего (выглядит как обычная просрочка, но корпус цел).
-    if (!order.fake) damage(s, env, crew, orderDamage(crewN(s, crew.id, env)), now);
+    damage(s, env, crew, orderDamage(crewN(s, crew.id, env)), now);
   }
   send(s, env, m.pid, { t: "fail", order: order.id });
   env.changed();
@@ -530,7 +565,7 @@ function resetCrewLeg(c: Crew): void {
 /** Раздача приборов на перелёт (или тренировку): опоздавшие становятся игроками, убранные приборов не получают. */
 function deal(s: BubState, env: Env, legNo: number, drill: boolean): void {
   const rand = randomOf(s, env);
-  for (const c of liveCrews(s)) assignRoles(s, c.id, false);
+  assignAllRoles(s, false);
   const crews = liveCrews(s).map((c) => ({ id: c.id, players: crewPlayers(s, c.id).map((p) => p.pid) }));
   const result = dealPanels({
     theme: s.content.theme,
@@ -609,6 +644,7 @@ function startLeg(s: BubState, env: Env, index: number, now: number): void {
     history: [],
     glitch: index === 1 ? { at: effectAt(), startedAt: null } : null,
     flip: index === 2 && s.content.difficulty !== "kids" ? { at: effectAt(), startedAt: null } : null,
+    roster: Object.fromEntries(activeMembers(s).filter((m) => m.role === "player" && m.crew !== null).map((m) => [m.pid, m.crew as number])),
     dockAt: null,
     voteEnds: null,
     vote: null,
@@ -626,8 +662,15 @@ export function persist(s: BubState): Omit<BubState, "rt"> {
   return rest;
 }
 
+/**
+ * Точка «Назад — переиграть перелёт»: состояние до старта перелёта без того, что раздаётся заново при старте (приборы,
+ * пульты, приказы) — так снимок комнаты на 500 гостей не вырастает вдвое.
+ */
 function saveBase(s: BubState): void {
-  s.base = JSON.stringify({ ...persist(s), base: null });
+  const { members, ...rest } = persist(s);
+  const lean: Record<string, Member> = {};
+  for (const [pid, m] of Object.entries(members)) lean[pid] = { ...m, panel: [], order: null, lastControl: null };
+  s.base = JSON.stringify({ ...rest, members: lean, controls: {}, base: null });
 }
 
 /** Итог перелёта экипажа: «За приказы» + «Финиш раньше» + «События» = «За перелёт». */
@@ -705,9 +748,22 @@ function openVote(s: BubState, env: Env, now: number): void {
   env.changed();
 }
 
-/** Кандидаты голосования экипажа: игроки этого перелёта (у кого были приборы). */
-function voteCandidates(s: BubState, crew: number): Member[] {
-  return crewMembers(s, crew).filter((m) => m.panel.length > 0);
+/** Экипаж, в котором человек голосует: где он был на старте перелёта (пересадка на «Привале» этого не меняет). */
+export function voteCrewOf(s: BubState, m: Member): number | null {
+  const at = s.leg?.roster?.[m.pid];
+  return at !== undefined ? at : m.crew;
+}
+
+/** Кандидаты голосования экипажа: игроки этого экипажа на старте перелёта (у кого были приборы), кто ещё в игре. */
+export function voteCandidates(s: BubState, crew: number): Member[] {
+  const roster = s.leg?.roster;
+  if (!roster) return crewMembers(s, crew).filter((m) => m.panel.length > 0);
+  return activeMembers(s).filter((m) => roster[m.pid] === crew);
+}
+
+/** Кто голосует за экипаж: в игре и по экипажу на старте перелёта (опоздавшие — по своему экипажу). */
+export function voteVoters(s: BubState, crew: number): Member[] {
+  return activeMembers(s).filter((m) => m.role !== "out" && voteCrewOf(s, m) === crew);
 }
 
 /** Итог «Кто диверсант?»: голос диверсанта не считается; поровну — не угадали; угадали — +50 экипажу, иначе диверсанту лента. */
@@ -716,7 +772,7 @@ export function tallyVote(s: BubState, crew: Crew): VoteResult | null {
   if (sab === null) return null;
   const candidates = new Set(voteCandidates(s, crew.id).map((m) => m.pid));
   const votes: Record<string, number> = {};
-  for (const m of crewMembers(s, crew.id)) {
+  for (const m of voteVoters(s, crew.id)) {
     if (m.pid === sab || m.vote === null || m.vote === m.pid || !candidates.has(m.vote)) continue;
     votes[m.vote] = (votes[m.vote] ?? 0) + 1;
   }
@@ -750,8 +806,9 @@ function closeVote(s: BubState, env: Env): void {
   env.changed();
 }
 
+/** Общий счёт: перелёты + угаданные диверсанты + очки влитых экипажей (решение владельца 6 ноября 2026). */
 export function crewTotal(c: Crew): number {
-  return c.legs.reduce((a, r) => a + (r?.total ?? 0), 0) + c.voteBonus;
+  return c.legs.reduce((a, r) => a + (r?.total ?? 0), 0) + c.voteBonus + (c.merged ?? 0);
 }
 
 // ------------------------------------------------------------------ события
@@ -799,19 +856,31 @@ function startEvent(s: BubState, env: Env, ev: EventState): void {
   env.changed();
 }
 
-/** Щит экипажа: средняя сила на человека (обрезана сверху эталоном) ÷ эталон × 100, не больше 100. Без датчика 6 нажатий в секунду = 100. */
-export function meteorShield(s: BubState, ev: EventState, crew: number, online: (pid: string) => boolean): number {
-  const power = ev.power ?? {};
-  const members = crewMembers(s, crew).filter((m) => m.role !== "out" && (online(m.pid) || power[m.pid] !== undefined));
-  if (members.length === 0) return 0;
+/** Сила может расти не быстрее эталона: 100 × (время от начала дождя ÷ 10 с) — одним сообщением «100» щит не набрать. */
+export function meteorCap(ev: EventState, at: number): number {
+  return METEOR_REF * Math.max(0, Math.min(1, (at - ev.startAt) / EVENT_MS.meteor));
+}
+
+/** Сила одного: тряска или нажатия (без датчика 6 в секунду = 100), не больше эталона и не быстрее его роста. */
+export function meteorPower(ev: EventState, pid: string, now: number): number {
+  const p = ev.power?.[pid];
+  if (!p) return 0;
   const tapsRef = METEOR_TAPS_REF_PER_S * (EVENT_MS.meteor / 1000);
+  return Math.min(METEOR_REF, meteorCap(ev, now), Math.max(p.shake, (p.taps / tapsRef) * METEOR_REF));
+}
+
+/** Щит экипажа: средняя сила на человека ÷ эталон × 100, не больше 100. */
+export function meteorShield(s: BubState, ev: EventState, crew: number, online: (pid: string) => boolean, now: number): number {
+  const power = ev.power ?? {};
+  let count = 0;
   let sum = 0;
-  for (const m of members) {
-    const p = power[m.pid];
-    if (!p) continue;
-    sum += Math.min(METEOR_REF, Math.max(p.shake, (p.taps / tapsRef) * METEOR_REF));
+  for (const m of crewMembers(s, crew)) {
+    if (m.role === "out" || !(online(m.pid) || power[m.pid] !== undefined)) continue;
+    count += 1;
+    sum += meteorPower(ev, m.pid, now);
   }
-  return Math.min(100, ((sum / members.length) / METEOR_REF) * 100);
+  if (count === 0) return 0;
+  return Math.min(100, ((sum / count) / METEOR_REF) * 100);
 }
 
 function eventCrews(s: BubState, ev: EventState): Crew[] {
@@ -843,7 +912,7 @@ function eventTick(s: BubState, env: Env, ev: EventState, now: number, dt: numbe
       if (!pull.escaped) c.dist = Math.max(0, c.dist - (PULL_DRIFT_PER_S * dt) / 1000);
     }
   } else if (ev.kind === "meteor") {
-    for (const c of crews) c.shield = meteorShield(s, ev, c.id, (pid: string) => env.online(pid));
+    for (const c of crews) c.shield = meteorShield(s, ev, c.id, (pid: string) => env.online(pid), now);
   }
   const resolved =
     (ev.kind === "pull" && crews.every((c) => c.pull?.escaped === true)) || (ev.kind === "sos" && crews.every((c) => c.sos?.done === true));
@@ -858,7 +927,7 @@ export function endEvent(s: BubState, env: Env, now: number, byHost: boolean): v
   const crews = ev.started ? eventCrews(s, ev) : [];
   const kids = s.content.difficulty === "kids";
   if (ev.kind === "meteor" && ev.started) {
-    const shields = new Map(crews.map((c) => [c, meteorShield(s, ev, c.id, (pid: string) => env.online(pid))]));
+    const shields = new Map(crews.map((c) => [c, meteorShield(s, ev, c.id, (pid: string) => env.online(pid), now)]));
     const best = Math.max(0, ...shields.values());
     for (const [c, shield] of shields) {
       c.legShield = Math.max(c.legShield, shield);
@@ -917,8 +986,8 @@ function flyTick(s: BubState, env: Env, now: number, dt: number): void {
     leg.schedule.shift();
     if (!allFinished(s)) warnEvent(s, env, next.kind, now, false);
   }
-  const rand = randomOf(s, env);
   if (leg.glitch && leg.glitch.startedAt === null && leg.flight >= leg.glitch.at) {
+    const rand = randomOf(s, env);
     // «Глюк»: плитки на всех телефонах меняются местами (приборы и названия прежние).
     leg.glitch.startedAt = now;
     for (const m of Object.values(s.members)) {
@@ -984,6 +1053,8 @@ export function tick(s: BubState, env: Env): void {
       env.changed();
     }
     if (leg.stage === "fly") flyTick(s, env, now, dt);
+    // Голосование открывается само через 10 с «Привала» (решение владельца 6 ноября 2026); ведущий может раньше.
+    else if (leg.stage === "dock" && leg.saboteurs && leg.vote === null && leg.dockAt !== null && now >= leg.dockAt + DOCK_MS) openVote(s, env, now);
     else if (leg.stage === "vote" && leg.voteEnds !== null && now >= leg.voteEnds) closeVote(s, env);
   }
 }
@@ -1006,7 +1077,7 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
         chooseCrew(s, env, m, e.crew);
         break;
       case "move":
-        moveControl(s, m, e, at);
+        moveControl(s, m, e, at, claimedTime(s, env, e));
         break;
       case "tap":
         tapEvent(s, env, m, e, at);
@@ -1014,7 +1085,8 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
       case "shake": {
         const ev = sameCrewEvent(s, m);
         if (!ev || ev.kind !== "meteor" || !ev.started || m.crew === null || !ev.crews.includes(m.crew) || !ev.power) break;
-        const p = typeof e.p === "number" && Number.isFinite(e.p) ? Math.max(0, Math.min(METEOR_REF, e.p)) : 0;
+        // Не быстрее эталона: к этому моменту дождя сила не больше 100 × (время от начала ÷ 10 с).
+        const p = typeof e.p === "number" && Number.isFinite(e.p) ? Math.max(0, Math.min(METEOR_REF, meteorCap(ev, at), e.p)) : 0;
         const prev = ev.power[m.pid] ?? { shake: 0, taps: 0 };
         // Сводка тряски — накопленная за событие: берём наибольшую.
         ev.power[m.pid] = { shake: Math.max(prev.shake, p), taps: prev.taps };
@@ -1054,7 +1126,7 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
   env.changed();
 }
 
-function now(s: BubState, env: Pick<Env, "now">): number {
+function now(s: BubState, env: Pick<Env, "now" | "paused">): number {
   return gameNow(s, env);
 }
 
@@ -1066,6 +1138,7 @@ function chooseCrew(s: BubState, env: Env, m: Member, crew: unknown): void {
   if (s.phase !== "lobby") return;
   if (crew === null) {
     m.crew = null;
+    rosterChanged(s);
     s.rt.dirty.add(m.pid);
     return;
   }
@@ -1076,10 +1149,11 @@ function chooseCrew(s: BubState, env: Env, m: Member, crew: unknown): void {
     return;
   }
   m.crew = crew;
+  rosterChanged(s);
   s.rt.dirty.add(m.pid);
 }
 
-function moveControl(s: BubState, m: Member, e: InEvent, at: number): void {
+function moveControl(s: BubState, m: Member, e: InEvent, at: number, claim: number): void {
   const stage = s.leg?.stage;
   if (!(s.phase === "drill" || (s.phase === "leg" && stage === "fly"))) return;
   const id = typeof e.c === "string" ? e.c : "";
@@ -1089,8 +1163,9 @@ function moveControl(s: BubState, m: Member, e: InEvent, at: number): void {
   if (!allowed) return;
   // С одного телефона — не больше 5 движений в секунду.
   if (bucketTake(s.rt.moves, m.pid, MOVES_PER_SECOND, MOVES_PER_SECOND, at, 1) === 0) return;
-  // Два дублёра двинули почти одновременно — побеждает более позднее движение по часам сервера.
-  if (at < ctl.movedAt) return;
+  // Свежее движение решается по заявленному времени события: старое (пришло повтором после обрыва, `delayed`) не затирает
+  // свежее; два дублёра почти разом — побеждает более позднее по часам сервера.
+  if (claim < (ctl.claim ?? -1)) return;
   if (ctl.type === "button") {
     ctl.state += 1;
   } else {
@@ -1099,7 +1174,9 @@ function moveControl(s: BubState, m: Member, e: InEvent, at: number): void {
     if (next === null || next === ctl.state) return;
     ctl.state = next;
   }
-  ctl.movedAt = at;
+  ctl.claim = claim;
+  // Удержание 0,7 с — от прихода (свежее — не раньше «приход − 0,3 с»).
+  ctl.movedAt = Math.max(at, ctl.movedAt);
   ctl.by = m.pid;
   s.rt.dirty.add(ctl.owner);
   for (const d of activeMembers(s)) if (d.doubleOf === ctl.owner) s.rt.dirty.add(d.pid);
@@ -1113,6 +1190,7 @@ function tapEvent(s: BubState, env: Env, m: Member, e: InEvent, at: number): voi
   if (n === 0) return;
   if (crew.repair) {
     crew.repair.taps += n;
+    crew.repair.by[m.pid] = (crew.repair.by[m.pid] ?? 0) + n;
     markCrew(s, crew.id);
     return;
   }
@@ -1151,14 +1229,16 @@ function sosPress(s: BubState, env: Env, m: Member, color: unknown, at: number):
 }
 
 function castVote(s: BubState, m: Member, target: unknown): void {
-  if (s.phase !== "leg" || s.leg?.stage !== "vote" || m.crew === null) return;
-  const crew = s.crews.find((c) => c.id === m.crew);
+  const own = voteCrewOf(s, m);
+  if (s.phase !== "leg" || s.leg?.stage !== "vote" || own === null) return;
+  const crew = s.crews.find((c) => c.id === own);
   if (!crew || crew.saboteur === null) return;
   if (target === null) {
     m.vote = null;
   } else {
     if (typeof target !== "string" || target === m.pid) return;
     if (!voteCandidates(s, crew.id).some((c) => c.pid === target)) return;
+    if (m.role === "out") return;
     m.vote = target;
   }
   s.rt.dirty.add(m.pid);
@@ -1258,7 +1338,9 @@ export function command(s: BubState, cmd: string, raw: unknown, env: Env): Outco
     case "time": {
       if (!leg || (stage !== "launch" && stage !== "fly")) return { ok: false, error: "wrong-phase" };
       const delta = a.delta === ORDER_SHIFT_STEP_S || a.delta === -ORDER_SHIFT_STEP_S ? a.delta : null;
-      if (delta === null) return { ok: false, error: "invalid-argument" };
+      if (delta === null || typeof a.from !== "number") return { ok: false, error: "invalid-argument" };
+      // `from` — сдвиг, который видел ведущий: двойное касание и второй пульт не прибавляют дважды.
+      if (a.from !== leg.shift) return { ok: false, error: "moved" };
       const base = orderSeconds(s, leg.index, 0);
       const next = Math.max(ORDER_MIN_S - base, Math.min(ORDER_MAX_S - base, leg.shift + delta));
       if (next === leg.shift) return { ok: false, error: "limit" };
@@ -1321,6 +1403,7 @@ export function command(s: BubState, cmd: string, raw: unknown, env: Env): Outco
       m.order = null;
       m.pending = false;
       m.doubleOf = null;
+      rosterChanged(s);
       env.changed();
       return { ok: true };
     }
@@ -1336,6 +1419,9 @@ export function command(s: BubState, cmd: string, raw: unknown, env: Env): Outco
           if (activeMembers(s).filter((x) => x.crew === crew && x.pid !== m.pid).length >= s.content.crewSize.max) return { ok: false, error: "full" };
           m.crew = crew;
         }
+        rosterChanged(s);
+      } else if (stage === "vote") {
+        return { ok: false, error: "vote-running" };
       } else if (s.phase === "crews" || between) {
         const crew = s.crews.find((c) => c.id === a.crew && !c.gone);
         if (!crew) return { ok: false, error: "invalid-argument" };
@@ -1348,9 +1434,15 @@ export function command(s: BubState, cmd: string, raw: unknown, env: Env): Outco
     }
     case "merge": {
       if (s.phase !== "crews" && !between) return { ok: false, error: "busy" };
+      if (stage === "vote") return { ok: false, error: "vote-running" };
+      // До голосования за диверсанта экипажи не объединяются: голос и +50 остались бы у исчезнувшего экипажа.
+      if (stage === "dock" && leg?.saboteurs && leg.vote === null) return { ok: false, error: "vote-pending" };
       const from = s.crews.find((c) => c.id === a.from && !c.gone);
       const to = s.crews.find((c) => c.id === a.to && !c.gone);
       if (!from || !to || from === to) return { ok: false, error: "invalid-argument" };
+      // Очки влитого экипажа прибавляются к экипажу, куда его влили (решение владельца 6 ноября 2026).
+      to.merged = (to.merged ?? 0) + crewTotal(from);
+      to.guessed += from.guessed;
       mergeCrews(s, from, to);
       dirtyAll(s);
       env.checkpoint();
@@ -1378,11 +1470,26 @@ function toPodium(s: BubState, env: Env, t: number): void {
 /** «Назад — переиграть перелёт»: всё как до старта перелёта; вошедшие за это время остаются (в самых маленьких экипажах). */
 function restoreBase(s: BubState, env: Env): void {
   if (s.base === null) return;
-  const keep = { offset: s.offset, floor: s.floor, rng: s.rng, attempts: s.attempts, lastTick: s.lastTick, rt: s.rt };
+  // Не откатываются: время, случайность, попытки и все номера (приказов, событий, приборов, входа) — иначе после «Назад»
+  // номера повторились бы и телефон принял бы новый приказ за старый.
+  const keep = {
+    offset: s.offset,
+    floor: s.floor,
+    pausedGame: s.pausedGame,
+    rng: s.rng,
+    attempts: s.attempts,
+    lastTick: s.lastTick,
+    orderSeq: s.orderSeq,
+    eventSeq: s.eventSeq,
+    ctlSeq: s.ctlSeq,
+    joinSeq: s.joinSeq,
+    rt: s.rt,
+  };
   const current = s.members;
   const base = JSON.parse(s.base) as Omit<BubState, "rt">;
   Object.assign(s, base, keep);
   s.base = null;
+  rosterChanged(s);
   for (const [pid, m] of Object.entries(current)) {
     if (s.members[pid]) {
       const restored = s.members[pid];
@@ -1396,8 +1503,10 @@ function restoreBase(s: BubState, env: Env): void {
     const fresh = newMember(pid, m.name, m.join);
     s.members[pid] = fresh;
     if (m.gone) fresh.gone = true;
-    else if (s.phase !== "lobby") seatLate(s, fresh, null, false);
+    rosterChanged(s);
+    if (!m.gone && s.phase !== "lobby") seatLate(s, fresh, null, false);
   }
+  rosterChanged(s);
   dirtyAll(s);
   env.checkpoint();
   env.changed();
@@ -1405,10 +1514,16 @@ function restoreBase(s: BubState, env: Env): void {
 
 // ------------------------------------------------------------------ пауза, снимок
 
+/** Пауза: время игры встаёт на этом моменте (команды пульта на паузе ставят отсчёты от него). */
+export function pause(s: BubState, env: Pick<Env, "now">): void {
+  s.pausedGame = env.now - s.offset;
+}
+
 /** Пауза кончилась: время игры не шло — сдвигаем смещение часов, всё назначенное (сроки, события, ремонт) сдвигается само. */
 export function resume(s: BubState, pausedMs: number, env: Pick<Env, "now">): void {
   s.offset += Math.max(0, pausedMs);
-  s.floor = gameNow(s, env);
+  s.pausedGame = null;
+  s.floor = env.now - s.offset;
   s.lastTick = s.floor;
 }
 
@@ -1431,6 +1546,7 @@ export function restore(data: unknown): BubState | null {
   if (data.leg !== null && !isRecord(data.leg)) return null;
   for (const m of Object.values(data.members)) if (!isRecord(m) || typeof m.pid !== "string" || !Array.isArray(m.panel)) return null;
   const s = { ...(data as unknown as Omit<BubState, "rt">), content: parseContent(data.content), rt: freshRuntime() } as BubState;
+  if (typeof s.pausedGame !== "number") s.pausedGame = null;
   return s;
 }
 

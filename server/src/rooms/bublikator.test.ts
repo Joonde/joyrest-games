@@ -5,10 +5,10 @@
  */
 import { describe, expect, it } from "vitest";
 import type { RoomStreamEvent } from "../../../src/data/types";
-import { LAUNCH_MS, VOTE_MS } from "../../../src/mechanics/bublikator/rules/constants";
+import { DRILL_MS, LAUNCH_MS, VOTE_MS } from "../../../src/mechanics/bublikator/rules/constants";
 import { crewPlayers } from "../../../src/mechanics/bublikator/rules/crews";
 import { crewTotal } from "../../../src/mechanics/bublikator/rules/game";
-import type { BubState, PersonalView, ScreenView, HostView } from "../../../src/mechanics/bublikator/rules/types";
+import type { BubState, CrewSummary, PersonalView, ScreenView, HostView } from "../../../src/mechanics/bublikator/rules/types";
 import { bublikator } from "./bublikator";
 import { parseInput, Room, seededRandom, type RoomGame, type RoomListener } from "./engine";
 import { roomGames } from "./registry";
@@ -44,12 +44,26 @@ class Phone {
     const listener: RoomListener = { send: (e) => this.got(e), end: () => undefined };
     r.listen("me", listener, now, pid);
   }
+  crew: CrewSummary | null = null;
+  /** Сколько байт пришло личным потоком (события после снимка). */
+  bytes = 0;
+  /** Как телефон: снимок — целиком, дальше `me` — только изменившиеся поля, состав экипажа — отдельным `crew`. */
   private got(e: RoomStreamEvent): void {
     if (e.type === "event") {
       const d = e.data as Record<string, unknown>;
-      if (d.t === "me") this.me = d.me as PersonalView;
-      else this.events.push(d);
-    } else if (e.type === "snapshot") this.me = e.data as PersonalView;
+      this.bytes += JSON.stringify(d).length;
+      if (d.t === "me") {
+        const part = d.me as Partial<PersonalView>;
+        this.me = d.full === true || !this.me ? (part as PersonalView) : { ...this.me, ...part };
+        if (this.me.crew === undefined) this.me.crew = this.crew;
+      } else if (d.t === "crew") {
+        this.crew = d.crew as CrewSummary | null;
+        if (this.me) this.me.crew = this.crew;
+      } else this.events.push(d);
+    } else if (e.type === "snapshot") {
+      this.me = e.data as PersonalView;
+      this.crew = this.me.crew ?? null;
+    }
   }
   alive(now: number): void {
     const p = parseInput({ stream: `s-${this.pid}`, events: [] });
@@ -292,6 +306,12 @@ describe("«Бубликатор» в игровой комнате", () => {
         step();
         guard += 1;
         const L = s().leg;
+        // Третий перелёт: вида, которого расписание не дало, ведущий зовёт сам («Событие сейчас»).
+        if (leg === 2 && L?.stage === "fly" && !L.event && L.flight > 25_000) {
+          const seen = new Set([...kinds, ...(L.history ?? []).map((h) => h.kind)]);
+          const missing = (["meteor", "pull", "sos"] as const).find((x) => !seen.has(x));
+          if (missing) cmd("event", { kind: missing });
+        }
         // Ведущий один раз зовёт «Все на палубу!» и ставит звёзды.
         if (!captainAsked && L?.stage === "fly" && !L.event && L.flight > 60_000) {
           captainAsked = true;
@@ -380,4 +400,164 @@ describe("«Бубликатор» в игровой комнате", () => {
     expect(s().phase).toBe("finished");
     expect(legsDone).toEqual([0, 1, 2]);
   });
+
+  it("режим платформы — команды (ТЗ): комната в командной сессии работает, команды платформы — экипажи в лобби", () => {
+    let now = 1_000_000;
+    const teams = [
+      ["t1", "Комета"],
+      ["t2", "Орбита"],
+    ] as Array<[string, string]>;
+    const r = new Room({
+      id: "s2",
+      key: "bublikator",
+      hostId: "h",
+      game,
+      players: Array.from({ length: 8 }, (_, i) => ({ pid: `b${i}`, name: `Бот ${i}`, team: i < 4 ? "t1" : "t2" })),
+      teams,
+      snapshot: { title: "Бубликатор", mechanic: "bublikator", content: { events: { meteor: false, pull: false, sos: false, captain: false } } },
+      playMode: "teams",
+      now,
+    });
+    const s = state(r);
+    expect(s.teamsMode).toBe(true);
+    expect(Object.values(s.members).map((m) => m.crew)).toEqual([0, 0, 0, 0, 1, 1, 1, 1]);
+    expect(r.command("gather", null, null, now)).toEqual({ ok: true });
+    expect(r.command("start", null, null, now)).toEqual({ ok: true });
+    for (let t = 0; t < LAUNCH_MS + 2000; t += 100) {
+      now += 100;
+      if (t % 2000 === 0) for (let i = 0; i < 8; i += 1) r.input(`b${i}`, parseInput({ stream: `s${i}`, events: [] }) ?? { stream: "", retry: false, seq: null, events: [] }, now);
+      r.tick(now);
+    }
+    expect(s.leg?.stage).toBe("fly");
+    expect(Object.values(s.members).filter((m) => m.order).length).toBeGreaterThan(0);
+    expect(s.crews.map((c) => crewPlayers(s, c.id).length)).toEqual([4, 4]);
+  });
+
+  it("пауза и перезапуск (п. 2): команда на паузе считает от момента паузы; перезапуск → на паузе → «Дальше» → «Продолжить» — взлёт 5 с", () => {
+    let now = 1_000_000;
+    const r = room(6, { events: { meteor: false, pull: false, sos: false, captain: false }, legMinutes: 3 });
+    r.command("gather", null, null, now);
+    r.command("pause", null, null, now);
+    now += 300_000;
+    expect(r.command("start", null, null, now)).toEqual({ ok: true });
+    now += 2000;
+    r.command("resume", null, null, now);
+    const s = state(r);
+    expect((s.leg?.launchEnds ?? 0) - (now - s.offset)).toBe(LAUNCH_MS);
+    // Долетели до привала, сервер перезапустился (снимок без паузы), поднялся на паузе; ведущий жмёт «Дальше», потом «Продолжить».
+    for (let t = 0; t < LAUNCH_MS + 3 * 60_000 + 500; t += 100) {
+      now += 100;
+      r.tick(now);
+    }
+    expect(s.leg?.stage).toBe("dock");
+    const data = JSON.parse(JSON.stringify(r.snapshotData(now))) as ReturnType<Room["snapshotData"]>;
+    const again = new Room({ id: "s1", key: "bublikator", hostId: "h", game, players: Array.from({ length: 6 }, (_, i) => ({ pid: `b${i}`, name: `b${i}`, team: null })), teams: [], snapshot: null, playMode: "solo", now: now + 60_000, restoreFrom: data });
+    expect(again.paused).toBe(true);
+    now += 120_000;
+    expect(again.command("next", null, null, now)).toEqual({ ok: true, result: "leg" });
+    now += 45_000;
+    again.command("resume", null, null, now);
+    const s2 = state(again);
+    expect(Math.abs((s2.leg?.launchEnds ?? 0) - (now - s2.offset) - LAUNCH_MS)).toBeLessThanOrEqual(100);
+    expect(s2.leg?.stage).toBe("launch");
+  });
+
+  it("500 гостей, полная игра в настоящей комнате: рассылка всем и любая команда пульта — не дольше 20 мс; объём и снимок", () => {
+    // Сервер работает долго: первая игра в процессе «прогревает» код (JIT). Дальше — три игры; у каждой команды берём
+    // лучшее из трёх (выброс сборщика мусора общего сборщика CI — не скорость игры), у рассылки — медиана и 95%.
+    playFull500(false);
+    const runs = [playFull500(false), playFull500(false), playFull500(true)];
+    const cmds = (runs[0]?.cmds ?? []).map((c, i) => ({ name: c.name, ms: Math.min(...runs.map((r) => r.cmds[i]?.ms ?? Infinity)) }));
+    console.log("Бубликатор, 500 гостей, лучшее из трёх:", cmds.map((c) => `${c.name} ${c.ms.toFixed(1)}`).join(", "));
+    for (const c of cmds) expect(c.ms, c.name).toBeLessThanOrEqual(20);
+    for (const m of runs) {
+      expect(m.sweepMedian).toBeLessThanOrEqual(20);
+      expect(m.sweepP95).toBeLessThanOrEqual(20);
+      expect(m.snapshotKb).toBeLessThanOrEqual(600);
+      expect(m.kbPerSecHall).toBeLessThanOrEqual(400);
+    }
+  }, 240_000);
 });
+
+/** Полная игра на 500 гостей (20 экипажей по 10 игроков, остальные — дублёры) с замерами. */
+function playFull500(log: boolean) {
+  let now = 1_000_000;
+  const N = 500;
+  const r = room(N, { saboteur: true, legMinutes: 3 });
+  const s = () => state(r);
+  // 20 телефонов подписаны на личный поток — по ним считаем байты на телефон (личное готовится всем 500).
+  const phones = Array.from({ length: 20 }, (_, i) => new Phone(`b${i * 25}`, r, now));
+  const all = Array.from({ length: N }, (_, i) => `b${i}`);
+  const cmds: Array<{ name: string; ms: number }> = [];
+  let k = 0;
+  const alive = () => {
+    for (const pid of all) {
+      const p = parseInput({ stream: `s-${pid}`, events: [] });
+      if (p) r.input(pid, p, now);
+    }
+  };
+  const timed = (name: string, args: unknown = null) => {
+    const a = performance.now();
+    const out = r.command(name, args, `c${k++}`, now, r.moment());
+    cmds.push({ name, ms: performance.now() - a });
+    if (!out.ok) throw new Error(`${name}: ${out.error}`);
+  };
+  const sweeps: number[] = [];
+  let span = 0;
+  const fly = (ms: number) => {
+    for (let t = 0; t < ms; t += 100) {
+      now += 100;
+      span += 100;
+      if ((now / 100) % 20 === 0) alive();
+      const st = s();
+      for (const m of Object.values(st.members)) {
+        if (!m.order || seededRandom("bots", `${now}${m.pid}`) > 0.05) continue;
+        const ctl = st.controls[m.order.control];
+        if (!ctl) continue;
+        const p = parseInput({ stream: `m-${ctl.owner}`, seq: k++, events: [{ t: "move", c: ctl.id, s: m.order.target, ago: 0 }] });
+        if (p) r.input(ctl.owner, p, now);
+      }
+      // Раз в 0,5 с — полная рассылка всем (у всех что-то поменялось).
+      const full = (now / 100) % 5 === 0;
+      if (full) for (const pid of all) st.rt.dirty.add(pid);
+      const a = performance.now();
+      r.tick(now);
+      if (full) sweeps.push(performance.now() - a);
+    }
+  };
+  alive();
+  timed("gather");
+  expect(s().crews).toHaveLength(20);
+  timed("drill");
+  fly(DRILL_MS + 500);
+  timed("start");
+  for (let leg = 0; leg < 3; leg += 1) {
+    fly(LAUNCH_MS + 20_000);
+    timed("time", { delta: 2, from: s().leg?.shift ?? 0 });
+    const L = s().leg;
+    if (L) {
+      L.event = null;
+      L.schedule = [];
+      L.flight = L.duration;
+    }
+    fly(200);
+    expect(s().leg?.stage).toBe("dock");
+    timed("vote");
+    timed("vote-end");
+    timed("next");
+  }
+  expect(s().phase).toBe("podium");
+  timed("finish");
+  const sorted = [...sweeps].sort((a, b) => a - b);
+  const bytes = phones.reduce((a, p) => a + p.bytes, 0);
+  const m = {
+    sweepMedian: +(sorted[Math.floor(sorted.length / 2)] ?? 0).toFixed(1),
+    sweepP95: +(sorted[Math.floor(sorted.length * 0.95)] ?? 0).toFixed(1),
+    cmds,
+    snapshotKb: Math.round(JSON.stringify(bublikator.snapshot(s())).length / 1024),
+    // Личное подписанных телефонов → на весь зал из 500, КБ в секунду.
+    kbPerSecHall: Math.round(((bytes / phones.length) * N) / (span / 1000) / 1024),
+  };
+  if (log) console.log("Бубликатор, 500 гостей:", JSON.stringify({ ...m, cmds: cmds.map((c) => `${c.name} ${c.ms.toFixed(1)}`) }));
+  return m;
+}

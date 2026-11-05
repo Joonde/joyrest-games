@@ -2,7 +2,7 @@
  * Стенд для тестов правил «Бубликатора» (не идёт в сборку: подключают только тесты). Комната понарошку: часы, кто на
  * связи, случайность из зерна (своя хэш-функция — без node:crypto), личные события копятся.
  */
-import { command, createState, input, join, tick, type Env, type InEvent } from "./game";
+import { command, createState, input, join, pause, resume, tick, type Env, type InEvent } from "./game";
 import { flushPersonal } from "./views";
 import type { BubState, Member } from "./types";
 
@@ -70,6 +70,21 @@ export class World {
   get g(): number {
     return this.env.now - this.s.offset;
   }
+  private pausedAt: number | null = null;
+  /** «Пауза» как в комнате: телефоны и цикл стоят, время игры встаёт. */
+  pause(): void {
+    if (this.pausedAt !== null) return;
+    this.env.paused = true;
+    this.pausedAt = this.env.now;
+    pause(this.s, this.env);
+  }
+  /** «Продолжить»: сколько стояли — столько часы игры сдвигаются. */
+  resume(): void {
+    if (this.pausedAt === null) return;
+    this.env.paused = false;
+    resume(this.s, this.env.now - this.pausedAt, this.env);
+    this.pausedAt = null;
+  }
   addPlayer(pid: string, name = pid): void {
     this.env.players.push({ pid, name, team: null });
     this.env.onlineSet.add(pid);
@@ -128,10 +143,21 @@ export class World {
   online(pid: string): void {
     this.env.onlineSet.add(pid);
   }
-  /** Снимок без служебного, без того, что не откатывается «Назад», и без самой точки отката. */
+  /** Снимок без служебного, без того, что не откатывается «Назад» (время, случайность, номера), и без самой точки отката. */
   core(): string {
-    const { rt: _rt, offset: _o, floor: _f, rng: _r, attempts: _a, lastTick: _l, base: _b, ...rest } = this.s;
-    void [_rt, _o, _f, _r, _a, _l, _b];
+    const { rt: _rt, offset: _o, floor: _f, rng: _r, attempts: _a, lastTick: _l, base: _b, pausedGame: _p, orderSeq: _os, eventSeq: _es, ctlSeq: _cs, joinSeq: _js, ...rest } = this.s;
+    void [_rt, _o, _f, _r, _a, _l, _b, _p, _os, _es, _cs, _js];
     return JSON.stringify(rest);
+  }
+  /** То же без раздачи (приборы, пульты, приказы): точка «Назад» их не хранит — их раздаёт следующий старт. */
+  lean(): string {
+    const c = JSON.parse(this.core()) as Record<string, unknown> & { members: Record<string, Record<string, unknown>> };
+    c.controls = {};
+    for (const m of Object.values(c.members)) {
+      m.panel = [];
+      m.order = null;
+      m.lastControl = null;
+    }
+    return JSON.stringify(c);
   }
 }

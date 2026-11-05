@@ -35,10 +35,14 @@ export interface Control {
   /** Детский режим: винительный падеж («лягушку») и картинка. */
   acc?: string;
   icon?: string;
+  /** Детский предмет с цветом («Красная лягушка»): номер цвета `KIDS_TINTS` — картинка того же цвета. */
+  tint?: number;
   type: ControlType;
   state: number;
-  /** Когда прибор последний раз двигали (время игры); -1 — не двигали. */
+  /** Когда прибор последний раз двигали (время игры, от прихода; для удержания 0,7 с); -1 — не двигали. */
   movedAt: number;
+  /** Заявленное время последнего движения (по нему старое движение не затирает свежее); -1 — не двигали. */
+  claim: number;
   /** Кто двигал последним. */
   by: string | null;
   /** Когда о нём был последний приказ (часы экипажа); -1 — не было. */
@@ -135,7 +139,8 @@ export interface Crew {
   /** Экипаж объединили с другим — его больше нет. */
   gone: boolean;
   hull: number;
-  repair: { startedAt: number; taps: number; target: number } | null;
+  /** Ремонт: начало, нажатия «Чиним!» всего и каждого. */
+  repair: { startedAt: number; taps: number; target: number; by: Record<string, number> } | null;
   /** Часы экипажа: идут, пока нет события и ремонта (сроки приказов). */
   clock: number;
   /** Дальность от приказов за перелёт, 0–1 000 (без бонусов). */
@@ -164,6 +169,8 @@ export interface Crew {
   legs: LegResult[];
   voteBonus: number;
   guessed: number;
+  /** Очки влитых в этот экипаж («Объединить экипажи», решение владельца 6 ноября 2026). */
+  merged: number;
 }
 
 export interface EventState {
@@ -205,6 +212,8 @@ export interface LegState {
   history: Array<{ id: string; kind: EventKind; task?: string }>;
   glitch: { at: number; startedAt: number | null } | null;
   flip: { at: number; startedAt: number | null } | null;
+  /** Кто в каком экипаже был игроком на старте перелёта (кандидаты и голоса «Кто диверсант?»). */
+  roster: Record<string, number>;
   dockAt: number | null;
   voteEnds: number | null;
   vote: VoteResult[] | null;
@@ -246,6 +255,8 @@ export interface BubState {
   offset: number;
   /** Время игры, раньше которого событий быть не может (момент продолжения после паузы). */
   floor: number;
+  /** На паузе: время игры, на котором она встала; null — не на паузе. */
+  pausedGame: number | null;
   /** Номер следующего случайного числа (не откатывается «Назад»: новая попытка — новая случайность). */
   rng: number;
   /** Сколько раз начинали каждый перелёт. */
@@ -257,12 +268,28 @@ export interface BubState {
   rt: Runtime;
 }
 
+/** Составы, посчитанные один раз на изменение (`crews.ts`, `roster`). Массивы общие — не менять. */
+export interface Roster {
+  ver: number;
+  active: Member[];
+  byCrew: Map<number, Member[]>;
+  players: Map<number, Member[]>;
+  doublesOf: Map<string, number>;
+  highestChoice: number;
+}
+
 export interface Runtime {
   moves: Map<string, { tokens: number; at: number }>;
   taps: Map<string, { tokens: number; at: number }>;
-  sent: Map<string, string>;
+  /** Что ушло каждому телефону: ключ каждого поля личного. */
+  sent: Map<string, Record<string, string>>;
   dirty: Set<string>;
   lastSweep: number;
+  /** Составы (`crews.ts`, `roster`): номер изменения и посчитанное по нему. */
+  rosterVer: number;
+  roster: Roster | null;
+  /** Что уже ушло каждому телефону составом экипажа (`{ t: "crew" }`). */
+  sentCrew: Map<string, string>;
 }
 
 // ------------------------------------------------------------------ сводки
@@ -322,6 +349,16 @@ export interface PanelControlView {
   type: ControlType;
   state: number;
   icon: string | null;
+  tint: number | null;
+}
+
+export interface CrewSummary {
+  id: number;
+  name: string;
+  color: number;
+  icon: number | null;
+  members: Array<{ name: string; online: boolean; role: Role }>;
+  offline: string[];
 }
 
 export interface PersonalView {
@@ -332,7 +369,10 @@ export interface PersonalView {
   theme: Theme;
   difficulty: Difficulty;
   me: { pid: string; name: string; role: Role; crew: number | null; captain: boolean; doubleOf: string | null; pending: boolean; done: number; legDone: number; moved: number };
-  crew: { id: number; name: string; color: number; icon: number | null; place: number; hull: number; members: Array<{ name: string; online: boolean; role: Role }>; offline: string[] } | null;
+  /** Сводка экипажа: в снимке при подписке и в опросе; в рассылке — отдельным `{ t: "crew" }` при переменах. */
+  crew?: CrewSummary | null;
+  /** Место и корпус своего корабля (меняются часто — отдельным малым полем). */
+  ship: { place: number; hull: number } | null;
   lobby: { crews: Array<{ id: number; name: string; count: number; full: boolean }>; choice: number | null; max: number } | null;
   endsAt: number | null;
   panel: PanelControlView[];

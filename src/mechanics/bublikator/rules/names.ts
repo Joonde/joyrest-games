@@ -4,7 +4,7 @@
  */
 import type { Theme } from "./types";
 
-/** 40 общих корней (тема «Космос» — только они; у остальных тем свои корни идут первыми). */
+/** 40 общих корней (ТЗ). У каждой темы ещё свои 40 — они идут первыми. */
 export const ROOTS = [
   "Бублико", "Чихо", "Мурлыко", "Ветро", "Пузыре", "Кряко", "Хрюко", "Щекото", "Блино", "Тыкво",
   "Зефиро", "Плюше", "Мяуко", "Гавко", "Хохото", "Пончико", "Карамеле", "Ватрушко", "Сырнико", "Леденцо",
@@ -12,21 +12,56 @@ export const ROOTS = [
   "Скрипо", "Брызго", "Фырко", "Пискло", "Барабано", "Свистело", "Вертело", "Гудело", "Мигало", "Чавкало",
 ] as const;
 
+/**
+ * Корни тем (ТЗ: «20–40 корней» на тему) — по 40, чтобы на 200 гостей (800 приборов в третьем перелёте) названия не
+ * повторялись на весь зал. Корни не начинаются как названия экипажей своей темы (первые 4 буквы).
+ */
 export const THEME_ROOTS: Record<Theme, readonly string[]> = {
-  space: [],
-  pirates: ["Пушко", "Якоре", "Штурвало", "Парусо", "Сундуко", "Попугае", "Компасо", "Бочко", "Канато", "Мачто", "Пиастро", "Абордажо", "Флаго", "Волно", "Рифо", "Тельняшко", "Кокосо", "Юнго", "Шторме", "Боцмано"],
-  newyear: ["Колоколь", "Оленье", "Шурша", "Снежко", "Мандарино", "Хлопушко", "Санко", "Варежко", "Ледышко", "Бубенцо", "Морозо", "Ёлко", "Подарко", "Валенко", "Хрусте", "Шишко", "Гирлянде", "Мишуро", "Пингвино", "Пряничо"],
-  submarine: ["Бульк", "Пузыре", "Перископо", "Глубино", "Сонаро", "Торпедо", "Иллюмино", "Балласто", "Акваланго", "Ракушко", "Коралло", "Медузо", "Ласто", "Плавнико", "Жабро", "Фонаре", "Якоре", "Тритоно", "Мурено", "Китово"],
-  wedding: ["Целоваль", "Букето", "Тосто", "Колечко", "Фато", "Вальсо", "Тортико", "Конфетто", "Бантико", "Кружево", "Голубко", "Медово", "Лепестко", "Улыбко", "Шлейфо", "Фейерверко", "Свечо", "Розо", "Пионо", "Танцуло"],
+  space: [
+    "Скафандро", "Плането", "Кратеро", "Телескопо", "Турбо", "Гравито", "Невесомо", "Антенно", "Люко", "Шлюзо",
+    "Модуле", "Зондо", "Марсо", "Юпитеро", "Венеро", "Фотоно", "Лазеро", "Радаро", "Нейтроно", "Солнце",
+    "Кольце", "Вакуумо", "Сигнало", "Пилото", "Шаттло", "Бортово", "Пусково", "Стыковко", "Тяго", "Топливо",
+    "Датчико", "Магнито", "Ионо", "Атомо", "Квантово", "Луче", "Эфиро", "Нептуно", "Плутоно", "Меркурио",
+  ],
+  pirates: [
+    "Пушко", "Якоре", "Штурвало", "Парусо", "Сундуко", "Попугае", "Компасо", "Бочко", "Канато", "Мачто",
+    "Пиастро", "Абордажо", "Флаго", "Волно", "Рифо", "Тельняшко", "Кокосо", "Юнго", "Шторме", "Боцмано",
+    "Ромо", "Карто", "Сабле", "Крюко", "Повязко", "Трюмо", "Палубо", "Рундуко", "Мушкето", "Гарпуно",
+    "Шлюпко", "Подзорно", "Кладо", "Дублоно", "Румбо", "Лоцмано", "Камбузо", "Рындо", "Кливеро", "Буйко",
+  ],
+  newyear: [
+    "Колоколь", "Оленье", "Шурша", "Снежко", "Мандарино", "Хлопушко", "Санко", "Варежко", "Ледышко", "Бубенцо",
+    "Морозо", "Ёлко", "Подарко", "Валенко", "Хрусте", "Шишко", "Гирлянде", "Мишуро", "Пингвино", "Пряничо",
+    "Салюто", "Куранто", "Тройко", "Узоро", "Хороводо", "Свечко", "Фонарико", "Бенгало", "Оливье", "Карнавало",
+    "Блёстко", "Сюрпризо", "Лыжо", "Коньково", "Носочко", "Пуховико", "Ватно", "Морковко", "Шарфо", "Сказко",
+  ],
+  submarine: [
+    "Бульк", "Пузыре", "Перископо", "Глубино", "Сонаро", "Торпедо", "Иллюмино", "Балласто", "Акваланго", "Ракушко",
+    "Коралло", "Медузо", "Ласто", "Плавнико", "Жабро", "Фонаре", "Якоре", "Тритоно", "Мурено", "Китово",
+    "Гидро", "Водолазо", "Отсеко", "Клапано", "Насосо", "Буйко", "Тюлене", "Осьмино", "Крабо", "Дельфино",
+    "Пескаре", "Шлюпо", "Подлодко", "Сардино", "Устрице", "Креветко", "Камбало", "Морже", "Эхолото", "Штурмано",
+  ],
+  wedding: [
+    "Целоваль", "Букето", "Тосто", "Колечко", "Фато", "Вальсо", "Тортико", "Конфетто", "Бантико", "Кружево",
+    "Голубко", "Медово", "Лепестко", "Улыбко", "Шлейфо", "Фейерверко", "Свечо", "Розо", "Пионо", "Танцуло",
+    "Бокало", "Фрако", "Невесто", "Женихо", "Свадебно", "Тамадо", "Подвязко", "Каблучко", "Галстуко", "Обнимало",
+    "Горько", "Конверто", "Шарико", "Лимузино", "Вуале", "Перчатко", "Сюрпризо", "Платочко", "Любо", "Танго",
+  ],
 };
 
 /** 12 окончаний. Окончание с гласной («атор») встаёт вместо последней гласной корня: Бублико + атор = Бубликатор. */
 export const ENDINGS = ["тор", "трон", "метр", "фон", "дуй", "крут", "граф", "скоп", "мёт", "тель", "атор", "ник"] as const;
 
-/** Близнецы третьего перелёта: тот же корень, окончания этих пар (Бубликатор и Бубликатрон). */
+/**
+ * Близнецы третьего перелёта: тот же корень, окончания этих пар (Бубликатор и Бубликатрон, Бубликомёт и Бубликометр) —
+ * отличие 1–2 буквы. Пар у корня несколько, поэтому близнецов хватает на весь зал.
+ */
 export const TWIN_ENDINGS: ReadonlyArray<readonly [string, string]> = [
   ["атор", "атрон"],
   ["тор", "трон"],
+  ["мёт", "метр"],
+  ["фон", "трон"],
+  ["тор", "атор"],
 ];
 
 /**
@@ -69,6 +104,39 @@ export function distance(a: string, b: string): number {
   return prev[y.length] ?? 0;
 }
 
+/**
+ * Названия похожи — расстояние меньше `limit` (по уже приведённым строкам `norm`). Быстрее полного `distance`: разница длин
+ * сразу отвечает «не похожи», считается только полоса шириной `limit`, при выходе за предел — сразу «нет».
+ */
+export function closer(x: string, y: string, limit: number): boolean {
+  const k = limit - 1;
+  if (Math.abs(x.length - y.length) > k) return false;
+  let prev = new Array<number>(y.length + 1);
+  let cur = new Array<number>(y.length + 1);
+  for (let j = 0; j <= y.length; j += 1) prev[j] = j;
+  for (let i = 1; i <= x.length; i += 1) {
+    const lo = Math.max(1, i - k);
+    const hi = Math.min(y.length, i + k);
+    cur[0] = i;
+    if (lo > 1) cur[lo - 1] = limit;
+    let best = i <= k ? i : limit;
+    for (let j = lo; j <= hi; j += 1) {
+      const sub = (prev[j - 1] ?? limit) + (x[i - 1] === y[j - 1] ? 0 : 1);
+      const del = (prev[j] ?? limit) + 1;
+      const ins = (cur[j - 1] ?? limit) + 1;
+      const v = Math.min(sub, del, ins, limit);
+      cur[j] = v;
+      if (v < best) best = v;
+    }
+    if (hi < y.length) cur[hi + 1] = limit;
+    if (best >= limit) return false;
+    const swap = prev;
+    prev = cur;
+    cur = swap;
+  }
+  return (prev[y.length] ?? limit) < limit;
+}
+
 /** Корень похож на название экипажа (первые 4 буквы): у «Снежинки» нет «Снежкомёта». */
 export function rootClashes(root: string, crewNames: readonly string[]): boolean {
   const r = norm(root).replace(/[^а-я]/g, "").slice(0, 4);
@@ -99,6 +167,38 @@ export const KIDS_ITEMS: ReadonlyArray<{ name: string; acc: string; icon: string
   { name: "Луна", acc: "луну", icon: "moon" },
 ];
 
+/**
+ * Детская сложность: 20 предметов (ТЗ) — у каждого прибора своё название на весь зал. Предметов на всех не хватает
+ * (3 прибора на ребёнка), поэтому дальше — тот же предмет с цветом: «Красная лягушка» (картинка того же цвета, `tint`).
+ * Цвет — только в названии и картинке, у самих приборов детской сложности цветов нет.
+ */
+export const KIDS_TINTS: ReadonlyArray<{ stem: string; soft: boolean; hard: "ый" | "ой" }> = [
+  { stem: "красн", soft: false, hard: "ый" },
+  { stem: "син", soft: true, hard: "ый" },
+  { stem: "зелён", soft: false, hard: "ый" },
+  { stem: "жёлт", soft: false, hard: "ый" },
+  { stem: "оранжев", soft: false, hard: "ый" },
+  { stem: "фиолетов", soft: false, hard: "ый" },
+  { stem: "розов", soft: false, hard: "ый" },
+  { stem: "голуб", soft: false, hard: "ой" },
+];
+
+/** Род и одушевлённость предметов: для «Красная лягушка» / «красную лягушку», «синего кита». */
+const KIDS_GENDER: Record<string, "m" | "ma" | "f" | "n"> = {
+  frog: "f", banana: "m", rocket: "f", sun: "n", ball: "m", fish: "f", star: "f", car: "f", balloon: "m", cube: "m",
+  hedgehog: "ma", cake: "m", umbrella: "m", apple: "n", bell: "m", butterfly: "f", whale: "ma", elephant: "ma", mushroom: "m", moon: "f",
+};
+
+export function kidsTinted(item: { name: string; acc: string; icon: string }, tint: number): { name: string; acc: string } {
+  const c = KIDS_TINTS[tint] ?? KIDS_TINTS[0];
+  if (!c) return { name: item.name, acc: item.acc };
+  const g = KIDS_GENDER[item.icon] ?? "m";
+  const nom = g === "f" ? (c.soft ? "яя" : "ая") : g === "n" ? (c.soft ? "ее" : "ое") : c.soft ? "ий" : c.hard;
+  const acc = g === "f" ? (c.soft ? "юю" : "ую") : g === "n" ? (c.soft ? "ее" : "ое") : g === "ma" ? (c.soft ? "его" : "ого") : c.soft ? "ий" : c.hard;
+  const adj = c.stem + nom;
+  return { name: `${adj.charAt(0).toUpperCase()}${adj.slice(1)} ${item.name.toLowerCase()}`, acc: `${c.stem}${acc} ${item.acc}` };
+}
+
 /** Названия экипажей по темам — по 20. */
 export const CREW_NAMES: Record<Theme, readonly string[]> = {
   space: ["Комета", "Орбита", "Ракета", "Луноход", "Галактика", "Квазар", "Метеор", "Спутник", "Туманность", "Пульсар", "Астра", "Звездолёт", "Протон", "Сатурн", "Вега", "Сириус", "Андромеда", "Плазма", "Космик", "Нова"],
@@ -119,24 +219,35 @@ export function crewLook(id: number, crews: number): { color: number; icon: numb
   return { color: id % 5, icon: crews > 5 ? id % 9 : null };
 }
 
+/** Сочетания темы без стоп-листа и корней экипажей — считаются один раз на тему и набор экипажей (дальше только перемешиваются). */
+const candidateCache = new Map<string, Array<Array<{ root: string; name: string }>>>();
+
 /** Все сочетания корень + окончание темы без стоп-листа и без корней экипажей: сначала корни темы, потом общие. */
 export function nameCandidates(theme: Theme, crewNames: readonly string[], rand: () => number): Array<{ root: string; name: string }> {
-  const out: Array<{ root: string; name: string }> = [];
-  const seen = new Set<string>();
-  for (const group of [THEME_ROOTS[theme], ROOTS]) {
-    const part: Array<{ root: string; name: string }> = [];
-    for (const root of group) {
-      if (rootClashes(root, crewNames)) continue;
-      for (const ending of ENDINGS) {
-        const name = joinName(root, ending);
-        const key = norm(name);
-        if (isBlocked(name) || seen.has(key)) continue;
-        seen.add(key);
-        part.push({ root, name });
+  const cacheKey = `${theme}|${crewNames.join("|")}`;
+  let parts = candidateCache.get(cacheKey);
+  if (!parts) {
+    parts = [];
+    const seen = new Set<string>();
+    for (const group of [THEME_ROOTS[theme], ROOTS]) {
+      const part: Array<{ root: string; name: string }> = [];
+      for (const root of group) {
+        if (rootClashes(root, crewNames)) continue;
+        for (const ending of ENDINGS) {
+          const name = joinName(root, ending);
+          const key = norm(name);
+          if (isBlocked(name) || seen.has(key)) continue;
+          seen.add(key);
+          part.push({ root, name });
+        }
       }
+      parts.push(part);
     }
-    out.push(...shuffle(part, rand));
+    if (candidateCache.size > 64) candidateCache.clear();
+    candidateCache.set(cacheKey, parts);
   }
+  const out: Array<{ root: string; name: string }> = [];
+  for (const part of parts) out.push(...shuffle(part, rand));
   return out;
 }
 

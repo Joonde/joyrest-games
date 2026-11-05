@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
     inputs:
       guests:
-        description: "Сколько гостей (до 1000)"
-        default: "500"
+        description: "Сколько гостей (до 1000; пусто — 500 для квиза, 200 для быстрого канала)"
+        default: ""
       teams:
         description: "Режим команд (по 10 телефонов)"
         type: boolean
@@ -54,7 +54,8 @@ jobs:
           LOAD_BASE: https://test.games.joy-rest.ru
           LOAD_HOST_EMAIL: load@joy-rest.ru
           LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
-          GUESTS: ${{ inputs.guests || (contains(github.event.head_commit.message, '[load-room]') && '200') || '500' }}
+          # Быстрый канал на test — 200 гостей (app-test ограничен памятью), квиз — 500.
+          GUESTS: ${{ inputs.guests || ((inputs.mode == 'room' || contains(github.event.head_commit.message, '[load-room]')) && '200') || '500' }}
           TEAMS: ${{ inputs.teams && '1' || '0' }}
           EVENTS: ${{ inputs.events || '1' }}
           # Коммит с [load-room] — быстрый канал на 200 гостях, иначе — как выбрано (по умолчанию квиз).

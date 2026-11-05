@@ -1,6 +1,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { EventEmitter } from "node:events";
 import { createServer, request as httpRequest } from "node:http";
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from "fastify";
 import postgres from "postgres";
@@ -581,62 +582,53 @@ describe("быстрый канал: комната без базы", () => {
     }
   });
 
-  it("поток комнаты по HTTP: сеть не принимает дольше предела — поток оборван (буфер ядра не держится); догнала вовремя — живёт", async () => {
-    let listener: RoomListener | null = null;
-    let raw: import("node:http").ServerResponse | null = null;
-    const server = createServer((_req, res) => {
-      raw = res;
-      const reply = { getHeader: () => undefined, hijack: () => undefined, raw: res } as unknown as FastifyReply;
-      openRoomStream(reply, 20, (l) => {
-        listener = l;
-        return () => undefined;
-      }, 60_000, 150);
-    });
-    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
-    const { port } = server.address() as { port: number };
-    let client: import("node:http").IncomingMessage | null = null;
-    const req = httpRequest({ host: "127.0.0.1", port, path: "/" });
-    req.on("response", (res) => {
-      client = res;
-      res.pause();
-      res.on("data", () => undefined);
-    });
-    req.on("error", () => undefined);
-    req.end();
-    for (let i = 0; i < 50 && !(listener && client); i++) await new Promise((r) => setTimeout(r, 10));
-    const l = listener as RoomListener | null;
-    const res = raw as import("node:http").ServerResponse | null;
-    const c = () => client as import("node:http").IncomingMessage | null;
-    const fill = async () => {
-      for (let i = 0; i < 4000 && !res?.writableNeedDrain; i++) {
-        l?.send({ type: "event", at: i, data: { pad: "x".repeat(32 * 1024) } });
-        await new Promise((r) => setImmediate(r));
+  it("поток комнаты: сеть не принимает дольше предела — поток оборван (буфер ядра не держится); догнала вовремя — живёт", async () => {
+    // Ответ понарошку: «сеть не принимает» (`writableNeedDrain`) задаёт тест — на localhost ядро принимает мегабайты, и
+    // настоящий сокет встаёт когда придётся.
+    class FakeResponse extends EventEmitter {
+      writableNeedDrain = false;
+      writableLength = 0;
+      writableEnded = false;
+      destroyed = false;
+      writes = 0;
+      writeHead() {
+        return this;
       }
-    };
-    try {
-      // Сеть встала, но догнала раньше предела — поток живёт.
-      await fill();
-      expect(res?.writableNeedDrain).toBe(true);
-      await new Promise((r) => setTimeout(r, 60));
-      c()?.resume();
-      for (let i = 0; i < 100 && res?.writableNeedDrain; i++) await new Promise((r) => setTimeout(r, 10));
-      await new Promise((r) => setTimeout(r, 200));
-      expect(res?.destroyed).toBe(false);
-      // Сеть встала надолго (телефон уснул), а игра шлёт дальше (как сводки экрана) — через предел поток оборван. Без новых
-      // записей ядро может успеть принять остаток («drain»), поэтому шлём маленькие события и ждём, не дольше 3 с.
-      c()?.pause();
-      await fill();
-      for (let i = 0; i < 150 && !res?.destroyed; i++) {
-        l?.send({ type: "event", at: i, data: { tick: i } });
-        await new Promise((r) => setTimeout(r, 20));
+      write() {
+        this.writes += 1;
+        return !this.writableNeedDrain;
       }
-      expect(res?.destroyed).toBe(true);
-      expect(l?.closed?.()).toBe(true);
-    } finally {
-      res?.destroy();
-      req.destroy();
-      await new Promise<void>((r) => server.close(() => r()));
+      end() {
+        this.writableEnded = true;
+      }
+      destroy() {
+        if (this.destroyed) return;
+        this.destroyed = true;
+        this.emit("close");
+      }
     }
+    const res = new FakeResponse();
+    let listener: RoomListener | null = null;
+    const reply = { getHeader: () => undefined, hijack: () => undefined, raw: res } as unknown as FastifyReply;
+    openRoomStream(reply, 20, (l) => {
+      listener = l;
+      return () => undefined;
+    }, 60_000, 150);
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    // Сеть встала, но догнала раньше предела — поток живёт, «я жив» снова пишется.
+    res.writableNeedDrain = true;
+    await wait(80);
+    res.writableNeedDrain = false;
+    res.emit("drain");
+    const before = res.writes;
+    await wait(250);
+    expect(res.destroyed).toBe(false);
+    expect(res.writes).toBeGreaterThan(before);
+    // Сеть встала надолго (телефон уснул) — через предел поток оборван даже без новых событий (проверка при «я жив»).
+    res.writableNeedDrain = true;
+    await wait(400);
+    expect(res.destroyed).toBe(true);
+    expect((listener as RoomListener | null)?.closed?.()).toBe(true);
   });
 
   it("поток комнаты по HTTP: запись после закрытия не роняет процесс (ни сводка, ни «я жив»)", async () => {

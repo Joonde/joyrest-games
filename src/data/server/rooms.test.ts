@@ -3,7 +3,7 @@ import { isPermanentError } from "../retry";
 import { firebaseRoomsRepository } from "../rooms";
 import type { RoomStreamEvent } from "../types";
 import { ApiError } from "./api";
-import { createRoomSender, ROOM_BATCH_BYTES, ROOM_BATCH_MAX, ROOM_FORBIDDEN_BEATS, ROOM_RETRY_MAX, serverRoomsRepository, splitBatches, subscribeRoom, type SenderDeps, type SubscribeDeps } from "./rooms";
+import { createRoomSender, ROOM_ABANDONED_RETRY_MS, ROOM_BATCH_BYTES, ROOM_BATCH_MAX, ROOM_FORBIDDEN_BEATS, ROOM_RETRY_MAX, serverRoomsRepository, splitBatches, subscribeRoom, type SenderDeps, type SubscribeDeps } from "./rooms";
 import type { StreamOptions } from "./stream";
 
 /** Часы и таймеры понарошку: `advance(ms)` двигает время и запускает созревшие таймеры. */
@@ -309,25 +309,59 @@ describe("быстрый канал: поток и команды на клие�
     expect(got).toHaveLength(3);
   });
 
-  it("«closed: replaced» и «abandoned»: любой поток останавливается сам (без вытеснения по кругу), причина — в ошибке", () => {
+  it("«closed: replaced»: любой поток останавливается сам (без вытеснения по кругу), причина — в ошибке; «unloaded» — переподключение", () => {
     for (const kind of ["me", "screen", "host"] as const) {
-      for (const reason of ["replaced", "abandoned"] as const) {
-        const f = fakeOpen();
-        const errors: Error[] = [];
-        subscribeRoom("s1", kind, () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
-        f.options().onEvent({ type: "closed", at: 1, reason });
-        expect(errors).toHaveLength(1);
-        expect((errors[0] as ApiError).reason).toBe(reason);
-        expect(isPermanentError(errors[0])).toBe(true);
-        expect(f.closed()).toBe(true);
-      }
+      const f = fakeOpen();
+      const errors: Error[] = [];
+      subscribeRoom("s1", kind, () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
+      f.options().onEvent({ type: "closed", at: 1, reason: "replaced" });
+      expect(errors).toHaveLength(1);
+      expect((errors[0] as ApiError).reason).toBe("replaced");
+      expect(isPermanentError(errors[0])).toBe(true);
+      expect(f.closed()).toBe(true);
     }
-    // «unloaded» — переподключение, не остановка.
     const f = fakeOpen();
     const errors: Error[] = [];
     subscribeRoom("s1", "screen", () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
     f.options().onEvent({ type: "closed", at: 1, reason: "unloaded" });
     expect(errors).toEqual([]);
+  });
+
+  it("«abandoned» — не навсегда: поток отпущен, через минуту подписка пробует снова (и после 409 опроса)", async () => {
+    let opens = 0;
+    let stops = 0;
+    let captured: StreamOptions<unknown> | null = null;
+    const open = ((options: StreamOptions<unknown>) => {
+      opens += 1;
+      captured = options;
+      return () => {
+        stops += 1;
+      };
+    }) as SubscribeDeps["open"];
+    const timers: Array<{ fn: () => void; ms: number }> = [];
+    const errors: Error[] = [];
+    const unsubscribe = subscribeRoom("s1", "screen", () => undefined, (e) => errors.push(e), {
+      get: async () => {
+        throw new ApiError("failed-precondition", 409, "abandoned");
+      },
+      open,
+      setTimer: (fn, ms) => timers.push({ fn, ms }),
+      clearTimer: () => undefined,
+    });
+    (captured as unknown as StreamOptions<unknown>).onEvent({ type: "closed", at: 1, reason: "abandoned" });
+    expect(errors).toEqual([]);
+    expect([opens, stops]).toEqual([1, 1]);
+    expect(timers.map((t) => t.ms)).toEqual([ROOM_ABANDONED_RETRY_MS]);
+    timers[0]?.fn();
+    expect(opens).toBe(2);
+    // Поток не открылся, опрос ответил 409 abandoned — снова спим, не ошибка.
+    await (captured as unknown as StreamOptions<unknown>).poll();
+    expect(errors).toEqual([]);
+    expect(stops).toBe(2);
+    expect(timers).toHaveLength(2);
+    unsubscribe();
+    timers[1]?.fn();
+    expect(opens).toBe(2);
   });
 
   it("опрос: снимок через GET; «не игрок» дважды и лимит — повторяемо, 409 и третий 403 — окончательно", async () => {

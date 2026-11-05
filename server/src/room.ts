@@ -46,8 +46,11 @@ export interface RoomsOptions {
   touchEveryMs?: number;
   /** Комнат в памяти — не больше. */
   maxRooms?: number;
-  /** Потоков у одной комнаты — не больше (по умолчанию `STREAMS_PER_ROOM`; тесты ставят меньше). */
+  /** Личных потоков (`me`) у одной комнаты — не больше (по умолчанию `STREAMS_PER_ROOM`; тесты ставят меньше). */
   streamsPerRoom?: number;
+  /** Экранов не ведущего у комнаты и с одного адреса — не больше (`SCREENS_PER_ROOM`, `SCREENS_PER_IP`). */
+  screensPerRoom?: number;
+  screensPerIp?: number;
   /** Включить проверочную игру `room-check` (только test: `roomCheckEnabled`). */
   check?: boolean;
   /** Игры комнат (тесты подменяют; по умолчанию — `roomGames({ check })`). */
@@ -74,8 +77,16 @@ export const MEMBER_RECHECK_MS = 1000;
  * на ноутбуке, и переподключение пульта не должно закрывать экран.
  */
 export const STREAMS_PER_DEVICE = 3;
-/** Потоков гостей и чужих экранов у одной комнаты: 500 гостей по два потока и запас. */
+/** Личных потоков игроков у одной комнаты: 500 гостей по два потока и запас. Экраны и ведущий — в своих запасах. */
 export const STREAMS_PER_ROOM = 1100;
+/**
+ * Экранов не ведущего (`screen` открывает любое вошедшее устройство — чужой телевизор по коду) у комнаты и с одного адреса:
+ * настоящих экранов 1–3, а сотни выданных устройств иначе заняли бы места игроков.
+ */
+export const SCREENS_PER_ROOM = 50;
+export const SCREENS_PER_IP = 10;
+/** Поток закрыт (`end()`), а клиент не дочитал — через столько он обрывается (буфер не живёт вечно). */
+export const END_GRACE_MS = 5000;
 /** Отдельный запас потоков ведущего этой сессии (пульты и экраны) — вне общего предела: гости его не займут. */
 export const HOST_STREAMS_PER_ROOM = 30;
 /** Поток комнаты, у которого ждёт отправки больше этого, обрывается (переподключится со свежим снимком). */
@@ -99,6 +110,8 @@ interface SessionRoomRow {
   play_mode: string;
   phase: string;
   program: unknown;
+  /** `updated_at` моложе 12 часов (по часам базы): пульт что-то делал — сессия не забыта. */
+  fresh: boolean;
 }
 
 interface ParticipantRoomRow {
@@ -116,8 +129,9 @@ interface Entry {
   lastTouchAt: number;
   /** Сколько активностей комнаты уже отмечено в `updated_at` (создание комнаты — не активность). */
   touchedActivity: number;
-  /** Когда последний раз писали `participants.seen_at` тех, кто на связи. */
+  /** Когда последний раз писали `participants.seen_at` тех, кто на связи; идёт ли запись (не накладываются). */
   lastSeenAt: number;
+  seenBusy: boolean;
   saving: Promise<void> | null;
   again: boolean;
   /** Следующий снимок — «спокойная выгрузка» (`clean`). */
@@ -128,11 +142,15 @@ interface Entry {
 
 type LoadResult = Entry | "missing" | "finished" | "no-room" | "full" | "closing" | "abandoned";
 
-/** Поток комнаты в менеджере: чей (ведущего — в своём запасе), какого устройства, отписка от комнаты. */
+/** Чьё место занимает поток: ведущего сессии, экрана не ведущего, личный поток игрока. */
+export type StreamPool = "host" | "screen" | "me";
+
+/** Поток комнаты в менеджере: чей (у каждого вида мест свой предел), какого устройства и адреса, отписка от комнаты. */
 interface StreamItem {
   room: string;
   device: string;
-  host: boolean;
+  pool: StreamPool;
+  ip: string;
   listener: RoomListener;
   detach: () => void;
 }
@@ -166,6 +184,8 @@ export class RoomManager {
   /** Все потоки по комнатам (предел числа и общего буфера). */
   private readonly roomStreams = new Map<string, Set<StreamItem>>();
   private lastBacklogCheck = -Infinity;
+  /** Закрытые (вытесненные, выгруженные) потоки, которые ещё не дописаны: их буфер тоже в счёте, пока не оборвутся. */
+  private readonly ending = new Set<RoomListener>();
   private readonly stopDevices: () => void;
   /** Кто шлёт пачки: cookie → uid (без базы на каждую пачку); uid → ключи cookie (сбросить при перехвате). */
   private readonly identities = new Map<string, { uid: string; until: number }>();
@@ -252,16 +272,19 @@ export class RoomManager {
    * игрой (пачка с событиями, команда ведущего): только он поднимает комнату, в которой 12 часов не было игры; подписка,
    * опрос и «я на связи» получают `abandoned`.
    */
-  get(id: string, revive = false): Promise<LoadResult> {
-    if (this.closing) return Promise.resolve("closing");
+  async get(id: string, revive = false): Promise<LoadResult> {
+    if (this.closing) return "closing";
     const known = this.rooms.get(id);
-    if (known) return Promise.resolve(known);
+    if (known) return known;
     let pending = this.loading.get(id);
     if (!pending) {
       pending = this.load(id, revive).finally(() => this.loading.delete(id));
       this.loading.set(id, pending);
     }
-    return pending;
+    const result = await pending;
+    // Попали на загрузку подписки (без игры), а этот запрос с игрой: забытую комнату поднимаем своей загрузкой.
+    if (revive && result === "abandoned") return this.get(id, true);
+    return result;
   }
 
   private async load(id: string, revive: boolean): Promise<LoadResult> {
@@ -283,7 +306,9 @@ export class RoomManager {
     const stop = () => stops.forEach((s) => s());
     try {
       const [row] = await this.sql<SessionRoomRow[]>`
-        select id, host_id, mechanic, game_snapshot, play_mode, phase, program from sessions where id = ${id}`;
+        select id, host_id, mechanic, game_snapshot, play_mode, phase, program,
+          updated_at > now() - make_interval(secs => ${this.abandonedMs / 1000}) as fresh
+        from sessions where id = ${id}`;
       if (!row) return this.cancel(stop, "missing");
       if (row.phase === "finished") return this.cancel(stop, "finished");
       const game = row.mechanic ? this.games.get(row.mechanic) : undefined;
@@ -295,7 +320,9 @@ export class RoomManager {
       if (this.closing) return this.cancel(stop, "closing");
       const now = this.now();
       const restoreFrom = snap ? parseSnapshotData(snap.data) : null;
-      if (!revive && restoreFrom && now - restoreFrom.activeAt >= this.abandonedMs) return this.cancel(stop, "abandoned");
+      // Забыта — только если и в комнате 12 часов не было игры, и пульт сессии 12 часов ничего не делал (лобби с утра, а игра
+      // вечером — не забыта: «Начать игру» обновляет `updated_at`).
+      if (!revive && !row.fresh && restoreFrom && now - restoreFrom.activeAt >= this.abandonedMs) return this.cancel(stop, "abandoned");
       const errorsAt = new Map<string, number>();
       const room = new Room({
         id,
@@ -319,6 +346,7 @@ export class RoomManager {
         lastTouchAt: -Infinity,
         touchedActivity: room.activityCount,
         lastSeenAt: now,
+        seenBusy: false,
         saving: null,
         again: false,
         clean: false,
@@ -375,7 +403,9 @@ export class RoomManager {
       } else if (raw.type === "snapshot" && Array.isArray(raw.participants)) raw.participants.forEach(upsert);
       return;
     }
-    // Сессия: завершили — комната выгружается; сменился блок вечера или механика — тоже (новая игра с чистого листа).
+    // Сессия: действие пульта (запись состояния, смена фазы) — игра жива, комната не «забытая».
+    room.sessionActive(now);
+    // Завершили — комната выгружается; сменился блок вечера или механика — тоже (новая игра с чистого листа).
     const state = raw.type === "patch" ? raw.state : isRecord(raw.session) ? raw.session.state : null;
     if (isRecord(state) && state.phase === "finished") {
       void this.unload(room.id, "finished");
@@ -444,15 +474,33 @@ export class RoomManager {
   }
 
   /**
-   * Можно ли открыть ещё поток: у ведущего сессии — свой запас (`HOST_STREAMS_PER_ROOM`), у остальных — общий предел
-   * комнаты. Если у этого устройства уже `STREAMS_PER_DEVICE` таких потоков, новый вытеснит старый — число не вырастет,
-   * и переподключение на место своего повисшего потока проходит и при полной комнате.
+   * Можно ли открыть ещё поток. У каждого вида мест свой предел: ведущий сессии — `HOST_STREAMS_PER_ROOM`, экраны не
+   * ведущего — `screens` на комнату и `screensPerIp` с адреса, личные потоки игроков — `limit`. Если у этого устройства уже
+   * `STREAMS_PER_DEVICE` таких потоков, новый вытеснит старый — число не вырастет, и переподключение на место своего
+   * повисшего потока проходит и при полной комнате.
    */
-  streamAllowed(room: Room, device: string, host: boolean, limit = STREAMS_PER_ROOM): boolean {
+  streamAllowed(
+    room: Room,
+    device: string,
+    pool: StreamPool,
+    options: { ip?: string; limit?: number; screens?: number; screensPerIp?: number } = {},
+  ): boolean {
     if ((this.deviceStreams.get(`${room.id}:${device}`)?.length ?? 0) >= STREAMS_PER_DEVICE) return true;
     let count = 0;
-    for (const item of this.roomStreams.get(room.id) ?? []) if (item.host === host) count += 1;
-    return count < (host ? HOST_STREAMS_PER_ROOM : limit);
+    let fromIp = 0;
+    for (const item of this.roomStreams.get(room.id) ?? []) {
+      if (item.pool !== pool) continue;
+      count += 1;
+      if (options.ip !== undefined && item.ip === options.ip) fromIp += 1;
+    }
+    if (pool === "host") return count < HOST_STREAMS_PER_ROOM;
+    if (pool === "screen") return count < (options.screens ?? SCREENS_PER_ROOM) && fromIp < (options.screensPerIp ?? SCREENS_PER_IP);
+    return count < (options.limit ?? STREAMS_PER_ROOM);
+  }
+
+  /** Сколько потоков комнаты в учёте (тестам). */
+  streamCount(id: string): number {
+    return this.roomStreams.get(id)?.size ?? 0;
   }
 
   /**
@@ -460,7 +508,7 @@ export class RoomManager {
    * «повисший» после смены сети) сначала отписывается от комнаты (в закрытый поток сводки больше не пишутся), потом
    * получает «закрыто» (`replaced`) и закрывается. Число потоков комнаты проверяет маршрут до ответа (`streamAllowed`).
    */
-  attachStream(room: Room, device: string, listener: RoomListener, attach: () => () => void, host = false): () => void {
+  attachStream(room: Room, device: string, listener: RoomListener, attach: () => () => void, pool: StreamPool = "me", ip = ""): () => void {
     const key = `${room.id}:${device}`;
     const list = this.deviceStreams.get(key) ?? [];
     while (list.length >= STREAMS_PER_DEVICE) {
@@ -469,8 +517,9 @@ export class RoomManager {
       this.dropStream(old);
       old.listener.send({ type: "closed", at: this.now(), reason: "replaced" });
       old.listener.end();
+      this.ending.add(old.listener);
     }
-    const item: StreamItem = { room: room.id, device: key, host, listener, detach: attach() };
+    const item: StreamItem = { room: room.id, device: key, pool, ip, listener, detach: attach() };
     list.push(item);
     this.deviceStreams.set(key, list);
     let set = this.roomStreams.get(room.id);
@@ -498,28 +547,42 @@ export class RoomManager {
     }
   }
 
+  /** Комнату выгрузили: её потоки (уже получившие «закрыто») — вне учёта мест сразу, их недописанный буфер — в `ending`. */
+  private releaseStreams(id: string): void {
+    for (const item of [...(this.roomStreams.get(id) ?? [])]) {
+      this.dropStream(item);
+      this.ending.add(item.listener);
+    }
+  }
+
   /**
-   * Буфер потоков: у комнаты больше `ROOM_BACKLOG_BYTES` или у всех комнат больше `ROOMS_BACKLOG_BYTES` ждёт отправки —
-   * обрываются самые отставшие потоки (переподключатся со свежим снимком). Иначе тысяча нечитаемых потоков заняла бы
-   * память процесса.
+   * Буфер потоков: у комнаты больше `ROOM_BACKLOG_BYTES` или у всех комнат (вместе с закрытыми недописанными) больше
+   * `ROOMS_BACKLOG_BYTES` ждёт отправки — обрываются самые отставшие потоки (переподключатся со свежим снимком), кроме
+   * пульта ведущего. Иначе тысяча нечитаемых потоков заняла бы память процесса. Буфер сокета ядра здесь не виден.
    */
   trimBacklog(): number {
     let dropped = 0;
-    const cut = (items: StreamItem[], limit: number) => {
-      const sized = items.map((item) => ({ item, size: item.listener.backlog?.() ?? 0 })).filter((x) => x.size > 0);
+    for (const l of [...this.ending]) if (l.closed?.() !== false || (l.backlog?.() ?? 0) === 0) this.ending.delete(l);
+    type Sized = { listener: RoomListener; item: StreamItem | null; size: number };
+    const sizedOf = (items: StreamItem[]): Sized[] =>
+      items.filter((item) => item.pool !== "host").map((item) => ({ listener: item.listener, item, size: item.listener.backlog?.() ?? 0 }));
+    const cut = (all: Sized[], limit: number) => {
+      const sized = all.filter((x) => x.size > 0);
       let total = sized.reduce((a, x) => a + x.size, 0);
       if (total <= limit) return;
       sized.sort((a, b) => b.size - a.size);
-      for (const { item, size } of sized) {
+      for (const x of sized) {
         if (total <= limit) break;
-        this.dropStream(item);
-        item.listener.destroy?.();
-        total -= size;
+        if (x.item) this.dropStream(x.item);
+        this.ending.delete(x.listener);
+        x.listener.destroy?.();
+        total -= x.size;
         dropped += 1;
       }
     };
-    for (const set of [...this.roomStreams.values()]) cut([...set], ROOM_BACKLOG_BYTES);
-    cut([...this.roomStreams.values()].flatMap((set) => [...set]), ROOMS_BACKLOG_BYTES);
+    for (const set of [...this.roomStreams.values()]) cut(sizedOf([...set]), ROOM_BACKLOG_BYTES);
+    const closing: Sized[] = [...this.ending].map((listener) => ({ listener, item: null, size: listener.backlog?.() ?? 0 }));
+    cut([...sizedOf([...this.roomStreams.values()].flatMap((set) => [...set])), ...closing], ROOMS_BACKLOG_BYTES);
     if (dropped > 0) this.log.warn({ room: "backlog", dropped }, "rooms");
     return dropped;
   }
@@ -537,10 +600,10 @@ export class RoomManager {
       // (12 часов без игры) метка не нужна.
       else if (!room.paused && room.savedVersion >= 0 && now - entry.lastAliveAt >= this.snapshotEveryMs && now - room.activeAt < this.abandonedMs) void this.alive(entry, now);
       // Кто играет в комнате — «на связи» и для медленного пути: «Вы уже играли?» не отдаст его новому телефону.
-      if (now - entry.lastSeenAt >= SEEN_EVERY_MS) {
+      if (now - entry.lastSeenAt >= SEEN_EVERY_MS && !entry.seenBusy) {
         entry.lastSeenAt = now;
         const pids = room.onlinePids();
-        if (pids.length > 0) void this.markSeen(room.id, pids, now);
+        if (pids.length > 0) void this.markSeen(entry, pids, now);
       }
       // Игра идёт (пачки с событиями и команды) — сессия «живая» для выкладки: раз в минуту обновляем updated_at.
       // Пустые пачки («я на связи»), опросы, подписки и само создание комнаты — не игра: забытая вкладка не держит
@@ -565,11 +628,14 @@ export class RoomManager {
     }
   }
 
-  private async markSeen(id: string, pids: string[], now: number): Promise<void> {
+  private async markSeen(entry: Entry, pids: string[], now: number): Promise<void> {
+    entry.seenBusy = true;
     try {
-      await this.sql`update participants set seen_at = ${new Date(now)} where session_id = ${id} and kind = 'player' and id in ${this.sql(pids)}`;
+      await this.sql`update participants set seen_at = ${new Date(now)} where session_id = ${entry.room.id} and kind = 'player' and id in ${this.sql(pids)}`;
     } catch (error) {
       this.log.warn({ room: "seen", err: message(error) }, "rooms");
+    } finally {
+      entry.seenBusy = false;
     }
   }
 
@@ -653,6 +719,7 @@ export class RoomManager {
     entry.again = false;
     entry.stop();
     entry.room.close("finished", this.now());
+    this.releaseStreams(id);
   }
 
   /** Выгрузить комнату: снимок, «закрыто» в потоки, отписка от Hub. */
@@ -662,6 +729,7 @@ export class RoomManager {
     this.rooms.delete(id);
     entry.stop();
     entry.room.close(reason, this.now());
+    this.releaseStreams(id);
     const saved = this.save(entry);
     this.unloading.set(id, saved);
     try {
@@ -692,7 +760,7 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
   const { sql } = options;
   const now = options.now ?? Date.now;
   const keepAliveMs = options.keepAliveMs ?? 25_000;
-  const streamsPerRoom = options.streamsPerRoom ?? STREAMS_PER_ROOM;
+  const streamLimits = { limit: options.streamsPerRoom, screens: options.screensPerRoom, screensPerIp: options.screensPerIp };
   const manager = new RoomManager(sql, options.hub, app.log, options);
   options.onManager?.(manager);
   // preClose, а не onClose: Fastify закрывает сервер раньше onClose и ждёт открытые соединения — поток событий
@@ -841,8 +909,9 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
         // Проверка до ответа: дальше до подключения нет ожиданий, число не изменится (отказ — 429, а не молчаливое закрытие).
         // Ведущий этой сессии — в своём запасе мест; своё повисшее место устройство занимает и при полной комнате.
         const device = `${kind}:${ok.device}`;
-        const host = ok.uid === ok.room.hostId;
-        if (!manager.streamAllowed(ok.room, device, host, streamsPerRoom)) return fail(reply, 429, "resource-exhausted");
+        // Места: ведущий — свой запас; экран не ведущего — свой (на комнату и адрес); личные потоки игроков — общий.
+        const pool: StreamPool = ok.uid === ok.room.hostId ? "host" : kind === "screen" ? "screen" : "me";
+        if (!manager.streamAllowed(ok.room, device, pool, { ...streamLimits, ip: request.ip })) return fail(reply, 429, "resource-exhausted");
         openRoomStream(reply, keepAliveMs, (listener) => {
           // Комнату выгрузили, пока проверяли вход: «закрыто» — браузер переподключится к новой.
           if (manager.loaded(ok.room.id) !== ok.room) {
@@ -850,7 +919,7 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
             listener.end();
             return () => undefined;
           }
-          return manager.attachStream(ok.room, device, listener, () => ok.room.listen(kind, listener, now(), ok.uid), host);
+          return manager.attachStream(ok.room, device, listener, () => ok.room.listen(kind, listener, now(), ok.uid), pool, request.ip);
         });
         return reply;
       });
@@ -862,9 +931,11 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
 
 /**
  * Поток событий комнаты: как в live.ts — `no-store, no-transform`, `X-Accel-Buffering: no`, «я жив» событием `ping`,
- * отставший больше чем на 128 КБ отключается (переподключится со свежим снимком; сводки маленькие — это десятки секунд).
+ * отставший больше чем на 128 КБ отключается (переподключится со свежим снимком). Сводки экрана и пульта на медленной сети
+ * не копятся: пока прошлое не ушло в сеть (`writableNeedDrain`), держим одну последнюю и отправляем её по `drain`. Закрытый
+ * (`end()`) и не дочитанный за `endGraceMs` поток обрывается: буфер не живёт, пока клиент не прочтёт.
  */
-export function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach: (listener: RoomListener) => () => void): void {
+export function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach: (listener: RoomListener) => () => void, endGraceMs = END_GRACE_MS): void {
   const cookie = reply.getHeader("set-cookie");
   reply.hijack();
   const res = reply.raw;
@@ -878,7 +949,11 @@ export function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach:
   // Запись в закрытый поток (`end()` уже вызван, а «close» придёт, только когда буфер допишется — у плохой сети через
   // минуты) — не исключение процесса: проверяем `writableEnded`, а ошибки ответа гасим здесь.
   res.on("error", () => undefined);
-  const gone = () => res.destroyed || res.writableEnded;
+  let closed = false;
+  let grace: ReturnType<typeof setTimeout> | null = null;
+  const gone = () => closed || res.destroyed || res.writableEnded;
+  let held: RoomStreamEvent | null = null;
+  let waiting = false;
   const listener: RoomListener = {
     send(event) {
       if (gone()) return;
@@ -886,22 +961,47 @@ export function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach:
         res.destroy();
         return;
       }
+      if ((event.type === "screen" || event.type === "host") && res.writableNeedDrain) {
+        // Сеть не успевает: прошлую сводку заменит свежая, когда буфер уйдёт.
+        held = event;
+        if (!waiting) {
+          waiting = true;
+          res.once("drain", () => {
+            waiting = false;
+            const latest = held;
+            held = null;
+            if (latest) listener.send(latest);
+          });
+        }
+        return;
+      }
       res.write(sseFrame(event));
     },
     end() {
-      if (!gone()) res.end();
+      if (gone()) return;
+      res.end();
+      if (!res.destroyed && grace === null) {
+        grace = setTimeout(() => {
+          if (!res.destroyed) res.destroy();
+        }, endGraceMs);
+        grace.unref?.();
+      }
     },
-    backlog: () => (gone() ? 0 : res.writableLength),
+    // Закрытый, но не дописанный — тоже в счёте: его буфер занимает память, пока поток не оборван.
+    backlog: () => (res.destroyed ? 0 : res.writableLength),
     destroy: () => {
       if (!res.destroyed) res.destroy();
     },
+    closed: () => closed || res.destroyed,
   };
   const ping = setInterval(() => {
-    if (!gone()) res.write("event: ping\ndata:1\n\n");
+    if (!gone() && !res.writableNeedDrain) res.write("event: ping\ndata:1\n\n");
   }, keepAliveMs);
   let detach: () => void = () => undefined;
   const close = () => {
+    closed = true;
     clearInterval(ping);
+    if (grace) clearTimeout(grace);
     detach();
   };
   res.on("close", close);

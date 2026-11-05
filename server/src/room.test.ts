@@ -10,7 +10,19 @@ import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { Hub } from "./live";
 import { migrate } from "./migrate";
-import { HOST_STREAMS_PER_ROOM, MEMBER_RECHECK_MS, openRoomStream, ROOM_BACKLOG_BYTES, RoomManager, roomKey, STREAMS_PER_DEVICE } from "./room";
+import {
+  HOST_STREAMS_PER_ROOM,
+  MEMBER_RECHECK_MS,
+  openRoomStream,
+  ROOM_BACKLOG_BYTES,
+  ROOMS_BACKLOG_BYTES,
+  RoomManager,
+  roomKey,
+  SCREENS_PER_IP,
+  SCREENS_PER_ROOM,
+  STREAMS_PER_DEVICE,
+  type StreamPool,
+} from "./room";
 import { roomCheck, TAPS_BURST, TAPS_PER_SECOND, type CheckState } from "./rooms/check";
 import {
   FRESH_AGO_SLACK_MS,
@@ -310,28 +322,77 @@ describe("быстрый канал: комната без базы", () => {
     const log = { info: () => undefined, warn: () => undefined, error: () => undefined } as unknown as FastifyBaseLogger;
     const manager = new RoomManager({} as never, new Hub(), log, { loopMs: 0 });
     const room = newRoom(0);
-    const open = (device: string, host = false, backlog = 0) => {
+    const open = (device: string, pool: StreamPool = "me", backlog = 0, ip = "") => {
       let destroyed = false;
       const listener: RoomListener = { send: () => undefined, end: () => undefined, backlog: () => (destroyed ? 0 : backlog), destroy: () => (destroyed = true) };
-      manager.attachStream(room, device, listener, () => room.listen("screen", listener, 0), host);
+      manager.attachStream(room, device, listener, () => room.listen("me", listener, 0, device), pool, ip);
       return { destroyed: () => destroyed };
     };
-    for (let i = 0; i < 4; i++) open(`screen:g${i}`);
-    // Предел 4 занят гостями: новое устройство — нет, ведущий — да (свой запас).
-    expect(manager.streamAllowed(room, "screen:g9", false, 4)).toBe(false);
-    expect(manager.streamAllowed(room, "host:s:pult", true, 4)).toBe(true);
-    for (let i = 0; i < HOST_STREAMS_PER_ROOM; i++) open(`host:s:p${i}`, true);
-    expect(manager.streamAllowed(room, "host:s:pnew", true, 4)).toBe(false);
+    for (let i = 0; i < 4; i++) open(`me:g${i}`);
+    // Предел 4 занят игроками: новое устройство — нет, ведущий — да (свой запас).
+    expect(manager.streamAllowed(room, "me:g9", "me", { limit: 4 })).toBe(false);
+    expect(manager.streamAllowed(room, "host:s:pult", "host", { limit: 4 })).toBe(true);
+    for (let i = 0; i < HOST_STREAMS_PER_ROOM; i++) open(`host:s:p${i}`, "host");
+    expect(manager.streamAllowed(room, "host:s:pnew", "host", { limit: 4 })).toBe(false);
     // Устройство, у которого уже 3 потока (один повис), переподключается и при полной комнате — старый вытеснится.
-    open("screen:g0");
-    open("screen:g0");
-    expect(manager.streamAllowed(room, "screen:g0", false, 4)).toBe(true);
-    // Буфер: два отставших потока по 10 МБ — у комнаты больше 16 МБ: обрывается самый отставший.
-    const slow = open("screen:slow", false, 10 * 1024 * 1024);
-    const slower = open("screen:slower", false, 11 * 1024 * 1024);
+    open("me:g0");
+    open("me:g0");
+    expect(manager.streamAllowed(room, "me:g0", "me", { limit: 4 })).toBe(true);
+    // Буфер: два отставших потока по 10 и 11 МБ — у комнаты больше 16 МБ: обрывается самый отставший, и его место свободно.
+    const slow = open("me:slow", "me", 10 * 1024 * 1024);
+    const slower = open("me:slower", "me", 11 * 1024 * 1024);
     expect(ROOM_BACKLOG_BYTES).toBe(16 * 1024 * 1024);
+    const before = manager.streamCount(room.id);
     expect(manager.trimBacklog()).toBe(1);
     expect([slower.destroyed(), slow.destroyed()]).toEqual([true, false]);
+    expect(manager.streamCount(room.id)).toBe(before - 1);
+    // Пульт ведущего не обрывается, сколько бы ни ждало у него.
+    const pult = open("host:s:big", "host", 40 * 1024 * 1024);
+    manager.trimBacklog();
+    expect(pult.destroyed()).toBe(false);
+  });
+
+  it("экраны не ведущего — свой запас: 400 выданных устройств открывают экраны, а личный поток игрока и пульт открываются", () => {
+    const log = { info: () => undefined, warn: () => undefined, error: () => undefined } as unknown as FastifyBaseLogger;
+    const manager = new RoomManager({} as never, new Hub(), log, { loopMs: 0 });
+    const room = newRoom(0);
+    let opened = 0;
+    for (let i = 0; i < 400; i++) {
+      const ip = `10.0.${Math.floor(i / 40)}.${i % 40}`;
+      if (!manager.streamAllowed(room, `screen:u:d${i}`, "screen", { ip })) continue;
+      manager.attachStream(room, `screen:u:d${i}`, collector().listener, () => () => undefined, "screen", ip);
+      opened += 1;
+    }
+    expect(opened).toBe(SCREENS_PER_ROOM);
+    expect(manager.streamAllowed(room, "me:u:a", "me")).toBe(true);
+    expect(manager.streamAllowed(room, "host:s:x", "host")).toBe(true);
+    // С одного адреса — не больше SCREENS_PER_IP экранов.
+    const other = new Room({ id: "s2", key: game.id, hostId: "h", game, players: [], teams: [], snapshot: null, playMode: "solo", now: 0 });
+    let fromOne = 0;
+    for (let i = 0; i < 30; i++) {
+      if (!manager.streamAllowed(other, `screen:u:z${i}`, "screen", { ip: "192.168.1.5" })) continue;
+      manager.attachStream(other, `screen:u:z${i}`, collector().listener, () => () => undefined, "screen", "192.168.1.5");
+      fromOne += 1;
+    }
+    expect(fromOne).toBe(SCREENS_PER_IP);
+  });
+
+  it("общий буфер всех комнат — 48 МБ: обрываются самые отставшие из разных комнат", () => {
+    const log = { info: () => undefined, warn: () => undefined, error: () => undefined } as unknown as FastifyBaseLogger;
+    const manager = new RoomManager({} as never, new Hub(), log, { loopMs: 0 });
+    expect(ROOMS_BACKLOG_BYTES).toBe(48 * 1024 * 1024);
+    const flags: Array<() => boolean> = [];
+    for (let r = 0; r < 5; r++) {
+      const room = new Room({ id: `s${r}`, key: game.id, hostId: "h", game, players: [], teams: [], snapshot: null, playMode: "solo", now: 0 });
+      // В каждой комнате меньше 10 МБ — меньше 16 МБ комнаты, но всего 48,5 МБ.
+      let destroyed = false;
+      const size = (9.5 + r * 0.1) * 1024 * 1024;
+      const listener: RoomListener = { send: () => undefined, end: () => undefined, backlog: () => (destroyed ? 0 : size), destroy: () => (destroyed = true) };
+      manager.attachStream(room, `me:u:${r}`, listener, () => () => undefined, "me");
+      flags.push(() => destroyed);
+    }
+    expect(manager.trimBacklog()).toBe(1);
+    expect(flags.map((f) => f())).toEqual([false, false, false, false, true]);
   });
 
   it("вытеснение потока: старый сначала отписан от комнаты, потом «закрыто» — сводки в закрытый поток больше не пишутся", () => {
@@ -367,6 +428,102 @@ describe("быстрый канал: комната без базы", () => {
     manager.attachStream(room, "host:dev", collector().listener, () => () => undefined);
     manager.attachStream(room, "screen:other", collector().listener, () => () => undefined);
     expect(streams[1]?.ended()).toBe(false);
+  });
+
+  it("поток комнаты по HTTP: закрытый и недочитанный поток обрывается через запас времени; сводки на медленной сети не копятся", async () => {
+    let listener: RoomListener | null = null;
+    let raw: import("node:http").ServerResponse | null = null;
+    const server = createServer((_req, res) => {
+      raw = res;
+      const reply = { getHeader: () => undefined, hijack: () => undefined, raw: res } as unknown as FastifyReply;
+      openRoomStream(reply, 60_000, (l) => {
+        listener = l;
+        return () => undefined;
+      }, 80);
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+    const { port } = server.address() as { port: number };
+    const req = httpRequest({ host: "127.0.0.1", port, path: "/" });
+    req.on("response", (res) => res.pause());
+    req.on("error", () => undefined);
+    req.end();
+    for (let i = 0; i < 50 && !listener; i++) await new Promise((r) => setTimeout(r, 10));
+    const l = listener as RoomListener | null;
+    const res = raw as import("node:http").ServerResponse | null;
+    try {
+      // Наполняем буфер личными событиями, пока ядро не перестанет принимать (буфер Node станет ненулевым).
+      // Запись асинхронная: ядро забирает буфер на следующем витке, поэтому ждём, пока его буфер заполнится и Node
+      // попросит подождать (`writableNeedDrain`).
+      for (let i = 0; i < 4000 && !res?.writableNeedDrain; i++) {
+        l?.send({ type: "event", at: i, data: { pad: "x".repeat(32 * 1024) } });
+        await new Promise((r) => setImmediate(r));
+      }
+      expect(res?.writableNeedDrain).toBe(true);
+      expect(res?.writableLength ?? 0).toBeGreaterThan(0);
+      // Сводки экрана, пока сеть не успевает, не копятся: держится одна последняя.
+      const before = res?.writableLength ?? 0;
+      for (let i = 0; i < 50; i++) l?.send({ type: "screen", at: i, version: i, paused: false, players: 0, online: 0, data: { pad: "y".repeat(2000) } });
+      expect(res?.writableLength ?? 0).toBe(before);
+      l?.end();
+      // Закрыт, но не дописан: буфер в счёте, пока не оборвётся.
+      expect(l?.backlog?.() ?? 0).toBeGreaterThan(0);
+      expect(l?.closed?.()).toBe(false);
+      await new Promise((r) => setTimeout(r, 200));
+      expect(res?.destroyed).toBe(true);
+      expect(l?.closed?.()).toBe(true);
+      expect(l?.backlog?.()).toBe(0);
+    } finally {
+      // Упавшая проверка не оставляет открытый сервер (иначе прогон не завершится).
+      res?.destroy();
+      req.destroy();
+      await new Promise<void>((r) => server.close(() => r()));
+    }
+  });
+
+  it("поток комнаты по HTTP: сеть догнала (drain) — приходит только последняя сводка из придержанных", async () => {
+    let listener: RoomListener | null = null;
+    let raw: import("node:http").ServerResponse | null = null;
+    const server = createServer((_req, res) => {
+      raw = res;
+      const reply = { getHeader: () => undefined, hijack: () => undefined, raw: res } as unknown as FastifyReply;
+      openRoomStream(reply, 60_000, (l) => {
+        listener = l;
+        return () => undefined;
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+    const { port } = server.address() as { port: number };
+    let text = "";
+    let client: import("node:http").IncomingMessage | null = null;
+    const req = httpRequest({ host: "127.0.0.1", port, path: "/" });
+    req.on("response", (res) => {
+      client = res;
+      res.pause();
+      res.setEncoding("utf8");
+      res.on("data", (chunk: string) => (text += chunk));
+    });
+    req.on("error", () => undefined);
+    req.end();
+    for (let i = 0; i < 50 && !(listener && client); i++) await new Promise((r) => setTimeout(r, 10));
+    const l = listener as RoomListener | null;
+    const res = raw as import("node:http").ServerResponse | null;
+    try {
+      for (let i = 0; i < 4000 && !res?.writableNeedDrain; i++) {
+        l?.send({ type: "event", at: i, data: { pad: "x".repeat(32 * 1024) } });
+        await new Promise((r) => setImmediate(r));
+      }
+      expect(res?.writableNeedDrain).toBe(true);
+      for (let v = 1; v <= 30; v++) l?.send({ type: "screen", at: v, version: v, paused: false, players: 0, online: 0, data: { mark: `v${v}v` } });
+      (client as import("node:http").IncomingMessage | null)?.resume();
+      for (let i = 0; i < 300 && !text.includes("v30v"); i++) await new Promise((r) => setTimeout(r, 10));
+      expect(text.includes("v30v")).toBe(true);
+      // Придержанные раньше сводки заменены последней — ни одна не ушла.
+      expect(/"v(?:[1-9]|[12]\d)v"/.test(text)).toBe(false);
+    } finally {
+      res?.destroy();
+      req.destroy();
+      await new Promise<void>((r) => server.close(() => r()));
+    }
   });
 
   it("поток комнаты по HTTP: запись после закрытия не роняет процесс (ни сводка, ни «я жив»)", async () => {
@@ -643,7 +800,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
   let clock = 1_900_000_000_000;
   let manager: RoomManager | null = null;
   const media = mkdtempSync(join(tmpdir(), "joyrest-media-"));
-  const make = (onManager: (m: RoomManager) => void, check = true, streamsPerRoom?: number) =>
+  const make = (onManager: (m: RoomManager) => void, check = true, limits: { streamsPerRoom?: number; screensPerRoom?: number; screensPerIp?: number } = {}) =>
     buildApp({
       version: "t",
       publicDir: null,
@@ -652,7 +809,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
       mediaDir: media,
       auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } },
       live: { now: () => clock, keepAliveMs: 60_000 },
-      rooms: { now: () => clock, loopMs: 0, keepAliveMs: 60_000, onManager, check, streamsPerRoom },
+      rooms: { now: () => clock, loopMs: 0, keepAliveMs: 60_000, onManager, check, ...limits },
     });
   const app = make((m) => (manager = m));
   const rooms = () => {
@@ -1001,6 +1158,9 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     rooms().step(clock);
     expect(rooms().loaded("r6a")).toBeNull();
     await settle(async () => (await savedTotal("r6a")) === 2);
+    // Пульт тоже 12 часов ничего не делал (иначе комната не забыта — см. следующий тест); отметка комнаты уже ушла.
+    await new Promise((r) => setTimeout(r, 50));
+    await sql`update sessions set updated_at = now() - interval '13 hours' where id = 'r6a'`;
     const base = await listening();
     for (let i = 0; i < 3; i++) {
       const screen = await openReader(base, "/api/stream/room/r6a/screen", anya.cookie);
@@ -1011,11 +1171,85 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
       clock += 60_000;
     }
     expect(rooms().loaded("r6a")).toBeNull();
+    // Подписка и пачка с событиями одновременно: пачка не получает «забыта» от чужой загрузки — грузит сама.
+    const [quiet, loud] = await Promise.all([rooms().get("r6a"), rooms().get("r6a", true)]);
+    expect(quiet).toBe("abandoned");
+    expect(typeof loud).toBe("object");
+    await rooms().unload("r6a", "unloaded");
+    await sql`update room_snapshots set data = data || jsonb_build_object('activeAt', ${clock - 13 * 60 * 60_000}::bigint, 'clean', true) where session_id = 'r6a'`;
     expect((await input("r6a", anya.cookie, [{ t: "tap", n: 1 }])).statusCode).toBe(200);
     expect((rooms().loaded("r6a")?.state as CheckState).total).toBe(3);
     await rooms().unload("r6a", "unloaded");
     clock += 13 * 60 * 60_000;
     expect((await call("POST", "/api/rooms/r6a/command", host, { cmd: "echo" })).statusCode).toBe(200);
+  });
+
+  it("лобби с утра, игра вечером: действие пульта — не забыта; забытая оживает после «Начать игру», экран подписывается снова", async () => {
+    await newSession("r6l");
+    const base = await listening();
+    const screen = await openReader(base, "/api/stream/room/r6l/screen", host);
+    expect(await screen.next()).toMatchObject({ type: "screen" });
+    clock += 11 * 60 * 60_000;
+    expect((await call("POST", "/api/sessions/r6l/phase", host, { phase: "playing" })).statusCode).toBe(200);
+    clock += 2 * 60 * 60_000;
+    rooms().step(clock);
+    expect(rooms().loaded("r6l")).not.toBeNull();
+    screen.controller.abort();
+
+    // Без единого действия 13 часов — забыта; экран не подписывается, пока ведущий не начнёт игру.
+    await newSession("r6m");
+    const s1 = await openReader(base, "/api/stream/room/r6m/screen", host);
+    expect(await s1.next()).toMatchObject({ type: "screen" });
+    await sql`update sessions set updated_at = now() - interval '13 hours' where id = 'r6m'`;
+    clock += 13 * 60 * 60_000;
+    rooms().step(clock);
+    let event = await s1.next();
+    while (event && event.type === "screen") event = await s1.next();
+    expect(event).toMatchObject({ type: "closed", reason: "abandoned" });
+    await settle(async () => rooms().loaded("r6m") === null);
+    expect((await openReader(base, "/api/stream/room/r6m/screen", host)).status).toBe(409);
+    expect((await call("POST", "/api/sessions/r6m/phase", host, { phase: "playing" })).statusCode).toBe(200);
+    const s2 = await openReader(base, "/api/stream/room/r6m/screen", host);
+    expect(s2.status).toBe(200);
+    expect(await s2.next()).toMatchObject({ type: "screen" });
+    s2.controller.abort();
+  });
+
+  it("выгрузка сразу освобождает места потоков (новая комната не видит закрытые)", async () => {
+    await newSession("r6r");
+    const anya = await guestIn("r6r", "Аня");
+    const base = await listening();
+    const me = await openReader(base, "/api/stream/room/r6r/me", anya.cookie);
+    expect(await me.next()).toMatchObject({ type: "snapshot" });
+    expect(rooms().streamCount("r6r")).toBe(1);
+    const unloading = rooms().unload("r6r", "unloaded");
+    expect(rooms().streamCount("r6r")).toBe(0);
+    await unloading;
+    me.controller.abort();
+  });
+
+  it("экраны не ведущего: с одного адреса — не больше предела (429), а личный поток игрока и экран ведущего открываются", async () => {
+    let own: RoomManager | null = null;
+    const small = make((m) => (own = m), true, { screensPerRoom: 3, screensPerIp: 2 });
+    await newSession("r8s", "room-check", small);
+    const anya = await guestIn("r8s", "Аня", small);
+    const base = await listening(small);
+    const readers = [];
+    const codes = [];
+    for (let i = 0; i < 4; i++) {
+      const d = await device(small);
+      const r = await openReader(base, "/api/stream/room/r8s/screen", d.cookie);
+      codes.push(r.status);
+      readers.push(r);
+    }
+    expect(codes).toEqual([200, 200, 429, 429]);
+    const me = await openReader(base, "/api/stream/room/r8s/me", anya.cookie);
+    expect(me.status).toBe(200);
+    const hostScreen = await openReader(base, "/api/stream/room/r8s/screen", host);
+    expect(hostScreen.status).toBe(200);
+    expect((own as RoomManager | null)?.streamCount("r8s")).toBe(4);
+    for (const r of [...readers, me, hostScreen]) r.controller.abort();
+    await small.close();
   });
 
   it("метка «жив» снимает «спокойную выгрузку»: после подъёма из спокойного снимка и жизни комнаты сбой — на паузе", async () => {
@@ -1115,7 +1349,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
 
   it("потоков у комнаты больше предела — 429 до ответа; ведущему — свой запас; своё повисшее место — и при полной комнате", async () => {
     let own: RoomManager | null = null;
-    const small = make((m) => (own = m), true, 3);
+    const small = make((m) => (own = m), true, { streamsPerRoom: 3 });
     await newSession("r8f", "room-check", small);
     const anya = await guestIn("r8f", "Аня", small);
     const boris = await guestIn("r8f", "Боря", small);
@@ -1144,11 +1378,13 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     await newSession("r9s");
     const vera = await guestIn("r9s", "Вера");
     const fresh = await device();
+    const seenAt = async () => (await sql<{ at: Date | null }[]>`select seen_at as at from participants where session_id = 'r9s' and id = ${vera.uid}`)[0]?.at?.getTime() ?? 0;
     for (let t = 0; t < 6; t++) {
       clock += 30_000;
       await input("r9s", vera.cookie, [{ t: "tap", n: 1 }]);
       rooms().step(clock);
-      await new Promise((r) => setTimeout(r, 20));
+      // Запись `seen_at` идёт фоном: ждём её по базе, а не по часам.
+      if (t > 0) expect(await settle(async () => (await seenAt()) === clock)).toBe(true);
     }
     const offline = (await call("GET", "/api/sessions/r9s/offline", fresh.cookie)).json() as Array<{ pid: string }>;
     expect(offline.map((p) => p.pid)).not.toContain(vera.uid);
@@ -1158,7 +1394,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
       clock += 30_000;
       rooms().step(clock);
     }
-    await new Promise((r) => setTimeout(r, 50));
+    expect(await seenAt()).toBe(clock - 120_000);
     const later = (await call("GET", "/api/sessions/r9s/offline", fresh.cookie)).json() as Array<{ pid: string }>;
     expect(later.map((p) => p.pid)).toContain(vera.uid);
   });

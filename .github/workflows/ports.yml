@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 env:
-  SERVER_IP: 217.114.13.92
+  # Адрес сервера — переменная репозитория SERVER_IP (Settings → Secrets and variables → Actions → Variables).
+  SERVER_IP: ${{ vars.SERVER_IP }}
 
 jobs:
   ports:
@@ -17,6 +18,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      - name: Адрес сервера
+        run: '[ -n "$SERVER_IP" ] || { echo "::error::Задайте переменную репозитория SERVER_IP"; exit 1; }'
       - run: sudo apt-get install -y -qq nmap >/dev/null
       - name: Открытые порты TCP
         run: |

@@ -102,6 +102,11 @@ describe("редакция платформы: без базы", () => {
     expect(deploy).toContain('migrate_lite "$(release_value test APP_IMAGE)"');
     expect(deploy.indexOf("migrate_lite")).toBeLessThan(deploy.indexOf('switch_to "$env" "$sha"'));
     expect(fn("cmd_up")).toContain('migrate_lite "$(release_value test APP_IMAGE)"');
+    // Новый сервер (5 ноября 2026): `joyrest up` из install.sh создаёт и таблицы основной базы, иначе
+    // admin-password падает на пустой базе. Миграции — до запуска приложений.
+    const up = fn("cmd_up");
+    expect(up).toContain('run_migrations prod "$prod_image"');
+    expect(up.indexOf("run_migrations prod")).toBeLessThan(up.indexOf("dc up -d --remove-orphans"));
     // Ошибка миграции Лайта не роняет выкладку.
     expect(fn("migrate_lite")).toMatch(/run_migrations lite "\$1" \|\| log /);
     const run = fn("run_migrations");

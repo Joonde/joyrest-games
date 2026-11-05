@@ -1006,6 +1006,13 @@ cmd_up() {
   dc up -d postgres
   wait_postgres || die "PostgreSQL не запустилась за 90 секунд."
   ensure_test_db || die "Не удалось создать базу joyrest_test."
+  # Основная база на новом сервере пустая: без миграций нет таблиц (admin-password падал с
+  # «relation "users" does not exist», 5 ноября 2026). Миграции только добавляющие — повтор безопасен.
+  local prod_image
+  prod_image=$(release_value prod APP_IMAGE)
+  if [ -n "$prod_image" ]; then
+    run_migrations prod "$prod_image" || die "Ошибка миграции основной базы (joyrest_prod)."
+  fi
   migrate_lite "$(release_value test APP_IMAGE)"
   if install_system; then dc up -d --remove-orphans; reload_caddy; else dc up -d --remove-orphans; fi
 }
@@ -1403,12 +1410,12 @@ cmd_backup_setup() {
     [ "$(clean_value "$answer")" = да ] || die "Ничего не изменено."
   fi
 
-  echo "Данные бакета — в панели Beget: Облако → S3-хранилище → ваш бакет (RUNBOOK, «Резервные копии»)."
-  read -rp "Адрес хранилища (Enter — https://s3.ru1.storage.beget.cloud): " endpoint
+  echo "Данные бакета — в панели хранилища (не у того же провайдера, что сервер): адрес, имя бакета, ключи"
+  echo "(RUNBOOK, «Резервные копии»)."
+  read -rp "Адрес хранилища (например https://s3.ru-1.storage.selcloud.ru): " endpoint
   endpoint=$(clean_value "$endpoint")
-  endpoint=${endpoint:-https://s3.ru1.storage.beget.cloud}
   endpoint=${endpoint%/}
-  [[ "$endpoint" =~ ^https://[a-z0-9.-]+(:[0-9]+)?$ ]] || die "Адрес — вида https://s3.ru1.storage.beget.cloud. Ничего не изменено."
+  [[ "$endpoint" =~ ^https://[a-z0-9.-]+(:[0-9]+)?$ ]] || die "Адрес — вида https://s3.ru-1.storage.selcloud.ru. Ничего не изменено."
   read -rp "Имя бакета: " bucket
   bucket=$(clean_value "$bucket")
   [[ "$bucket" =~ ^[a-z0-9][a-z0-9.-]{1,62}$ ]] || die "Имя бакета — строчные латинские буквы, цифры, точка, дефис. Ничего не изменено."
@@ -1439,7 +1446,7 @@ cmd_backup_setup() {
     out=$(BACKUP_ENV=$tmp restic_run cat config 2>&1 >/dev/null) || die "Пароль не подошёл: $(short_reason "$out"). Ничего не изменено."
     echo "✅ Пароль подошёл, копии доступны."
   elif [[ "$out" == *"bucket does not exist"* ]]; then
-    die "Бакет $bucket не найден — проверьте имя в панели Beget. Ничего не изменено."
+    die "Бакет $bucket не найден — проверьте имя в панели хранилища. Ничего не изменено."
   elif [[ "$out" == *"does not exist"* || "$out" == *"no such file or directory"* ]]; then
     # Хранилища ещё нет (S3: «The specified key does not exist», локально — «no such file») —
     # создаём с новым паролем.

@@ -551,6 +551,16 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
   const screens = new Map<string, ScreenStatus>();
   /** Голоса зала по QR: сессия → шаг и голос каждого устройства (последний голос считается). */
   const audience = new Map<string, { step: number; votes: Map<string, number> }>();
+  /**
+   * Открытые потоки событий. Остановка приложения (`preClose`) закрывает их до закрытия сервера: иначе Fastify ждал бы
+   * их окончания (сервер закрывается раньше хуков onClose) и приложение висело бы до принудительной остановки.
+   * Браузер переподключится к новой версии сам.
+   */
+  const openStreams = new Set<FastifyReply["raw"]>();
+  app.addHook("preClose", async () => {
+    for (const res of openStreams) if (!res.destroyed) res.end();
+    openStreams.clear();
+  });
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -1458,9 +1468,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         // пробела — сценарии нагрузки читают только строки «data: {…}».
         if (!res.destroyed) res.write("event: ping\ndata:1\n\n");
       }, keepAliveMs);
+      openStreams.add(res);
       const close = () => {
         clearInterval(ping);
         unsubscribe();
+        openStreams.delete(res);
       };
       // Закрытие ответа надёжнее закрытия запроса; телефон мог уйти, пока мы проверяли вход.
       res.on("close", close);

@@ -728,7 +728,10 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     expect(rooms().loaded("r6s")).not.toBeNull();
     rooms().step(clock + 13 * 60 * 60_000);
     expect(rooms().loaded("r6s")).toBeNull();
-    expect(await screen.next()).toMatchObject({ type: "closed", reason: "unloaded" });
+    // Сводки, разосланные шагами цикла, пропускаем — дальше «закрыто» и конец потока.
+    let event = await screen.next();
+    while (event && event.type === "screen") event = await screen.next();
+    expect(event).toMatchObject({ type: "closed", reason: "unloaded" });
     expect(await screen.next()).toBeNull();
   });
 

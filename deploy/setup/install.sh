@@ -8,7 +8,16 @@
 # Вход root по паролю НЕ отключает — это отдельный шаг lock-ssh.sh после проверки.
 set -euo pipefail
 
-SERVER_IP="217.114.13.92"
+# Публичный адрес сервера: можно задать заранее (SERVER_IP=1.2.3.4 bash …), иначе — спросим у
+# внешней службы, а без связи — адрес исходящего интерфейса (у облачных серверов он обычно публичный).
+detect_ip() {
+  local ip
+  ip=$(curl -4 -s --max-time 5 https://api.ipify.org 2>/dev/null || true)
+  if ! [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+    ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}')
+  fi
+  echo "$ip"
+}
 GHCR_USER="joonde"
 APP_REPO="ghcr.io/joonde/joyrest-app"
 ROOT_DIR="/srv/joyrest"
@@ -25,6 +34,10 @@ fail() { printf '\n❌ %s\n' "$1" >&2; exit 1; }
 step "Данные для настройки"
 read -r -p "Почта администратора [joyrest@mail.ru]: " ADMIN_EMAIL
 ADMIN_EMAIL="${ADMIN_EMAIL:-joyrest@mail.ru}"
+DETECTED_IP="${SERVER_IP:-$(detect_ip)}"
+read -r -p "Публичный IP-адрес сервера (из панели провайдера) [${DETECTED_IP:-—}]: " SERVER_IP
+SERVER_IP="${SERVER_IP:-$DETECTED_IP}"
+[[ "$SERVER_IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || fail "Адрес сервера — четыре числа через точку, как в панели провайдера."
 read -r -p "Имя вашего пользователя на сервере [joy]: " OWNER_USER
 OWNER_USER="${OWNER_USER:-joy}"
 echo "$OWNER_USER" | grep -qE '^[a-z][a-z0-9_-]{1,30}$' || fail "Имя пользователя: латиница, цифры, - и _."
@@ -265,7 +278,8 @@ else
   echo "⚠️  Сайт пока не ответил. Посмотрите: joyrest status, joyrest logs caddy"
 fi
 echo
-echo "Ваш вход в Termius: пользователь $OWNER_USER, адрес $SERVER_IP, ваш ключ."
+echo "Ваш вход (Терминал на Mac или Termius): пользователь $OWNER_USER, адрес $SERVER_IP, ваш ключ."
+echo "В GitHub → Settings → Secrets and variables → Actions → Variables задайте SERVER_IP = $SERVER_IP."
 echo "Проверьте его в НОВОМ подключении, это окно не закрывайте."
 if [ "$DEPLOY_KEY_NEW" = 1 ]; then
   echo

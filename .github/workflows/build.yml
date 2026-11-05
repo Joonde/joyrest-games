@@ -172,8 +172,13 @@ jobs:
       cancel-in-progress: false
     env:
       SHA: ${{ github.sha }}
-      SERVER: 217.114.13.92
+      # Адрес сервера — переменная репозитория SERVER_IP (Settings → Secrets and variables → Actions → Variables);
+      # меняется при переезде вместе с секретом DEPLOY_KNOWN_HOSTS, код не трогаем.
+      SERVER: ${{ vars.SERVER_IP }}
     steps:
+      - name: Адрес сервера
+        run: |
+          [ -n "$SERVER" ] || { echo "::error::Задайте переменную репозитория SERVER_IP (адрес сервера)"; exit 1; }
       - name: Куда выкладываем
         id: target
         run: |

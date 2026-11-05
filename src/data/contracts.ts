@@ -67,6 +67,10 @@ import type {
   Unsubscribe,
   UserProfile,
   TrackClip,
+  RoomInputEvent,
+  RoomInputReply,
+  RoomStreamEvent,
+  RoomStreamKind,
 } from "./types";
 
 export interface AuthUser {
@@ -588,4 +592,35 @@ export interface VenuesRepository {
 
   /** admin: открыть или закрыть ведущему базу площадок. */
   setAccess(uid: string, access: boolean): Promise<void>;
+}
+
+// ------------------------------------------------------------------ быстрый канал (комнаты)
+
+export interface RoomSenderOptions {
+  /** Как часто слать пачку, мс (по умолчанию 1000; сервер поправляет ответом `every`). */
+  everyMs?: number;
+  onReply?: (reply: RoomInputReply) => void;
+  /** Настоящая ошибка (не игрок этой игры, игра завершена) — отправка остановлена. */
+  onError?: (error: Error) => void;
+}
+
+/** Отправитель пачек одного телефона: копит события, раз в `every` шлёт пачку (пустая — «я на связи»). */
+export interface RoomSender {
+  /** Событие в следующую пачку; `now` — сразу отдельным маленьким запросом (движения приборов «Бубликатора»). */
+  push(event: RoomInputEvent, options?: { now?: boolean }): void;
+  /** Отправить накопленное сейчас (конец испытания). */
+  flush(): void;
+  stop(): void;
+}
+
+/**
+ * Игровая комната быстрого канала (CLAUDE.md, «Быстрый канал (комнаты)»): пачки телефонов, команды пульта, потоки
+ * «мой», «экран зала», «пульт». Только свой сервер: у Firebase-версии отвечает `unimplemented`.
+ */
+export interface RoomsRepository {
+  sender(sessionId: string, options?: RoomSenderOptions): RoomSender;
+  /** Команда комнате (только ведущий): повтор после обрыва не выполнится дважды. */
+  command(sessionId: string, cmd: string, args?: unknown): Promise<unknown>;
+  /** Поток комнаты: сразу снимок, дальше события; обрыв — переподключение со свежим снимком. */
+  subscribe(sessionId: string, kind: RoomStreamKind, onEvent: (event: RoomStreamEvent) => void, onError: (error: Error) => void): Unsubscribe;
 }

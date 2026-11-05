@@ -206,9 +206,14 @@ function streamEventOf(value: unknown): RoomStreamEvent | null {
   return typeof r.type === "string" && typeof r.at === "number" ? (r as unknown as RoomStreamEvent) : null;
 }
 
+/** Комната «забыта» (12 часов без игры): поток не держим, но раз в столько пробуем снова — ведущий мог начать игру. */
+export const ROOM_ABANDONED_RETRY_MS = 60_000;
+
 export interface SubscribeDeps {
   get: (path: string) => Promise<unknown>;
   open: typeof openStream;
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (handle: unknown) => void;
 }
 
 const defaultSubscribeDeps: SubscribeDeps = { get: (path) => api("GET", path), open: openStream };
@@ -218,8 +223,9 @@ const defaultSubscribeDeps: SubscribeDeps = { get: (path) => api("GET", path), o
  * Останавливаемся сразу (`onError`, код и причина — в `ApiError`): `removed` (участника убрали, за него вошёл другой
  * телефон), `replaced` (это устройство открыло такой же поток в четвёртой вкладке: экран показывает «Открыто в другой
  * вкладке — Открыть здесь», а не переподключается — иначе вкладки вытесняли бы друг друга по кругу; пульт ведущего на
- * другом устройстве экран больше не вытесняет — у них разные ключи), `abandoned` (12 часов без игры). Опрос: «не игрок»
- * пару раз и лимит опросов — не окончательно (повтор).
+ * другом устройстве экран больше не вытесняет — у них разные ключи). `abandoned` (12 часов без игры, ведущий ничего не
+ * делал) — не навсегда: поток закрывается, и раз в минуту подписка пробует снова (экран лобби, открытый утром, оживает, когда
+ * вечером начнут игру). Опрос: «не игрок» пару раз и лимит опросов — не окончательно (повтор).
  */
 export function subscribeRoom(
   sessionId: string,
@@ -229,14 +235,27 @@ export function subscribeRoom(
   deps: SubscribeDeps = defaultSubscribeDeps,
 ): () => void {
   const id = encodeURIComponent(sessionId);
+  const setTimer = deps.setTimer ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
+  const clearTimer = deps.clearTimer ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>));
   let stopped = false;
   let forbidden = 0;
   let unsubscribe: () => void = () => undefined;
+  let retry: unknown = null;
   const halt = (error: Error) => {
     if (stopped) return;
     stopped = true;
     unsubscribe();
     onError(error);
+  };
+  // Забытая комната: поток отпускаем и через минуту пробуем снова.
+  const sleep = () => {
+    if (stopped || retry !== null) return;
+    unsubscribe();
+    unsubscribe = () => undefined;
+    retry = setTimer(() => {
+      retry = null;
+      if (!stopped) start();
+    }, ROOM_ABANDONED_RETRY_MS);
   };
   const deliver = (value: unknown) => {
     if (stopped) return;
@@ -246,29 +265,44 @@ export function subscribeRoom(
     if (event.type === "closed") {
       if (event.reason === "removed") halt(new ApiError("permission-denied", 403, "removed"));
       else if (event.reason === "replaced") halt(new ApiError("already-exists", 409, "replaced"));
-      else if (event.reason === "abandoned") halt(new ApiError("failed-precondition", 409, "abandoned"));
+      else if (event.reason === "abandoned") sleep();
     }
   };
-  unsubscribe = deps.open<unknown>({
-    url: `/api/stream/room/${id}/${kind}`,
-    poll: async () => {
-      try {
-        deliver(await deps.get(`/api/rooms/${id}/${kind}`));
-        forbidden = 0;
-      } catch (error) {
-        const code = errorCodeOf(error);
-        if (code === "resource-exhausted" || (code === "permission-denied" && forbidden++ < ROOM_FORBIDDEN_RETRIES)) {
-          throw new ApiError("unavailable", 0);
+  function start() {
+    let ended = false;
+    const stop = deps.open<unknown>({
+      url: `/api/stream/room/${id}/${kind}`,
+      poll: async () => {
+        try {
+          deliver(await deps.get(`/api/rooms/${id}/${kind}`));
+          forbidden = 0;
+        } catch (error) {
+          if (error instanceof ApiError && error.reason === "abandoned") {
+            sleep();
+            return;
+          }
+          const code = errorCodeOf(error);
+          if (code === "resource-exhausted" || (code === "permission-denied" && forbidden++ < ROOM_FORBIDDEN_RETRIES)) {
+            throw new ApiError("unavailable", 0);
+          }
+          throw error;
         }
-        throw error;
-      }
-    },
-    onEvent: deliver,
-    onError: (error) => halt(error),
-  });
+      },
+      onEvent: deliver,
+      onError: (error) => halt(error),
+    });
+    unsubscribe = () => {
+      if (ended) return;
+      ended = true;
+      stop();
+    };
+  }
+  start();
   if (stopped) unsubscribe();
   return () => {
     stopped = true;
+    if (retry !== null) clearTimer(retry);
+    retry = null;
     unsubscribe();
   };
 }

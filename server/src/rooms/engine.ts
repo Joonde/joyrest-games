@@ -298,6 +298,8 @@ export interface RoomListener {
   backlog?(): number;
   /** Оборвать поток без «закрыто» (отставший — переподключится со свежим снимком). */
   destroy?(): void;
+  /** Поток уже закрыт совсем (нечего учитывать). */
+  closed?(): boolean;
 }
 
 interface PlayerRuntime extends RoomPlayer {
@@ -683,6 +685,11 @@ export class Room {
     if (failed) return { ...reply, dropped: input.events.length };
     this.activity(now);
     return { ...reply, dropped, active: true };
+  }
+
+  /** Действие пульта по сессии (запись состояния, смена фазы): игра жива — комната не «забытая». Активностью для выкладки не считается (пульт сам обновляет `updated_at`). */
+  sessionActive(now: number): void {
+    this.activeAt = Math.max(this.activeAt, now);
   }
 
   private activity(now: number): void {

@@ -196,7 +196,21 @@ cat > /etc/docker/daemon.json <<'CONF'
 }
 CONF
 systemctl enable docker >/dev/null 2>&1
-systemctl restart docker
+# На свежем VPS (VDSina, ноябрь 2026) первый запуск docker.service падал: «Start request repeated
+# too quickly», хотя сам dockerd исправен. Помогает сброс счётчика и перезапуск containerd —
+# повторяем до трёх раз, прежде чем сдаться.
+docker_ok=0
+for attempt in 1 2 3; do
+  if systemctl restart docker 2>/dev/null && docker info >/dev/null 2>&1; then
+    docker_ok=1
+    break
+  fi
+  echo "Docker не запустился (попытка $attempt из 3) — сбрасываю и пробую ещё раз…"
+  systemctl reset-failed docker docker.socket 2>/dev/null || true
+  systemctl restart containerd 2>/dev/null || true
+  sleep 5
+done
+[ "$docker_ok" = 1 ] || fail "Docker не запустился. Пришлите Claude вывод: journalctl -u docker -n 50 --no-pager"
 docker compose version
 
 step "Вход в GHCR (только чтение образов)"

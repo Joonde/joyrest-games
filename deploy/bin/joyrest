@@ -1006,6 +1006,13 @@ cmd_up() {
   dc up -d postgres
   wait_postgres || die "PostgreSQL не запустилась за 90 секунд."
   ensure_test_db || die "Не удалось создать базу joyrest_test."
+  # Основная база на новом сервере пустая: без миграций нет таблиц (admin-password падал с
+  # «relation "users" does not exist», 5 ноября 2026). Миграции только добавляющие — повтор безопасен.
+  local prod_image
+  prod_image=$(release_value prod APP_IMAGE)
+  if [ -n "$prod_image" ]; then
+    run_migrations prod "$prod_image" || die "Ошибка миграции основной базы (joyrest_prod)."
+  fi
   migrate_lite "$(release_value test APP_IMAGE)"
   if install_system; then dc up -d --remove-orphans; reload_caddy; else dc up -d --remove-orphans; fi
 }

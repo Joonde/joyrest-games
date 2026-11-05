@@ -562,3 +562,37 @@ describe("роли доступа помощников", () => {
     expect(p.canDeleteSession(a, { hostId: "host-2" })).toBe(false);
   });
 });
+
+describe("быстрый канал: комнаты (только свой сервер)", () => {
+  const player = { kind: "player" as const };
+  const team = { kind: "team" as const };
+  const live = { phase: "playing" as const };
+  const done = { phase: "finished" as const };
+
+  it("пачки шлёт только телефон игрока этой сессии и только пока игра не завершена", () => {
+    expect(p.canSendRoomInput("g1", live, player)).toBe(true);
+    expect(p.canSendRoomInput("g1", { phase: "lobby" }, player)).toBe(true);
+    expect(p.canSendRoomInput("g1", done, player)).toBe(false);
+    expect(p.canSendRoomInput("g1", live, null)).toBe(false);
+    expect(p.canSendRoomInput("g1", live, team)).toBe(false);
+    expect(p.canSendRoomInput(null, live, player)).toBe(false);
+  });
+
+  it("личный поток — только игрок; экран — любое вошедшее устройство; пульт — только ведущий", () => {
+    expect(p.canWatchRoomMe("g1", player)).toBe(true);
+    expect(p.canWatchRoomMe("g1", null)).toBe(false);
+    expect(p.canWatchRoomMe(null, player)).toBe(false);
+    expect(p.canWatchRoomScreen("tv")).toBe(true);
+    expect(p.canWatchRoomScreen(null)).toBe(false);
+    expect(p.canWatchRoomHost("host-1", { hostId: "host-1" })).toBe(true);
+    expect(p.canWatchRoomHost("host-2", { hostId: "host-1" })).toBe(false);
+    expect(p.canWatchRoomHost(null, { hostId: "host-1" })).toBe(false);
+  });
+
+  it("команды комнате — только ведущий незавершённой сессии", () => {
+    expect(p.canCommandRoom("host-1", { hostId: "host-1", phase: "playing" })).toBe(true);
+    expect(p.canCommandRoom("host-1", { hostId: "host-1", phase: "finished" })).toBe(false);
+    expect(p.canCommandRoom("host-2", { hostId: "host-1", phase: "playing" })).toBe(false);
+    expect(p.canCommandRoom(ADMIN_UID, { hostId: "host-1", phase: "playing" })).toBe(false);
+  });
+});

@@ -461,6 +461,76 @@ export interface Participant {
   seenAt?: number | null;
 }
 
+// ------------------------------------------------------------ быстрый канал (комнаты)
+// CLAUDE.md, «Быстрый канал (комнаты)»: игры с непрерывными нажатиями идут через игровую комнату в памяти сервера.
+
+/** Событие телефона в пачке: `t` — вид события, `ago` — сколько мс назад оно случилось (сервер верит не дальше 4 с). */
+export interface RoomInputEvent {
+  t: string;
+  ago?: number;
+  [field: string]: unknown;
+}
+
+/** Ответ сервера на пачку: часы сервера, как часто слать пачки, пауза, сколько событий срезал лимит, повтор ли. */
+export interface RoomInputReply {
+  at: number;
+  every: number;
+  paused: boolean;
+  dropped: number;
+  dup: boolean;
+  /** Номер пачки слишком старый — сервер уже не знает, была ли она: события не учтены (не «доставлено»). */
+  stale: boolean;
+}
+
+/** Задержка общего цикла комнат на сервере (последняя и худшая за 10 с), мс. */
+export interface RoomLoopStats {
+  lagMs: number;
+  maxLagMs: number;
+  /** Память процесса app, МБ (rss) — для нагрузочной проверки. */
+  memoryMb: number;
+}
+
+export interface RoomOfflinePlayer {
+  pid: string;
+  name: string;
+}
+
+/** Какой поток комнаты: личный телефона, экрана зала или пульта. */
+export type RoomStreamKind = "me" | "screen" | "host";
+
+/** Событие потока комнаты (`GET /api/stream/room/:id/me|screen|host`); `at` — часы сервера. */
+export type RoomStreamEvent =
+  | { type: "snapshot"; at: number; paused: boolean; every: number; offlineMs: number; data: unknown }
+  | { type: "event"; at: number; data: unknown }
+  | { type: "room"; at: number; paused: boolean }
+  | { type: "screen"; at: number; version: number; paused: boolean; players: number; online: number; data: unknown }
+  | {
+      type: "host";
+      at: number;
+      version: number;
+      /** Этап игры: команда с `expect` другого этапа не выполняется (второй пульт, двойное касание). */
+      moment: string;
+      paused: boolean;
+      restored: boolean;
+      players: number;
+      online: number;
+      offline: RoomOfflinePlayer[];
+      loop: RoomLoopStats;
+      data: unknown;
+    }
+  | { type: "closed"; at: number; reason: RoomClosedReason };
+
+/**
+ * Почему поток комнаты закрыт: `finished` — сессию завершили; `unloaded` — комнату выгрузили или сервер
+ * останавливается (переподключиться); `removed` — участника убрали или за него вошёл другой телефон (не переподключаться
+ * этим устройством); `replaced` — это устройство открыло такой же поток в четвёртый раз, старый закрыт (не переподключаться
+ * самому: «Открыто в другой вкладке — Открыть здесь»); `busy` — у устройства уже три таких потока, а «Открыть здесь» не
+ * нажимали (тот же экран «Открыто в другой вкладке»; «Открыть здесь» — подписка с `take`); `abandoned` — в комнате 12 часов
+ * не было игры и пульт ничего не делал (экран — «Ждём ведущего»; клиент раз в минуту пробует снова; поднимает её пачка с
+ * событиями, команда или действие пульта).
+ */
+export type RoomClosedReason = "finished" | "unloaded" | "removed" | "replaced" | "busy" | "abandoned";
+
 export interface Answer {
   id: string;
   step: number;

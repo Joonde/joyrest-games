@@ -60,6 +60,43 @@ export function sseFrame(event: object): string {
 /** Медленный телефон, у которого накопилось больше этого, отключается — переподключится со свежим снимком. */
 export const STREAM_BACKLOG_BYTES = 512 * 1024;
 
+/**
+ * Открытые потоки событий для остановки приложения: `closeAll` сначала вызывает закрытие потока (отписка от Hub и
+ * «я жив»), потом заканчивает ответ; после начала остановки `admit()` — false (новый поток получает 503).
+ */
+export class OpenStreams<R extends { destroyed: boolean; writableEnded: boolean; end(): unknown }> {
+  private readonly open = new Map<R, () => void>();
+  private closing = false;
+
+  admit(): boolean {
+    return !this.closing;
+  }
+
+  add(res: R, close: () => void): void {
+    this.open.set(res, close);
+  }
+
+  delete(res: R): void {
+    this.open.delete(res);
+  }
+
+  get size(): number {
+    return this.open.size;
+  }
+
+  closeAll(): void {
+    this.closing = true;
+    for (const [res, close] of [...this.open]) {
+      close();
+      if (!res.destroyed && !res.writableEnded) res.end();
+    }
+    this.open.clear();
+  }
+}
+
+/** Канал Hub для всех комнат: за игрока вошёл другой телефон (`{ type: "moved", pid }`). */
+export const DEVICES_CHANNEL = "devices";
+
 /** Подписчики по каналам: session:<id>, participants:<id>, answers:<id>. Один процесс app. */
 export class Hub {
   private readonly channels = new Map<string, Set<Listener>>();
@@ -71,9 +108,14 @@ export class Hub {
       this.channels.set(channel, set);
     }
     set.add(listener);
+    const own = set;
+    let done = false;
+    // Повторная отписка ничего не делает: иначе она стёрла бы канал, в котором уже новые подписчики.
     return () => {
-      set.delete(listener);
-      if (set.size === 0) this.channels.delete(channel);
+      if (done) return;
+      done = true;
+      own.delete(listener);
+      if (own.size === 0 && this.channels.get(channel) === own) this.channels.delete(channel);
     };
   }
 
@@ -551,6 +593,15 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
   const screens = new Map<string, ScreenStatus>();
   /** Голоса зала по QR: сессия → шаг и голос каждого устройства (последний голос считается). */
   const audience = new Map<string, { step: number; votes: Map<string, number> }>();
+  /**
+   * Открытые потоки событий. Остановка приложения (`preClose`) закрывает их до закрытия сервера: иначе Fastify ждал бы
+   * их окончания (сервер закрывается раньше хуков onClose) и приложение висело бы до принудительной остановки.
+   * Браузер переподключится к новой версии сам.
+   */
+  // Поток → его закрытие (отписка от Hub и «я жив»): при остановке сначала отписка, потом конец ответа — событие Hub,
+  // пришедшее после, в закрытый ответ уже не пишется. Потоки, открытые после начала остановки, сразу получают 503.
+  const openStreams = new OpenStreams<FastifyReply["raw"]>();
+  app.addHook("preClose", async () => openStreams.closeAll());
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -1236,6 +1287,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (outcome === "not-found") return fail(reply, 404, "not-found");
       if (outcome === "failed-precondition") return fail(reply, 409, "failed-precondition");
       publishParticipant(id, outcome);
+      // Быстрый канал: прежний телефон этого игрока больше не он — его личный поток комнаты закрывается.
+      hub.publish(`device:${id}`, { type: "moved", pid });
+      // И всем комнатам сразу (кэш входа общий): прежний телефон не принимается и тогда, когда комната выгружена.
+      hub.publish(DEVICES_CHANNEL, { type: "moved", pid });
       reply.header("Set-Cookie", deviceCookie(token));
       request.log.info({ live: "claim" }, "live");
       return { ok: true, uid: pid };
@@ -1426,6 +1481,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
      * а браузер по нему видит, что поток жив.
      */
     async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
+      // Приложение останавливается (вход проверяли, пока шла остановка): поток не открываем — браузер повторит.
+      if (!openStreams.admit()) {
+        reply.code(503).send({ error: "unavailable" });
+        return;
+      }
       // Продление входа (Set-Cookie от проверки сеанса) — иначе после hijack оно не дойдёт до браузера.
       const cookie = reply.getHeader("set-cookie");
       reply.hijack();
@@ -1437,8 +1497,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         Connection: "keep-alive",
         ...(cookie !== undefined ? { "Set-Cookie": cookie as string | string[] } : {}),
       });
+      // Ошибка записи (телефон ушёл) — не исключение процесса: поток просто закроется.
+      res.on("error", () => undefined);
+      const gone = () => res.destroyed || res.writableEnded;
       const send = (event: object) => {
-        if (res.destroyed) return;
+        if (gone()) return;
         if (res.writableLength > STREAM_BACKLOG_BYTES) {
           res.destroy();
           return;
@@ -1456,12 +1519,14 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         // Именованное событие, а не комментарий: браузер его видит и понимает, что связь жива
         // (комментарий EventSource молча пропускает — «повисший» поток не заметить). `data:1` без
         // пробела — сценарии нагрузки читают только строки «data: {…}».
-        if (!res.destroyed) res.write("event: ping\ndata:1\n\n");
+        if (!gone()) res.write("event: ping\ndata:1\n\n");
       }, keepAliveMs);
       const close = () => {
         clearInterval(ping);
         unsubscribe();
+        openStreams.delete(res);
       };
+      openStreams.add(res, close);
       // Закрытие ответа надёжнее закрытия запроса; телефон мог уйти, пока мы проверяли вход.
       res.on("close", close);
       if (res.destroyed) {
@@ -1474,7 +1539,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         for (const event of queued) send(event);
       } catch {
         close();
-        res.end();
+        if (!gone()) res.end();
       }
     }
 

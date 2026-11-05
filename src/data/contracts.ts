@@ -624,6 +624,15 @@ export interface RoomsRepository {
    * ведущий (`moment` из сводки пульта): игра ушла дальше — отказ `failed-precondition` (второй пульт, двойное касание).
    */
   command(sessionId: string, cmd: string, args?: unknown, options?: { expect?: string }): Promise<unknown>;
-  /** Поток комнаты: сразу снимок, дальше события; обрыв — переподключение со свежим снимком. */
-  subscribe(sessionId: string, kind: RoomStreamKind, onEvent: (event: RoomStreamEvent) => void, onError: (error: Error) => void): Unsubscribe;
+  /**
+   * Поток комнаты: сразу снимок, дальше события; обрыв — переподключение со свежим снимком. `take` — «Открыть здесь» после
+   * «Открыто в другой вкладке» (`busy` / `replaced`): самый старый такой поток этого устройства закроется.
+   */
+  subscribe(
+    sessionId: string,
+    kind: RoomStreamKind,
+    onEvent: (event: RoomStreamEvent) => void,
+    onError: (error: Error) => void,
+    options?: { take?: boolean },
+  ): Unsubscribe;
 }

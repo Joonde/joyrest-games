@@ -390,7 +390,7 @@ export class RoomManager {
       // Время активности — и по сессии: пульт что-то делал (лобби с утра, «Начать игру» вечером) — снимок помнит только
       // игру, и без этого цикл через 100 мс снова выгрузил бы комнату как забытую.
       const idle = Number(row.idle_ms);
-      void idle;
+      if (Number.isFinite(idle)) room.sessionActive(now - Math.max(0, idle));
       entry = created;
       this.rooms.set(id, created);
       for (const b of buffered) this.onHub(created, b.channel, b.event);

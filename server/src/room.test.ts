@@ -152,6 +152,11 @@ describe("быстрый канал: комната без базы", () => {
     expect(room.input("v", batch(1, [{ t: "tap", n: 2 }]), 0)).toMatchObject({ ok: true });
     room.upsertParticipant({ id: "v", name: "Вера К.", kind: "player", teamId: "t1" }, 0);
     expect((room.hostEvent(0) as { data: { top: Array<{ name: string }> } }).data.top[0]?.name).toBe("Вера К.");
+    // «Я на связи» медленного пути — то же событие без перемен: сводки не пересылаются.
+    const version = room.version;
+    room.upsertParticipant({ id: "v", name: "Вера К.", kind: "player", teamId: "t1" }, 0);
+    room.upsertParticipant({ id: "t1", name: "Лисы", kind: "team", teamId: null }, 0);
+    expect(room.version).toBe(version);
     room.removeParticipant("v");
     expect(room.input("v", batch(2), 0)).toMatchObject({ ok: false, status: 403 });
   });

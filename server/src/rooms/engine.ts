@@ -315,12 +315,15 @@ export class Room {
   /** Новый или изменённый участник сессии (события Hub `participants:<id>`). */
   upsertParticipant(p: { id: string; name: string; kind: "player" | "team"; teamId: string | null }, now: number): void {
     if (p.kind === "team") {
+      if (this.teams.get(p.id) === p.name) return;
       this.teams.set(p.id, p.name);
       this.changed();
       return;
     }
     const known = this.players.get(p.id);
     if (known) {
+      // «Я на связи» медленного пути (seenAt) приходит тем же событием — без перемен в имени и команде сводки не трогаем.
+      if (known.name === p.name && known.team === p.teamId) return;
       known.name = p.name;
       known.team = p.teamId;
       this.playerList = null;

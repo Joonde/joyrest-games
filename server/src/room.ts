@@ -116,7 +116,7 @@ export class RoomManager {
     private readonly sql: Sql,
     private readonly hub: Hub,
     private readonly log: FastifyBaseLogger,
-    options: RoomsOptions,
+    options: Omit<RoomsOptions, "sql" | "hub" | "isSite">,
   ) {
     this.now = options.now ?? Date.now;
     this.games = options.games ?? ROOM_GAMES;

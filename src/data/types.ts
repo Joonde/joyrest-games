@@ -461,6 +461,59 @@ export interface Participant {
   seenAt?: number | null;
 }
 
+// ------------------------------------------------------------ быстрый канал (комнаты)
+// CLAUDE.md, «Быстрый канал (комнаты)»: игры с непрерывными нажатиями идут через игровую комнату в памяти сервера.
+
+/** Событие телефона в пачке: `t` — вид события, `ago` — сколько мс назад оно случилось (сервер верит не дальше 4 с). */
+export interface RoomInputEvent {
+  t: string;
+  ago?: number;
+  [field: string]: unknown;
+}
+
+/** Ответ сервера на пачку: часы сервера, как часто слать пачки, пауза, сколько событий срезал лимит, повтор ли. */
+export interface RoomInputReply {
+  at: number;
+  every: number;
+  paused: boolean;
+  dropped: number;
+  dup: boolean;
+}
+
+/** Задержка общего цикла комнат на сервере (последняя и худшая за 10 с), мс. */
+export interface RoomLoopStats {
+  lagMs: number;
+  maxLagMs: number;
+}
+
+export interface RoomOfflinePlayer {
+  pid: string;
+  name: string;
+}
+
+/** Какой поток комнаты: личный телефона, экрана зала или пульта. */
+export type RoomStreamKind = "me" | "screen" | "host";
+
+/** Событие потока комнаты (`GET /api/stream/room/:id/me|screen|host`); `at` — часы сервера. */
+export type RoomStreamEvent =
+  | { type: "snapshot"; at: number; paused: boolean; every: number; offlineMs: number; data: unknown }
+  | { type: "event"; at: number; data: unknown }
+  | { type: "room"; at: number; paused: boolean }
+  | { type: "screen"; at: number; version: number; paused: boolean; players: number; online: number; data: unknown }
+  | {
+      type: "host";
+      at: number;
+      version: number;
+      paused: boolean;
+      restored: boolean;
+      players: number;
+      online: number;
+      offline: RoomOfflinePlayer[];
+      loop: RoomLoopStats;
+      data: unknown;
+    }
+  | { type: "closed"; at: number; reason: "finished" | "unloaded" };
+
 export interface Answer {
   id: string;
   step: number;

@@ -7,7 +7,8 @@
  * обновляется событиями Hub `participants:<id>` (и `device:<id>` — за игрока вошёл другой телефон); завершение
  * сессии и смена блока вечера приходят событиями `session:<id>`. Один общий цикл (~100 мс) на все комнаты: игра,
  * «без связи», сводки экрана (до 5 раз в секунду) и пульта (раз в секунду), снимки в `room_snapshots` (на контрольных
- * точках и раз в 10 с, если менялось), отметка активности в `sessions.updated_at` раз в минуту — только пока идут
+ * точках и раз в 10 с, если менялось; не на паузе и без перемен — метка «жив» `savedAt` раз в 10 с), отметка активности
+ * в `sessions.updated_at` раз в минуту — только пока идут
  * пачки с событиями и команды (выкладка ждёт конца игры, брошенная вкладка её не держит), выгрузка через 15 минут без
  * активности и подписчиков. После перезапуска комната поднимается из снимка на паузе — ведущий продолжает `resume`.
  *
@@ -15,6 +16,7 @@
  * `GET /api/rooms/:id/me|screen|host` (снимок для опроса без потока), потоки `GET /api/stream/room/:id/me|screen|host`.
  * Права — функции `src/data/permissions.ts`. В журнал — только числа и виды действий, без имён.
  */
+import { createHash } from "node:crypto";
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { parseProgram } from "../../src/core/program";
@@ -44,6 +46,8 @@ export interface RoomsOptions {
   touchEveryMs?: number;
   /** Комнат в памяти — не больше. */
   maxRooms?: number;
+  /** Потоков у одной комнаты — не больше (по умолчанию `STREAMS_PER_ROOM`; тесты ставят меньше). */
+  streamsPerRoom?: number;
   /** Включить проверочную игру `room-check` (только test: `roomCheckEnabled`). */
   check?: boolean;
   /** Игры комнат (тесты подменяют; по умолчанию — `roomGames({ check })`). */
@@ -63,7 +67,11 @@ export const IDENTITY_TTL_MS = 30_000;
 const IDENTITY_MAX = 20_000;
 /** Неизвестный комнате телефон проверяем по базе не чаще (вошёл, а событие Hub ещё не дошло). */
 export const MEMBER_RECHECK_MS = 1000;
-/** Потоков комнаты у одного устройства (ТЗ: не больше двух на телефон; третий — переподключение): лишний — старый закрыт. */
+/**
+ * Потоков одного вида у одного устройства (ТЗ: не больше двух на телефон; третий — переподключение): лишний — старый
+ * закрыт (`replaced`). Устройство — cookie сеанса или устройства, а не uid: у ведущего один uid на пульт в телефоне,
+ * планшете и экран на ноутбуке, и переподключение пульта не должно закрывать экран.
+ */
 export const STREAMS_PER_DEVICE = 3;
 /** Потоков у одной комнаты: 500 гостей по два потока и экраны с пультами. */
 export const STREAMS_PER_ROOM = 1200;
@@ -93,7 +101,11 @@ interface ParticipantRoomRow {
 interface Entry {
   room: Room;
   lastSnapAt: number;
+  /** Когда последний раз писали снимок или метку «жив» (после сбоя простой считается от неё). */
+  lastAliveAt: number;
   lastTouchAt: number;
+  /** Сколько активностей комнаты уже отмечено в `updated_at` (создание комнаты — не активность). */
+  touchedActivity: number;
   saving: Promise<void> | null;
   again: boolean;
   /** Следующий снимок — «спокойная выгрузка» (`clean`). */
@@ -128,8 +140,8 @@ export class RoomManager {
   private readonly loading = new Map<string, Promise<LoadResult>>();
   /** Выгружаемые комнаты: пока снимок пишется, новая загрузка ждёт его (иначе поднимется прежний снимок). */
   private readonly unloading = new Map<string, Promise<void>>();
-  /** Потоки устройств: `комната:uid` → открытые (старые первыми). */
-  private readonly deviceStreams = new Map<string, RoomListener[]>();
+  /** Потоки устройств: `комната:вид:устройство` → открытые (старые первыми) и их отписка от комнаты. */
+  private readonly deviceStreams = new Map<string, Array<{ listener: RoomListener; detach: () => void }>>();
   /** Кто шлёт пачки: cookie → uid (без базы на каждую пачку); uid → ключи cookie (сбросить при перехвате). */
   private readonly identities = new Map<string, { uid: string; until: number }>();
   private readonly identityKeys = new Map<string, Set<string>>();
@@ -148,7 +160,8 @@ export class RoomManager {
 
   constructor(
     private readonly sql: Sql,
-    private readonly hub: Hub,
+    /** Hub сессий (тесты публикуют в него события). */
+    readonly hub: Hub,
     private readonly log: FastifyBaseLogger,
     options: Omit<RoomsOptions, "sql" | "hub" | "isSite">,
   ) {
@@ -264,7 +277,18 @@ export class RoomManager {
         loop: () => this.loopStats(),
         onError: (where, error) => this.gameError(errorsAt, where, error),
       });
-      const created: Entry = { room, lastSnapAt: now, lastTouchAt: -Infinity, saving: null, again: false, clean: false, stop, errorsAt };
+      const created: Entry = {
+        room,
+        lastSnapAt: now,
+        lastAliveAt: now,
+        lastTouchAt: -Infinity,
+        touchedActivity: room.activityCount,
+        saving: null,
+        again: false,
+        clean: false,
+        stop,
+        errorsAt,
+      };
       entry = created;
       this.rooms.set(id, created);
       for (const b of buffered) this.onHub(created, b.channel, b.event);
@@ -355,13 +379,13 @@ export class RoomManager {
     this.identityKeys.delete(uid);
   }
 
-  /** Опрос снимка без потока: не чаще раза в секунду с устройства (запас 5). */
-  pollAllowed(uid: string, now: number): boolean {
-    let bucket = this.polls.get(uid);
+  /** Опрос снимка без потока: не чаще раза в секунду на комнату, вид и устройство (запас 5). */
+  pollAllowed(key: string, now: number): boolean {
+    let bucket = this.polls.get(key);
     if (!bucket) {
       if (this.polls.size > IDENTITY_MAX) this.polls.clear();
       bucket = new TokenBucket(POLL_BURST, POLL_PER_SECOND, now);
-      this.polls.set(uid, bucket);
+      this.polls.set(key, bucket);
     }
     return bucket.take(1, now) === 1;
   }
@@ -384,26 +408,28 @@ export class RoomManager {
   }
 
   /**
-   * Поток устройства: не больше `STREAMS_PER_DEVICE` у одного устройства в комнате — лишний (обычно «повисший» после
-   * смены сети) закрывается (`replaced`); у комнаты — не больше `STREAMS_PER_ROOM` (дальше — отказ 429).
+   * Поток устройства: не больше `STREAMS_PER_DEVICE` одного вида у одного устройства в комнате — лишний (обычно
+   * «повисший» после смены сети) сначала отписывается от комнаты (в закрытый поток сводки больше не пишутся), потом
+   * получает «закрыто» (`replaced`) и закрывается. Число потоков комнаты проверяет маршрут до ответа (429).
    */
-  attachStream(room: Room, uid: string, listener: RoomListener, attach: () => () => void): (() => void) | "full" {
-    if (room.listeners >= STREAMS_PER_ROOM) return "full";
-    const key = `${room.id}:${uid}`;
+  attachStream(room: Room, device: string, listener: RoomListener, attach: () => () => void): () => void {
+    const key = `${room.id}:${device}`;
     const list = this.deviceStreams.get(key) ?? [];
     while (list.length >= STREAMS_PER_DEVICE) {
       const old = list.shift();
-      old?.send({ type: "closed", at: this.now(), reason: "replaced" });
-      old?.end();
+      if (!old) break;
+      old.detach();
+      old.listener.send({ type: "closed", at: this.now(), reason: "replaced" });
+      old.listener.end();
     }
-    list.push(listener);
+    const item = { listener, detach: attach() };
+    list.push(item);
     this.deviceStreams.set(key, list);
-    const detach = attach();
     return () => {
-      detach();
+      item.detach();
       const current = this.deviceStreams.get(key);
       if (!current) return;
-      const rest = current.filter((l) => l !== listener);
+      const rest = current.filter((l) => l !== item);
       if (rest.length > 0) this.deviceStreams.set(key, rest);
       else this.deviceStreams.delete(key);
     };
@@ -417,9 +443,14 @@ export class RoomManager {
       const room = entry.room;
       room.tick(now);
       if (room.checkpointWanted || (room.version !== room.savedVersion && now - entry.lastSnapAt >= this.snapshotEveryMs)) void this.save(entry);
+      // Не на паузе и без перемен — метка «жив» раз в 10 с: после сбоя простой считается от неё, а не от снимка,
+      // записанного, может быть, задолго до сбоя (иначе тихое время до сбоя прибавилось бы к дедлайнам).
+      else if (!room.paused && room.savedVersion >= 0 && now - entry.lastAliveAt >= this.snapshotEveryMs) void this.alive(entry, now);
       // Игра идёт (пачки с событиями и команды) — сессия «живая» для выкладки: раз в минуту обновляем updated_at.
-      // Пустые пачки («я на связи») — не игра: забытая вкладка не держит выкладку и не продлевает брошенную игру.
-      if (room.lastActivity > entry.lastTouchAt && now - entry.lastTouchAt >= this.touchEveryMs) {
+      // Пустые пачки («я на связи»), опросы, подписки и само создание комнаты — не игра: забытая вкладка не держит
+      // выкладку и после выгрузки, подняв комнату снова, тоже.
+      if (room.activityCount > entry.touchedActivity && now - entry.lastTouchAt >= this.touchEveryMs) {
+        entry.touchedActivity = room.activityCount;
         entry.lastTouchAt = now;
         void this.touch(room.id);
       }
@@ -437,6 +468,27 @@ export class RoomManager {
     } catch (error) {
       this.log.warn({ room: "touch", err: message(error) }, "rooms");
     }
+  }
+
+  /** Метка «жив»: в снимке только `savedAt` (без игры — дёшево). Пишется снимок — метка не нужна. */
+  private alive(entry: Entry, now: number): Promise<void> {
+    entry.lastAliveAt = now;
+    if (entry.saving) return entry.saving;
+    const id = entry.room.id;
+    entry.saving = (async () => {
+      try {
+        await this.sql`update room_snapshots set data = jsonb_set(data, '{savedAt}', to_jsonb(${now}::bigint)) where session_id = ${id}`;
+      } catch (error) {
+        this.log.warn({ room: "alive", err: message(error) }, "rooms");
+      } finally {
+        entry.saving = null;
+        if (entry.again) {
+          entry.again = false;
+          await this.save(entry);
+        }
+      }
+    })();
+    return entry.saving;
   }
 
   /** Снимок в базу; пока пишется прошлый — следующий встанет в очередь (не больше одного). */
@@ -457,6 +509,7 @@ export class RoomManager {
       return Promise.resolve();
     }
     entry.lastSnapAt = now;
+    entry.lastAliveAt = now;
     entry.saving = (async () => {
       try {
         await this.sql`
@@ -525,6 +578,7 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
   const { sql } = options;
   const now = options.now ?? Date.now;
   const keepAliveMs = options.keepAliveMs ?? 25_000;
+  const streamsPerRoom = options.streamsPerRoom ?? STREAMS_PER_ROOM;
   const manager = new RoomManager(sql, options.hub, app.log, options);
   options.onManager?.(manager);
   // preClose, а не onClose: Fastify закрывает сервер раньше onClose и ждёт открытые соединения — поток событий
@@ -536,6 +590,13 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
 
     function fail(reply: FastifyReply, status: number, code: string, reason?: string) {
       return reply.code(status).send(reason ? { error: code, reason } : { error: code });
+    }
+
+    /** Устройство запроса: отпечаток cookie сеанса или устройства (не сама cookie); без cookie — uid. */
+    function deviceKeyOf(request: FastifyRequest, uid: string): string {
+      const cookie = request.headers.cookie;
+      const raw = `${readCookie(cookie, SESSION_COOKIE) ?? ""}|${readCookie(cookie, DEVICE_COOKIE) ?? ""}`;
+      return raw === "|" ? `u:${uid}` : createHash("sha256").update(raw).digest("base64url").slice(0, 22);
     }
 
     async function quickUid(request: FastifyRequest, reply: FastifyReply): Promise<string | null> {
@@ -650,14 +711,16 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
       api.get<{ Params: { id: string } }>(`/api/rooms/:id/${kind}`, async (request, reply) => {
         const ok = await watchable(kind, request, reply);
         if (!ok) return reply;
-        if (!manager.pollAllowed(ok.uid, now())) return fail(reply, 429, "resource-exhausted");
+        if (!manager.pollAllowed(`${ok.room.id}:${kind}:${deviceKeyOf(request, ok.uid)}`, now())) return fail(reply, 429, "resource-exhausted");
         return snapshotOf(kind, ok.room, ok.uid);
       });
 
       api.get<{ Params: { id: string } }>(`/api/stream/room/:id/${kind}`, async (request, reply) => {
         const ok = await watchable(kind, request, reply);
         if (!ok) return reply;
-        if (ok.room.listeners >= STREAMS_PER_ROOM) return fail(reply, 429, "resource-exhausted");
+        // Проверка до ответа: дальше до подключения нет ожиданий, число не изменится (отказ — 429, а не молчаливое закрытие).
+        if (ok.room.listeners >= streamsPerRoom) return fail(reply, 429, "resource-exhausted");
+        const device = `${kind}:${deviceKeyOf(request, ok.uid)}`;
         openRoomStream(reply, keepAliveMs, (listener) => {
           // Комнату выгрузили, пока проверяли вход: «закрыто» — браузер переподключится к новой.
           if (manager.loaded(ok.room.id) !== ok.room) {
@@ -665,12 +728,7 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
             listener.end();
             return () => undefined;
           }
-          const attached = manager.attachStream(ok.room, ok.uid, listener, () => ok.room.listen(kind, listener, now(), ok.uid));
-          if (attached === "full") {
-            listener.end();
-            return () => undefined;
-          }
-          return attached;
+          return manager.attachStream(ok.room, device, listener, () => ok.room.listen(kind, listener, now(), ok.uid));
         });
         return reply;
       });
@@ -684,7 +742,7 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
  * Поток событий комнаты: как в live.ts — `no-store, no-transform`, `X-Accel-Buffering: no`, «я жив» событием `ping`,
  * отставший больше чем на 512 КБ отключается (переподключится со свежим снимком).
  */
-function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach: (listener: RoomListener) => () => void): void {
+export function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach: (listener: RoomListener) => () => void): void {
   const cookie = reply.getHeader("set-cookie");
   reply.hijack();
   const res = reply.raw;
@@ -695,9 +753,13 @@ function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach: (liste
     Connection: "keep-alive",
     ...(cookie !== undefined ? { "Set-Cookie": cookie as string | string[] } : {}),
   });
+  // Запись в закрытый поток (`end()` уже вызван, а «close» придёт, только когда буфер допишется — у плохой сети через
+  // минуты) — не исключение процесса: проверяем `writableEnded`, а ошибки ответа гасим здесь.
+  res.on("error", () => undefined);
+  const gone = () => res.destroyed || res.writableEnded;
   const listener: RoomListener = {
     send(event) {
-      if (res.destroyed) return;
+      if (gone()) return;
       if (res.writableLength > STREAM_BACKLOG_BYTES) {
         res.destroy();
         return;
@@ -705,11 +767,11 @@ function openRoomStream(reply: FastifyReply, keepAliveMs: number, attach: (liste
       res.write(sseFrame(event));
     },
     end() {
-      if (!res.destroyed) res.end();
+      if (!gone()) res.end();
     },
   };
   const ping = setInterval(() => {
-    if (!res.destroyed) res.write("event: ping\ndata:1\n\n");
+    if (!gone()) res.write("event: ping\ndata:1\n\n");
   }, keepAliveMs);
   let detach: () => void = () => undefined;
   const close = () => {

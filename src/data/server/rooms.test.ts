@@ -3,7 +3,7 @@ import { isPermanentError } from "../retry";
 import { firebaseRoomsRepository } from "../rooms";
 import type { RoomStreamEvent } from "../types";
 import { ApiError } from "./api";
-import { createRoomSender, ROOM_BATCH_BYTES, ROOM_BATCH_MAX, ROOM_RETRY_MAX, serverRoomsRepository, splitBatches, subscribeRoom, type SenderDeps, type SubscribeDeps } from "./rooms";
+import { createRoomSender, ROOM_BATCH_BYTES, ROOM_BATCH_MAX, ROOM_FORBIDDEN_BEATS, ROOM_RETRY_MAX, serverRoomsRepository, splitBatches, subscribeRoom, type SenderDeps, type SubscribeDeps } from "./rooms";
 import type { StreamOptions } from "./stream";
 
 /** Часы и таймеры понарошку: `advance(ms)` двигает время и запускает созревшие таймеры. */
@@ -42,7 +42,7 @@ function fakeDeps(post: SenderDeps["post"]) {
   return { deps, advance, pending: () => timers.size };
 }
 
-type Body = { stream: string; seq?: number; events: Array<{ t: string; ago: number; [k: string]: unknown }> };
+type Body = { stream: string; seq?: number; retry?: boolean; events: Array<{ t: string; ago: number; [k: string]: unknown }> };
 
 describe("быстрый канал: отправитель пачек телефона", () => {
   it("пустая пачка раз в секунду — «я на связи», без номера; первая — со сдвигом до 0,3 с", async () => {
@@ -162,6 +162,53 @@ describe("быстрый канал: отправитель пачек теле�
     expect(sent.length).toBe(after);
   });
 
+  it("повтор пачки помечен `retry` (первая попытка — без пометки); `stale` в ответе — без повтора", async () => {
+    const sent: Body[] = [];
+    let fails = 1;
+    const replies: unknown[] = [];
+    const { deps, advance } = fakeDeps(async (_path, body) => {
+      sent.push(JSON.parse(JSON.stringify(body)) as Body);
+      if ((body as Body).events.length > 0 && fails-- > 0) throw new ApiError("unavailable", 0);
+      return (body as Body).events.length > 0 ? { stale: true } : {};
+    });
+    const sender = createRoomSender("s1", { onReply: (r) => replies.push(r) }, deps);
+    sender.push({ t: "tap" }, { now: true });
+    await advance(600);
+    const taps = sent.filter((b) => b.events.length > 0);
+    expect(taps.map((b) => b.retry)).toEqual([undefined, true]);
+    expect(replies.some((r) => (r as { stale?: boolean }).stale === true)).toBe(true);
+    await advance(10_000);
+    expect(sent.filter((b) => b.events.length > 0)).toHaveLength(2);
+    sender.stop();
+  });
+
+  it("«не игрок» у «я на связи» не тратит повторы пачек с событиями; 5 раз подряд у пустых — остановка", async () => {
+    const errors: Error[] = [];
+    let beatsForbidden = true;
+    let tapForbidden = 2;
+    const sent: Body[] = [];
+    const { deps, advance } = fakeDeps(async (_path, body) => {
+      const b = JSON.parse(JSON.stringify(body)) as Body;
+      sent.push(b);
+      if (b.events.length === 0 && beatsForbidden) throw new ApiError("permission-denied", 403);
+      if (b.events.length > 0 && tapForbidden-- > 0) throw new ApiError("permission-denied", 403);
+      return {};
+    });
+    const sender = createRoomSender("s1", { onError: (e) => errors.push(e) }, deps);
+    // Три «я на связи» с отказом (вход ещё не дошёл), потом пачка с событиями — у неё свои два повтора.
+    await advance(150 + 2000);
+    beatsForbidden = false;
+    sender.push({ t: "tap" }, { now: true });
+    await advance(4000);
+    expect(errors).toEqual([]);
+    expect(sent.filter((b) => b.events.length > 0)).toHaveLength(3);
+    // Участника убрали: пустые пачки получают 403 подряд — остановка.
+    beatsForbidden = true;
+    await advance((ROOM_FORBIDDEN_BEATS + 1) * 1000);
+    expect(errors).toHaveLength(1);
+    sender.stop();
+  });
+
   it("сервер задаёт интервал пачек (`every`); больше 64 событий — пачка уходит сразу", async () => {
     const sent: Body[] = [];
     const { deps, advance } = fakeDeps(async (_path, body) => {
@@ -260,6 +307,17 @@ describe("быстрый канал: поток и команды на клие�
     expect(f.closed()).toBe(true);
     f.options().onEvent({ type: "event", at: 4, data: {} });
     expect(got).toHaveLength(3);
+  });
+
+  it("«closed: replaced»: личный поток останавливается (новая вкладка), экран и пульт — нет (переподключатся сами)", () => {
+    for (const kind of ["me", "screen", "host"] as const) {
+      const f = fakeOpen();
+      const errors: Error[] = [];
+      subscribeRoom("s1", kind, () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
+      f.options().onEvent({ type: "closed", at: 1, reason: "replaced" });
+      expect(errors.length).toBe(kind === "me" ? 1 : 0);
+      expect(f.closed()).toBe(kind === "me");
+    }
   });
 
   it("опрос: снимок через GET; «не игрок» дважды и лимит — повторяемо, 409 и третий 403 — окончательно", async () => {

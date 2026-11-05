@@ -3,7 +3,9 @@
  * с непрерывными нажатиями живёт в памяти сервера, телефоны шлют пачки событий, обратно — личный поток телефона,
  * сводка экрана (до 5 раз в секунду) и сводка пульта (раз в секунду). Здесь — только чистая логика без базы и HTTP:
  * комнату ведёт `server/src/room.ts`. Время — только часы сервера; событие пачки помнит, сколько мс назад оно
- * случилось (`ago`): у свежей пачки — не дальше интервала пачки с запасом, у повтора старой — не дальше 4 с.
+ * случилось (`ago`): не раньше прихода предыдущей принятой пачки этого потока (минус запас), без неё — не дальше
+ * интервала пачки с запасом, и в любом случае не дальше 4 с. Пачка, пришедшая не в свой черёд (повтор, не по порядку),
+ * помечает события `delayed`: им можно верить меньше в играх «кто первый».
  */
 import { createHash, randomBytes } from "node:crypto";
 import type { RoomClosedReason, RoomInputEvent, RoomLoopStats, RoomOfflinePlayer, RoomStreamEvent } from "../../../src/data/types";
@@ -12,6 +14,8 @@ import type { RoomClosedReason, RoomInputEvent, RoomLoopStats, RoomOfflinePlayer
 export const MAX_AGO_MS = 4000;
 /** Запас к интервалу пачки для `ago` свежей пачки (разброс отправки 0–300 мс и сеть). */
 export const FRESH_AGO_SLACK_MS = 500;
+/** Пачка пришла позже предыдущей больше чем на интервал + столько — не в свой черёд (`delayed`). */
+export const DELAYED_SLACK_MS = 1000;
 /** Событий в одной пачке — не больше. */
 export const MAX_EVENTS_PER_BATCH = 64;
 /** Сколько номеров пачек одного потока телефона помним (повтор и пачки не по порядку). */
@@ -38,11 +42,16 @@ export interface RoomPlayer {
   team: string | null;
 }
 
-/** Событие пачки после проверки: `at` — момент события по часам сервера, `late` — `ago` больше допустимого. */
+/**
+ * Событие пачки после проверки: `at` — момент события по часам сервера, `late` — `ago` больше допустимого (обрезан),
+ * `delayed` — пачка пришла не в свой черёд (повтор после обрыва, не по порядку): `at` может быть раньше на до 4 с,
+ * и подделать это нельзя отличить от честного повтора — игра «кто первый» решает сама, верить ли.
+ */
 export interface RoomEvent {
   t: string;
   at: number;
   late: boolean;
+  delayed: boolean;
   [field: string]: unknown;
 }
 
@@ -109,6 +118,8 @@ export interface RoomGame<S> {
 
 export interface ParsedInput {
   stream: string;
+  /** Телефон повторяет пачку (прошлая попытка не дошла или ответ потерялся). */
+  retry: boolean;
   /** Номер пачки с событиями; у пустой пачки («я на связи») номера нет — null. */
   seq: number | null;
   events: RoomInputEvent[];
@@ -127,24 +138,54 @@ export function parseInput(body: unknown): ParsedInput | null {
   if (!Array.isArray(events) || events.length > MAX_EVENTS_PER_BATCH) return null;
   if (seq !== undefined && (typeof seq !== "number" || !Number.isSafeInteger(seq) || seq < 0)) return null;
   if (events.length > 0 && seq === undefined) return null;
+  if (body.retry !== undefined && typeof body.retry !== "boolean") return null;
   const parsed: RoomInputEvent[] = [];
   for (const raw of events) {
     if (!isRecord(raw) || typeof raw.t !== "string" || !EVENT_TYPE.test(raw.t)) return null;
     if (raw.ago !== undefined && (typeof raw.ago !== "number" || !Number.isFinite(raw.ago) || raw.ago < 0)) return null;
     parsed.push(raw as RoomInputEvent);
   }
-  return { stream, seq: typeof seq === "number" ? seq : null, events: parsed };
+  return { stream, retry: body.retry === true, seq: typeof seq === "number" ? seq : null, events: parsed };
 }
 
 /** Событие по часам сервера: `ago` сверх `maxAgo` не принимается — момент не раньше `now − maxAgo`, пометка `late`. */
-export function timedEvent(event: RoomInputEvent, now: number, maxAgo = MAX_AGO_MS): RoomEvent {
+export function timedEvent(event: RoomInputEvent, now: number, maxAgo = MAX_AGO_MS, delayed = false): RoomEvent {
   const ago = Math.round(event.ago ?? 0);
   const late = ago > maxAgo;
   const fields: Record<string, unknown> = { ...event };
   delete fields.ago;
   delete fields.at;
   delete fields.late;
-  return { ...fields, t: event.t, at: now - Math.min(ago, maxAgo), late };
+  delete fields.delayed;
+  return { ...fields, t: event.t, at: now - Math.min(ago, Math.max(0, maxAgo)), late, delayed };
+}
+
+/**
+ * Предел `ago` для пачки (docs/fast-room.md, «Время событий»).
+ * - Пачка в свой черёд (самый новый номер, не повтор): события случились после прошлой отправки этой страницы — а она
+ *   (пачка или «я на связи») пришла `prevRequestAt`; предел — max(интервал, время с прошлого запроса) + 0,5 с, не больше
+ *   4 с. Прошлый запрос был давно (телефон молчал, а не слал «я на связи» раз в интервал) — `delayed`.
+ * - Повтор (`retry`) или пачка не по порядку: события случились после того, как ушла ближайшая меньшая принятая пачка
+ *   (`prevBatchAt`); предел — время с её прихода + 0,5 с, не больше 4 с; нет такой — как у свежей. Всегда `delayed`.
+ * Так подделка (номер 1000, потом 999, 998 с `ago` 4000) не даёт раннего времени без пометки, а честный повтор
+ * потерянной пачки после 8 с ожидания не обрезается до 1,5 с.
+ */
+export function agoLimit(input: {
+  now: number;
+  every: number;
+  status: "newest" | "new";
+  retry: boolean;
+  prevBatchAt: number | null;
+  prevRequestAt: number | null;
+}): { maxAgo: number; delayed: boolean } {
+  const { now, every, status, retry, prevBatchAt, prevRequestAt } = input;
+  const fresh = every + FRESH_AGO_SLACK_MS;
+  if (status === "new" || retry) {
+    const maxAgo = prevBatchAt === null ? fresh : Math.max(fresh, now - prevBatchAt + FRESH_AGO_SLACK_MS);
+    return { maxAgo: Math.min(MAX_AGO_MS, maxAgo), delayed: true };
+  }
+  const since = prevRequestAt === null ? 0 : Math.max(0, now - prevRequestAt);
+  return { maxAgo: Math.min(MAX_AGO_MS, Math.max(every, since) + FRESH_AGO_SLACK_MS), delayed: since > every + DELAYED_SLACK_MS };
 }
 
 // ------------------------------------------------------------------ повторы и лимиты
@@ -158,7 +199,8 @@ export type SeqStatus = "newest" | "new" | "dup" | "stale";
 /** Номера пачек одного потока: повтор и пачки не по порядку — без повторной обработки. */
 export class SeqWindow {
   private max = -1;
-  private readonly seen = new Set<number>();
+  /** Принятые номера → когда пришли (часы сервера). */
+  private readonly seen = new Map<number, number>();
   lastUsed: number;
 
   constructor(now = 0) {
@@ -171,20 +213,33 @@ export class SeqWindow {
     return seq > this.max ? "newest" : "new";
   }
 
-  /** Пачка обработана — номер запомнен. */
-  commit(seq: number): void {
-    this.seen.add(seq);
+  /** Когда пришла ближайшая меньшая принятая пачка; нет такой в окне — null. */
+  prevArrival(seq: number): number | null {
+    let best = -1;
+    let at: number | null = null;
+    for (const [n, t] of this.seen) {
+      if (n < seq && n > best) {
+        best = n;
+        at = t;
+      }
+    }
+    return at;
+  }
+
+  /** Пачка обработана — номер запомнен (с временем прихода). */
+  commit(seq: number, now = this.lastUsed): void {
+    this.seen.set(seq, now);
     if (seq > this.max) {
       this.max = seq;
-      for (const old of this.seen) if (old <= this.max - SEQ_WINDOW) this.seen.delete(old);
+      for (const old of this.seen.keys()) if (old <= this.max - SEQ_WINDOW) this.seen.delete(old);
     }
   }
 
   /** check + commit: true — пачка новая. */
-  take(seq: number): boolean {
+  take(seq: number, now = this.lastUsed): boolean {
     const status = this.check(seq);
     if (status === "dup" || status === "stale") return false;
-    this.commit(seq);
+    this.commit(seq, now);
     return true;
   }
 }
@@ -234,6 +289,13 @@ interface PlayerRuntime extends RoomPlayer {
   streams: Map<string, SeqWindow>;
   requests: TokenBucket;
   events: TokenBucket;
+  /**
+   * Интервал пачки, сказанный телефону в последнем ответе, и прежний (с момента смены): у порога числа игроков телефон
+   * ещё одну-две пачки шлёт по старому интервалу — его следующий таймер уже назначен.
+   */
+  toldEvery: number;
+  prevEvery: number;
+  everyChangedAt: number;
 }
 
 export type InputResult =
@@ -305,8 +367,10 @@ export class Room {
   restored = false;
   /** Номер изменения: растёт на каждое `changed()`. */
   version = 0;
-  /** Последняя пачка с событиями или команда — для отметки активности и выгрузки. Пустые пачки не в счёт. */
+  /** Последняя пачка с событиями или команда — для выгрузки (создание комнаты считается её началом). Пустые пачки не в счёт. */
   lastActivity: number;
+  /** Сколько раз была активность (пачки, дошедшие до игры, и команды) — для отметки `updated_at`; создание — не активность. */
+  activityCount = 0;
   /** Номер изменения, записанный в последний снимок. */
   savedVersion = -1;
   /** Ждёт контрольная точка (запись снимка вне очереди 10 с). */
@@ -318,7 +382,6 @@ export class Room {
   private onlineCount = 0;
   private pausedAt = 0;
   private screenDirty = true;
-  private hostDirty = true;
   private lastScreenAt = -Infinity;
   private lastHostAt = -Infinity;
   private readonly me = new Map<string, Set<RoomListener>>();
@@ -381,6 +444,9 @@ export class Room {
       streams: new Map(),
       requests: new TokenBucket(REQUESTS_BURST, REQUESTS_PER_SECOND, now),
       events: new TokenBucket(this.game.eventsPerSecond * 2, this.game.eventsPerSecond, now),
+      toldEvery: 0,
+      prevEvery: 0,
+      everyChangedAt: -Infinity,
     };
     this.players.set(player.pid, runtime);
     this.playerList = null;
@@ -497,7 +563,6 @@ export class Room {
   changed(): void {
     this.version += 1;
     this.screenDirty = true;
-    this.hostDirty = true;
   }
 
   every(): number {
@@ -516,10 +581,19 @@ export class Room {
     if (player.requests.take(1, now) === 0) return { ok: false, status: 429, error: "resource-exhausted" };
     this.seen(player, now);
     const every = this.every();
+    // Интервал, по которому телефон формировал эту пачку: порог игроков мог смениться — тогда и прежний, пока не
+    // прошло двух прежних интервалов.
+    if (player.toldEvery !== every) {
+      player.prevEvery = player.toldEvery;
+      player.everyChangedAt = now;
+      player.toldEvery = every;
+    }
+    const recentPrev = now - player.everyChangedAt <= 2 * player.prevEvery + FRESH_AGO_SLACK_MS ? player.prevEvery : 0;
+    const formedEvery = Math.max(every, recentPrev);
     const reply = { ok: true as const, at: now, every, paused: this.paused, dropped: 0, dup: false, stale: false, active: false };
-    // «Я на связи»: номер не нужен и не тратится.
-    if (input.events.length === 0 || input.seq === null) return reply;
+    // Поток страницы — и для «я на связи»: время прошлого запроса — граница `ago` следующей пачки.
     let window = player.streams.get(input.stream);
+    const prevRequestAt = window ? window.lastUsed : null;
     if (!window) {
       window = new SeqWindow(now);
       player.streams.set(input.stream, window);
@@ -537,19 +611,32 @@ export class Room {
       }
     }
     window.lastUsed = now;
+    // «Я на связи»: номер не нужен и не тратится.
+    if (input.events.length === 0 || input.seq === null) return reply;
     const status = window.check(input.seq);
     if (status === "dup") return { ...reply, dup: true };
     if (status === "stale") return { ...reply, stale: true };
+    // На паузе события не идут в игру: время стоит (пачка — только «я на связи»), жетоны лимита не тратятся.
+    if (this.paused) {
+      window.commit(input.seq, now);
+      return { ...reply, dropped: input.events.length };
+    }
     const allowed = player.events.take(input.events.length, now);
     const dropped = input.events.length - allowed;
-    // На паузе события не идут в игру: время стоит (пачка — только «я на связи»).
-    if (this.paused || allowed === 0) {
-      window.commit(input.seq);
-      return { ...reply, dropped: this.paused ? input.events.length : dropped };
+    if (allowed === 0) {
+      window.commit(input.seq, now);
+      return { ...reply, dropped };
     }
-    // Свежая пачка — события не старше интервала пачки с запасом; повтор старой — не старше 4 с.
-    const maxAgo = status === "newest" ? Math.min(MAX_AGO_MS, every + FRESH_AGO_SLACK_MS) : MAX_AGO_MS;
-    const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now, maxAgo));
+    // События — не раньше прихода предыдущей принятой пачки (без неё — интервал пачки с запасом), не старше 4 с.
+    const { maxAgo, delayed } = agoLimit({
+      now,
+      every: formedEvery,
+      status,
+      retry: input.retry,
+      prevBatchAt: window.prevArrival(input.seq),
+      prevRequestAt,
+    });
+    const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now, maxAgo, delayed));
     let failed = false;
     try {
       this.game.onInput(this.state, { pid: player.pid, name: player.name, team: player.team }, events, this.context(now));
@@ -558,10 +645,15 @@ export class Room {
       this.onError("input", error);
     }
     // Номер учтён и при ошибке игры: повтор той же пачки упал бы так же; события — в `dropped`, телефон узнает.
-    window.commit(input.seq);
+    window.commit(input.seq, now);
     if (failed) return { ...reply, dropped: input.events.length };
-    this.lastActivity = now;
+    this.activity(now);
     return { ...reply, dropped, active: true };
+  }
+
+  private activity(now: number): void {
+    this.lastActivity = now;
+    this.activityCount += 1;
   }
 
   /**
@@ -575,7 +667,7 @@ export class Room {
       const known = this.commands.get(id);
       if (known) return known;
     }
-    this.lastActivity = now;
+    this.activity(now);
     let outcome: CommandOutcome;
     if (cmd === "pause") outcome = this.pause(now);
     else if (cmd === "resume") outcome = this.resume(now);
@@ -636,7 +728,8 @@ export class Room {
     if (!this.paused && this.game.tick) this.safely("tick", () => this.game.tick?.(this.state, this.context(now)));
     const screenEvery = 1000 / (this.game.screenHz ?? 5);
     if (this.screenDirty && this.screens.size > 0 && now - this.lastScreenAt >= screenEvery) this.flushScreen(now);
-    if (this.hostDirty && this.hosts.size > 0 && now - this.lastHostAt >= 1000) this.flushHost(now);
+    // Пульт — раз в секунду всегда (задержка цикла и память меняются и без игры), чаще не надо.
+    if (this.hosts.size > 0 && now - this.lastHostAt >= 1000) this.flushHost(now);
   }
 
   // -------------------------------------------------------------- потоки
@@ -693,7 +786,6 @@ export class Room {
   }
 
   private flushHost(now: number): void {
-    this.hostDirty = false;
     this.lastHostAt = now;
     const event = this.hostEvent(now);
     for (const l of this.hosts) l.send(event);

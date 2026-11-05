@@ -556,9 +556,16 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
    * их окончания (сервер закрывается раньше хуков onClose) и приложение висело бы до принудительной остановки.
    * Браузер переподключится к новой версии сам.
    */
-  const openStreams = new Set<FastifyReply["raw"]>();
+  // Поток → его закрытие (отписка от Hub и «я жив»): при остановке сначала отписка, потом конец ответа — событие Hub,
+  // пришедшее после, в закрытый ответ уже не пишется. Потоки, открытые после начала остановки, сразу получают 503.
+  const openStreams = new Map<FastifyReply["raw"], () => void>();
+  let streamsClosing = false;
   app.addHook("preClose", async () => {
-    for (const res of openStreams) if (!res.destroyed) res.end();
+    streamsClosing = true;
+    for (const [res, close] of [...openStreams]) {
+      close();
+      if (!res.destroyed && !res.writableEnded) res.end();
+    }
     openStreams.clear();
   });
 
@@ -1438,6 +1445,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
      * а браузер по нему видит, что поток жив.
      */
     async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
+      // Приложение останавливается (вход проверяли, пока шла остановка): поток не открываем — браузер повторит.
+      if (streamsClosing) {
+        reply.code(503).send({ error: "unavailable" });
+        return;
+      }
       // Продление входа (Set-Cookie от проверки сеанса) — иначе после hijack оно не дойдёт до браузера.
       const cookie = reply.getHeader("set-cookie");
       reply.hijack();
@@ -1449,8 +1461,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         Connection: "keep-alive",
         ...(cookie !== undefined ? { "Set-Cookie": cookie as string | string[] } : {}),
       });
+      // Ошибка записи (телефон ушёл) — не исключение процесса: поток просто закроется.
+      res.on("error", () => undefined);
+      const gone = () => res.destroyed || res.writableEnded;
       const send = (event: object) => {
-        if (res.destroyed) return;
+        if (gone()) return;
         if (res.writableLength > STREAM_BACKLOG_BYTES) {
           res.destroy();
           return;
@@ -1468,14 +1483,14 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         // Именованное событие, а не комментарий: браузер его видит и понимает, что связь жива
         // (комментарий EventSource молча пропускает — «повисший» поток не заметить). `data:1` без
         // пробела — сценарии нагрузки читают только строки «data: {…}».
-        if (!res.destroyed) res.write("event: ping\ndata:1\n\n");
+        if (!gone()) res.write("event: ping\ndata:1\n\n");
       }, keepAliveMs);
-      openStreams.add(res);
       const close = () => {
         clearInterval(ping);
         unsubscribe();
         openStreams.delete(res);
       };
+      openStreams.set(res, close);
       // Закрытие ответа надёжнее закрытия запроса; телефон мог уйти, пока мы проверяли вход.
       res.on("close", close);
       if (res.destroyed) {
@@ -1488,7 +1503,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         for (const event of queued) send(event);
       } catch {
         close();
-        res.end();
+        if (!gone()) res.end();
       }
     }
 

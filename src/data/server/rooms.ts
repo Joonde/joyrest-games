@@ -7,7 +7,10 @@
  * 500 телефонов не стучались в одну миллисекунду) шлёт пачку; пустая пачка — «я на связи», без номера. У каждой пачки
  * с событиями свой номер (`seq`) в потоке этой страницы (`stream`): повтор после обрыва сервер не обработает второй
  * раз. Пачку с событиями повторяем, пока не дойдёт (пауза 0,5 → 5 с, в очереди повтора — до 30, при переполнении
- * уходит самая старая); пустую — нет. `ago` считается заново перед каждой попыткой. Пачка больше 3,5 КБ делится.
+ * уходит самая старая), с пометкой `retry` (сервер берёт для неё предел `ago` 4 с, а события помечает `delayed`); пустую —
+ * нет. `ago` считается заново перед каждой попыткой. Пачка больше 3,5 КБ делится. Ответ `stale` (номер старше окна
+ * сервера в 64 пачки — обработана ли, сервер не знает) — пачка не повторяется: её события старше 4 с, игре уже не
+ * нужны; телефон узнаёт об этом из `onReply` (`stale: true`), повтор с новым номером мог бы засчитать их дважды.
  */
 import type { RoomSender, RoomSenderOptions, RoomsRepository } from "../contracts";
 import { errorCodeOf, isPermanentError, retryBriefly } from "../retry";
@@ -23,6 +26,11 @@ export const ROOM_BATCH_BYTES = 3500;
 export const ROOM_RETRY_MAX = 30;
 /** Отказ «не игрок» повторяем столько раз (вход мог ещё не записаться), потом — настоящая ошибка. */
 export const ROOM_FORBIDDEN_RETRIES = 2;
+/**
+ * «Не игрок» у «я на связи» подряд столько раз — настоящая ошибка (участника убрали). Отдельный счётчик: пустые пачки
+ * идут раз в секунду и не должны тратить повторы пачек с событиями.
+ */
+export const ROOM_FORBIDDEN_BEATS = 5;
 const RETRY_MS = [500, 1000, 2000, 4000, 5000];
 const JITTER_MS = 300;
 const INPUT_TIMEOUT_MS = 8000;
@@ -86,6 +94,7 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
   let stopped = false;
   let timer: unknown = null;
   let forbidden = 0;
+  let forbiddenBeats = 0;
   /** Пачки, ждущие повтора: при переполнении отменяется самая старая. */
   const retries: Array<{ handle: unknown }> = [];
 
@@ -121,10 +130,12 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
     const at = deps.now();
     // Сколько мс назад случилось событие — заново перед каждой попыткой.
     const events = items.map(({ event, at: t }) => ({ ...event, ago: Math.max(0, Math.round(at - t)) }));
-    deps.post(path, number === null ? { stream, events } : { stream, seq: number, events }).then(
+    const body = number === null ? { stream, events } : attempt > 0 ? { stream, seq: number, retry: true, events } : { stream, seq: number, events };
+    deps.post(path, body).then(
       (data) => {
         if (stopped) return;
-        forbidden = 0;
+        if (items.length > 0) forbidden = 0;
+        forbiddenBeats = 0;
         const reply = replyOf(data);
         if (reply.every >= 250 && reply.every <= 10_000) every = reply.every;
         options.onReply?.(reply);
@@ -134,10 +145,16 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
         // Пачка больше, чем принимает сервер: эту пачку не повторяем (повтор тоже не пройдёт), отправка идёт дальше.
         if (statusOf(error) === 413) return;
         const code = errorCodeOf(error);
+        // «Не игрок» у пустой пачки — не трата повторов: пачки с событиями ещё пробуем (вход мог не дойти до комнаты).
+        if (code === "permission-denied" && items.length === 0) {
+          forbiddenBeats += 1;
+          if (forbiddenBeats >= ROOM_FORBIDDEN_BEATS) fail(error);
+          return;
+        }
         if (code === "permission-denied" && forbidden < ROOM_FORBIDDEN_RETRIES) {
           // Вход мог ещё не дойти до комнаты (первая пачка сразу после входа) — пару раз пробуем снова.
           forbidden += 1;
-          if (items.length > 0 && number !== null) retry(items, attempt, number, 1000 * forbidden);
+          if (number !== null) retry(items, attempt, number, 1000 * forbidden);
           return;
         }
         // Лимит запросов (429) и обрыв — повторяемы; остальное «настоящее» (не игрок, игра завершена) — стоп.
@@ -197,8 +214,9 @@ const defaultSubscribeDeps: SubscribeDeps = { get: (path) => api("GET", path), o
 
 /**
  * Поток комнаты. «Закрыто» с `finished` — дальше браузер получит 409 и остановится сам; `removed` (участника убрали,
- * за него вошёл другой телефон) и `replaced` (этот телефон открыл поток ещё раз) — останавливаемся сразу, не
- * переподключаясь. Опрос: «не игрок» пару раз и лимит опросов — не окончательно (повтор).
+ * за него вошёл другой телефон) — останавливаемся сразу. `replaced` (это устройство открыло такой же поток ещё раз) —
+ * личный поток телефона останавливается (открыта новая вкладка), а экран и пульт переподключаются: экран зала не должен
+ * замирать. Опрос: «не игрок» пару раз и лимит опросов — не окончательно (повтор).
  */
 export function subscribeRoom(
   sessionId: string,
@@ -222,7 +240,7 @@ export function subscribeRoom(
     const event = streamEventOf(value);
     if (!event) return;
     onEvent(event);
-    if (event.type === "closed" && (event.reason === "removed" || event.reason === "replaced")) {
+    if (event.type === "closed" && (event.reason === "removed" || (event.reason === "replaced" && kind === "me"))) {
       halt(new ApiError(event.reason === "removed" ? "permission-denied" : "already-exists", event.reason === "removed" ? 403 : 409, event.reason));
     }
   };

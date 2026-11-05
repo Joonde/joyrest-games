@@ -1,7 +1,8 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import type { FastifyBaseLogger, FastifyInstance } from "fastify";
+import { createServer, request as httpRequest } from "node:http";
+import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from "fastify";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RoomStreamEvent } from "../../src/data/types";
@@ -9,7 +10,7 @@ import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { Hub } from "./live";
 import { migrate } from "./migrate";
-import { MEMBER_RECHECK_MS, RoomManager, roomKey, STREAMS_PER_DEVICE } from "./room";
+import { MEMBER_RECHECK_MS, openRoomStream, RoomManager, roomKey, STREAMS_PER_DEVICE } from "./room";
 import { roomCheck, TAPS_BURST, TAPS_PER_SECOND, type CheckState } from "./rooms/check";
 import {
   FRESH_AGO_SLACK_MS,
@@ -34,8 +35,8 @@ function newRoom(now: number, players = [{ pid: "a", name: "Аня", team: null 
   return new Room({ id: "s1", key: g.id, hostId: "h", game: g, players, teams: [], snapshot: null, playMode: "solo", now, onError });
 }
 
-function batch(seq: number | null, events: object[] = [], stream = "p1") {
-  const parsed = parseInput(seq === null ? { stream, events } : { stream, seq, events });
+function batch(seq: number | null, events: object[] = [], stream = "p1", retry = false) {
+  const parsed = parseInput(seq === null ? { stream, events } : retry ? { stream, seq, retry, events } : { stream, seq, events });
   if (!parsed) throw new Error("пачка не разобралась");
   return parsed;
 }
@@ -80,8 +81,10 @@ const deadlineGame: RoomGame<DeadlineState> = {
 
 describe("быстрый канал: комната без базы", () => {
   it("пачка: проверка формы; у пустой номер не нужен, у пачки с событиями — обязателен", () => {
-    expect(parseInput({ events: [] })).toEqual({ stream: "", seq: null, events: [] });
-    expect(parseInput({ seq: 1, events: [] })).toEqual({ stream: "", seq: 1, events: [] });
+    expect(parseInput({ events: [] })).toEqual({ stream: "", retry: false, seq: null, events: [] });
+    expect(parseInput({ seq: 1, events: [] })).toEqual({ stream: "", retry: false, seq: 1, events: [] });
+    expect(parseInput({ seq: 1, retry: true, events: [] })).toMatchObject({ retry: true });
+    expect(parseInput({ seq: 1, retry: "да", events: [] })).toBeNull();
     expect(parseInput({ events: [{ t: "tap" }] })).toBeNull();
     expect(parseInput({ seq: -1, events: [] })).toBeNull();
     expect(parseInput({ seq: 1.5, events: [] })).toBeNull();
@@ -92,20 +95,66 @@ describe("быстрый канал: комната без базы", () => {
   });
 
   it("время события — по часам сервера; старше допустимого — не раньше now − предел и с пометкой late", () => {
-    expect(timedEvent({ t: "hold", ago: 300 }, 10_000)).toEqual({ t: "hold", at: 9700, late: false });
-    expect(timedEvent({ t: "hold", ago: 9000, at: 1, late: false }, 10_000)).toEqual({ t: "hold", at: 10_000 - MAX_AGO_MS, late: true });
-    expect(timedEvent({ t: "hold", ago: 3000 }, 10_000, 1500)).toEqual({ t: "hold", at: 8500, late: true });
+    expect(timedEvent({ t: "hold", ago: 300 }, 10_000)).toEqual({ t: "hold", at: 9700, late: false, delayed: false });
+    expect(timedEvent({ t: "hold", ago: 9000, at: 1, late: false }, 10_000)).toEqual({ t: "hold", at: 10_000 - MAX_AGO_MS, late: true, delayed: false });
+    expect(timedEvent({ t: "hold", ago: 3000, delayed: false }, 10_000, 1500, true)).toEqual({ t: "hold", at: 8500, late: true, delayed: true });
   });
 
-  it("свежая пачка: `ago` не дальше интервала пачки + 0,5 с (подделка «нажал первым»); повтор старого номера — до 4 с", () => {
+  /** Комната-шпион: что игра получила. */
+  function spyRoom(now: number, players?: Parameters<typeof newRoom>[1], g: RoomGame<unknown> = game) {
     const seen: RoomEvent[] = [];
-    const spy: RoomGame<unknown> = { ...game, onInput: (_s, _p, events) => seen.push(...events) };
-    const room = newRoom(10_000, undefined, spy);
+    const spy: RoomGame<unknown> = { ...g, onInput: (s, p, events, ctx) => (seen.push(...events), g.onInput(s, p, events, ctx)) };
+    return { room: newRoom(now, players, spy), seen };
+  }
+
+  it("первая пачка потока: `ago` не дальше интервала пачки + 0,5 с (подделка «нажал первым»)", () => {
+    const { room, seen } = spyRoom(10_000);
     room.input("a", batch(5, [{ t: "tap", ago: 3000 }]), 10_000);
-    expect(seen.at(-1)).toMatchObject({ at: 10_000 - (1000 + FRESH_AGO_SLACK_MS), late: true });
-    // Номер 4 пришёл после 5 — это повтор после обрыва: ему верим до 4 с.
-    room.input("a", batch(4, [{ t: "tap", ago: 3000 }]), 10_000);
-    expect(seen.at(-1)).toMatchObject({ at: 7000, late: false });
+    expect(seen.at(-1)).toMatchObject({ at: 10_000 - (1000 + FRESH_AGO_SLACK_MS), late: true, delayed: false });
+  });
+
+  it("подделка номерами: 1000, потом 999 и 998 с `ago` 4000 — времени раньше интервала не даёт, события помечены `delayed`", () => {
+    const { room, seen } = spyRoom(0);
+    room.input("a", batch(1000, [{ t: "tap", ago: 4000 }]), 10_000);
+    room.input("a", batch(999, [{ t: "tap", ago: 4000 }]), 10_010);
+    room.input("a", batch(998, [{ t: "tap", ago: 4000 }]), 10_020);
+    expect(seen.map((e) => e.at)).toEqual([10_000 - 1500, 10_010 - 1500, 10_020 - 1500]);
+    expect(seen.map((e) => e.delayed)).toEqual([false, true, true]);
+    expect(seen.every((e) => e.late)).toBe(true);
+  });
+
+  it("пачка в свой черёд: `ago` до интервала с прошлого запроса (и «я на связи»); честный повтор потерянной пачки через 8 с — до 4 с, `delayed`", () => {
+    const { room, seen } = spyRoom(0);
+    room.input("a", batch(1, [{ t: "tap" }]), 0);
+    room.input("a", batch(null), 1000);
+    room.input("a", batch(2, [{ t: "tap", ago: 1200 }]), 2000);
+    expect(seen.at(-1)).toMatchObject({ at: 800, late: false, delayed: false });
+    // Пачка 3 потерялась; «я на связи» идут; через 8 с телефон повторяет её с пометкой retry.
+    for (let t = 3000; t <= 10_000; t += 1000) room.input("a", batch(null), t);
+    room.input("a", batch(3, [{ t: "tap", ago: 3500 }], "p1", true), 10_500);
+    expect(seen.at(-1)).toMatchObject({ at: 7000, late: false, delayed: true });
+    // Без пометки повтора та же пачка в свой черёд обрезалась бы — так ведёт себя только подделка.
+    room.input("a", batch(4, [{ t: "tap", ago: 3500 }]), 11_000);
+    expect(seen.at(-1)).toMatchObject({ at: 11_000 - 1500, late: true, delayed: false });
+  });
+
+  it("телефон молчал 5 с и прислал пачку с `ago` 4000 — принято до 4 с, но с пометкой `delayed`", () => {
+    const { room, seen } = spyRoom(0);
+    room.input("a", batch(1, [{ t: "tap" }]), 0);
+    room.input("a", batch(2, [{ t: "tap", ago: 4000 }]), 5000);
+    expect(seen.at(-1)).toMatchObject({ at: 1000, late: false, delayed: true });
+  });
+
+  it("порог числа игроков: телефон шлёт по прошлому интервалу — честный `ago` не обрезается", () => {
+    const slowWhenMany: RoomGame<unknown> = { ...game, batchMs: (n) => (n > 2 ? 2000 : 1000) };
+    const three = [{ pid: "a", name: "Аня", team: null }, { pid: "b", name: "Боря", team: null }, { pid: "c", name: "Вика", team: null }];
+    const { room, seen } = spyRoom(0, three, slowWhenMany);
+    expect(room.input("a", batch(null), 0)).toMatchObject({ every: 2000 });
+    room.removeParticipant("c", 100);
+    // «Сейчас»-событие отдельно, сразу за ним — обычная пачка, собранная по интервалу 2 с.
+    room.input("a", batch(1, [{ t: "move", id: "m" }]), 1900);
+    room.input("a", batch(2, [{ t: "tap", ago: 1900 }]), 2000);
+    expect(seen.at(-1)).toMatchObject({ at: 100, late: false });
   });
 
   it("повтор номера не обрабатывается; не по порядку — обрабатывается; ушедший из окна — «stale», не «dup»; новая страница — новый поток", () => {
@@ -191,6 +240,103 @@ describe("быстрый канал: комната без базы", () => {
     expect(room.hostEvent(3100)).toMatchObject({ online: 0 });
     room.tick(4000);
     expect(host.got.at(-1)).toMatchObject({ type: "host", online: 0 });
+  });
+
+  it("на паузе жетоны лимита событий не тратятся: после продолжения — полный запас", () => {
+    const room = newRoom(0);
+    room.command("pause", null, null, 0);
+    const many = Array.from({ length: 64 }, () => ({ t: "ping", id: "x" }));
+    for (let i = 1; i <= 5; i++) expect(room.input("a", batch(i, many), i * 10)).toMatchObject({ dropped: 64 });
+    room.command("resume", null, null, 100);
+    // Запас — 60 (30 в секунду вдвое): из 64 срезаются 4, а не все.
+    expect(room.input("a", batch(6, many), 110)).toMatchObject({ dropped: 4 });
+  });
+
+  it("пульт получает сводку раз в секунду и без перемен в игре (задержка цикла и память)", () => {
+    let lag = 0;
+    const room = new Room({ id: "s1", key: game.id, hostId: "h", game, players: [], teams: [], snapshot: null, playMode: "solo", now: 0, loop: () => ({ lagMs: lag, maxLagMs: lag, memoryMb: 50 }) });
+    const host = collector();
+    room.listen("host", host.listener, 0);
+    room.tick(0);
+    lag = 7;
+    room.tick(1000);
+    room.tick(1500);
+    lag = 9;
+    room.tick(2000);
+    const hosts = host.got.filter((e) => e.type === "host");
+    expect(hosts.map((e) => (e as { loop: { lagMs: number } }).loop.lagMs)).toEqual([0, 0, 7, 9]);
+  });
+
+  it("создание комнаты — не активность; «я на связи» — тоже; пачка с событиями и команда — да", () => {
+    const room = newRoom(0);
+    expect(room.activityCount).toBe(0);
+    room.input("a", batch(null), 10);
+    expect(room.activityCount).toBe(0);
+    room.input("a", batch(1, [{ t: "tap" }]), 20);
+    room.command("echo", null, null, 30);
+    expect(room.activityCount).toBe(2);
+  });
+
+  it("вытеснение потока: старый сначала отписан от комнаты, потом «закрыто» — сводки в закрытый поток больше не пишутся", () => {
+    const log = { info: () => undefined, warn: () => undefined, error: () => undefined } as unknown as FastifyBaseLogger;
+    const manager = new RoomManager({} as never, new Hub(), log, { loopMs: 0 });
+    const room = newRoom(0);
+    const streams = Array.from({ length: STREAMS_PER_DEVICE + 1 }, () => {
+      let ended = false;
+      let afterEnd = 0;
+      const got: RoomStreamEvent[] = [];
+      const listener: RoomListener = {
+        send: (e) => {
+          if (ended) afterEnd += 1;
+          got.push(e);
+        },
+        end: () => {
+          ended = true;
+        },
+      };
+      return { listener, got, afterEnd: () => afterEnd, ended: () => ended };
+    });
+    for (const s of streams) manager.attachStream(room, "screen:dev", s.listener, () => room.listen("screen", s.listener, 0));
+    expect(streams[0]?.ended()).toBe(true);
+    expect(streams[0]?.got.at(-1)).toMatchObject({ type: "closed", reason: "replaced" });
+    for (let t = 1; t <= 10; t++) {
+      room.input("a", batch(t, [{ t: "tap" }]), t * 1000);
+      room.tick(t * 1000);
+    }
+    expect(streams[0]?.afterEnd()).toBe(0);
+    expect(streams[3]?.got.filter((e) => e.type === "screen").length).toBeGreaterThan(5);
+    expect(room.listeners).toBe(STREAMS_PER_DEVICE);
+    // Другой вид того же устройства и другое устройство — свои места.
+    manager.attachStream(room, "host:dev", collector().listener, () => () => undefined);
+    manager.attachStream(room, "screen:other", collector().listener, () => () => undefined);
+    expect(streams[1]?.ended()).toBe(false);
+  });
+
+  it("поток комнаты по HTTP: запись после закрытия не роняет процесс (ни сводка, ни «я жив»)", async () => {
+    let listener: RoomListener | null = null;
+    const server = createServer((_req, res) => {
+      const reply = { getHeader: () => undefined, hijack: () => undefined, raw: res } as unknown as FastifyReply;
+      openRoomStream(reply, 20, (l) => {
+        listener = l;
+        return () => undefined;
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+    const { port } = server.address() as { port: number };
+    // Клиент не читает поток (плохая сеть): «close» придёт не сразу.
+    const req = httpRequest({ host: "127.0.0.1", port, path: "/" });
+    req.on("response", (res) => res.pause());
+    req.on("error", () => undefined);
+    req.end();
+    for (let i = 0; i < 50 && !listener; i++) await new Promise((r) => setTimeout(r, 10));
+    const l = listener as RoomListener | null;
+    expect(l).not.toBeNull();
+    l?.end();
+    for (let i = 0; i < 20; i++) l?.send({ type: "screen", at: i, version: i, paused: false, players: 0, online: 0, data: { pad: "x".repeat(1000) } });
+    l?.end();
+    await new Promise((r) => setTimeout(r, 80));
+    req.destroy();
+    await new Promise<void>((r) => server.close(() => r()));
   });
 
   it("активность — только пачки с событиями и команды; «я на связи» — нет", () => {
@@ -440,7 +586,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
   let clock = 1_900_000_000_000;
   let manager: RoomManager | null = null;
   const media = mkdtempSync(join(tmpdir(), "joyrest-media-"));
-  const make = (onManager: (m: RoomManager) => void, check = true) =>
+  const make = (onManager: (m: RoomManager) => void, check = true, streamsPerRoom?: number) =>
     buildApp({
       version: "t",
       publicDir: null,
@@ -449,7 +595,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
       mediaDir: media,
       auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } },
       live: { now: () => clock, keepAliveMs: 60_000 },
-      rooms: { now: () => clock, loopMs: 0, keepAliveMs: 60_000, onManager, check },
+      rooms: { now: () => clock, loopMs: 0, keepAliveMs: 60_000, onManager, check, streamsPerRoom },
     });
   const app = make((m) => (manager = m));
   const rooms = () => {
@@ -642,7 +788,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     expect(active?.n).toBe(1);
   });
 
-  it("брошенная вкладка: 20 минут одних «я на связи» — updated_at не трогается, комната выгружается (без подписчиков)", async () => {
+  it("брошенная вкладка: 40 минут «я на связи» и опросов — updated_at не трогается и после выгрузки (комната поднимается снова)", async () => {
     await newSession("r4b");
     const anya = await guestIn("r4b", "Аня");
     await input("r4b", anya.cookie, [{ t: "tap", n: 1 }]);
@@ -650,17 +796,42 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     await new Promise((r) => setTimeout(r, 100));
     await sql`update sessions set updated_at = now() - interval '2 hours' where id = 'r4b'`;
     const start = clock;
-    for (let minute = 1; minute <= 20; minute++) {
+    let unloaded = 0;
+    for (let minute = 1; minute <= 40; minute++) {
       clock = start + minute * 60_000;
-      if (rooms().loaded("r4b")) {
-        await input("r4b", anya.cookie);
-        rooms().step(clock);
-      }
+      // Без условия «комната в памяти»: пустая пачка и опрос поднимают выгруженную комнату — и это не активность.
+      if (!rooms().loaded("r4b")) unloaded += 1;
+      expect((await input("r4b", anya.cookie)).statusCode).toBe(200);
+      expect((await call("GET", "/api/rooms/r4b/screen", anya.cookie)).statusCode).toBe(200);
+      rooms().step(clock);
+      await new Promise((r) => setTimeout(r, 10));
     }
     await new Promise((r) => setTimeout(r, 100));
+    expect(unloaded).toBeGreaterThan(0);
     const [row] = await sql<{ stale: boolean }[]>`select updated_at < now() - interval '30 minutes' as stale from sessions where id = 'r4b'`;
     expect(row?.stale).toBe(true);
-    expect(rooms().loaded("r4b")).toBeNull();
+  });
+
+  it("метка «жив»: не на паузе и без перемен — savedAt снимка раз в 10 с; на паузе — нет", async () => {
+    await newSession("r4a");
+    const anya = await guestIn("r4a", "Аня");
+    await input("r4a", anya.cookie, [{ t: "tap", n: 2 }]);
+    await call("POST", "/api/rooms/r4a/command", host, { cmd: "checkpoint" });
+    rooms().step(clock);
+    const savedAt = async () => Number((await sql<{ at: string }[]>`select data->>'savedAt' as at from room_snapshots where session_id = 'r4a'`)[0]?.at);
+    expect(await settle(async () => (await savedAt()) === clock)).toBe(true);
+    clock += 11_000;
+    rooms().step(clock);
+    expect(await settle(async () => (await savedAt()) === clock)).toBe(true);
+    expect(await savedTotal("r4a")).toBe(2);
+    await call("POST", "/api/rooms/r4a/command", host, { cmd: "pause" });
+    rooms().step(clock);
+    await settle(async () => (await sql<{ p: boolean }[]>`select (data->>'paused')::boolean as p from room_snapshots where session_id = 'r4a'`)[0]?.p === true);
+    const pausedAt = await savedAt();
+    clock += 30_000;
+    rooms().step(clock);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(await savedAt()).toBe(pausedAt);
   });
 
   it("снимок на контрольной точке и раз в 10 с; после перезапуска — та же комната на паузе; продолжение; остановка — снимок", async () => {
@@ -704,7 +875,19 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     const session = await openReader(base, "/api/stream/session/r5c", anya.cookie);
     expect(await session.next()).toMatchObject({ type: "snapshot" });
     const started = Date.now();
-    const closing = other.close();
+    // Пока идёт остановка, события сессии продолжают приходить (пульт, Hub): в закрытые потоки они не пишутся,
+    // процесс не падает (необработанной ошибки записи после конца нет), остановка доходит до конца.
+    let done = false;
+    const closing = other.close().finally(() => {
+      done = true;
+    });
+    let n = 0;
+    const hub = (own as RoomManager | null)?.hub;
+    while (!done && n < 2000) {
+      hub?.publish("session:r5c", { type: "patch", version: 100 + n, state: { phase: "playing" }, leaderboard: {} });
+      n += 1;
+      await new Promise((r) => setImmediate(r));
+    }
     await Promise.race([closing, new Promise((_, reject) => setTimeout(() => reject(new Error("закрытие висит")), 4000))]);
     expect(Date.now() - started).toBeLessThan(4000);
     // Загрузка во время и после остановки — «closing» (по HTTP — 503, повторяемо), а не «нет такой игры».
@@ -775,6 +958,57 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     expect(codes.filter((c) => c === 429).length).toBeGreaterThan(0);
     clock += 2000;
     expect((await call("GET", "/api/rooms/r8l/me", anya.cookie)).statusCode).toBe(200);
+  });
+
+  it("устройство — по cookie, а не uid: у ведущего пульт на другом устройстве не вытесняет экран; опрос — по виду и устройству", async () => {
+    await newSession("r8d");
+    const base = await listening();
+    const laptop = cookieOf(await call("POST", "/api/auth/login", "", { email: "owner@example.com", password: "пароль-владельца-12" }));
+    const screen = await openReader(base, "/api/stream/room/r8d/screen", laptop);
+    expect(await screen.next()).toMatchObject({ type: "screen" });
+    // Пульт на телефоне переподключается пять раз — экран на ноутбуке работает.
+    const pults = [];
+    for (let i = 0; i < 5; i++) {
+      const p = await openReader(base, "/api/stream/room/r8d/host", host);
+      expect(await p.next()).toMatchObject({ type: "host" });
+      pults.push(p);
+    }
+    // И три пульта на самом ноутбуке — другой вид, экран не трогают.
+    for (let i = 0; i < 3; i++) {
+      const p = await openReader(base, "/api/stream/room/r8d/host", laptop);
+      expect(await p.next()).toMatchObject({ type: "host" });
+      pults.push(p);
+    }
+    clock += 1000;
+    rooms().step(clock);
+    expect(await screen.next()).toMatchObject({ type: "screen" });
+    expect(rooms().loaded("r8d")?.listeners).toBe(1 + STREAMS_PER_DEVICE * 2);
+    // Опрос: пульт телефона упёрся в лимит — экран ноутбука и пульт ноутбука опрашивают.
+    const codes = [];
+    for (let i = 0; i < 7; i++) codes.push((await call("GET", "/api/rooms/r8d/host", host)).statusCode);
+    expect(codes).toContain(429);
+    expect((await call("GET", "/api/rooms/r8d/host", laptop)).statusCode).toBe(200);
+    expect((await call("GET", "/api/rooms/r8d/screen", host)).statusCode).toBe(200);
+    for (const p of [screen, ...pults]) p.controller.abort();
+  });
+
+  it("потоков у комнаты больше предела — 429 до ответа, а не молчаливое закрытие", async () => {
+    let own: RoomManager | null = null;
+    const small = make((m) => (own = m), true, 2);
+    await newSession("r8f", "room-check", small);
+    const anya = await guestIn("r8f", "Аня", small);
+    const vera = await guestIn("r8f", "Вера", small);
+    const boris = await guestIn("r8f", "Боря", small);
+    const base = await listening(small);
+    const a = await openReader(base, "/api/stream/room/r8f/me", anya.cookie);
+    const v = await openReader(base, "/api/stream/room/r8f/me", vera.cookie);
+    expect([a.status, v.status]).toEqual([200, 200]);
+    const b = await openReader(base, "/api/stream/room/r8f/me", boris.cookie);
+    expect(b.status).toBe(429);
+    expect((own as RoomManager | null)?.loaded("r8f")?.listeners).toBe(2);
+    a.controller.abort();
+    v.controller.abort();
+    await small.close();
   });
 
   it("пауза и продолжение с пульта по HTTP: касания на паузе не считаются, после — считаются", async () => {

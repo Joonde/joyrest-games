@@ -1,27 +1,29 @@
 /**
- * Быстрый канал своего сервера (CLAUDE.md, «Быстрый канал (комнаты)»): игровые комнаты в памяти процесса app.
+ * Быстрый канал своего сервера (CLAUDE.md, «Быстрый канал (комнаты)», логика — docs/fast-room.md): игровые комнаты в
+ * памяти процесса app.
  *
  * Комната создаётся лениво — при первой пачке, команде или подписке — и только для сессии, механика которой есть в
  * реестре комнатных игр (`rooms/registry.ts`). Состав (устройство → участник) берётся из базы при создании и дальше
- * обновляется событиями Hub `participants:<id>`; завершение сессии и смена блока вечера приходят событиями
- * `session:<id>`. Один общий цикл (~100 мс) на все комнаты: игра, «без связи», сводки экрана (до 5 раз в секунду) и
- * пульта (раз в секунду), снимки в `room_snapshots` (на контрольных точках и раз в 10 с, если менялось), отметка
- * активности в `sessions.updated_at` раз в минуту (выкладка ждёт конца игры), выгрузка через 15 минут без пачек и
- * команд. После перезапуска комната поднимается из снимка на паузе — ведущий продолжает командой `resume`.
+ * обновляется событиями Hub `participants:<id>` (и `device:<id>` — за игрока вошёл другой телефон); завершение
+ * сессии и смена блока вечера приходят событиями `session:<id>`. Один общий цикл (~100 мс) на все комнаты: игра,
+ * «без связи», сводки экрана (до 5 раз в секунду) и пульта (раз в секунду), снимки в `room_snapshots` (на контрольных
+ * точках и раз в 10 с, если менялось), отметка активности в `sessions.updated_at` раз в минуту — только пока идут
+ * пачки с событиями и команды (выкладка ждёт конца игры, брошенная вкладка её не держит), выгрузка через 15 минут без
+ * активности и подписчиков. После перезапуска комната поднимается из снимка на паузе — ведущий продолжает `resume`.
  *
  * Маршруты: `POST /api/rooms/:id/input` (пачка телефона, ≤ 4 КБ), `POST /api/rooms/:id/command` (только ведущий),
  * `GET /api/rooms/:id/me|screen|host` (снимок для опроса без потока), потоки `GET /api/stream/room/:id/me|screen|host`.
- * Права — функции `src/data/permissions.ts`. В журнал — только числа, без имён.
+ * Права — функции `src/data/permissions.ts`. В журнал — только числа и виды действий, без имён.
  */
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { parseProgram } from "../../src/core/program";
 import * as permissions from "../../src/data/permissions";
-import type { RoomStreamEvent, RoomStreamKind } from "../../src/data/types";
+import type { RoomClosedReason, RoomLoopStats, RoomStreamEvent, RoomStreamKind } from "../../src/data/types";
 import { apiGuard, DEVICE_COOKIE, identityOf, readCookie, SESSION_COOKIE } from "./auth";
 import { STREAM_BACKLOG_BYTES, sseFrame, type Hub } from "./live";
-import { parseInput, parseSnapshotData, Room, type RoomGame, type RoomListener } from "./rooms/engine";
-import { ROOM_GAMES } from "./rooms/registry";
+import { parseInput, parseSnapshotData, Room, TokenBucket, type RoomGame, type RoomListener } from "./rooms/engine";
+import { roomGames } from "./rooms/registry";
 
 export interface RoomsOptions {
   sql: Sql;
@@ -32,15 +34,19 @@ export interface RoomsOptions {
   keepAliveMs?: number;
   /** Шаг общего цикла, мс; 0 — без таймера (тесты зовут `step()` сами). */
   loopMs?: number;
-  /** Без пачек и команд столько — комната выгружается (со снимком). */
+  /** Без пачек с событиями, команд и подписчиков столько — комната выгружается (со снимком). */
   idleMs?: number;
+  /** Без пачек с событиями и команд столько — выгружается и с открытыми потоками (забытая вкладка). */
+  abandonedMs?: number;
   /** Снимок в базу не реже, если что-то менялось. */
   snapshotEveryMs?: number;
   /** Отметка активности в `sessions.updated_at` не чаще. */
   touchEveryMs?: number;
   /** Комнат в памяти — не больше. */
   maxRooms?: number;
-  /** Игры комнат (тесты подменяют). */
+  /** Включить проверочную игру `room-check` (только test: `roomCheckEnabled`). */
+  check?: boolean;
+  /** Игры комнат (тесты подменяют; по умолчанию — `roomGames({ check })`). */
   games?: ReadonlyMap<string, RoomGame<unknown>>;
   /** Тестам — доступ к комнатам. */
   onManager?: (manager: RoomManager) => void;
@@ -53,10 +59,19 @@ export const ROOM_BODY = 4 * 1024;
 export const LOOP_LAG_WARN_MS = 100;
 const LAG_WINDOW = 100;
 /** Устройство по cookie помним столько: пачки идут раз в секунду, а в базу за каждой не ходим. */
-const IDENTITY_TTL_MS = 30_000;
+export const IDENTITY_TTL_MS = 30_000;
 const IDENTITY_MAX = 20_000;
 /** Неизвестный комнате телефон проверяем по базе не чаще (вошёл, а событие Hub ещё не дошло). */
-const MEMBER_RECHECK_MS = 3000;
+export const MEMBER_RECHECK_MS = 1000;
+/** Потоков комнаты у одного устройства (ТЗ: не больше двух на телефон; третий — переподключение): лишний — старый закрыт. */
+export const STREAMS_PER_DEVICE = 3;
+/** Потоков у одной комнаты: 500 гостей по два потока и экраны с пультами. */
+export const STREAMS_PER_ROOM = 1200;
+/** Опросов снимка без потока с устройства: запас 5 и один в секунду (клиент опрашивает раз в 2 с). */
+const POLL_BURST = 5;
+const POLL_PER_SECOND = 1;
+/** Ошибка в коде игры — в журнал не чаще раза в минуту на комнату и место. */
+const ERROR_LOG_MS = 60_000;
 
 interface SessionRoomRow {
   id: string;
@@ -81,10 +96,13 @@ interface Entry {
   lastTouchAt: number;
   saving: Promise<void> | null;
   again: boolean;
+  /** Следующий снимок — «спокойная выгрузка» (`clean`). */
+  clean: boolean;
   stop: () => void;
+  errorsAt: Map<string, number>;
 }
 
-type LoadResult = Entry | "missing" | "finished" | "no-room" | "full";
+type LoadResult = Entry | "missing" | "finished" | "no-room" | "full" | "closing";
 
 /** Механика и блок вечера: другой блок — другая комната, снимок прежнего не подходит. */
 export function roomKey(mechanic: string | null, program: unknown): string {
@@ -96,18 +114,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function message(error: unknown): string {
+  return error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200);
+}
+
+/** Нарушение внешнего ключа: сессию удалили, а комната ещё в памяти. */
+function isForeignKeyError(error: unknown): boolean {
+  return isRecord(error) && error.code === "23503";
+}
+
 export class RoomManager {
   private readonly rooms = new Map<string, Entry>();
   private readonly loading = new Map<string, Promise<LoadResult>>();
   /** Выгружаемые комнаты: пока снимок пишется, новая загрузка ждёт его (иначе поднимется прежний снимок). */
   private readonly unloading = new Map<string, Promise<void>>();
+  /** Потоки устройств: `комната:uid` → открытые (старые первыми). */
+  private readonly deviceStreams = new Map<string, RoomListener[]>();
+  /** Кто шлёт пачки: cookie → uid (без базы на каждую пачку); uid → ключи cookie (сбросить при перехвате). */
+  private readonly identities = new Map<string, { uid: string; until: number }>();
+  private readonly identityKeys = new Map<string, Set<string>>();
+  private readonly polls = new Map<string, TokenBucket>();
   private readonly lags: number[] = [];
   private lastLagWarn = -Infinity;
   private timer: ReturnType<typeof setInterval> | null = null;
-  private closed = false;
+  private closing = false;
   private readonly now: () => number;
   private readonly games: ReadonlyMap<string, RoomGame<unknown>>;
   private readonly idleMs: number;
+  private readonly abandonedMs: number;
   private readonly snapshotEveryMs: number;
   private readonly touchEveryMs: number;
   private readonly maxRooms: number;
@@ -119,8 +153,9 @@ export class RoomManager {
     options: Omit<RoomsOptions, "sql" | "hub" | "isSite">,
   ) {
     this.now = options.now ?? Date.now;
-    this.games = options.games ?? ROOM_GAMES;
+    this.games = options.games ?? roomGames({ check: options.check === true });
     this.idleMs = options.idleMs ?? 15 * 60_000;
+    this.abandonedMs = options.abandonedMs ?? 12 * 60 * 60_000;
     this.snapshotEveryMs = options.snapshotEveryMs ?? 10_000;
     this.touchEveryMs = options.touchEveryMs ?? 60_000;
     this.maxRooms = options.maxRooms ?? 500;
@@ -137,10 +172,14 @@ export class RoomManager {
     }
   }
 
-  /** Задержка цикла: последняя и худшая за ~10 с. */
-  loopStats(): { lagMs: number; maxLagMs: number } {
+  /** Задержка цикла (последняя и худшая за ~10 с) и память процесса. */
+  loopStats(): RoomLoopStats {
     const last = this.lags[this.lags.length - 1] ?? 0;
-    return { lagMs: Math.round(last), maxLagMs: Math.round(this.lags.reduce((a, b) => Math.max(a, b), 0)) };
+    return {
+      lagMs: Math.round(last),
+      maxLagMs: Math.round(this.lags.reduce((a, b) => Math.max(a, b), 0)),
+      memoryMb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+    };
   }
 
   /** Замер задержки общего цикла (тесты передают свои числа). */
@@ -158,12 +197,17 @@ export class RoomManager {
     return this.rooms.size;
   }
 
+  get isClosing(): boolean {
+    return this.closing;
+  }
+
   loaded(id: string): Room | null {
     return this.rooms.get(id)?.room ?? null;
   }
 
-  /** Комната сессии: загруженная или новая (из снимка, если он есть). */
+  /** Комната сессии: загруженная или новая (из снимка, если он есть). Два запроса сразу — одна комната. */
   get(id: string): Promise<LoadResult> {
+    if (this.closing) return Promise.resolve("closing");
     const known = this.rooms.get(id);
     if (known) return Promise.resolve(known);
     let pending = this.loading.get(id);
@@ -175,37 +219,41 @@ export class RoomManager {
   }
 
   private async load(id: string): Promise<LoadResult> {
-    if (this.closed) return "missing";
     await this.unloading.get(id);
-    const [row] = await this.sql<SessionRoomRow[]>`
-      select id, host_id, mechanic, game_snapshot, play_mode, phase, program from sessions where id = ${id}`;
-    if (!row) return "missing";
-    if (row.phase === "finished") return "finished";
-    const game = row.mechanic ? this.games.get(row.mechanic) : undefined;
-    if (!game) return "no-room";
-    if (this.rooms.size >= this.maxRooms) return "full";
-    // Подписка раньше чтения состава: участник, вошедший между запросом и созданием комнаты, не потеряется.
-    const buffered: Array<{ channel: "participants" | "session"; event: object }> = [];
+    if (this.closing) return "closing";
+    // Подписка раньше чтения сессии и состава: завершение или вход, случившиеся между запросом и созданием
+    // комнаты, не потеряются (события копятся и применяются к готовой комнате).
+    const buffered: Array<{ channel: "participants" | "session" | "device"; event: object }> = [];
     let entry: Entry | null = null;
-    const deliver = (channel: "participants" | "session", event: object) => {
+    const deliver = (channel: "participants" | "session" | "device", event: object) => {
       if (entry) this.onHub(entry, channel, event);
       else buffered.push({ channel, event });
     };
-    const stopParticipants = this.hub.subscribe(`participants:${id}`, (e) => deliver("participants", e));
-    const stopSession = this.hub.subscribe(`session:${id}`, (e) => deliver("session", e));
-    const stop = () => {
-      stopParticipants();
-      stopSession();
-    };
+    const stops = [
+      this.hub.subscribe(`participants:${id}`, (e) => deliver("participants", e)),
+      this.hub.subscribe(`session:${id}`, (e) => deliver("session", e)),
+      this.hub.subscribe(`device:${id}`, (e) => deliver("device", e)),
+    ];
+    const stop = () => stops.forEach((s) => s());
     try {
+      const [row] = await this.sql<SessionRoomRow[]>`
+        select id, host_id, mechanic, game_snapshot, play_mode, phase, program from sessions where id = ${id}`;
+      if (!row) return this.cancel(stop, "missing");
+      if (row.phase === "finished") return this.cancel(stop, "finished");
+      const game = row.mechanic ? this.games.get(row.mechanic) : undefined;
+      if (!game) return this.cancel(stop, "no-room");
+      if (this.rooms.size >= this.maxRooms) return this.cancel(stop, "full");
       const participants = await this.sql<ParticipantRoomRow[]>`
         select id, name, kind, team_id from participants where session_id = ${id}`;
       const [snap] = await this.sql<{ data: unknown }[]>`select data from room_snapshots where session_id = ${id}`;
+      if (this.closing) return this.cancel(stop, "closing");
       const now = this.now();
+      const errorsAt = new Map<string, number>();
       const room = new Room({
         id,
         key: roomKey(row.mechanic, row.program),
         hostId: row.host_id,
+        phase: row.phase === "playing" ? "playing" : "lobby",
         game,
         players: participants.filter((p) => p.kind === "player").map((p) => ({ pid: p.id, name: p.name, team: p.team_id })),
         teams: participants.filter((p) => p.kind === "team").map((p) => [p.id, p.name] as [string, string]),
@@ -214,47 +262,111 @@ export class RoomManager {
         now,
         restoreFrom: snap ? parseSnapshotData(snap.data) : null,
         loop: () => this.loopStats(),
+        onError: (where, error) => this.gameError(errorsAt, where, error),
       });
-      const created: Entry = { room, lastSnapAt: now, lastTouchAt: -Infinity, saving: null, again: false, stop };
+      const created: Entry = { room, lastSnapAt: now, lastTouchAt: -Infinity, saving: null, again: false, clean: false, stop, errorsAt };
       entry = created;
       this.rooms.set(id, created);
       for (const b of buffered) this.onHub(created, b.channel, b.event);
       if (room.restored) this.log.info({ room: "restored", players: room.playersCount }, "rooms");
-      return created;
+      return this.rooms.get(id) === created ? created : "finished";
     } catch (error) {
       stop();
       throw error;
     }
   }
 
-  private onHub(entry: Entry, channel: "participants" | "session", raw: object): void {
+  private cancel(stop: () => void, result: Exclude<LoadResult, Entry>): Exclude<LoadResult, Entry> {
+    stop();
+    return result;
+  }
+
+  /** Ошибка в коде игры: комната живёт дальше, в журнал — не чаще раза в минуту на место. */
+  private gameError(errorsAt: Map<string, number>, where: string, error: unknown): void {
+    const now = this.now();
+    const last = errorsAt.get(where) ?? -Infinity;
+    if (now - last < ERROR_LOG_MS) return;
+    errorsAt.set(where, now);
+    this.log.error({ room: where, err: message(error) }, "rooms game error");
+  }
+
+  private onHub(entry: Entry, channel: "participants" | "session" | "device", raw: object): void {
     if (!isRecord(raw) || this.rooms.get(entry.room.id) !== entry) return;
     const now = this.now();
-    if (channel === "participants") {
-      if (raw.type === "upsert" && isRecord(raw.participant)) {
-        const p = raw.participant;
-        if (typeof p.id === "string" && typeof p.name === "string") {
-          entry.room.upsertParticipant({ id: p.id, name: p.name, kind: p.kind === "team" ? "team" : "player", teamId: typeof p.teamId === "string" ? p.teamId : null }, now);
-        }
-      } else if (raw.type === "remove" && typeof raw.id === "string") entry.room.removeParticipant(raw.id);
-      else if (raw.type === "snapshot" && Array.isArray(raw.participants)) {
-        for (const p of raw.participants) if (isRecord(p) && typeof p.id === "string" && typeof p.name === "string") entry.room.upsertParticipant({ id: p.id, name: p.name, kind: p.kind === "team" ? "team" : "player", teamId: typeof p.teamId === "string" ? p.teamId : null }, now);
+    const room = entry.room;
+    if (channel === "device") {
+      // За игрока вошёл другой телефон: прежний телефон больше не он — поток закрыт, кэш входа сброшен.
+      if (raw.type === "moved" && typeof raw.pid === "string") {
+        room.deviceMoved(raw.pid, now);
+        this.forgetDevice(raw.pid);
       }
+      return;
+    }
+    if (channel === "participants") {
+      const upsert = (p: unknown) => {
+        if (isRecord(p) && typeof p.id === "string" && typeof p.name === "string") {
+          room.upsertParticipant({ id: p.id, name: p.name, kind: p.kind === "team" ? "team" : "player", teamId: typeof p.teamId === "string" ? p.teamId : null }, now);
+        }
+      };
+      if (raw.type === "upsert") upsert(raw.participant);
+      else if (raw.type === "remove" && typeof raw.id === "string") {
+        room.removeParticipant(raw.id, now);
+        this.forgetDevice(raw.id);
+      } else if (raw.type === "snapshot" && Array.isArray(raw.participants)) raw.participants.forEach(upsert);
       return;
     }
     // Сессия: завершили — комната выгружается; сменился блок вечера или механика — тоже (новая игра с чистого листа).
     const state = raw.type === "patch" ? raw.state : isRecord(raw.session) ? raw.session.state : null;
     if (isRecord(state) && state.phase === "finished") {
-      void this.unload(entry.room.id, "finished");
+      void this.unload(room.id, "finished");
       return;
     }
+    if (isRecord(state) && (state.phase === "lobby" || state.phase === "playing")) room.phase = state.phase;
     if (raw.type === "snapshot" && isRecord(raw.session)) {
       const mechanic = typeof raw.session.mechanic === "string" ? raw.session.mechanic : null;
-      if (roomKey(mechanic, raw.session.program) !== entry.room.key) void this.unload(entry.room.id, "unloaded");
+      if (roomKey(mechanic, raw.session.program) !== room.key) void this.unload(room.id, "unloaded");
     }
   }
 
-  /** Неизвестный телефон: вдруг он только что вошёл (событие Hub ещё не дошло) — один запрос к базе. */
+  // ---------------------------------------------------------------- кто шлёт
+
+  identity(key: string, now: number): string | null {
+    const known = this.identities.get(key);
+    return known && known.until > now ? known.uid : null;
+  }
+
+  rememberIdentity(key: string, uid: string, now: number): void {
+    if (this.identities.size > IDENTITY_MAX) {
+      this.identities.clear();
+      this.identityKeys.clear();
+    }
+    this.identities.set(key, { uid, until: now + IDENTITY_TTL_MS });
+    let keys = this.identityKeys.get(uid);
+    if (!keys) {
+      keys = new Set();
+      this.identityKeys.set(uid, keys);
+    }
+    keys.add(key);
+  }
+
+  /** Устройство больше не этот игрок (перехват, удаление): следующая пачка проверит вход по базе. */
+  forgetDevice(uid: string): void {
+    for (const key of this.identityKeys.get(uid) ?? []) this.identities.delete(key);
+    this.identityKeys.delete(uid);
+  }
+
+  /** Опрос снимка без потока: не чаще раза в секунду с устройства (запас 5). */
+  pollAllowed(uid: string, now: number): boolean {
+    let bucket = this.polls.get(uid);
+    if (!bucket) {
+      if (this.polls.size > IDENTITY_MAX) this.polls.clear();
+      bucket = new TokenBucket(POLL_BURST, POLL_PER_SECOND, now);
+      this.polls.set(uid, bucket);
+    }
+    return bucket.take(1, now) === 1;
+  }
+
+  /** Неизвестный телефон: вдруг он только что вошёл (событие Hub ещё не дошло) — запрос к базе не чаще раза в секунду. */
   private readonly rechecked = new Map<string, number>();
   async knowMember(room: Room, uid: string): Promise<boolean> {
     if (room.has(uid)) return true;
@@ -271,22 +383,51 @@ export class RoomManager {
     return room.has(uid);
   }
 
+  /**
+   * Поток устройства: не больше `STREAMS_PER_DEVICE` у одного устройства в комнате — лишний (обычно «повисший» после
+   * смены сети) закрывается (`replaced`); у комнаты — не больше `STREAMS_PER_ROOM` (дальше — отказ 429).
+   */
+  attachStream(room: Room, uid: string, listener: RoomListener, attach: () => () => void): (() => void) | "full" {
+    if (room.listeners >= STREAMS_PER_ROOM) return "full";
+    const key = `${room.id}:${uid}`;
+    const list = this.deviceStreams.get(key) ?? [];
+    while (list.length >= STREAMS_PER_DEVICE) {
+      const old = list.shift();
+      old?.send({ type: "closed", at: this.now(), reason: "replaced" });
+      old?.end();
+    }
+    list.push(listener);
+    this.deviceStreams.set(key, list);
+    const detach = attach();
+    return () => {
+      detach();
+      const current = this.deviceStreams.get(key);
+      if (!current) return;
+      const rest = current.filter((l) => l !== listener);
+      if (rest.length > 0) this.deviceStreams.set(key, rest);
+      else this.deviceStreams.delete(key);
+    };
+  }
+
+  // ---------------------------------------------------------------- цикл
+
   /** Шаг общего цикла. */
   step(now = this.now()): void {
     for (const entry of [...this.rooms.values()]) {
       const room = entry.room;
-      try {
-        room.tick(now);
-      } catch (error) {
-        this.log.error({ room: "tick", err: error instanceof Error ? error.message : String(error) }, "rooms");
-      }
+      room.tick(now);
       if (room.checkpointWanted || (room.version !== room.savedVersion && now - entry.lastSnapAt >= this.snapshotEveryMs)) void this.save(entry);
-      // Игра идёт (пачки и команды) — сессия «живая» для выкладки: раз в минуту обновляем updated_at.
+      // Игра идёт (пачки с событиями и команды) — сессия «живая» для выкладки: раз в минуту обновляем updated_at.
+      // Пустые пачки («я на связи») — не игра: забытая вкладка не держит выкладку и не продлевает брошенную игру.
       if (room.lastActivity > entry.lastTouchAt && now - entry.lastTouchAt >= this.touchEveryMs) {
         entry.lastTouchAt = now;
         void this.touch(room.id);
       }
-      if (now - room.lastActivity >= this.idleMs) void this.unload(room.id, "unloaded");
+      const idle = now - room.lastActivity;
+      if ((idle >= this.idleMs && room.listeners === 0) || idle >= this.abandonedMs) {
+        entry.clean = true;
+        void this.unload(room.id, "unloaded");
+      }
     }
   }
 
@@ -294,7 +435,7 @@ export class RoomManager {
     try {
       await this.sql`update sessions set updated_at = now() where id = ${id} and phase in ('lobby', 'playing')`;
     } catch (error) {
-      this.log.warn({ room: "touch", err: error instanceof Error ? error.message : String(error) }, "rooms");
+      this.log.warn({ room: "touch", err: message(error) }, "rooms");
     }
   }
 
@@ -307,8 +448,15 @@ export class RoomManager {
     const room = entry.room;
     room.checkpointWanted = false;
     const version = room.version;
-    const data = room.snapshotData();
-    entry.lastSnapAt = this.now();
+    const now = this.now();
+    let data;
+    try {
+      data = room.snapshotData(now, entry.clean);
+    } catch (error) {
+      this.gameError(entry.errorsAt, "snapshot", error);
+      return Promise.resolve();
+    }
+    entry.lastSnapAt = now;
     entry.saving = (async () => {
       try {
         await this.sql`
@@ -317,8 +465,10 @@ export class RoomManager {
           on conflict (session_id) do update set data = excluded.data, version = excluded.version, updated_at = now()`;
         room.savedVersion = version;
       } catch (error) {
-        // Сессию удалили или база моргнула — следующий снимок через 10 с.
-        this.log.warn({ room: "snapshot", err: error instanceof Error ? error.message : String(error) }, "rooms");
+        if (isForeignKeyError(error)) {
+          // Сессию удалили (уборка, 30 дней), а комната ещё в памяти — выгружаем, писать некуда.
+          this.dropDeleted(room.id);
+        } else this.log.warn({ room: "snapshot", err: message(error) }, "rooms");
       } finally {
         entry.saving = null;
         if (entry.again) {
@@ -330,8 +480,17 @@ export class RoomManager {
     return entry.saving;
   }
 
+  private dropDeleted(id: string): void {
+    const entry = this.rooms.get(id);
+    if (!entry) return;
+    this.rooms.delete(id);
+    entry.again = false;
+    entry.stop();
+    entry.room.close("finished", this.now());
+  }
+
   /** Выгрузить комнату: снимок, «закрыто» в потоки, отписка от Hub. */
-  async unload(id: string, reason: "finished" | "unloaded"): Promise<void> {
+  async unload(id: string, reason: RoomClosedReason): Promise<void> {
     const entry = this.rooms.get(id);
     if (!entry) return;
     this.rooms.delete(id);
@@ -346,12 +505,17 @@ export class RoomManager {
     }
   }
 
-  /** Остановка приложения: снимки всех комнат и закрытие потоков. */
+  /**
+   * Остановка приложения (хук `preClose`, до закрытия сервера): потоки закрываются (иначе сервер ждал бы их до
+   * принудительной остановки), снимки всех комнат пишутся, новые загрузки — 503 (браузер повторит).
+   */
   async close(): Promise<void> {
-    this.closed = true;
+    this.closing = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    await Promise.all([...this.loading.values()].map((p) => p.catch(() => undefined)));
     await Promise.all([...this.rooms.keys()].map((id) => this.unload(id, "unloaded")));
+    await Promise.all([...this.unloading.values()]);
   }
 }
 
@@ -363,10 +527,9 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
   const keepAliveMs = options.keepAliveMs ?? 25_000;
   const manager = new RoomManager(sql, options.hub, app.log, options);
   options.onManager?.(manager);
-  app.addHook("onClose", async () => manager.close());
-
-  /** Кто шлёт пачки: по cookie, без базы на каждую пачку (раз в 30 с — проверка). */
-  const identities = new Map<string, { uid: string; until: number }>();
+  // preClose, а не onClose: Fastify закрывает сервер раньше onClose и ждёт открытые соединения — поток событий
+  // не закрылся бы сам, и снимков бы не было (сервер ждал бы до принудительной остановки контейнера).
+  app.addHook("preClose", async () => manager.close());
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -379,12 +542,11 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
       const cookie = request.headers.cookie;
       const key = `${readCookie(cookie, SESSION_COOKIE) ?? ""}|${readCookie(cookie, DEVICE_COOKIE) ?? ""}`;
       const at = now();
-      const known = key !== "|" ? identities.get(key) : undefined;
-      if (known && known.until > at) return known.uid;
+      const known = key !== "|" ? manager.identity(key, at) : null;
+      if (known) return known;
       const who = await identityOf(sql, request, reply);
       if (!who) return null;
-      if (identities.size > IDENTITY_MAX) identities.clear();
-      if (key !== "|") identities.set(key, { uid: who.uid, until: at + IDENTITY_TTL_MS });
+      if (key !== "|") manager.rememberIdentity(key, who.uid, at);
       return who.uid;
     }
 
@@ -397,8 +559,21 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
       const found = await manager.get(id);
       if (found === "missing" || found === "no-room") fail(reply, 404, "not-found");
       else if (found === "finished") fail(reply, 409, "failed-precondition", "finished");
-      else if (found === "full") fail(reply, 503, "unavailable");
+      // Мест нет или сервер останавливается — повторяемо (не «нет такой игры»: клиент не сдастся).
+      else if (found === "full" || found === "closing") fail(reply, 503, "unavailable");
       else return found.room;
+      return null;
+    }
+
+    /** Комната, в которой состоит телефон: пока проверяли вход, её могли выгрузить — тогда берём новую. */
+    async function memberRoom(id: string, uid: string, reply: FastifyReply): Promise<{ room: Room; member: boolean } | null> {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const room = await roomOf(id, reply);
+        if (!room) return null;
+        const member = await manager.knowMember(room, uid);
+        if (manager.loaded(id) === room) return { room, member };
+      }
+      fail(reply, 503, "unavailable");
       return null;
     }
 
@@ -407,14 +582,13 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
       if (!uid) return fail(reply, 401, "unauthenticated");
       const input = parseInput(request.body);
       if (!input) return fail(reply, 400, "invalid-argument");
-      const room = await roomOf(request.params.id, reply);
-      if (!room) return reply;
-      const member = (await manager.knowMember(room, uid)) ? { kind: "player" as const } : null;
-      // Комната в памяти — только у незавершённой сессии (завершение выгружает её).
-      if (!permissions.canSendRoomInput(uid, { phase: "playing" }, member)) return fail(reply, 403, "permission-denied");
+      const found = await memberRoom(request.params.id, uid, reply);
+      if (!found) return reply;
+      const { room, member } = found;
+      if (!permissions.canSendRoomInput(uid, { phase: room.phase }, member ? { kind: "player" } : null)) return fail(reply, 403, "permission-denied");
       const result = room.input(uid, input, now());
       if (!result.ok) return fail(reply, result.status, result.error);
-      return { at: result.at, every: result.every, paused: result.paused, dropped: result.dropped, dup: result.dup };
+      return { at: result.at, every: result.every, paused: result.paused, dropped: result.dropped, dup: result.dup, stale: result.stale };
     });
 
     api.post<{ Params: { id: string }; Body: unknown }>("/api/rooms/:id/command", { bodyLimit: ROOM_BODY }, async (request, reply) => {
@@ -422,15 +596,25 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
       if (!who) return fail(reply, 401, "unauthenticated");
       const body = isRecord(request.body) ? request.body : {};
       const cmd = typeof body.cmd === "string" ? body.cmd : "";
-      const commandId = body.id === undefined ? null : typeof body.id === "string" && COMMAND_ID.test(body.id) ? body.id : undefined;
-      if (!cmd || commandId === undefined) return fail(reply, 400, "invalid-argument");
-      const room = await roomOf(request.params.id, reply);
-      if (!room) return reply;
-      if (!permissions.canCommandRoom(who.uid, { hostId: room.hostId, phase: "playing" })) return fail(reply, 403, "permission-denied");
-      const outcome = room.command(cmd, body.args ?? null, commandId, now());
-      if (!outcome.ok) return outcome.error === "invalid-argument" ? fail(reply, 400, "invalid-argument") : fail(reply, 409, "failed-precondition", outcome.error);
-      request.log.info({ room: "command", cmd }, "rooms");
-      return { ok: true, result: outcome.result ?? null };
+      const commandId = body.id === undefined || body.id === null ? null : typeof body.id === "string" && COMMAND_ID.test(body.id) ? body.id : undefined;
+      const expect = body.expect === undefined || body.expect === null ? null : typeof body.expect === "string" ? body.expect : undefined;
+      if (!cmd || commandId === undefined || expect === undefined) return fail(reply, 400, "invalid-argument");
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const room = await roomOf(request.params.id, reply);
+        if (!room) return reply;
+        if (!permissions.canCommandRoom(who.uid, { hostId: room.hostId, phase: room.phase })) return fail(reply, 403, "permission-denied");
+        // Пока проверяли вход, комнату могли выгрузить — команда уйдёт в новую.
+        if (manager.loaded(room.id) !== room) continue;
+        const outcome = room.command(cmd, body.args ?? null, commandId, now(), expect);
+        if (!outcome.ok) {
+          if (outcome.error === "invalid-argument") return fail(reply, 400, "invalid-argument");
+          // Игра ушла дальше (второй пульт, двойное касание) — как `apply` медленного пути.
+          return fail(reply, 409, "failed-precondition", outcome.error);
+        }
+        request.log.info({ room: "command", cmd }, "rooms");
+        return { ok: true, result: outcome.result ?? null, moment: room.moment() };
+      }
+      return fail(reply, 503, "unavailable");
     });
 
     /** Право на поток или снимок; отказ уже отправлен — null. */
@@ -440,11 +624,12 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
         fail(reply, 401, "unauthenticated");
         return null;
       }
-      const room = await roomOf(request.params.id, reply);
-      if (!room) return null;
+      const found = await memberRoom(request.params.id, who.uid, reply);
+      if (!found) return null;
+      const { room, member } = found;
       const allowed =
         kind === "me"
-          ? permissions.canWatchRoomMe(who.uid, (await manager.knowMember(room, who.uid)) ? { kind: "player" } : null)
+          ? permissions.canWatchRoomMe(who.uid, member ? { kind: "player" } : null)
           : kind === "screen"
             ? permissions.canWatchRoomScreen(who.uid)
             : permissions.canWatchRoomHost(who.uid, { hostId: room.hostId });
@@ -461,16 +646,18 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
     }
 
     for (const kind of ["me", "screen", "host"] as const) {
-      // Снимок без потока: опрос, когда поток не открывается (прокси, старый браузер).
+      // Снимок без потока: опрос, когда поток не открывается (прокси, старый браузер). Не чаще раза в секунду.
       api.get<{ Params: { id: string } }>(`/api/rooms/:id/${kind}`, async (request, reply) => {
         const ok = await watchable(kind, request, reply);
         if (!ok) return reply;
+        if (!manager.pollAllowed(ok.uid, now())) return fail(reply, 429, "resource-exhausted");
         return snapshotOf(kind, ok.room, ok.uid);
       });
 
       api.get<{ Params: { id: string } }>(`/api/stream/room/:id/${kind}`, async (request, reply) => {
         const ok = await watchable(kind, request, reply);
         if (!ok) return reply;
+        if (ok.room.listeners >= STREAMS_PER_ROOM) return fail(reply, 429, "resource-exhausted");
         openRoomStream(reply, keepAliveMs, (listener) => {
           // Комнату выгрузили, пока проверяли вход: «закрыто» — браузер переподключится к новой.
           if (manager.loaded(ok.room.id) !== ok.room) {
@@ -478,7 +665,12 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
             listener.end();
             return () => undefined;
           }
-          return ok.room.listen(kind, listener, now(), ok.uid);
+          const attached = manager.attachStream(ok.room, ok.uid, listener, () => ok.room.listen(kind, listener, now(), ok.uid));
+          if (attached === "full") {
+            listener.end();
+            return () => undefined;
+          }
+          return attached;
         });
         return reply;
       });

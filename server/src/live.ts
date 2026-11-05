@@ -1246,6 +1246,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (outcome === "not-found") return fail(reply, 404, "not-found");
       if (outcome === "failed-precondition") return fail(reply, 409, "failed-precondition");
       publishParticipant(id, outcome);
+      // Быстрый канал: прежний телефон этого игрока больше не он — его личный поток комнаты закрывается.
+      hub.publish(`device:${id}`, { type: "moved", pid });
       reply.header("Set-Cookie", deviceCookie(token));
       request.log.info({ live: "claim" }, "live");
       return { ok: true, uid: pid };

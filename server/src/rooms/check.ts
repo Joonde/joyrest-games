@@ -7,22 +7,40 @@
 import type { CommandOutcome, RoomContext, RoomEvent, RoomGame, RoomPlayer, RoomView } from "./engine";
 
 export const ROOM_CHECK = "room-check";
-/** Касаний в одном событии — не больше (человек больше 15 в секунду не может). */
-export const TAPS_PER_EVENT = 15;
+/** Касаний в секунду с телефона — не больше (человек больше 15 в секунду не может), считая по времени событий. */
+export const TAPS_PER_SECOND = 15;
 
 export interface CheckState {
   taps: Record<string, number>;
   total: number;
   echoes: number;
   resets: number;
+  /** Сколько касаний уже засчитано игроку в секунду события (по часам сервера). В снимок не идёт. */
+  window: Record<string, Record<number, number>>;
 }
 
 function count(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(TAPS_PER_EVENT, Math.floor(value))) : 0;
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(TAPS_PER_SECOND, Math.floor(value))) : 0;
 }
 
 function fresh(): CheckState {
-  return { taps: {}, total: 0, echoes: 0, resets: 0 };
+  return { taps: {}, total: 0, echoes: 0, resets: 0, window: {} };
+}
+
+/** Сколько секунд назад ещё помним засчитанные касания (событию старше — не засчитываем). */
+const WINDOW_SECONDS = 6;
+
+/** Сколько из `n` касаний ещё влезает в секунду события `at` у игрока (не больше 15 в каждую секунду). */
+function fitTaps(state: CheckState, pid: string, at: number, n: number): number {
+  const sec = Math.floor(at / 1000);
+  const seconds = (state.window[pid] ??= {});
+  const newest = Math.max(sec, ...Object.keys(seconds).map(Number));
+  for (const key of Object.keys(seconds)) if (Number(key) <= newest - WINDOW_SECONDS) delete seconds[Number(key)];
+  if (sec <= newest - WINDOW_SECONDS) return 0;
+  const used = seconds[sec] ?? 0;
+  const ok = Math.max(0, Math.min(n, TAPS_PER_SECOND - used));
+  seconds[sec] = used + ok;
+  return ok;
 }
 
 export const roomCheck: RoomGame<CheckState> = {
@@ -36,7 +54,7 @@ export const roomCheck: RoomGame<CheckState> = {
     let changed = false;
     for (const event of events) {
       if (event.t === "tap") {
-        const n = count(event.n ?? 1);
+        const n = fitTaps(state, player.pid, event.at, count(event.n ?? 1));
         if (n === 0) continue;
         state.taps[player.pid] = (state.taps[player.pid] ?? 0) + n;
         state.total += n;
@@ -52,7 +70,7 @@ export const roomCheck: RoomGame<CheckState> = {
   },
   onCommand(state: CheckState, cmd: string, args: unknown, ctx: RoomContext): CommandOutcome {
     if (cmd === "reset") {
-      Object.assign(state, fresh(), { resets: state.resets + 1 });
+      Object.assign(state, fresh(), { resets: state.resets + 1, window: state.window });
       ctx.changed();
       ctx.checkpoint();
       return { ok: true };
@@ -73,7 +91,9 @@ export const roomCheck: RoomGame<CheckState> = {
       .map(([pid, taps]) => ({ pid, name: view.players.find((p) => p.pid === pid)?.name ?? "", taps }));
     return { total: state.total, echoes: state.echoes, resets: state.resets, top };
   },
-  snapshot: (state: CheckState) => state,
+  // Этап для `expect` команд: номер сброса (сброс — новый «раунд» проверки).
+  moment: (state: CheckState) => `r${state.resets}`,
+  snapshot: (state: CheckState) => ({ taps: state.taps, total: state.total, echoes: state.echoes, resets: state.resets }),
   restore(data: unknown): CheckState | null {
     if (typeof data !== "object" || data === null) return null;
     const raw = data as Record<string, unknown>;
@@ -82,6 +102,6 @@ export const roomCheck: RoomGame<CheckState> = {
       for (const [pid, n] of Object.entries(raw.taps as Record<string, unknown>)) if (typeof n === "number" && n >= 0) taps[pid] = Math.floor(n);
     }
     const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
-    return { taps, total: num(raw.total), echoes: num(raw.echoes), resets: num(raw.resets) };
+    return { taps, total: num(raw.total), echoes: num(raw.echoes), resets: num(raw.resets), window: {} };
   },
 };

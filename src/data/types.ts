@@ -478,12 +478,16 @@ export interface RoomInputReply {
   paused: boolean;
   dropped: number;
   dup: boolean;
+  /** Номер пачки слишком старый — сервер уже не знает, была ли она: события не учтены (не «доставлено»). */
+  stale: boolean;
 }
 
 /** Задержка общего цикла комнат на сервере (последняя и худшая за 10 с), мс. */
 export interface RoomLoopStats {
   lagMs: number;
   maxLagMs: number;
+  /** Память процесса app, МБ (rss) — для нагрузочной проверки. */
+  memoryMb: number;
 }
 
 export interface RoomOfflinePlayer {
@@ -504,6 +508,8 @@ export type RoomStreamEvent =
       type: "host";
       at: number;
       version: number;
+      /** Этап игры: команда с `expect` другого этапа не выполняется (второй пульт, двойное касание). */
+      moment: string;
       paused: boolean;
       restored: boolean;
       players: number;
@@ -512,7 +518,14 @@ export type RoomStreamEvent =
       loop: RoomLoopStats;
       data: unknown;
     }
-  | { type: "closed"; at: number; reason: "finished" | "unloaded" };
+  | { type: "closed"; at: number; reason: RoomClosedReason };
+
+/**
+ * Почему поток комнаты закрыт: `finished` — сессию завершили; `unloaded` — комнату выгрузили или сервер
+ * останавливается (переподключиться); `removed` — участника убрали или за него вошёл другой телефон (не переподключаться
+ * этим устройством); `replaced` — тот же телефон открыл поток ещё раз, старый закрыт.
+ */
+export type RoomClosedReason = "finished" | "unloaded" | "removed" | "replaced";
 
 export interface Answer {
   id: string;

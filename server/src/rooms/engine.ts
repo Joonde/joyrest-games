@@ -1,21 +1,23 @@
 /**
- * Игровая комната быстрого канала (CLAUDE.md, «Быстрый канал (комнаты)»): состояние игры с непрерывными
- * нажатиями живёт в памяти сервера, телефоны шлют пачки событий, обратно — личный поток телефона, сводка экрана
- * (до 5 раз в секунду) и сводка пульта (раз в секунду). Здесь — только чистая логика без базы и HTTP: комнату
- * ведёт `server/src/room.ts`. Время — только часы сервера; событие пачки помнит, сколько мс назад оно случилось
- * (`ago`), но верим не дальше `MAX_AGO_MS`.
+ * Игровая комната быстрого канала (CLAUDE.md, «Быстрый канал (комнаты)», логика — docs/fast-room.md): состояние игры
+ * с непрерывными нажатиями живёт в памяти сервера, телефоны шлют пачки событий, обратно — личный поток телефона,
+ * сводка экрана (до 5 раз в секунду) и сводка пульта (раз в секунду). Здесь — только чистая логика без базы и HTTP:
+ * комнату ведёт `server/src/room.ts`. Время — только часы сервера; событие пачки помнит, сколько мс назад оно
+ * случилось (`ago`): у свежей пачки — не дальше интервала пачки с запасом, у повтора старой — не дальше 4 с.
  */
 import { createHash, randomBytes } from "node:crypto";
-import type { RoomInputEvent, RoomOfflinePlayer, RoomStreamEvent } from "../../../src/data/types";
+import type { RoomClosedReason, RoomInputEvent, RoomLoopStats, RoomOfflinePlayer, RoomStreamEvent } from "../../../src/data/types";
 
-/** Событию из пачки верим не старше этого: интервал пачки + разброс сети + запас. Старше — `late`. */
+/** Событию из повторённой пачки верим не старше этого: интервал пачки + разброс сети + запас. Старше — `late`. */
 export const MAX_AGO_MS = 4000;
+/** Запас к интервалу пачки для `ago` свежей пачки (разброс отправки 0–300 мс и сеть). */
+export const FRESH_AGO_SLACK_MS = 500;
 /** Событий в одной пачке — не больше. */
 export const MAX_EVENTS_PER_BATCH = 64;
 /** Сколько номеров пачек одного потока телефона помним (повтор и пачки не по порядку). */
-const SEQ_WINDOW = 64;
-/** Сколько потоков пачек одного телефона помним (перезагрузка страницы — новый поток). */
-const STREAMS_PER_PLAYER = 3;
+export const SEQ_WINDOW = 64;
+/** Сколько потоков пачек одного телефона помним (перезагрузка страницы — новый поток); вытесняется давно молчащий. */
+export const STREAMS_PER_PLAYER = 3;
 /** Запросов в секунду с телефона (пачки и отдельные движения): запас и ровная скорость. */
 export const REQUESTS_BURST = 20;
 export const REQUESTS_PER_SECOND = 10;
@@ -26,6 +28,7 @@ const OFFLINE_LIST_MAX = 100;
 const EVENT_TYPE = /^[a-z][a-z0-9_-]{0,23}$/;
 const STREAM_ID = /^[A-Za-z0-9_-]{1,32}$/;
 const COMMAND = /^[a-z][a-z0-9_-]{0,31}$/;
+const MOMENT = /^[A-Za-z0-9_:.#-]{0,64}$/;
 
 /** Игрок комнаты: устройство (uid) — участник сессии: сам игрок или член команды. */
 export interface RoomPlayer {
@@ -35,7 +38,7 @@ export interface RoomPlayer {
   team: string | null;
 }
 
-/** Событие пачки после проверки: `at` — момент события по часам сервера, `late` — пришло старше 4 с. */
+/** Событие пачки после проверки: `at` — момент события по часам сервера, `late` — `ago` больше допустимого. */
 export interface RoomEvent {
   t: string;
   at: number;
@@ -84,6 +87,11 @@ export interface RoomGame<S> {
   create(input: { snapshot: unknown; playMode: "solo" | "teams"; now: number }, ctx: RoomContext): S;
   onInput(state: S, player: RoomPlayer, events: RoomEvent[], ctx: RoomContext): void;
   onCommand(state: S, cmd: string, args: unknown, ctx: RoomContext): CommandOutcome;
+  /**
+   * Этап игры для команд пульта (`expect`): шаг или фаза, а не счётчик нажатий. Команда с другим этапом —
+   * отказ `moved`, как `apply` медленного пути. Нет — этапа нет, команды без проверки.
+   */
+  moment?(state: S): string;
   tick?(state: S, ctx: RoomContext): void;
   onPause?(state: S, ctx: RoomContext): void;
   /** Пауза кончилась: `pausedMs` — сколько стояли (сдвинуть свои назначенные моменты). */
@@ -101,7 +109,8 @@ export interface RoomGame<S> {
 
 export interface ParsedInput {
   stream: string;
-  seq: number;
+  /** Номер пачки с событиями; у пустой пачки («я на связи») номера нет — null. */
+  seq: number | null;
   events: RoomInputEvent[];
 }
 
@@ -109,49 +118,73 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Пачка телефона: `{ stream?, seq, events }`. Неверная — null. */
+/** Пачка телефона: `{ stream?, seq?, events }` (у пачки с событиями `seq` обязателен). Неверная — null. */
 export function parseInput(body: unknown): ParsedInput | null {
   if (!isRecord(body)) return null;
   const { seq, events } = body;
   const stream = body.stream === undefined ? "" : body.stream;
   if (typeof stream !== "string" || (stream !== "" && !STREAM_ID.test(stream))) return null;
-  if (typeof seq !== "number" || !Number.isSafeInteger(seq) || seq < 0) return null;
   if (!Array.isArray(events) || events.length > MAX_EVENTS_PER_BATCH) return null;
+  if (seq !== undefined && (typeof seq !== "number" || !Number.isSafeInteger(seq) || seq < 0)) return null;
+  if (events.length > 0 && seq === undefined) return null;
   const parsed: RoomInputEvent[] = [];
   for (const raw of events) {
     if (!isRecord(raw) || typeof raw.t !== "string" || !EVENT_TYPE.test(raw.t)) return null;
     if (raw.ago !== undefined && (typeof raw.ago !== "number" || !Number.isFinite(raw.ago) || raw.ago < 0)) return null;
     parsed.push(raw as RoomInputEvent);
   }
-  return { stream, seq, events: parsed };
+  return { stream, seq: typeof seq === "number" ? seq : null, events: parsed };
 }
 
-/** Событие по часам сервера: `ago` сверх 4 с не принимается — момент не раньше `now − 4 с`, пометка `late`. */
-export function timedEvent(event: RoomInputEvent, now: number): RoomEvent {
+/** Событие по часам сервера: `ago` сверх `maxAgo` не принимается — момент не раньше `now − maxAgo`, пометка `late`. */
+export function timedEvent(event: RoomInputEvent, now: number, maxAgo = MAX_AGO_MS): RoomEvent {
   const ago = Math.round(event.ago ?? 0);
-  const late = ago > MAX_AGO_MS;
+  const late = ago > maxAgo;
   const fields: Record<string, unknown> = { ...event };
   delete fields.ago;
   delete fields.at;
   delete fields.late;
-  return { ...fields, t: event.t, at: now - Math.min(ago, MAX_AGO_MS), late };
+  return { ...fields, t: event.t, at: now - Math.min(ago, maxAgo), late };
 }
 
 // ------------------------------------------------------------------ повторы и лимиты
+
+/**
+ * Номер пачки: `newest` — новая и самая свежая в потоке, `new` — новая, но не по порядку (повтор после обрыва,
+ * параллельное «движение»), `dup` — уже была, `stale` — слишком старая (окно 64 номера ушло): сервер не знает, была ли.
+ */
+export type SeqStatus = "newest" | "new" | "dup" | "stale";
 
 /** Номера пачек одного потока: повтор и пачки не по порядку — без повторной обработки. */
 export class SeqWindow {
   private max = -1;
   private readonly seen = new Set<number>();
+  lastUsed: number;
 
-  /** true — пачка новая (учтена); false — уже была или слишком старая. */
-  take(seq: number): boolean {
-    if (seq <= this.max - SEQ_WINDOW || this.seen.has(seq)) return false;
+  constructor(now = 0) {
+    this.lastUsed = now;
+  }
+
+  check(seq: number): SeqStatus {
+    if (this.seen.has(seq)) return "dup";
+    if (seq <= this.max - SEQ_WINDOW) return "stale";
+    return seq > this.max ? "newest" : "new";
+  }
+
+  /** Пачка обработана — номер запомнен. */
+  commit(seq: number): void {
     this.seen.add(seq);
     if (seq > this.max) {
       this.max = seq;
       for (const old of this.seen) if (old <= this.max - SEQ_WINDOW) this.seen.delete(old);
     }
+  }
+
+  /** check + commit: true — пачка новая. */
+  take(seq: number): boolean {
+    const status = this.check(seq);
+    if (status === "dup" || status === "stale") return false;
+    this.commit(seq);
     return true;
   }
 }
@@ -204,7 +237,17 @@ interface PlayerRuntime extends RoomPlayer {
 }
 
 export type InputResult =
-  | { ok: true; at: number; every: number; paused: boolean; dropped: number; dup: boolean }
+  | {
+      ok: true;
+      at: number;
+      every: number;
+      paused: boolean;
+      dropped: number;
+      dup: boolean;
+      stale: boolean;
+      /** События дошли до игры — это активность (отметка для выкладки, выгрузка). Пустая пачка — нет. */
+      active: boolean;
+    }
   | { ok: false; status: 403 | 429; error: string };
 
 /** Снимок комнаты в базе (`room_snapshots.data`). */
@@ -214,6 +257,18 @@ export interface RoomSnapshotData {
   key: string;
   seed: string;
   state: unknown;
+  /** Когда записан (часы сервера): после перезапуска простой считается от него. */
+  savedAt: number;
+  /** Номер изменения комнаты — продолжается после восстановления. */
+  version: number;
+  paused: boolean;
+  /** С какого момента стоит пауза (если `paused`). */
+  pausedAt: number;
+  /**
+   * Комната выгружена спокойно (15 минут без пачек, команд и подписчиков) — после загрузки та же пауза, что была.
+   * Иначе (перезапуск, сбой, остановка посреди игры) — комната поднимается на паузе.
+   */
+  clean: boolean;
 }
 
 export interface RoomInit {
@@ -221,6 +276,7 @@ export interface RoomInit {
   /** Механика и блок вечера: снимок другой игры не подходит. */
   key: string;
   hostId: string;
+  phase?: "lobby" | "playing";
   game: RoomGame<unknown>;
   players: RoomPlayer[];
   teams: Array<[string, string]>;
@@ -229,8 +285,10 @@ export interface RoomInit {
   now: number;
   /** Снимок из базы: комната поднимается из него на паузе (ведущий продолжает командой). */
   restoreFrom?: RoomSnapshotData | null;
-  /** Задержка общего цикла (для сводки пульта). */
-  loop?: () => { lagMs: number; maxLagMs: number };
+  /** Задержка общего цикла и память (для сводки пульта). */
+  loop?: () => RoomLoopStats;
+  /** Исключение в коде игры: что упало (журнал — с ограничением частоты). */
+  onError?: (where: string, error: unknown) => void;
 }
 
 export class Room {
@@ -239,13 +297,15 @@ export class Room {
   readonly hostId: string;
   readonly game: RoomGame<unknown>;
   readonly seed: string;
+  /** Фаза сессии по событиям Hub (`lobby` / `playing`); завершённая комната выгружается. */
+  phase: "lobby" | "playing";
   state: unknown;
   paused = false;
-  /** Поднята из снимка после перезапуска или выгрузки — пульту это видно. */
+  /** Поднята из снимка после перезапуска или сбоя — пульту это видно. */
   restored = false;
   /** Номер изменения: растёт на каждое `changed()`. */
   version = 0;
-  /** Последний вход пачки или команды — для отметки активности и выгрузки. */
+  /** Последняя пачка с событиями или команда — для отметки активности и выгрузки. Пустые пачки не в счёт. */
   lastActivity: number;
   /** Номер изменения, записанный в последний снимок. */
   savedVersion = -1;
@@ -259,33 +319,52 @@ export class Room {
   private pausedAt = 0;
   private screenDirty = true;
   private hostDirty = true;
-  private lastScreenAt = 0;
-  private lastHostAt = 0;
+  private lastScreenAt = -Infinity;
+  private lastHostAt = -Infinity;
   private readonly me = new Map<string, Set<RoomListener>>();
   private readonly screens = new Set<RoomListener>();
   private readonly hosts = new Set<RoomListener>();
   private readonly commands = new Map<string, CommandOutcome>();
-  private readonly loop: () => { lagMs: number; maxLagMs: number };
+  private readonly loop: () => RoomLoopStats;
+  private readonly onError: (where: string, error: unknown) => void;
   private readonly playMode: "solo" | "teams";
 
   constructor(init: RoomInit) {
     this.id = init.id;
     this.key = init.key;
     this.hostId = init.hostId;
+    this.phase = init.phase ?? "lobby";
     this.game = init.game;
     this.playMode = init.playMode;
     this.lastActivity = init.now;
-    this.loop = init.loop ?? (() => ({ lagMs: 0, maxLagMs: 0 }));
+    this.loop = init.loop ?? (() => ({ lagMs: 0, maxLagMs: 0, memoryMb: 0 }));
+    this.onError = init.onError ?? (() => undefined);
     for (const [id, name] of init.teams) this.teams.set(id, name);
     for (const player of init.players) this.addPlayer(player, init.now);
     const restore = init.restoreFrom;
-    const restored = restore && restore.game === init.game.id && restore.key === init.key ? init.game.restore(restore.state) : null;
+    let restored: unknown = null;
+    if (restore && restore.game === init.game.id && restore.key === init.key) {
+      try {
+        restored = init.game.restore(restore.state);
+      } catch (error) {
+        this.onError("restore", error);
+      }
+    }
     if (restore && restored !== null) {
       this.seed = restore.seed;
       this.state = restored;
-      this.restored = true;
-      this.paused = true;
-      this.pausedAt = init.now;
+      this.version = restore.version;
+      this.savedVersion = restore.version;
+      if (restore.clean) {
+        // Спокойная выгрузка: никто не играл — та же пауза, что была.
+        this.paused = restore.paused;
+        this.pausedAt = restore.pausedAt;
+      } else {
+        // Перезапуск или сбой посреди игры: на паузе, простой — с момента снимка (или с начала паузы).
+        this.restored = true;
+        this.paused = true;
+        this.pausedAt = restore.paused ? restore.pausedAt : restore.savedAt;
+      }
     } else {
       this.seed = randomBytes(16).toString("hex");
       this.state = init.game.create({ snapshot: init.snapshot, playMode: init.playMode, now: init.now }, this.context(init.now));
@@ -329,20 +408,50 @@ export class Room {
       this.playerList = null;
     } else {
       const runtime = this.addPlayer({ pid: p.id, name: p.name, team: p.teamId }, now);
-      this.game.onJoin?.(this.state, { pid: runtime.pid, name: runtime.name, team: runtime.team }, this.context(now));
+      this.safely("join", () => this.game.onJoin?.(this.state, { pid: runtime.pid, name: runtime.name, team: runtime.team }, this.context(now)));
     }
     this.changed();
   }
 
-  removeParticipant(id: string): void {
-    if (this.teams.delete(id) || this.players.delete(id)) {
-      this.playerList = null;
+  /** Участника убрали: он не в составе, не «на связи», его личный поток закрыт (`removed`). */
+  removeParticipant(id: string, now: number): void {
+    if (this.teams.delete(id)) {
       this.changed();
+      return;
+    }
+    const player = this.players.get(id);
+    if (!player) return;
+    if (player.online) this.onlineCount -= 1;
+    this.players.delete(id);
+    this.playerList = null;
+    this.closePersonal(id, "removed", now);
+    this.changed();
+  }
+
+  /** За этого игрока вошёл другой телефон («Вы уже играли?»): прежний поток закрыт, номера пачек — с чистого листа. */
+  deviceMoved(pid: string, now: number): void {
+    const player = this.players.get(pid);
+    if (player) player.streams.clear();
+    this.closePersonal(pid, "removed", now);
+  }
+
+  private closePersonal(pid: string, reason: RoomClosedReason, now: number): void {
+    const set = this.me.get(pid);
+    if (!set) return;
+    this.me.delete(pid);
+    const event: RoomStreamEvent = { type: "closed", at: now, reason };
+    for (const l of set) {
+      l.send(event);
+      l.end();
     }
   }
 
   get playersCount(): number {
     return this.players.size;
+  }
+
+  get online(): number {
+    return this.onlineCount;
   }
 
   private list(): RoomPlayer[] {
@@ -375,6 +484,16 @@ export class Room {
     };
   }
 
+  /** Код игры не валит комнату: исключение — в журнал, комната живёт дальше. */
+  private safely<T>(where: string, run: () => T): T | undefined {
+    try {
+      return run();
+    } catch (error) {
+      this.onError(where, error);
+      return undefined;
+    }
+  }
+
   changed(): void {
     this.version += 1;
     this.screenDirty = true;
@@ -385,35 +504,73 @@ export class Room {
     return this.game.batchMs(this.players.size);
   }
 
+  moment(): string {
+    const value = this.game.moment ? this.safely("moment", () => this.game.moment?.(this.state)) : "";
+    return typeof value === "string" ? value : "";
+  }
+
   /** Пачка телефона `uid`. Не участник — отказ; повтор номера — «уже было», без обработки. */
   input(uid: string, input: ParsedInput, now: number): InputResult {
     const player = this.players.get(uid);
     if (!player) return { ok: false, status: 403, error: "permission-denied" };
     if (player.requests.take(1, now) === 0) return { ok: false, status: 429, error: "resource-exhausted" };
-    this.lastActivity = now;
     this.seen(player, now);
+    const every = this.every();
+    const reply = { ok: true as const, at: now, every, paused: this.paused, dropped: 0, dup: false, stale: false, active: false };
+    // «Я на связи»: номер не нужен и не тратится.
+    if (input.events.length === 0 || input.seq === null) return reply;
     let window = player.streams.get(input.stream);
     if (!window) {
-      window = new SeqWindow();
+      window = new SeqWindow(now);
       player.streams.set(input.stream, window);
-      if (player.streams.size > STREAMS_PER_PLAYER) player.streams.delete(player.streams.keys().next().value ?? "");
+      if (player.streams.size > STREAMS_PER_PLAYER) {
+        // Вытесняется давно молчащий поток (страница, которую закрыли), а не первый по порядку.
+        let oldest: string | null = null;
+        let at = Infinity;
+        for (const [key, w] of player.streams) {
+          if (key !== input.stream && w.lastUsed < at) {
+            at = w.lastUsed;
+            oldest = key;
+          }
+        }
+        if (oldest !== null) player.streams.delete(oldest);
+      }
     }
-    const reply = { ok: true as const, at: now, every: this.every(), paused: this.paused };
-    if (!window.take(input.seq)) return { ...reply, dropped: 0, dup: true };
-    if (input.events.length === 0) return { ...reply, dropped: 0, dup: false };
+    window.lastUsed = now;
+    const status = window.check(input.seq);
+    if (status === "dup") return { ...reply, dup: true };
+    if (status === "stale") return { ...reply, stale: true };
     const allowed = player.events.take(input.events.length, now);
     const dropped = input.events.length - allowed;
     // На паузе события не идут в игру: время стоит (пачка — только «я на связи»).
-    if (!this.paused && allowed > 0) {
-      const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now));
-      this.game.onInput(this.state, { pid: player.pid, name: player.name, team: player.team }, events, this.context(now));
+    if (this.paused || allowed === 0) {
+      window.commit(input.seq);
+      return { ...reply, dropped: this.paused ? input.events.length : dropped };
     }
-    return { ...reply, dropped, dup: false };
+    // Свежая пачка — события не старше интервала пачки с запасом; повтор старой — не старше 4 с.
+    const maxAgo = status === "newest" ? Math.min(MAX_AGO_MS, every + FRESH_AGO_SLACK_MS) : MAX_AGO_MS;
+    const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now, maxAgo));
+    let failed = false;
+    try {
+      this.game.onInput(this.state, { pid: player.pid, name: player.name, team: player.team }, events, this.context(now));
+    } catch (error) {
+      failed = true;
+      this.onError("input", error);
+    }
+    // Номер учтён и при ошибке игры: повтор той же пачки упал бы так же; события — в `dropped`, телефон узнает.
+    window.commit(input.seq);
+    if (failed) return { ...reply, dropped: input.events.length };
+    this.lastActivity = now;
+    return { ...reply, dropped, active: true };
   }
 
-  /** Команда пульта; `id` — повтор после обрыва возвращает прежний итог. */
-  command(cmd: string, args: unknown, id: string | null, now: number): CommandOutcome {
+  /**
+   * Команда пульта; `id` — повтор после обрыва возвращает прежний итог. `expect` — этап игры, который видел ведущий:
+   * игра ушла дальше (второй пульт, двойное касание) — отказ `moved`. Пауза и продолжение повторяемы и без этапа.
+   */
+  command(cmd: string, args: unknown, id: string | null, now: number, expect: string | null = null): CommandOutcome {
     if (!COMMAND.test(cmd)) return { ok: false, error: "invalid-argument" };
+    if (expect !== null && !MOMENT.test(expect)) return { ok: false, error: "invalid-argument" };
     if (id !== null) {
       const known = this.commands.get(id);
       if (known) return known;
@@ -422,7 +579,8 @@ export class Room {
     let outcome: CommandOutcome;
     if (cmd === "pause") outcome = this.pause(now);
     else if (cmd === "resume") outcome = this.resume(now);
-    else outcome = this.game.onCommand(this.state, cmd, args, this.context(now));
+    else if (expect !== null && expect !== this.moment()) outcome = { ok: false, error: "moved" };
+    else outcome = this.safely("command", () => this.game.onCommand(this.state, cmd, args, this.context(now))) ?? { ok: false, error: "game-error" };
     if (id !== null) {
       this.commands.set(id, outcome);
       if (this.commands.size > COMMAND_MEMORY) this.commands.delete(this.commands.keys().next().value ?? "");
@@ -434,7 +592,7 @@ export class Room {
     if (this.paused) return { ok: true };
     this.paused = true;
     this.pausedAt = now;
-    this.game.onPause?.(this.state, this.context(now));
+    this.safely("pause", () => this.game.onPause?.(this.state, this.context(now)));
     this.afterPauseChange(now);
     return { ok: true };
   }
@@ -443,7 +601,8 @@ export class Room {
     if (!this.paused) return { ok: true };
     this.paused = false;
     this.restored = false;
-    this.game.onResume?.(this.state, Math.max(0, now - this.pausedAt), this.context(now));
+    const pausedMs = Math.max(0, now - this.pausedAt);
+    this.safely("resume", () => this.game.onResume?.(this.state, pausedMs, this.context(now)));
     this.afterPauseChange(now);
     return { ok: true };
   }
@@ -474,7 +633,7 @@ export class Room {
         this.changed();
       }
     }
-    if (!this.paused) this.game.tick?.(this.state, this.context(now));
+    if (!this.paused && this.game.tick) this.safely("tick", () => this.game.tick?.(this.state, this.context(now)));
     const screenEvery = 1000 / (this.game.screenHz ?? 5);
     if (this.screenDirty && this.screens.size > 0 && now - this.lastScreenAt >= screenEvery) this.flushScreen(now);
     if (this.hostDirty && this.hosts.size > 0 && now - this.lastHostAt >= 1000) this.flushHost(now);
@@ -490,7 +649,7 @@ export class Room {
       paused: this.paused,
       players: this.players.size,
       online: this.onlineCount,
-      data: this.game.screen(this.state, this.view(now)),
+      data: this.safely("screen", () => this.game.screen(this.state, this.view(now))) ?? null,
     };
   }
 
@@ -503,13 +662,14 @@ export class Room {
       type: "host",
       at: now,
       version: this.version,
+      moment: this.moment(),
       paused: this.paused,
       restored: this.restored,
       players: this.players.size,
       online: this.onlineCount,
       offline,
       loop: this.loop(),
-      data: this.game.host(this.state, this.view(now)),
+      data: this.safely("host", () => this.game.host(this.state, this.view(now))) ?? null,
     };
   }
 
@@ -520,7 +680,7 @@ export class Room {
       paused: this.paused,
       every: this.every(),
       offlineMs: this.game.offlineMs,
-      data: this.game.personal(this.state, pid, this.view(now)),
+      data: this.safely("personal", () => this.game.personal(this.state, pid, this.view(now))) ?? null,
     };
   }
 
@@ -551,11 +711,12 @@ export class Room {
         set = new Set();
         this.me.set(pid, set);
       }
-      set.add(listener);
+      const target = set;
+      target.add(listener);
       listener.send(this.meEvent(pid, now));
       return () => {
-        set.delete(listener);
-        if (set.size === 0) this.me.delete(pid);
+        target.delete(listener);
+        if (target.size === 0 && this.me.get(pid) === target) this.me.delete(pid);
       };
     }
     const target = kind === "screen" ? this.screens : this.hosts;
@@ -571,7 +732,7 @@ export class Room {
   }
 
   /** Комната выгружается: всем «закрыто», потоки закрываются (телефоны переподключатся). */
-  close(reason: "finished" | "unloaded", now: number): void {
+  close(reason: RoomClosedReason, now: number): void {
     const event: RoomStreamEvent = { type: "closed", at: now, reason };
     const all = [...this.screens, ...this.hosts, ...[...this.me.values()].flatMap((s) => [...s])];
     this.screens.clear();
@@ -585,8 +746,20 @@ export class Room {
 
   // -------------------------------------------------------------- снимок
 
-  snapshotData(): RoomSnapshotData {
-    return { v: 1, game: this.game.id, key: this.key, seed: this.seed, state: this.game.snapshot(this.state) };
+  /** Снимок для базы; `clean` — спокойная выгрузка (после загрузки пауза та же, что была). */
+  snapshotData(now: number, clean = false): RoomSnapshotData {
+    return {
+      v: 1,
+      game: this.game.id,
+      key: this.key,
+      seed: this.seed,
+      state: this.game.snapshot(this.state),
+      savedAt: now,
+      version: this.version,
+      paused: this.paused,
+      pausedAt: this.pausedAt,
+      clean,
+    };
   }
 
   /** Режим участников комнаты (для игр). */
@@ -600,5 +773,17 @@ export function parseSnapshotData(value: unknown): RoomSnapshotData | null {
   if (!isRecord(value) || value.v !== 1) return null;
   const { game, key, seed } = value;
   if (typeof game !== "string" || typeof key !== "string" || typeof seed !== "string") return null;
-  return { v: 1, game, key, seed, state: value.state ?? null };
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return {
+    v: 1,
+    game,
+    key,
+    seed,
+    state: value.state ?? null,
+    savedAt: num(value.savedAt),
+    version: Math.max(0, Math.floor(num(value.version))),
+    paused: value.paused === true,
+    pausedAt: num(value.pausedAt),
+    clean: value.clean === true,
+  };
 }

@@ -5,7 +5,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
-import { applyChange, checkChange, Hub, normalizeState, sseFrame } from "./live";
+import { applyChange, checkChange, Hub, normalizeState, OpenStreams, sseFrame } from "./live";
 import { migrate } from "./migrate";
 
 describe("изменение пульта", () => {
@@ -69,6 +69,38 @@ describe("изменение пульта", () => {
     hub.publish("session:a", { x: 3 });
     expect(got).toEqual([{ x: 2 }]);
     expect(hub.count("session:a")).toBe(0);
+  });
+
+  it("повторная отписка не стирает чужую подписку того же канала", () => {
+    const hub = new Hub();
+    const got: string[] = [];
+    const stopA = hub.subscribe("session:a", () => got.push("a"));
+    stopA();
+    // Канал опустел и удалён; новый подписчик заводит новый набор — повтор старой отписки его не трогает.
+    hub.subscribe("session:a", () => got.push("b"));
+    stopA();
+    hub.publish("session:a", {});
+    expect(got).toEqual(["b"]);
+    expect(hub.count("session:a")).toBe(1);
+    // И в том же наборе: двойная отписка одного не удаляет канал с другими.
+    const stopC = hub.subscribe("session:c", () => got.push("c1"));
+    hub.subscribe("session:c", () => got.push("c2"));
+    stopC();
+    stopC();
+    hub.publish("session:c", {});
+    expect(got.slice(-1)).toEqual(["c2"]);
+  });
+
+  it("остановка: поток сначала отписывается, потом закрывается; новый поток после начала остановки — не открывается (503)", () => {
+    const streams = new OpenStreams<{ destroyed: boolean; writableEnded: boolean; end(): void }>();
+    const order: string[] = [];
+    const res = { destroyed: false, writableEnded: false, end: () => order.push("end") };
+    streams.add(res, () => order.push("close"));
+    expect(streams.admit()).toBe(true);
+    streams.closeAll();
+    expect(order).toEqual(["close", "end"]);
+    expect(streams.size).toBe(0);
+    expect(streams.admit()).toBe(false);
   });
 });
 

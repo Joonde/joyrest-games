@@ -177,9 +177,17 @@ export function agoLimit(input: {
   retry: boolean;
   prevBatchAt: number | null;
   prevRequestAt: number | null;
+  /** Когда пришла самая свежая (с наибольшим номером) пачка потока. */
+  newestAt?: number | null;
 }): { maxAgo: number; delayed: boolean } {
   const { now, every, status, retry, prevBatchAt, prevRequestAt } = input;
   const fresh = every + FRESH_AGO_SLACK_MS;
+  // Честный обгон: «сейчас» и обычная пачка ушли почти вместе и пришли в другом порядке. Пачка не по порядку без
+  // повтора в пределах интервала после самой свежей — как свежая: предел интервала, без `delayed` (раньше интервала
+  // это время не уводит, поэтому подделке номерами ничего не даёт).
+  if (status === "new" && !retry && input.newestAt != null && now - input.newestAt <= fresh) {
+    return { maxAgo: Math.min(MAX_AGO_MS, fresh), delayed: false };
+  }
   if (status === "new" || retry) {
     const maxAgo = prevBatchAt === null ? fresh : Math.max(fresh, now - prevBatchAt + FRESH_AGO_SLACK_MS);
     return { maxAgo: Math.min(MAX_AGO_MS, maxAgo), delayed: true };
@@ -211,6 +219,11 @@ export class SeqWindow {
     if (this.seen.has(seq)) return "dup";
     if (seq <= this.max - SEQ_WINDOW) return "stale";
     return seq > this.max ? "newest" : "new";
+  }
+
+  /** Когда пришла пачка с наибольшим номером; не было — null. */
+  newestArrival(): number | null {
+    return this.seen.get(this.max) ?? null;
   }
 
   /** Когда пришла ближайшая меньшая принятая пачка; нет такой в окне — null. */
@@ -281,6 +294,10 @@ export function seededRandom(seed: string, key: string): number {
 export interface RoomListener {
   send(event: RoomStreamEvent): void;
   end(): void;
+  /** Сколько байт ждёт отправки (поток по HTTP); нет — 0. */
+  backlog?(): number;
+  /** Оборвать поток без «закрыто» (отставший — переподключится со свежим снимком). */
+  destroy?(): void;
 }
 
 interface PlayerRuntime extends RoomPlayer {
@@ -323,6 +340,8 @@ export interface RoomSnapshotData {
   savedAt: number;
   /** Номер изменения комнаты — продолжается после восстановления. */
   version: number;
+  /** Последняя активность (пачка, дошедшая до игры, или команда): забытую комнату подписка не поднимает. */
+  activeAt: number;
   paused: boolean;
   /** С какого момента стоит пауза (если `paused`). */
   pausedAt: number;
@@ -371,6 +390,11 @@ export class Room {
   lastActivity: number;
   /** Сколько раз была активность (пачки, дошедшие до игры, и команды) — для отметки `updated_at`; создание — не активность. */
   activityCount = 0;
+  /**
+   * Последняя настоящая активность (пачка, дошедшая до игры, или команда; без неё — создание комнаты). Хранится в снимке:
+   * забытая на 12 часов комната закрывается (`abandoned`), и переподключение экрана её не продлевает.
+   */
+  activeAt: number;
   /** Номер изменения, записанный в последний снимок. */
   savedVersion = -1;
   /** Ждёт контрольная точка (запись снимка вне очереди 10 с). */
@@ -400,6 +424,7 @@ export class Room {
     this.game = init.game;
     this.playMode = init.playMode;
     this.lastActivity = init.now;
+    this.activeAt = init.now;
     this.loop = init.loop ?? (() => ({ lagMs: 0, maxLagMs: 0, memoryMb: 0 }));
     this.onError = init.onError ?? (() => undefined);
     for (const [id, name] of init.teams) this.teams.set(id, name);
@@ -418,6 +443,7 @@ export class Room {
       this.state = restored;
       this.version = restore.version;
       this.savedVersion = restore.version;
+      this.activeAt = Math.min(init.now, restore.activeAt);
       if (restore.clean) {
         // Спокойная выгрузка: никто не играл — та же пауза, что была.
         this.paused = restore.paused;
@@ -510,6 +536,13 @@ export class Room {
       l.send(event);
       l.end();
     }
+  }
+
+  /** Кто сейчас на связи (для `participants.seen_at`: «Вы уже играли?» не отдаёт играющего в комнате). */
+  onlinePids(): string[] {
+    const pids: string[] = [];
+    for (const p of this.players.values()) if (p.online) pids.push(p.pid);
+    return pids;
   }
 
   get playersCount(): number {
@@ -635,6 +668,7 @@ export class Room {
       retry: input.retry,
       prevBatchAt: window.prevArrival(input.seq),
       prevRequestAt,
+      newestAt: window.newestArrival(),
     });
     const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now, maxAgo, delayed));
     let failed = false;
@@ -653,6 +687,7 @@ export class Room {
 
   private activity(now: number): void {
     this.lastActivity = now;
+    this.activeAt = now;
     this.activityCount += 1;
   }
 
@@ -848,6 +883,7 @@ export class Room {
       state: this.game.snapshot(this.state),
       savedAt: now,
       version: this.version,
+      activeAt: this.activeAt,
       paused: this.paused,
       pausedAt: this.pausedAt,
       clean,
@@ -874,6 +910,8 @@ export function parseSnapshotData(value: unknown): RoomSnapshotData | null {
     state: value.state ?? null,
     savedAt: num(value.savedAt),
     version: Math.max(0, Math.floor(num(value.version))),
+    // Снимки до этой правки — без метки активности: считаем от времени снимка.
+    activeAt: typeof value.activeAt === "number" && Number.isFinite(value.activeAt) ? value.activeAt : num(value.savedAt),
     paused: value.paused === true,
     pausedAt: num(value.pausedAt),
     clean: value.clean === true,

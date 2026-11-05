@@ -309,15 +309,25 @@ describe("быстрый канал: поток и команды на клие�
     expect(got).toHaveLength(3);
   });
 
-  it("«closed: replaced»: личный поток останавливается (новая вкладка), экран и пульт — нет (переподключатся сами)", () => {
+  it("«closed: replaced» и «abandoned»: любой поток останавливается сам (без вытеснения по кругу), причина — в ошибке", () => {
     for (const kind of ["me", "screen", "host"] as const) {
-      const f = fakeOpen();
-      const errors: Error[] = [];
-      subscribeRoom("s1", kind, () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
-      f.options().onEvent({ type: "closed", at: 1, reason: "replaced" });
-      expect(errors.length).toBe(kind === "me" ? 1 : 0);
-      expect(f.closed()).toBe(kind === "me");
+      for (const reason of ["replaced", "abandoned"] as const) {
+        const f = fakeOpen();
+        const errors: Error[] = [];
+        subscribeRoom("s1", kind, () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
+        f.options().onEvent({ type: "closed", at: 1, reason });
+        expect(errors).toHaveLength(1);
+        expect((errors[0] as ApiError).reason).toBe(reason);
+        expect(isPermanentError(errors[0])).toBe(true);
+        expect(f.closed()).toBe(true);
+      }
     }
+    // «unloaded» — переподключение, не остановка.
+    const f = fakeOpen();
+    const errors: Error[] = [];
+    subscribeRoom("s1", "screen", () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
+    f.options().onEvent({ type: "closed", at: 1, reason: "unloaded" });
+    expect(errors).toEqual([]);
   });
 
   it("опрос: снимок через GET; «не игрок» дважды и лимит — повторяемо, 409 и третий 403 — окончательно", async () => {

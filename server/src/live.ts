@@ -60,6 +60,43 @@ export function sseFrame(event: object): string {
 /** Медленный телефон, у которого накопилось больше этого, отключается — переподключится со свежим снимком. */
 export const STREAM_BACKLOG_BYTES = 512 * 1024;
 
+/**
+ * Открытые потоки событий для остановки приложения: `closeAll` сначала вызывает закрытие потока (отписка от Hub и
+ * «я жив»), потом заканчивает ответ; после начала остановки `admit()` — false (новый поток получает 503).
+ */
+export class OpenStreams<R extends { destroyed: boolean; writableEnded: boolean; end(): unknown }> {
+  private readonly open = new Map<R, () => void>();
+  private closing = false;
+
+  admit(): boolean {
+    return !this.closing;
+  }
+
+  add(res: R, close: () => void): void {
+    this.open.set(res, close);
+  }
+
+  delete(res: R): void {
+    this.open.delete(res);
+  }
+
+  get size(): number {
+    return this.open.size;
+  }
+
+  closeAll(): void {
+    this.closing = true;
+    for (const [res, close] of [...this.open]) {
+      close();
+      if (!res.destroyed && !res.writableEnded) res.end();
+    }
+    this.open.clear();
+  }
+}
+
+/** Канал Hub для всех комнат: за игрока вошёл другой телефон (`{ type: "moved", pid }`). */
+export const DEVICES_CHANNEL = "devices";
+
 /** Подписчики по каналам: session:<id>, participants:<id>, answers:<id>. Один процесс app. */
 export class Hub {
   private readonly channels = new Map<string, Set<Listener>>();
@@ -71,9 +108,14 @@ export class Hub {
       this.channels.set(channel, set);
     }
     set.add(listener);
+    const own = set;
+    let done = false;
+    // Повторная отписка ничего не делает: иначе она стёрла бы канал, в котором уже новые подписчики.
     return () => {
-      set.delete(listener);
-      if (set.size === 0) this.channels.delete(channel);
+      if (done) return;
+      done = true;
+      own.delete(listener);
+      if (own.size === 0 && this.channels.get(channel) === own) this.channels.delete(channel);
     };
   }
 
@@ -558,16 +600,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
    */
   // Поток → его закрытие (отписка от Hub и «я жив»): при остановке сначала отписка, потом конец ответа — событие Hub,
   // пришедшее после, в закрытый ответ уже не пишется. Потоки, открытые после начала остановки, сразу получают 503.
-  const openStreams = new Map<FastifyReply["raw"], () => void>();
-  let streamsClosing = false;
-  app.addHook("preClose", async () => {
-    streamsClosing = true;
-    for (const [res, close] of [...openStreams]) {
-      close();
-      if (!res.destroyed && !res.writableEnded) res.end();
-    }
-    openStreams.clear();
-  });
+  const openStreams = new OpenStreams<FastifyReply["raw"]>();
+  app.addHook("preClose", async () => openStreams.closeAll());
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -1255,6 +1289,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       publishParticipant(id, outcome);
       // Быстрый канал: прежний телефон этого игрока больше не он — его личный поток комнаты закрывается.
       hub.publish(`device:${id}`, { type: "moved", pid });
+      // И всем комнатам сразу (кэш входа общий): прежний телефон не принимается и тогда, когда комната выгружена.
+      hub.publish(DEVICES_CHANNEL, { type: "moved", pid });
       reply.header("Set-Cookie", deviceCookie(token));
       request.log.info({ live: "claim" }, "live");
       return { ok: true, uid: pid };
@@ -1446,7 +1482,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
      */
     async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
       // Приложение останавливается (вход проверяли, пока шла остановка): поток не открываем — браузер повторит.
-      if (streamsClosing) {
+      if (!openStreams.admit()) {
         reply.code(503).send({ error: "unavailable" });
         return;
       }
@@ -1490,7 +1526,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         unsubscribe();
         openStreams.delete(res);
       };
-      openStreams.set(res, close);
+      openStreams.add(res, close);
       // Закрытие ответа надёжнее закрытия запроса; телефон мог уйти, пока мы проверяли вход.
       res.on("close", close);
       if (res.destroyed) {

@@ -1,18 +1,22 @@
 /**
  * Движения приборов не чаще, чем принимает комната (`MOVES_PER_SECOND`, «ведро» на 5 с пополнением 5 в секунду): лишнее
  * сервер молча отбросил бы, и прибор на экране «отскочил» бы назад. Телефон сам придерживает лишние движения и шлёт
- * последнее положение каждого прибора, как только можно (аудит 2b, №14).
+ * последнее положение каждого прибора, как только можно (аудит 2b, №14). Свой темп — на одно движение в секунду меньше
+ * (`PHONE_MOVES_PER_SECOND`): сеть может прижать запросы друг к другу (задержка 40–640 мс), а комната считает по приходу —
+ * запас не даёт потерять последнее положение (аудит 2b, круг 2, №4).
  */
 import { MOVES_PER_SECOND } from "../rules/constants";
 
+export const PHONE_MOVES_PER_SECOND = MOVES_PER_SECOND - 1;
+
 export class MoveGate {
-  private tokens = MOVES_PER_SECOND;
+  private tokens = PHONE_MOVES_PER_SECOND;
   private at: number | null = null;
   /** Ждут своей очереди: прибор → последнее положение (порядок — по первому ожиданию). */
   readonly pending = new Map<string, number>();
 
   private refill(now: number): void {
-    if (this.at !== null && now > this.at) this.tokens = Math.min(MOVES_PER_SECOND, this.tokens + ((now - this.at) / 1000) * MOVES_PER_SECOND);
+    if (this.at !== null && now > this.at) this.tokens = Math.min(PHONE_MOVES_PER_SECOND, this.tokens + ((now - this.at) / 1000) * PHONE_MOVES_PER_SECOND);
     this.at = this.at === null ? now : Math.max(this.at, now);
   }
 
@@ -45,6 +49,6 @@ export class MoveGate {
   /** Через сколько мс освободится следующее место (0 — уже). */
   waitMs(now: number): number {
     this.refill(now);
-    return this.tokens >= 1 ? 0 : Math.ceil(((1 - this.tokens) / MOVES_PER_SECOND) * 1000);
+    return this.tokens >= 1 ? 0 : Math.ceil(((1 - this.tokens) / PHONE_MOVES_PER_SECOND) * 1000);
   }
 }

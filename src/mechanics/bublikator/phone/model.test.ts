@@ -4,13 +4,13 @@
  */
 import { describe, expect, it } from "vitest";
 import type { RoomStreamEvent } from "../../../data/types";
-import { DOCK_MS, EVENT_MS, HULL_MAX, LAUNCH_MS, REPAIR_MS, WARN_MS } from "../rules/constants";
+import { DOCK_MS, EVENT_MS, HULL_MAX, LAUNCH_MS, MOVES_PER_SECOND, REPAIR_MS, WARN_MS } from "../rules/constants";
 import { crewPlayers } from "../rules/crews";
 import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
 import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
-import { MoveGate } from "./moves";
+import { MoveGate, PHONE_MOVES_PER_SECOND } from "./moves";
 import { ShakeMeter, shakeMode, shakeReport, type ShakeSent } from "./shake";
 import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, localNow, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, withClock, type PhoneModel } from "./model";
 
@@ -539,14 +539,70 @@ describe("телефон «Бубликатора»: модель", () => {
     // Без придержки часть движений сервер отбросил бы — прибор «отскочил» бы к другому положению.
     const raw = run(false);
     expect(raw.server).not.toBe(raw.last);
-    // Сама придержка: 5 сразу, шестое ждёт ~200 мс, у одного прибора ждёт только последнее положение.
+    // Сама придержка: 4 сразу (на одно меньше, чем принимает комната), пятое ждёт ~250 мс, у прибора ждёт последнее положение.
+    expect(PHONE_MOVES_PER_SECOND).toBe(MOVES_PER_SECOND - 1);
     const gate = new MoveGate();
-    for (let i = 0; i < 5; i += 1) expect(gate.move(0, `c${i}`, 1)).toBe(true);
+    for (let i = 0; i < PHONE_MOVES_PER_SECOND; i += 1) expect(gate.move(0, `c${i}`, 1)).toBe(true);
     expect(gate.move(0, "c9", 1)).toBe(false);
     expect(gate.move(10, "c9", 3)).toBe(false);
     expect([...gate.pending]).toEqual([["c9", 3]]);
     expect(gate.waitMs(10)).toBeGreaterThan(0);
-    expect(gate.release(250)).toEqual([["c9", 3]]);
+    expect(gate.release(300)).toEqual([["c9", 3]]);
+  });
+
+  it("движения и сеть (аудит 2b, круг 2, №4): задержка 40–640 мс, по порядку — последнее положение каждого прибора доходит всегда", () => {
+    // Комната — то же «ведро», что `bucketTake` (5 сразу, 5 в секунду), по времени прихода.
+    const room = () => {
+      let tokens = MOVES_PER_SECOND;
+      let at: number | null = null;
+      return (t: number) => {
+        if (at === null) at = t;
+        if (t > at) {
+          tokens = Math.min(MOVES_PER_SECOND, tokens + ((t - at) / 1000) * MOVES_PER_SECOND);
+          at = t;
+        }
+        if (tokens < 1) return false;
+        tokens -= 1;
+        return true;
+      };
+    };
+    let seed = 7;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+    let lostLast = 0;
+    for (let trial = 0; trial < 200; trial += 1) {
+      const gate = new MoveGate();
+      const sends: Array<{ t: number; c: string; s: number }> = [];
+      const timeline: Array<{ t: number; e?: { c: string; s: number } }> = [];
+      // Гость крутит ползунок каждые 80 мс две секунды, потом другой прибор — каждые 90 мс.
+      for (let i = 0; i < 25; i += 1) timeline.push({ t: i * 80, e: { c: "a", s: i % 6 } });
+      for (let i = 0; i < 10; i += 1) timeline.push({ t: 2100 + i * 90, e: { c: "b", s: i % 3 } });
+      let timer: number | null = null;
+      while (timeline.length > 0) {
+        timeline.sort((x, y) => x.t - y.t);
+        const x = timeline.shift();
+        if (!x) break;
+        if (x.e) {
+          if (gate.move(x.t, x.e.c, x.e.s)) sends.push({ t: x.t, ...x.e });
+          else if (timer === null) timeline.push({ t: (timer = x.t + Math.max(20, gate.waitMs(x.t))) });
+        } else {
+          timer = null;
+          for (const [c, s] of gate.release(x.t)) sends.push({ t: x.t, c, s });
+          if (gate.pending.size > 0) timeline.push({ t: (timer = x.t + Math.max(20, gate.waitMs(x.t))) });
+        }
+      }
+      const take = room();
+      let prev = 0;
+      const final: Record<string, number> = {};
+      const want: Record<string, number> = {};
+      for (const s of sends) {
+        const arrive = Math.max(prev, s.t + 40 + rnd() * 600);
+        prev = arrive;
+        want[s.c] = s.s;
+        if (take(arrive)) final[s.c] = s.s;
+      }
+      if (final.a !== want.a || final.b !== want.b) lostLast += 1;
+    }
+    expect(lostLast).toBe(0);
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

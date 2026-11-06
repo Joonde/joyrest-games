@@ -30,14 +30,18 @@ export interface PhoneModel {
   full: number | null;
   /** Когда последний раз сервер отвечал (поток или пачка), местное время. */
   heardAt: number;
+  /** Когда телефон увидел начало полёта (этап `fly`), местное время: окно тайной роли закрывается само через `ROLE_AUTO_MS`. */
+  flyAt: number | null;
 }
 
 export const FLASH_MS = 1000;
+/** Окно тайной роли закрывается само через столько после начала полёта: под ним — пульт, приказы уже идут. */
+export const ROLE_AUTO_MS = 8000;
 /** Сервер молчит дольше (ни потока, ни ответа на пачку) — «Нет связи». */
 export const SILENT_MS = 6000;
 
 export function emptyModel(now: number): PhoneModel {
-  return { view: null, crew: null, paused: false, pausedAt: null, offset: null, closed: null, flash: null, finishedAt: null, full: null, heardAt: now };
+  return { view: null, crew: null, paused: false, pausedAt: null, offset: null, closed: null, flash: null, finishedAt: null, full: null, heardAt: now, flyAt: null };
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -61,6 +65,13 @@ function setPaused(m: PhoneModel, paused: boolean, at: number): PhoneModel {
 
 /** Событие личного потока → новая модель. */
 export function applyStream(m0: PhoneModel, e: RoomStreamEvent, local: number): PhoneModel {
+  const m = applyEvent(m0, e, local);
+  const fly = m.view?.stage === "fly";
+  const flyAt = fly ? (m0.view?.stage === "fly" && m0.view.leg === m.view?.leg && m0.flyAt !== null ? m0.flyAt : local) : null;
+  return flyAt === m.flyAt ? m : { ...m, flyAt };
+}
+
+function applyEvent(m0: PhoneModel, e: RoomStreamEvent, local: number): PhoneModel {
   let m: PhoneModel = { ...withClock(m0, e.at, local), heardAt: local };
   switch (e.type) {
     case "snapshot": {
@@ -160,8 +171,11 @@ export type Screen =
   | "pause"
   | "out";
 
-/** Какой экран показать: закрытие потока сильнее всего (кроме карточки итогов), потом пауза, потом этап игры. */
-export function screenOf(m: PhoneModel): Screen {
+/**
+ * Какой экран показать: закрытие потока сильнее всего (кроме карточки итогов), потом пауза, потом этап игры.
+ * `local` — местное время: окно тайной роли во время полёта закрывается само через `ROLE_AUTO_MS` (аудит 2b, №6).
+ */
+export function screenOf(m: PhoneModel, local?: number): Screen {
   if (m.closed === "busy" || m.closed === "replaced") return "tab";
   if (m.closed === "abandoned") return "abandoned";
   if (m.closed === "removed") return "removed";
@@ -176,7 +190,8 @@ export function screenOf(m: PhoneModel): Screen {
   if (v.phase === "crews") return "crews";
   if (v.phase === "drill") return "drill";
   // Перелёт.
-  if (v.role && !v.role.seen && (v.stage === "launch" || v.stage === "fly")) return "role";
+  const roleOpen = v.stage === "launch" || (v.stage === "fly" && (local === undefined || m.flyAt === null || local - m.flyAt < ROLE_AUTO_MS));
+  if (v.role && !v.role.seen && roleOpen) return "role";
   if (v.stage === "launch") return "launch";
   if (v.stage === "fly") {
     if (v.finished) return "finish";

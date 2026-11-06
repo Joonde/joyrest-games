@@ -187,6 +187,18 @@ for (const width of [360, 412]) {
     await page.waitForFunction(() => window.standReady === true, null, { timeout: 15000 });
     await page.waitForTimeout(500);
     const { found, screen } = await page.evaluate(inspect);
+    // Тайная роль: «Понятно» — в первом экране и на самом маленьком телефоне (320×568).
+    if (s === "role" || s === "role-honest") {
+      await page.setViewportSize({ width: 320, height: 568 });
+      await page.waitForTimeout(200);
+      const r = await page.evaluate(() => {
+        const b = [...document.querySelectorAll("button")].find((x) => x.textContent?.includes("Понятно"));
+        return b ? { bottom: b.getBoundingClientRect().bottom, h: window.innerHeight } : null;
+      });
+      if (!r || r.bottom > r.h) found.push(`«Понятно» не в первом экране 320×568: ${JSON.stringify(r)}`);
+      await page.setViewportSize({ width, height: 800 });
+      await page.waitForTimeout(100);
+    }
     const want = EXPECT[s];
     if (want) {
       if (want.screen && screen !== want.screen) found.push(`экран ${screen}, а должен быть ${want.screen}`);

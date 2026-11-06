@@ -1297,3 +1297,15 @@
   border: 1.5px solid var(--bk-good);
   cursor: default;
 }
+
+.bkp-role__ok {
+  width: 100%;
+}
+
+/* Низкий экран (320×568): плотнее — «Понятно» остаётся в первом экране. */
+@media (max-height: 640px) {
+  .bkp-role {
+    padding: 14px 14px;
+    gap: 8px;
+  }
+}

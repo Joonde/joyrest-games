@@ -9,7 +9,7 @@ import { crewPlayers } from "../rules/crews";
 import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
 import { shakeReport, type ShakeSent } from "./shake";
-import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, screenOf, serverNow, silent, type PhoneModel } from "./model";
+import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, type PhoneModel } from "./model";
 
 const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
 const ALL_ON = { events: { meteor: true, pull: true, sos: true, captain: true } };
@@ -42,7 +42,7 @@ class TestPhone {
     for (const x of mine) this.feed({ type: "event", at: this.w.env.now, data: x.data });
   }
   get screen() {
-    return screenOf(this.m);
+    return screenOf(this.m, this.local);
   }
 }
 
@@ -260,6 +260,28 @@ describe("телефон «Бубликатора»: модель", () => {
       expect(p.screen).toBe("finish");
       expect(p.m.finishedAt).not.toBeNull();
     }
+  });
+
+  it("окно тайной роли (аудит 2b, №6): закрывается само через 8 с после начала полёта, хоть «Понятно» и не нажали", () => {
+    const w = new World({ players: 12, content: { ...NOEV, saboteur: true } });
+    for (let i = 0; i < 12; i += 1) w.send(`p${i}`, [{ t: "crew", crew: i < 6 ? 0 : 1 }]);
+    w.ok("gather");
+    w.ok("start");
+    w.step();
+    const p = new TestPhone(w, "p1");
+    expect(p.screen).toBe("role");
+    w.advance(LAUNCH_MS + 200);
+    p.take();
+    expect(p.m.view?.stage).toBe("fly");
+    expect(p.screen).toBe("role");
+    w.advance(ROLE_AUTO_MS - 1000);
+    p.take();
+    expect(p.screen).toBe("role");
+    w.advance(1500);
+    p.take();
+    expect(p.screen).toBe("panel");
+    // Сервер о «Понятно» не знает — роль не «прочитана», просто окно не загораживает пульт.
+    expect(p.m.view?.role?.seen).toBe(false);
   });
 
   it("диверсант: окно роли до «Понятно», голосование само через 10 с, итог; без диверсанта — «не было»", () => {

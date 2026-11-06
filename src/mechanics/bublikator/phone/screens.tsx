@@ -610,6 +610,13 @@ export function RoleScreen({ v, crew, onSeen }: { v: PersonalView; crew: CrewSum
         <RoleBadge saboteur={sab} />
         <p className="bkp-eyebrow">Тайная роль на этот перелёт</p>
         <h1 className="bkp-h1 bkp-center">{sab ? "Вы диверсант" : "Вы честный член экипажа"}</h1>
+        {/* «Понятно» — сразу под ролью, в первом экране и на 320×568 (аудит 2b, №6); подробности — ниже. */}
+        <div className="actions bkp-role__ok">
+          <button type="button" className="btn btn--block" onClick={onSeen}>
+            Понятно, скрыть
+          </button>
+        </div>
+        <p className="bkp-small bkp-center">Окно закроется само через несколько секунд после взлёта.</p>
         <p className="bkp-text bkp-center">
           {sab
             ? `Примерно каждый третий ваш приказ — ложный. Читайте его так же уверенно: если экипаж выполнит, ${w.ship} ${verb(w, "теряет", "теряют")} прочность.`
@@ -624,11 +631,6 @@ export function RoleScreen({ v, crew, onSeen }: { v: PersonalView; crew: CrewSum
           {sab ? `После перелёта экипаж голосует, кто диверсант. Не раскусят — получите ленту «Мастер обмана».` : `После перелёта — голосование «Кто диверсант?». Угадаете — экипажу +${VOTE_BONUS}.`}
         </p>
       </section>
-      <div className="actions">
-        <button type="button" className="btn btn--block" onClick={onSeen}>
-          Понятно, скрыть
-        </button>
-      </div>
     </Page>
   );
 }

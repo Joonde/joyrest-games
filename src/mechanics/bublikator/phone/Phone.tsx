@@ -174,7 +174,7 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
   }, [push]);
 
   const v = m.view;
-  const screen = screenOf(m);
+  const screen = screenOf(m, now());
   const t = now();
   const sNow = serverNow(m, t);
 

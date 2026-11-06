@@ -197,6 +197,18 @@ for (const width of [360, 412]) {
     await page.waitForFunction(() => window.standReady === true, null, { timeout: 15000 });
     await page.waitForTimeout(500);
     const { found, screen } = await page.evaluate(inspect);
+    // Главное — в первом экране маленьких телефонов (аудит 2b, №9): пульт третьего перелёта, «Тяга».
+    const FOLD = { "panel-leg3": ".bkp-panel", "kids-leg3": ".bkp-panel", panel: ".bkp-panel", pull: ".bkp-hold" };
+    if (FOLD[s] && width === 360) {
+      for (const [fw, fh] of [[360, 640], [320, 568]]) {
+        await page.setViewportSize({ width: fw, height: fh });
+        await page.waitForTimeout(200);
+        const bottom = await page.evaluate((sel) => document.querySelector(sel)?.getBoundingClientRect().bottom ?? null, FOLD[s]);
+        if (bottom === null || bottom > fh) found.push(`${FOLD[s]} не в первом экране ${fw}×${fh}: низ ${Math.round(bottom ?? -1)}`);
+      }
+      await page.setViewportSize({ width, height: 800 });
+      await page.waitForTimeout(100);
+    }
     // Тайная роль: «Понятно» — в первом экране и на самом маленьком телефоне (320×568).
     if (s === "role" || s === "role-honest") {
       await page.setViewportSize({ width: 320, height: 568 });

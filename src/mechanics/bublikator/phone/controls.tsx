@@ -30,13 +30,15 @@ export interface ControlProps {
   kids: boolean;
   /** Близнец («Бубликатор» / «Бубликатрон») — пометка ↔. */
   twin: boolean;
+  /** В полширины (короткий прибор в паре — `halfControls`). */
+  half?: boolean;
   onMove: (state: number) => void;
 }
 
-export function Control({ c, shown, kids, twin, onMove }: ControlProps) {
+export function Control({ c, shown, kids, twin, half = false, onMove }: ControlProps) {
   const hint = c.type === "button" ? TYPE_TITLES.button : `${TYPE_TITLES[c.type]} · сейчас ${stateWord(c, shown)}`;
   return (
-    <section className={`bkp-ctl bkp-ctl--${c.type}`} aria-label={`${c.name}: ${hint}`}>
+    <section className={`bkp-ctl bkp-ctl--${c.type}${half ? " is-half" : ""}`} aria-label={`${c.name}: ${hint}`}>
       <header className="bkp-ctl__head">
         {kids && <KidsArt icon={c.icon} tint={c.tint} size={40} />}
         <span className="bkp-ctl__name">

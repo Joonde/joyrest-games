@@ -8,6 +8,7 @@ import { DOCK_MS, EVENT_MS, HULL_MAX, LAUNCH_MS, REPAIR_MS, WARN_MS } from "../r
 import { crewPlayers } from "../rules/crews";
 import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
+import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
 import { shakeReport, type ShakeSent } from "./shake";
 import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, type PhoneModel } from "./model";
 
@@ -394,6 +395,38 @@ describe("телефон «Бубликатора»: модель", () => {
     expect(sends).toEqual([null, 90, 90, 90, 90]);
     // Новое событие — с нуля.
     expect(shakeReport(st, "e2", 30).send).toBe(30);
+  });
+
+  it("вибрация (решение владельца 6 ноября 2026, №18): выполнен — одна короткая, не успели — две, отмена — ничего; без вибрации не ломается", () => {
+    expect(vibrationFor("done")).toEqual([BUZZ_MS]);
+    expect(vibrationFor("helped")).toEqual([BUZZ_MS]);
+    expect(vibrationFor("fail")).toEqual([BUZZ_MS, BUZZ_GAP_MS, BUZZ_MS]);
+    expect(vibrationFor("cancel")).toBeNull();
+    const nav = globalThis.navigator as unknown as Record<string, unknown> | undefined;
+    if (!nav) return;
+    const had = Object.prototype.hasOwnProperty.call(nav, "vibrate");
+    const before = nav.vibrate;
+    const calls: unknown[] = [];
+    try {
+      nav.vibrate = (p: unknown) => {
+        calls.push(p);
+        return true;
+      };
+      buzz("fail");
+      buzz("cancel");
+      expect(calls).toEqual([[BUZZ_MS, BUZZ_GAP_MS, BUZZ_MS]]);
+      // Браузер бросил ошибку (Safari, вкладка в фоне) — игра не падает.
+      nav.vibrate = () => {
+        throw new Error("нет");
+      };
+      buzz("done");
+      // Вибрации нет совсем — ничего.
+      delete nav.vibrate;
+      buzz("done");
+    } finally {
+      if (had) nav.vibrate = before;
+      else delete nav.vibrate;
+    }
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

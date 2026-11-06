@@ -8,6 +8,7 @@ import { HULL_MAX, PULL_HOLD_MS, SOS_BONUS, VOTE_BONUS } from "../rules/constant
 import type { CrewSummary, PanelControlView, PersonalView } from "../rules/types";
 import { CrewMark, PauseIcon, RoleBadge, ShakePhone, Ship, ShieldCheck, Wrench } from "./art";
 import { Control, twinsOf } from "./controls";
+import { halfControls } from "./layout";
 import { clockText, type Flash } from "./model";
 
 // ---------------------------------------------------------------- общее
@@ -190,6 +191,7 @@ export function PanelScreen(p: PanelProps) {
   const kids = v.difficulty === "kids";
   const w = wordsOf(v.theme);
   const twins = v.leg === 2 ? twinsOf(v.panel) : new Set<string>();
+  const half = halfControls(v.panel);
   const drill = v.phase === "drill";
   const double = v.me.role === "double";
   const ev = v.event;
@@ -215,7 +217,7 @@ export function PanelScreen(p: PanelProps) {
           <p className="bkp-eyebrow">Вы дублёр</p>
           <h2 className="bkp-h2">Один пульт на двоих</h2>
           <p className="bkp-text">
-            Пульт общий с игроком {v.me.doubleOf ? `«${v.me.doubleOf}»` : "вашего экипажа"}. Приказы приходят хозяину пульта и остальным — слушайте экипаж и двигайте приборы вместе: кто первый, тот и сделал.
+            Пульт общий с игроком {v.me.doubleOf ? `«${v.me.doubleOf}»` : "вашего экипажа"}. Слушайте экипаж и двигайте приборы вместе: кто первый, тот и сделал.
           </p>
         </section>
       )}
@@ -223,7 +225,7 @@ export function PanelScreen(p: PanelProps) {
       <p className="bkp-eyebrow bkp-eyebrow--section">{double ? "Общие приборы" : drill ? "Ваши приборы · как в полёте" : "Ваши приборы"}</p>
       <div className={`bkp-panel bkp-panel--${Math.min(4, v.panel.length)}`}>
         {v.panel.map((c) => (
-          <Control key={c.id} c={c} shown={p.shown(c)} kids={kids} twin={twins.has(c.id)} onMove={(s) => p.onMove(c, s)} />
+          <Control key={c.id} c={c} shown={p.shown(c)} kids={kids} twin={twins.has(c.id)} half={half.has(c.id)} onMove={(s) => p.onMove(c, s)} />
         ))}
         {v.panel.length === 0 && <p className="bkp-text bkp-empty">Приборы появятся со следующего перелёта.</p>}
       </div>
@@ -415,21 +417,6 @@ export function PullScreen({
         {w.pull}
       </Title>
       <p className="bkp-lead">{done ? "Вырвались! Отпускайте — ждём остальных." : "Держите «Тягу» все вместе 3 секунды. Отпустил один — отсчёт заново."}</p>
-      <section className="bkp-card">
-        <div className="bkp-row">
-          <span>Держат</span>
-          <b>
-            {holdingN} из {all}
-          </b>
-        </div>
-        <ul className="bkp-holders">
-          {(p?.members ?? []).map((x, i) => (
-            <li key={`${x.name}-${i}`} className={x.holding ? "is-on" : ""}>
-              {x.name}
-            </li>
-          ))}
-        </ul>
-      </section>
       <button
         type="button"
         className={`bkp-hold${holding ? " is-on" : ""}${done ? " is-done" : ""}`}
@@ -446,6 +433,22 @@ export function PullScreen({
         <span className="bkp-hold__word">{done ? "ВЫРВАЛИСЬ" : "ТЯГА"}</span>
         <span className="bkp-hold__hint">{done ? "можно отпустить" : holding ? `держите · ${(held / 1000).toFixed(1)} с` : "нажмите и держите"}</span>
       </button>
+      <section className="bkp-card">
+        <div className="bkp-row">
+          <span>Держат</span>
+          <b>
+            {holdingN} из {all}
+          </b>
+        </div>
+        {/* Кто держит — под «Тягой» (аудит 2b, №9): длинные имена не уводят кнопку за экран, а видно, кого позвать. */}
+        <ul className="bkp-holders">
+          {(p?.members ?? []).map((x, i) => (
+            <li key={`${x.name}-${i}`} className={x.holding ? "is-on" : ""}>
+              {x.name}
+            </li>
+          ))}
+        </ul>
+      </section>
       <Foot>Кого нет на связи, того не ждут. Не вырвались за 20 секунд — минус деление прочности.</Foot>
     </Page>
   );
@@ -695,7 +698,7 @@ export function VoteScreen({ v, crew, left, onVote }: { v: PersonalView; crew: C
         Кто диверсант?
       </Title>
       <p className="bkp-lead">Вспомните, после чьих приказов трясло. Один голос, за себя нельзя.</p>
-      <div className="bkp-choices" role="radiogroup" aria-label="Кто диверсант">
+      <div className={`bkp-choices${(vote?.candidates.length ?? 0) > 5 ? " bkp-choices--two" : ""}`} role="radiogroup" aria-label="Кто диверсант">
         {(vote?.candidates ?? []).map((c) => {
           const on = choice === c.pid;
           return (

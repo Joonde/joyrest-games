@@ -8,6 +8,7 @@ import type { PanelControlView } from "../rules/types";
 import { PauseIcon, ShieldCheck } from "./art";
 import type { PhoneLink, PhoneSender } from "./link";
 import { applyReply, applyStream, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, screenOf, serverNow, silent, type PhoneModel } from "./model";
+import { buzz } from "./haptics";
 import { useMotion } from "./motion";
 import { SHAKE_EVERY_MS, shakeReport, type ShakeSent } from "./shake";
 import {
@@ -146,15 +147,18 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
   const onMove = useCallback(
     (c: PanelControlView, s: number) => {
       setLocal((x) => ({ ...x, [c.id]: { s, at: now() } }));
+      // На движение прибора не вибрируем (решение владельца 6 ноября 2026): вибрация — только итог приказа.
       push({ t: "move", c: c.id, s: c.type === "button" ? 0 : s }, true);
-      try {
-        navigator.vibrate?.(12);
-      } catch {
-        /* вибрации нет */
-      }
     },
     [push, now],
   );
+
+  // Итог приказа — вибрацией (звука на телефоне нет): выполнен — одна короткая, не успели — две.
+  const flashAt = m.flash?.at ?? null;
+  const flashKind = m.flash?.kind ?? null;
+  useEffect(() => {
+    if (flashAt !== null && flashKind !== null) buzz(flashKind);
+  }, [flashAt, flashKind]);
 
   // Нажатия — копим и шлём пачкой.
   const taps = useRef<{ t: string; n: number }>({ t: "tap", n: 0 });

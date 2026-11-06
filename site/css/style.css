@@ -742,6 +742,8 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
 .joy-msg--me{ align-self: flex-end; border-bottom-right-radius: 4px; background: var(--btn-primary-bg); color: var(--btn-primary-text); }
 .joy-acts{ display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; max-width: 100%; }
 .joy-cta{ min-height: 44px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--btn-primary-bg); color: var(--btn-primary-text); font-size: 14px; font-weight: 600; }
+.joy-cta--link{ display: inline-flex; align-items: center; text-decoration: none; }
+.joy-cta--quiet{ background: transparent; border: 1.5px solid var(--btn-outline); color: var(--ink); }
 .joy-chip{ min-height: 44px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--btn-outline); background: transparent; color: var(--btn-outline-text); font-size: 14px; text-align: left; }
 .joy-chips{ display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; border-top: 1px solid var(--line); scrollbar-width: none; }
 .joy-chips::-webkit-scrollbar{ display: none; }

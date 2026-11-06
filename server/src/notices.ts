@@ -53,6 +53,13 @@ export async function recordHostNotice(
       ${event.start}, ${event.end}, ${by.name.slice(0, 120)})`;
 }
 
+/** Уведомления ведущих старше 90 дней не нужны (показываем 30) — ночная уборка их удаляет. */
+export const HOST_NOTICE_KEEP_DAYS = 90;
+export async function cleanupHostNotices(sql: Sql, now: number = Date.now()): Promise<number> {
+  const rows = await sql`delete from host_notices where created_at < ${new Date(now - HOST_NOTICE_KEEP_DAYS * 86_400_000)} returning id`;
+  return rows.length;
+}
+
 /** Строка мероприятия в колокольчике: «Свадьба — пятница, 20 ноября, 18:00–23:00». */
 export function hostNoticeName(title: string, day: string, start: number, end: number): string {
   return `${title || "Мероприятие"} — ${dayTitle(day)}, ${rangeLabel(start, end)}`;

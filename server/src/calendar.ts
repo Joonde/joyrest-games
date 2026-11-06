@@ -12,6 +12,7 @@ import type { AvailabilityEntry, CalendarMember } from "../../src/data/types";
 import { eventSpan, noticeText } from "../../src/core/events";
 import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
 import type { Bot } from "./telegram";
+import { recordHostNotice } from "./notices";
 
 export interface CalendarOptions {
   sql: Sql;
@@ -193,11 +194,22 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
       if (!permissions.canRemoveCalendarEntry(actorOf(user), { uid: existing.user_id, kind: existing.kind })) {
         return fail(reply, 403, "permission-denied");
       }
+      // Мероприятие было не отменено — после снятия его ведущему в колокольчик «Отменено» (6 ноября 2026).
+      const [wasLive] = id.startsWith("ev-") ? await sql<{ live: boolean }[]>`select (cancelled_at is null) as live from events where id = ${id.slice(3)}` : [];
       await sql.begin(async (tx) => {
         await tx`delete from availability where id = ${id}`;
         // Запись мероприятия планировщика: снять время — значит отменить мероприятие (оно уходит в «Отменённые»).
         if (id.startsWith("ev-")) await tx`update events set cancelled_at = coalesce(cancelled_at, now()), updated_at = now() where id = ${id.slice(3)}`;
       });
+      if (id.startsWith("ev-") && wasLive?.live) {
+        const [e] = await sql<{ host_id: string; title: string; day: string; start_min: number; end_min: number }[]>`
+          select host_id, title, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min from events where id = ${id.slice(3)}`;
+        if (e) {
+          await recordHostNotice(sql, { kind: "cancelled", userId: e.host_id, event: { id: id.slice(3), title: e.title, day: e.day, start: e.start_min, end: e.end_min }, by: { id: user.id, name: user.name } }).catch(() =>
+            request.log.warn({ calendar: "bell" }, "calendar: уведомление в колокольчик не записалось"),
+          );
+        }
+      }
       if (id.startsWith("ev-") && options.bot) {
         const [e] = await sql<{ host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number }[]>`
           select host_id, title, guests, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min from events where id = ${id.slice(3)}`;

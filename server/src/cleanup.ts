@@ -9,6 +9,7 @@
  * - устройства гостей старше 180 дней (их cookie уже истекла).
  * Сессии старше 30 дней убирает admin при входе в /admin (`POST /api/sessions/cleanup`).
  */
+import { cleanupHostNotices } from "./notices";
 import { brandLogosInUse } from "./branding";
 import { deckPagesInUse } from "./decks";
 import { drawingsInUse } from "./drawings";
@@ -162,7 +163,8 @@ export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, int
         if (!report.more) break;
       }
       const personal = await cleanupPersonalData(sql);
-      log.info({ files, devices, sessions, libraryGames, personal }, "cleanup");
+      const hostNotices = await cleanupHostNotices(sql);
+      log.info({ files, devices, sessions, libraryGames, personal, hostNotices }, "cleanup");
     } catch (error) {
       // Таблиц ещё нет (миграции не прошли) или нет папки — попробуем завтра.
       log.warn({ reason: error instanceof Error ? error.name : "unknown" }, "cleanup failed");

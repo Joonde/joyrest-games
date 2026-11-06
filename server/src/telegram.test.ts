@@ -479,6 +479,16 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     expect(ownerBell.items.some((n) => n.kind === "new")).toBe(true);
     await post("/api/events/ev1/cancel", owner);
     await until(() => to(BORIS).length === sentBoris + 2, "«отменено» Борису в Telegram");
+    // «Кто может» → «Снять мероприятие» (запись календаря ev-…) — тоже «Отменено» в колокольчик; повтор — без второй записи.
+    const sentAnna = to(ANNA).length;
+    expect((await post("/api/events", owner, { id: "ev-cal", hostId: annaId, day: day(21), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 30, note: "" })).statusCode).toBe(200);
+    await until(() => to(ANNA).length === sentAnna + 1, "«назначено» Анне");
+    const removeBooking = () => app.inject({ method: "DELETE", url: "/api/calendar/ev-ev-cal", headers: headers(owner) });
+    expect((await removeBooking()).statusCode).toBe(200);
+    await until(() => to(ANNA).length === sentAnna + 2, "«отменено» Анне после «Снять мероприятие»");
+    expect((await removeBooking()).statusCode).toBe(200);
+    const cal = (await bell(anna)).items.filter((n) => n.eventId === "ev-cal").map((n) => n.title);
+    expect(cal).toEqual(["✖️ Мероприятие отменено", "📅 Вам назначено мероприятие"]);
   });
   it("откуда пришёл: расчёт — «Сайт», по ссылке «Пишу с Авито» — новый клиент «Авито», вручную — можно сменить", async () => {
     tg.update({ business_message: { message_id: 9301, business_connection_id: "bc4", chat: { id: 8401, type: "private" }, from: { id: 8401, first_name: "Дина", username: "dina_avito" }, text: "Здравствуйте! Пишу с Авито, нужен ведущий на юбилей" } });

@@ -128,6 +128,14 @@ describe("календарь", () => {
     expect(p.canLinkTelegram(guest)).toBe(false);
   });
 
+  it("колокольчик — каждому активному человеку команды (свои мероприятия), не отключённым и не гостям", () => {
+    expect(p.canSeeNotices(owner)).toBe(true);
+    expect(p.canSeeNotices(host)).toBe(true);
+    expect(p.canSeeNotices(off)).toBe(false);
+    expect(p.canSeeNotices(offAdmin)).toBe(false);
+    expect(p.canSeeNotices(guest)).toBe(false);
+  });
+
   it("мероприятия планировщика записывает владелец, ведущий видит только свои", () => {
     expect(p.canManageEvents(owner)).toBe(true);
     expect(p.canManageEvents(host)).toBe(false);

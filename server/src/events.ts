@@ -23,6 +23,7 @@ import { changeStatus, upsertClient, type ClientInput } from "./clients";
 const CLIENT_RETRY_MS = [0, 300, 1000];
 import { phoneKey, phoneKeyVariants } from "../../src/core/clients";
 import type { Bot } from "./telegram";
+import { recordHostNotice } from "./notices";
 
 export interface EventsOptions {
   sql: Sql;
@@ -107,6 +108,15 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
     queue = queue
       .then(() => bot.eventNotice(kind, userId, event, new Date(span.from)))
       .catch(() => request.log.warn({ events: "notice" }, "events: уведомление не отправилось"));
+  }
+
+  /** Колокольчик того, кого касается мероприятие (6 ноября 2026): независимо от Telegram, ошибка не мешает ответу. */
+  async function bell(request: FastifyRequest, kind: Parameters<typeof recordHostNotice>[1]["kind"], userId: string, event: AgencyEvent, by: { id: string; name: string }) {
+    try {
+      await recordHostNotice(sql, { kind, userId, event, by });
+    } catch {
+      request.log.warn({ events: "bell" }, "events: уведомление в колокольчик не записалось");
+    }
   }
 
   app.register(async (api) => {
@@ -246,11 +256,18 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       request.log.info({ events: existing ? "edit" : "create" }, "events");
       const saved = await one(input.id);
       if (!saved) return fail(reply, 500, "internal");
+      const by = { id: user.id, name: user.name };
       if (!existing) {
-        if (inserted) notice(request, "created", saved.hostId, saved);
+        if (inserted) {
+          notice(request, "created", saved.hostId, saved);
+          await bell(request, "created", saved.hostId, saved, by);
+        }
       } else if (existing.host_id !== saved.hostId) {
+        const before = { ...saved, title: existing.title, day: existing.day, start: existing.start_min, end: existing.end_min };
         notice(request, "removed", existing.host_id, { ...saved, day: existing.day, start: existing.start_min, end: existing.end_min });
         notice(request, "created", saved.hostId, saved);
+        await bell(request, "removed", existing.host_id, before, by);
+        await bell(request, "created", saved.hostId, saved, by);
       } else if (
         existing.day !== saved.day ||
         existing.start_min !== saved.start ||
@@ -260,6 +277,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         programChanged
       ) {
         notice(request, "changed", saved.hostId, saved);
+        await bell(request, "changed", saved.hostId, saved, by);
       }
       // Клиент мероприятия — в базу клиентов (по телефону; повтор не дублирует историю). Ждём записи и при сбое
       // повторяем (17 октября 2026: раньше запись шла без ожидания — клиент мог молча не попасть в «Клиентов»).
@@ -318,7 +336,10 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const event = await one(id);
       if (!event) return fail(reply, 404, "not-found");
       request.log.info({ events: "cancel" }, "events");
-      if (before && !before.cancelled) notice(request, "cancelled", event.hostId, event);
+      if (before && !before.cancelled) {
+        notice(request, "cancelled", event.hostId, event);
+        await bell(request, "cancelled", event.hostId, event, { id: user.id, name: user.name });
+      }
       return event;
     });
 
@@ -342,7 +363,10 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       request.log.info({ events: "restore" }, "events");
       const restored = await one(id);
       if (!restored) return fail(reply, 500, "internal");
-      if (event.cancelled) notice(request, "created", restored.hostId, restored);
+      if (event.cancelled) {
+        notice(request, "created", restored.hostId, restored);
+        await bell(request, "created", restored.hostId, restored, { id: user.id, name: user.name });
+      }
       return restored;
     });
 

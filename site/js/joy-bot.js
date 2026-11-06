@@ -32,8 +32,16 @@
   var started = false;
 
   var HELLO = 'Здравствуйте! Я Джой, помощник JoyRest. Выберите вопрос внизу или напишите свой — отвечу сразу.';
-  var MISS = 'Пока я не знаю ответа на этот вопрос. Выберите тему ниже или напишите менеджеру — ответим лично.';
-  var MISS_AGAIN = 'Похоже, тут лучше ответит человек. Напишите менеджеру — ' + F.CONTACTS + '.';
+  // Нестандартный вопрос (решение владельца 6 ноября 2026): Джой честно говорит, что информации нет, и ведёт в Telegram
+  // менеджера — вопрос посетителя уже вставлен в сообщение (так же открывается чат в окне «Куда отправить расчёт?»).
+  var MISS = 'По этой теме у меня нет информации. Напишите нам в Telegram — менеджер ответит лично. Ваш вопрос я уже вставила в сообщение.';
+  var MISS_AGAIN = 'И об этом у меня нет информации — лучше спросить менеджера в Telegram, он ответит лично. Ваш вопрос уже в сообщении.';
+  var TG_CHAT = 'https://t.me/+79857822689';
+  function tgLink(question) {
+    var text = 'Здравствуйте! Вопрос с сайта JoyRest: ' + String(question || '').trim().slice(0, 500);
+    if (P && P.telegramText) text = P.telegramText(text);
+    return TG_CHAT + '?text=' + encodeURIComponent(text);
+  }
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -94,7 +102,14 @@
     var acts = el('div', 'joy-acts');
     if (opts.cta === 'calc') acts.appendChild(action('Посчитать в калькуляторе', '#calculator'));
     if (opts.cta === 'games') acts.appendChild(action('Открыть обзор игр', '#games'));
-    if (opts.cta === 'contact' || opts.human) acts.appendChild(action('Написать менеджеру', '#contact'));
+    if (opts.tg != null) {
+      var tg = el('a', 'joy-cta joy-cta--link', 'Написать в Telegram');
+      tg.href = tgLink(opts.tg);
+      tg.target = '_blank';
+      tg.rel = 'noopener';
+      acts.appendChild(tg);
+      acts.appendChild(action('Другие способы связи', '#contact', true));
+    } else if (opts.cta === 'contact' || opts.human) acts.appendChild(action('Написать менеджеру', '#contact'));
     (opts.chips || []).forEach(function (it) { acts.appendChild(chipButton(it)); });
     if (acts.childNodes.length) log.appendChild(acts);
     talk(text);
@@ -102,8 +117,8 @@
   }
 
   /** Кнопка ответа ведёт к разделу страницы и закрывает окно. */
-  function action(label, hash) {
-    var b = el('button', 'joy-cta', label);
+  function action(label, hash, quiet) {
+    var b = el('button', quiet ? 'joy-cta joy-cta--quiet' : 'joy-cta', label);
     b.type = 'button';
     b.addEventListener('click', function () {
       setOpen(false, true);
@@ -124,7 +139,7 @@
       botSay('Уточните, пожалуйста, вы имели в виду:', { chips: found.others });
     } else {
       misses += 1;
-      botSay(misses >= 2 ? MISS_AGAIN : MISS, { human: true });
+      botSay(misses >= 2 ? MISS_AGAIN : MISS, { tg: text });
     }
   }
 

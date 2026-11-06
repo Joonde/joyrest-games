@@ -156,6 +156,17 @@ describe("помощник «Джой»: страница", () => {
     expect(css).toMatch(/@media \(min-width: 1280px\)\{ \.nav-links\{ gap: 20px; \}[^\n]*\.joy-hbtn__text\{ display: inline; \}/);
   });
 
+  it("нестандартный вопрос: «нет информации» и Telegram менеджера с вопросом в сообщении", () => {
+    expect(bot).toContain("По этой теме у меня нет информации. Напишите нам в Telegram");
+    expect(bot).toContain("var TG_CHAT = 'https://t.me/+79857822689';");
+    // Тот же чат, что в окне «Куда отправить расчёт?», и тот же разбор «%», «+», «&» (Telegram обрезал на «%»).
+    expect(html).toContain('id="sendTg" href="https://t.me/+79857822689"');
+    expect(bot).toContain("P.telegramText(text)");
+    expect(bot).toContain("botSay(misses >= 2 ? MISS_AGAIN : MISS, { tg: text });");
+    expect(bot).toMatch(/tg\.target = '_blank';\s*tg\.rel = 'noopener';/);
+    expect(css).toMatch(/\.joy-cta--link\{[^}]*text-decoration: none/);
+  });
+
   it("бот ничего не отправляет и не хранит", () => {
     expect(bot).not.toMatch(/fetch\(|XMLHttpRequest|sendBeacon|localStorage|sessionStorage/);
   });

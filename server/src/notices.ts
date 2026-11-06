@@ -74,7 +74,7 @@ export function registerNotices(app: FastifyInstance, options: NoticesOptions): 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
 
-    async function member(request: FastifyRequest, reply: FastifyReply): Promise<string | null> {
+    async function member(request: FastifyRequest, reply: FastifyReply): Promise<{ id: string; clients: boolean } | null> {
       const user = await sessionUser(sql, request, reply);
       if (!user) {
         reply.code(401).send({ error: "unauthenticated" });

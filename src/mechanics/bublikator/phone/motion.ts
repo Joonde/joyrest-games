@@ -3,8 +3,10 @@
  * силы тяжести, ~15 м/с² — 100. Разрешение — `DeviceMotionEvent.requestPermission` по касанию (шаг тренировки и экран дождя).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { loadShakeChoice, saveShakeChoice } from "./prefs";
+import type { MotionState, ShakeChoice } from "./shake";
 
-export type MotionState = "need" | "granted" | "denied" | "none";
+export type { MotionState } from "./shake";
 
 interface MotionPermission {
   requestPermission?: () => Promise<"granted" | "denied">;
@@ -23,6 +25,10 @@ function initialState(): MotionState {
 
 export interface Motion {
   state: MotionState;
+  /** «Буду тапать» — выбор гостя на этом устройстве. */
+  choice: ShakeChoice;
+  /** «Буду тапать»: без системного окна, датчик не слушаем. */
+  taps: () => void;
   /** Датчик уже присылал движение на этой странице — тряска работает (Android без вопроса, iPhone после разрешения). */
   live: boolean;
   ask: () => Promise<void>;
@@ -48,12 +54,13 @@ function magnitudeOf(e: DeviceMotionEvent): number | null {
 export function useMotion(active: boolean): Motion {
   const [state, setState] = useState<MotionState>(initialState);
   const [live, setLive] = useState(false);
+  const [choice, setChoice] = useState<ShakeChoice>(loadShakeChoice);
   const peakRef = useRef(0);
   const ema = useRef(0);
   const activeRef = useRef(active);
   activeRef.current = active;
   useEffect(() => {
-    if (state === "none" || state === "denied") return;
+    if (state === "none" || state === "denied" || choice === "tap") return;
     let seen = false;
     const on = (e: DeviceMotionEvent) => {
       const mag = magnitudeOf(e);
@@ -68,12 +75,21 @@ export function useMotion(active: boolean): Motion {
     };
     window.addEventListener("devicemotion", on);
     return () => window.removeEventListener("devicemotion", on);
-  }, [state]);
+  }, [state, choice]);
   return useMemo(
     () => ({
       state,
       live,
+      choice,
+      taps() {
+        saveShakeChoice("tap");
+        setChoice("tap");
+        setLive(false);
+      },
+      // «Разрешить тряску» и «Попробовать тряску снова»: выбор «тапать» снимается, системное окно — только по касанию.
       async ask() {
+        saveShakeChoice(null);
+        setChoice(null);
         const ask = (DeviceMotionEvent as unknown as MotionPermission).requestPermission;
         if (typeof ask !== "function") {
           setState("granted");
@@ -91,6 +107,6 @@ export function useMotion(active: boolean): Motion {
         ema.current = 0;
       },
     }),
-    [state, live],
+    [state, live, choice],
   );
 }

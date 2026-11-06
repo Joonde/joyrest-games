@@ -2,18 +2,40 @@
  * Экраны телефона «Бубликатора» по согласованным макетам (`ph-*`): только вид, без связи. Данные — личное
  * (`PersonalView`), состав экипажа и уже посчитанные остатки времени; действия — колбэки.
  */
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { createContext, useContext, useState, type CSSProperties, type ReactNode } from "react";
 import { cap, verb, wordsOf, type ThemeWords } from "../lexicon";
 import { HULL_MAX, PULL_HOLD_MS, SOS_BONUS, VOTE_BONUS } from "../rules/constants";
 import type { CrewSummary, PanelControlView, PersonalView } from "../rules/types";
 import { CrewMark, PauseIcon, RoleBadge, ShakePhone, Ship, ShieldCheck, Wrench } from "./art";
 import { Control, twinsOf } from "./controls";
 import { halfControls } from "./layout";
+import { shakeMode, type MotionState, type ShakeChoice } from "./shake";
 import { clockText, type Flash } from "./model";
 
 // ---------------------------------------------------------------- общее
 
 /** Шапка: экипаж (с ролью), корпус делениями, место, перелёт. */
+/** Вибрация вкл/выкл — переключатель в шапке телефона (решение владельца 6 ноября 2026; запоминается на устройстве). */
+export const VibrationContext = createContext<{ on: boolean; toggle: () => void } | null>(null);
+
+function VibrationToggle() {
+  const vib = useContext(VibrationContext);
+  if (!vib) return null;
+  return (
+    <button type="button" className={`bkp-vib${vib.on ? " is-on" : ""}`} aria-pressed={vib.on} aria-label={`Вибрация: ${vib.on ? "вкл" : "выкл"}`} title={`Вибрация: ${vib.on ? "вкл" : "выкл"}`} onClick={vib.toggle}>
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+        <rect x="8" y="3" width="10" height="20" rx="2.5" fill="none" stroke="currentColor" strokeWidth="2" />
+        {vib.on ? (
+          <path d="M4 8 L2.5 10.5 L4 13 L2.5 15.5 L4 18 M22 8 L23.5 10.5 L22 13 L23.5 15.5 L22 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        ) : (
+          <path d="M3 3 L23 23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        )}
+      </svg>
+      <span className="bkp-vib__text">{vib.on ? "вкл" : "выкл"}</span>
+    </button>
+  );
+}
+
 export function Head({ v, crew, extra }: { v: PersonalView; crew: CrewSummary | null; extra?: string }) {
   const role = v.me.role === "double" ? "дублёр" : v.event?.kind === "sos" && v.event.sos?.captain ? "капитан" : null;
   const hull = v.ship?.hull ?? null;
@@ -37,6 +59,7 @@ export function Head({ v, crew, extra }: { v: PersonalView; crew: CrewSummary | 
           {extra ? ` · ${extra}` : ""}
         </span>
       </span>
+      <VibrationToggle />
     </header>
   );
 }
@@ -301,43 +324,73 @@ function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null
 
 // ---------------------------------------------------------------- тренировка
 
-export function MotionStep({ onAllow, state, live }: { onAllow: () => void; state: "need" | "granted" | "denied" | "none"; live: boolean }) {
+/** Что знает экран о тряске: состояние датчика, выбор гостя и две кнопки. */
+export interface ShakeControls {
+  state: MotionState;
+  live: boolean;
+  choice: ShakeChoice;
+  onAllow: () => void;
+  onTaps: () => void;
+}
+
+/** Подсказка до системного окна (решение владельца 6 ноября 2026): что спросят, зачем, и что можно отказаться. */
+export const SHAKE_ASK_TEXT = "Сейчас телефон спросит доступ к движению — он нужен только чтобы считать тряску. Можно разрешить или отказаться: тогда просто тапайте по экрану — это тоже считается.";
+export const SHAKE_OFF_TEXT = "Тряска выключена — тапайте по экрану.";
+export const VIBRATION_HINT = "Телефон коротко вибрирует, когда приказ выполнен, и дважды — при ошибке. Выключить можно кнопкой вверху экрана.";
+
+function ShakeOffer({ m, compact = false }: { m: ShakeControls; compact?: boolean }) {
+  const { offer } = shakeMode(m.state, m.live, m.choice);
+  if (offer === "ask") {
+    return (
+      <div className={`bkp-offer${compact ? " is-compact" : ""}`}>
+        <p className="bkp-text">{compact ? "Можно трясти вместо тапов: телефон спросит доступ к движению — только чтобы считать тряску." : SHAKE_ASK_TEXT}</p>
+        <div className="bkp-offer__btns">
+          <button type="button" className="btn btn--secondary bkp-btn2" onClick={m.onAllow}>
+            Разрешить тряску
+          </button>
+          <button type="button" className="btn btn--secondary bkp-btn2" onClick={m.onTaps}>
+            Буду тапать
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (offer === "retry") {
+    return (
+      <div className={`bkp-offer${compact ? " is-compact" : ""}`}>
+        <p className="bkp-text">{SHAKE_OFF_TEXT}</p>
+        <div className="bkp-offer__btns">
+          <button type="button" className="btn btn--secondary bkp-btn2" onClick={m.onAllow}>
+            Попробовать тряску снова
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+export function MotionStep({ m }: { m: ShakeControls }) {
+  const { mode, offer } = shakeMode(m.state, m.live, m.choice);
   return (
     <section className="bkp-card">
-      <p className="bkp-eyebrow">Шаг 1 · тряска телефона</p>
-      <h2 className="bkp-h3">В полёте будет метеоритный дождь — нужно трясти телефон</h2>
-      {live ? (
-        <p className="bkp-text">✓ Тряска работает.</p>
-      ) : state === "need" ? (
-        <>
-          <p className="bkp-text">Телефон может спросить разрешение один раз. Без него в дождь можно часто тапать по экрану.</p>
-          <div className="actions">
-            <button type="button" className="btn btn--secondary btn--block bkp-btn2" onClick={onAllow}>
-              Разрешить тряску
-            </button>
-          </div>
-        </>
-      ) : (
-        <p className="bkp-text">Если телефон не почувствует тряску — в дождь просто часто тапайте по экрану.</p>
-      )}
+      <p className="bkp-eyebrow">Шаг 1 · тряска и вибрация</p>
+      <h2 className="bkp-h3">В полёте будет метеоритный дождь — трясите телефон или тапайте по экрану</h2>
+      {mode === "shake" ? <p className="bkp-text">✓ Тряска работает.</p> : <ShakeOffer m={m} />}
+      {mode === "tap" && offer === null && <p className="bkp-text">В дождь просто часто тапайте по экрану — это тоже считается.</p>}
+      <p className="bkp-small">{VIBRATION_HINT}</p>
     </section>
   );
 }
 
 // ---------------------------------------------------------------- события
 
-export interface MeteorMotion {
-  state: "need" | "granted" | "denied" | "none";
-  /** Датчик присылает движение — можно трясти. */
-  live: boolean;
-  onAllow: () => void;
-}
-
-export function MeteorScreen({ v, crew, left, onTap, motion }: { v: PersonalView; crew: CrewSummary | null; left: number | null; onTap: () => void; motion: MeteorMotion }) {
+export function MeteorScreen({ v, crew, left, onTap, motion }: { v: PersonalView; crew: CrewSummary | null; left: number | null; onTap: () => void; motion: ShakeControls }) {
   const m = v.event?.meteor;
   const shield = m?.shield ?? 0;
   const holds = shield >= 50 ? "держит" : shield >= 25 ? "минус деление" : "минус два";
-  const shake = motion.live;
+  const { mode, offer } = shakeMode(motion.state, motion.live, motion.choice);
+  const shake = mode === "shake";
   return (
     <Page kids={v.difficulty === "kids"} label="Метеоритный дождь">
       <Head v={v} crew={crew} />
@@ -358,15 +411,11 @@ export function MeteorScreen({ v, crew, left, onTap, motion }: { v: PersonalView
       ) : (
         <>
           {/* Без датчика — «Тапайте!» на весь экран (макет ph-meteor): вся плашка — одна большая кнопка. */}
-          <button type="button" className="bkp-tap bkp-tap--big" onClick={onTap}>
+          <button type="button" className={`bkp-tap bkp-tap--big${offer ? " has-offer" : ""}`} onClick={onTap}>
             <span className="bkp-mega">ТАПАЙТЕ!</span>
             <span className="bkp-tap__hint">Часто касайтесь здесь — чем чаще тапает весь экипаж, тем крепче щит</span>
           </button>
-          {motion.state === "need" && (
-            <button type="button" className="btn btn--secondary btn--block bkp-btn2" onClick={motion.onAllow}>
-              Разрешить тряску — трясти вместо тапов
-            </button>
-          )}
+          <ShakeOffer m={motion} compact />
         </>
       )}
       <section className="bkp-card">

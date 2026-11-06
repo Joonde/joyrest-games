@@ -1466,3 +1466,65 @@
     display: none;
   }
 }
+
+/* Выбор «трясти или тапать» до системного окна. */
+.bkp-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bkp-offer__btns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 8px;
+}
+
+.bkp-offer__btns .btn {
+  min-height: 52px;
+  width: 100%;
+  padding-left: 8px;
+  padding-right: 8px;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.bkp-offer.is-compact .bkp-text {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+/* На экране дождя с выбором зона тапов ниже — кнопки выбора остаются в первом экране. */
+.bkp-tap--big.has-offer {
+  min-height: min(30vh, 220px);
+}
+
+/* Переключатель вибрации в шапке: 52 px, подпись «вкл/выкл» рядом со значком. */
+.bkp-vib {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 0 6px;
+  border-radius: 14px;
+  border: 1.5px solid var(--bk-panel-line);
+  background: transparent;
+  color: var(--bk-ink-soft);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bkp-vib.is-on {
+  color: var(--bk-ink);
+  border-color: var(--bk-gold);
+}
+
+.bkp--kids .bkp-vib.is-on {
+  border-color: #8a5c2a;
+}

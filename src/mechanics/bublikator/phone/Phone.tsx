@@ -9,6 +9,7 @@ import { PauseIcon, ShieldCheck } from "./art";
 import type { PhoneLink, PhoneSender } from "./link";
 import { applyReply, applyStream, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, screenOf, serverNow, silent, type PhoneModel } from "./model";
 import { buzz } from "./haptics";
+import { loadVibration, saveVibration } from "./prefs";
 import { useMotion } from "./motion";
 import { SHAKE_EVERY_MS, shakeReport, type ShakeSent } from "./shake";
 import {
@@ -31,6 +32,7 @@ import {
   SosCrewScreen,
   SosScreen,
   VotedScreen,
+  VibrationContext,
   VoteScreen,
 } from "./screens";
 import "./phone.css";
@@ -154,10 +156,24 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
   );
 
   // Итог приказа — вибрацией (звука на телефоне нет): выполнен — одна короткая, не успели — две.
+  const [vibration, setVibration] = useState(loadVibration);
+  const vibrationRef = useRef(vibration);
+  vibrationRef.current = vibration;
+  const vib = useMemo(
+    () => ({
+      on: vibration,
+      toggle: () =>
+        setVibration((x) => {
+          saveVibration(!x);
+          return !x;
+        }),
+    }),
+    [vibration],
+  );
   const flashAt = m.flash?.at ?? null;
   const flashKind = m.flash?.kind ?? null;
   useEffect(() => {
-    if (flashAt !== null && flashKind !== null) buzz(flashKind);
+    if (flashAt !== null && flashKind !== null && vibrationRef.current) buzz(flashKind);
   }, [flashAt, flashKind]);
 
   // Нажатия — копим и шлём пачкой.
@@ -198,6 +214,10 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
   useEffect(() => {
     if (screen !== "meteor") motion.reset();
   }, [screen, motion]);
+  const shakeControls = useMemo(
+    () => ({ state: motion.state, live: motion.live, choice: motion.choice, onAllow: () => void motion.ask(), onTaps: () => motion.taps() }),
+    [motion],
+  );
 
   // «Тяга»: держу — отпустил.
   const [holding, setHolding] = useState(false);
@@ -282,12 +302,12 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
             glitchLeft={glitchLeft !== null && glitchLeft <= GLITCH_SHOW_MS ? glitchLeft : null}
             warnLeft={ev?.warn ? leftUntil(m, ev.startsAt, t) : null}
             drillLeft={screen === "drill" ? leftUntil(m, v.endsAt, t) : undefined}
-            shake={screen === "drill" ? <MotionStep state={motion.state} live={motion.live} onAllow={() => void motion.ask()} /> : undefined}
+            shake={screen === "drill" ? <MotionStep m={shakeControls} /> : undefined}
           />
         );
       }
       case "meteor":
-        return <MeteorScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} onTap={() => tap("tap")} motion={{ state: motion.state, live: motion.live, onAllow: () => void motion.ask() }} />;
+        return <MeteorScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} onTap={() => tap("tap")} motion={shakeControls} />;
       case "pull":
         return <PullScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} holding={holding} onHold={onHold} />;
       case "sos":
@@ -322,7 +342,7 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
           {banner}
         </div>
       )}
-      {body}
+      <VibrationContext.Provider value={vib}>{body}</VibrationContext.Provider>
     </div>
   );
 }

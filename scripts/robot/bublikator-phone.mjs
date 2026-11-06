@@ -143,6 +143,50 @@ const ACTIONS = {
     });
     await p.waitForTimeout(500);
   },
+  // Разрешил, но телефон отказал (или отказался в системном окне): «Тряска выключена», «Попробовать снова», тапы считаются.
+  "meteor-ask": async (p) => {
+    const bad = [];
+    const text = () => p.evaluate(() => document.body.innerText);
+    if (!(await text()).includes("Можно трясти вместо тапов")) bad.push("нет подсказки до системного окна");
+    if ((await p.evaluate(() => window.asked)) !== 0) bad.push("системное окно до касания");
+    await p.getByRole("button", { name: "Разрешить тряску" }).tap();
+    await p.waitForTimeout(300);
+    if ((await p.evaluate(() => window.asked)) !== 1) bad.push("«Разрешить тряску» не открыло системное окно");
+    if (!(await text()).includes("Тряска выключена — тапайте по экрану")) bad.push("нет «Тряска выключена — тапайте по экрану»");
+    if ((await p.getByRole("button", { name: "Попробовать тряску снова" }).count()) !== 1) bad.push("нет «Попробовать тряску снова»");
+    for (let i = 0; i < 6; i += 1) await p.locator(".bkp-tap--big").tap();
+    await p.waitForTimeout(400);
+    return bad;
+  },
+  // «Буду тапать»: без системного окна, сразу тапы, выбор помнится после перезагрузки.
+  "meteor-taps": async (p) => {
+    const bad = [];
+    await p.getByRole("button", { name: "Буду тапать" }).tap();
+    await p.waitForTimeout(200);
+    if ((await p.evaluate(() => window.asked)) !== 0) bad.push("«Буду тапать» открыло системное окно");
+    if (!(await p.evaluate(() => document.body.innerText)).includes("Тряска выключена")) bad.push("после «Буду тапать» нет строки о тапах");
+    for (let i = 0; i < 6; i += 1) await p.locator(".bkp-tap--big").tap();
+    await p.waitForTimeout(400);
+    if ((await p.evaluate(() => localStorage.getItem("joyrest.bub.shake"))) !== "tap") bad.push("выбор «Буду тапать» не запомнен");
+    return bad;
+  },
+  // Тренировка: выбор и подсказка про вибрацию; переключатель вибрации в шапке запоминается.
+  "drill-taps": async (p) => {
+    const bad = [];
+    const text = () => p.evaluate(() => document.body.innerText);
+    if (!(await text()).includes("Сейчас телефон спросит доступ к движению")) bad.push("нет подсказки до системного окна");
+    if (!(await text()).includes("Телефон коротко вибрирует")) bad.push("нет строки про вибрацию");
+    await p.getByRole("button", { name: "Буду тапать" }).tap();
+    await p.waitForTimeout(200);
+    if ((await p.evaluate(() => window.asked)) !== 0) bad.push("«Буду тапать» открыло системное окно");
+    const vib = p.locator(".bkp-vib").first();
+    if ((await vib.getAttribute("aria-label")) !== "Вибрация: вкл") bad.push("вибрация по умолчанию не вкл");
+    await vib.tap();
+    await p.waitForTimeout(100);
+    if ((await vib.getAttribute("aria-label")) !== "Вибрация: выкл") bad.push("переключатель вибрации не выключил");
+    if ((await p.evaluate(() => localStorage.getItem("joyrest.bub.vibration"))) !== "off") bad.push("вибрация не запомнена");
+    return bad;
+  },
   "meteor-tap": async (p) => {
     for (let i = 0; i < 6; i += 1) await p.locator(".bkp-tap--big").tap();
   },
@@ -157,6 +201,9 @@ const CHECKS = {
   sos: (a, b) => b.sos !== a.sos,
   meteor: (a, b) => (b.shake ?? 0) > 50,
   "meteor-tap": (a, b) => (b.taps ?? 0) > (a.taps ?? 0),
+  "meteor-ask": (a, b) => (b.taps ?? 0) > (a.taps ?? 0),
+  "meteor-taps": (a, b) => (b.taps ?? 0) > (a.taps ?? 0),
+  "drill-taps": () => true,
 };
 /** Что должно быть на экране сразу (без касаний): экран и текст; и чего не должно быть. */
 const EXPECT = {
@@ -164,7 +211,11 @@ const EXPECT = {
   "reload-finished": { screen: "over", text: "Игра окончена" },
   "sender-finished": { screen: "over", text: "Игра окончена" },
   "sender-abandoned": { screen: "panel", senders: 2 },
-  helped: { screen: "panel", text: "Вы помогли!", selector: ".bkp-order__text" },
+  helped: { screen: "panel", text: "Вы помогли!", selector: ".bkp-order__text", vibes: [[40]] },
+  // Вибрация вместо звука (решение владельца 6 ноября 2026): выполнен — одна короткая, не успели — две.
+  "feedback-done": { screen: "panel", vibes: [[40]] },
+  "feedback-fail": { screen: "panel", vibes: [[40, 90, 40]] },
+  "feedback-quiet": { screen: "panel", vibes: [] },
 };
 /** Что должно быть видно после касаний. */
 const SEEN = {
@@ -192,13 +243,29 @@ for (const width of [360, 412]) {
     if (s === "meteor-tap") await page.addInitScript(() => delete window.DeviceMotionEvent);
     // Как свежий Chrome на Android: requestPermission есть, но события идут и без вопроса.
     if (s === "meteor") await page.addInitScript(() => window.DeviceMotionEvent && (window.DeviceMotionEvent.requestPermission = () => Promise.resolve("granted")));
+    // Системное окно датчика (как iPhone): считаем, сколько раз его открыли; здесь гость отказывается.
+    if (s === "meteor-ask" || s === "meteor-taps" || s === "drill-taps") {
+      await page.addInitScript(() => {
+        window.asked = 0;
+        (window.DeviceMotionEvent ??= function () {}).requestPermission = () => {
+          window.asked += 1;
+          return Promise.resolve("denied");
+        };
+      });
+    }
+    if (s === "feedback-quiet") await page.addInitScript(() => localStorage.setItem("joyrest.bub.vibration", "off"));
+    // Вибрация понарошку: что телефон просил вибрировать.
+    await page.addInitScript(() => {
+      window.vibes = [];
+      navigator.vibrate = (p) => (window.vibes.push(p), true);
+    });
     if (s === "drill") await page.addInitScript(() => (window.DeviceMotionEvent ??= function () {}).requestPermission = () => Promise.resolve("granted"));
     await page.goto(`http://localhost:${port}/?s=${encodeURIComponent(s)}`);
     await page.waitForFunction(() => window.standReady === true, null, { timeout: 15000 });
     await page.waitForTimeout(500);
     const { found, screen } = await page.evaluate(inspect);
     // Главное — в первом экране маленьких телефонов (аудит 2b, №9): пульт третьего перелёта, «Тяга».
-    const FOLD = { "panel-leg3": ".bkp-panel", "kids-leg3": ".bkp-panel", panel: ".bkp-panel", pull: ".bkp-hold" };
+    const FOLD = { "panel-leg3": ".bkp-panel", "kids-leg3": ".bkp-panel", panel: ".bkp-panel", pull: ".bkp-hold", "meteor-ask": ".bkp-offer", "meteor-taps": ".bkp-offer", "meteor-tap": ".bkp-tap--big", "drill-taps": ".bkp-offer" };
     if (FOLD[s] && width === 360) {
       for (const [fw, fh] of [[360, 640], [320, 568]]) {
         await page.setViewportSize({ width: fw, height: fh });
@@ -257,6 +324,10 @@ for (const width of [360, 412]) {
       const text = await page.evaluate(() => document.body.innerText);
       if (want.text && !text.includes(want.text)) found.push(`не видно «${want.text}»`);
       if (want.selector && (await page.locator(want.selector).count()) === 0) found.push(`нет ${want.selector}`);
+      if (want.vibes) {
+        const vibes = await page.evaluate(() => window.vibes);
+        if (JSON.stringify(vibes) !== JSON.stringify(want.vibes)) found.push(`вибрация ${JSON.stringify(vibes)}, а нужна ${JSON.stringify(want.vibes)}`);
+      }
       if (/обновите страницу|Подключаемся/i.test(text)) found.push("лишнее «обновите страницу» / «Подключаемся»");
       if (want.senders && (await page.evaluate(() => window.stand.senders())) !== want.senders) found.push(`отправитель не пересоздан: ${await page.evaluate(() => window.stand.senders())}`);
     }

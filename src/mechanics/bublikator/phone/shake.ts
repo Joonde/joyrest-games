@@ -18,3 +18,21 @@ export function shakeReport(prev: ShakeSent, eventId: string, peak: number): { n
   const next = { id: eventId, p: Math.max(base, p) };
   return { next, send: next.p > 0 ? next.p : null };
 }
+
+/** Датчик движения: спросить можно (iPhone, свежий Chrome), разрешён, отказан, нет совсем. */
+export type MotionState = "need" | "granted" | "denied" | "none";
+/** Гость сам выбрал «Буду тапать» (запоминается на устройстве) — датчик не слушаем и ничего не спрашиваем. */
+export type ShakeChoice = "tap" | null;
+
+/**
+ * Как играть дождь и что предложить (решение владельца 6 ноября 2026: гость заранее видит выбор и ничего не включает
+ * вслепую). `ask` — своя подсказка и две кнопки «Разрешить тряску» / «Буду тапать» до системного окна; `retry` — тряска
+ * выключена (отказ в системном окне или «Буду тапать»), кнопка «Попробовать тряску снова»; null — предлагать нечего.
+ */
+export function shakeMode(state: MotionState, live: boolean, choice: ShakeChoice): { mode: "shake" | "tap"; offer: "ask" | "retry" | null } {
+  if (choice === "tap") return { mode: "tap", offer: state === "none" ? null : "retry" };
+  if (live) return { mode: "shake", offer: null };
+  if (state === "need") return { mode: "tap", offer: "ask" };
+  if (state === "denied") return { mode: "tap", offer: "retry" };
+  return { mode: "tap", offer: null };
+}

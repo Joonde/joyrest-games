@@ -9,7 +9,7 @@ import { crewPlayers } from "../rules/crews";
 import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
-import { shakeReport, type ShakeSent } from "./shake";
+import { shakeMode, shakeReport, type ShakeSent } from "./shake";
 import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, type PhoneModel } from "./model";
 
 const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
@@ -395,6 +395,22 @@ describe("телефон «Бубликатора»: модель", () => {
     expect(sends).toEqual([null, 90, 90, 90, 90]);
     // Новое событие — с нуля.
     expect(shakeReport(st, "e2", 30).send).toBe(30);
+  });
+
+  it("тряска или тапы (решение владельца 6 ноября 2026): до системного окна — выбор, «Буду тапать» и отказ — тапы с «Попробовать снова»", () => {
+    // Датчик уже присылает движение (Chrome на Android) — трясём, ничего не спрашиваем.
+    expect(shakeMode("need", true, null)).toEqual({ mode: "shake", offer: null });
+    expect(shakeMode("granted", true, null)).toEqual({ mode: "shake", offer: null });
+    // Спросить можно (iPhone): тапы и своя подсказка с двумя кнопками до системного окна.
+    expect(shakeMode("need", false, null)).toEqual({ mode: "tap", offer: "ask" });
+    // Отказ в системном окне — тапы и «Попробовать тряску снова».
+    expect(shakeMode("denied", false, null)).toEqual({ mode: "tap", offer: "retry" });
+    // «Буду тапать» — тапы, даже если датчик работает; вернуть тряску можно.
+    expect(shakeMode("granted", true, "tap")).toEqual({ mode: "tap", offer: "retry" });
+    // Датчика нет совсем (ноутбук) — просто тапы, предлагать нечего.
+    expect(shakeMode("none", false, null)).toEqual({ mode: "tap", offer: null });
+    expect(shakeMode("none", false, "tap")).toEqual({ mode: "tap", offer: null });
+    expect(shakeMode("granted", false, null)).toEqual({ mode: "tap", offer: null });
   });
 
   it("вибрация (решение владельца 6 ноября 2026, №18): выполнен — одна короткая, не успели — две, отмена — ничего; без вибрации не ломается", () => {

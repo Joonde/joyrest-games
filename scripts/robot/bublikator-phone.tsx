@@ -178,6 +178,13 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
     w.advance(2500);
     return { w, pid: "p0" };
   },
+  "drill-taps": () => {
+    const w = world();
+    w.ok("gather");
+    w.ok("drill");
+    w.advance(2500);
+    return { w, pid: "p0" };
+  },
   launch: () => {
     const w = world();
     w.ok("gather");
@@ -209,6 +216,12 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
         l.pump();
       },
     };
+  },
+  // Вибрация выключена в шапке (запомнено на устройстве) — приказ выполнен, а телефон не вибрирует.
+  "feedback-quiet": () => {
+    const s = SCENARIOS["feedback-done"]?.();
+    if (!s) throw new Error("нет feedback-done");
+    return s;
   },
   "feedback-fail": () => {
     const w = world();
@@ -281,6 +294,21 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
     toLeg(w, 0);
     event(w, "meteor");
     for (const pid of ["p0", "p5", "p10"]) w.send(pid, [{ t: "tap", n: 4 }]);
+    w.advance(1500);
+    return { w, pid: "p0" };
+  },
+  // Решение владельца 6 ноября 2026: до системного окна — своя подсказка и выбор «Разрешить тряску» / «Буду тапать».
+  "meteor-ask": () => {
+    const w = world();
+    toLeg(w, 0);
+    event(w, "meteor");
+    w.advance(1500);
+    return { w, pid: "p0" };
+  },
+  "meteor-taps": () => {
+    const w = world();
+    toLeg(w, 0);
+    event(w, "meteor");
     w.advance(1500);
     return { w, pid: "p0" };
   },

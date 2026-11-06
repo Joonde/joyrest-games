@@ -1,7 +1,8 @@
 /* Окно помощника «Джой» (решение владельца 6 ноября 2026; ответы — js/joy-faq.js, цены — js/pricing.js).
  * Кнопка слева внизу (справа — «Задать вопрос»), окно с перепиской, кнопки частых вопросов и поле для своего вопроса.
  * Бот ничего не отправляет на сервер и ничего не хранит: переписка живёт, пока открыта страница.
- * Персонаж Джой с кадрами (моргание, рот по звукам) и озвучка — следующим шагом; пока говорит монограмма JR. */
+ * Аватар — кадры Джой (img/joy-*.webp): обычный, моргание, рот «А», «О», «И». Моргает раз в 3–5 с, пока отвечает — рот
+ * открывается по кадрам. При «уменьшить движение» — неподвижный обычный кадр. Озвучка — следующим шагом. */
 (function () {
   'use strict';
   var P = window.JoyPricing, F = window.JoyFaq;
@@ -20,6 +21,11 @@
   items.forEach(function (it) { byId[it.id] = it; });
   var misses = 0;
   var talkTimer = 0;
+  var mouthTimer = 0;
+  var talking = false;
+  var faces = [fab.querySelector('.joy-av'), avatar];
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var MOUTH = ['a', 'i', 'o', 'base', 'a', 'o', 'i', 'base', 'i', 'a'];
   var started = false;
 
   var HELLO = 'Здравствуйте! Я Джой, помощник JoyRest. Выберите вопрос внизу или напишите свой — отвечу сразу.';
@@ -34,16 +40,43 @@
   }
   function scrollDown() { log.scrollTop = log.scrollHeight; }
 
-  /** Джой «говорит»: подсветка аватара на время чтения ответа (при «уменьшить движение» — без анимации, CSS). */
+  /** Кадр аватара: base, blink, a, o, i (CSS показывает слой по data-frame). */
+  function frame(el, name) {
+    if (!el) return;
+    if (name === 'base') el.removeAttribute('data-frame'); else el.setAttribute('data-frame', name);
+  }
+
+  /** Моргание обоих аватаров; во время речи большой аватар не моргает — рот важнее. */
+  function blinkLater() {
+    setTimeout(function () {
+      faces.forEach(function (el) { if (!(talking && el === avatar)) frame(el, 'blink'); });
+      setTimeout(function () {
+        faces.forEach(function (el) { if (!(talking && el === avatar)) frame(el, 'base'); });
+        blinkLater();
+      }, 140);
+    }, 3000 + Math.random() * 2000);
+  }
+
+  /** Джой «говорит»: рот по кадрам и подсветка, пока читается ответ (при «уменьшить движение» — без анимации). */
   function talk(text) {
     clearTimeout(talkTimer);
+    clearInterval(mouthTimer);
+    talking = true;
     avatar.classList.add('is-talking');
     status.textContent = 'Джой отвечает…';
+    if (!still) {
+      var n = 0;
+      mouthTimer = setInterval(function () { frame(avatar, MOUTH[n++ % MOUTH.length]); }, 120);
+    }
     talkTimer = setTimeout(function () {
+      clearInterval(mouthTimer);
+      talking = false;
+      frame(avatar, 'base');
       avatar.classList.remove('is-talking');
       status.textContent = 'Отвечаю на частые вопросы';
     }, Math.min(6000, Math.max(1200, text.length * 40)));
   }
+  if (!still) blinkLater();
 
   function chipButton(it) {
     var b = el('button', 'joy-chip', it.q);

@@ -80,10 +80,10 @@
 
 <!-- Помощник «Джой»: бот без ИИ, отвечает заготовленными ответами (js/joy-faq.js — ответы из pricing.js, js/joy-bot.js — окно).
      Ничего не отправляет на сервер, поэтому работает и в витрине. -->
-<button type="button" class="joy-fab" id="joyFab" aria-expanded="false" aria-controls="joyPanel"><span class="joy-av" aria-hidden="true"><span class="joy-av__logo" data-brand-svg="joyrest-monogram"></span></span><span class="joy-fab__text">Спросить Джой</span></button>
+<button type="button" class="joy-fab" id="joyFab" aria-expanded="false" aria-controls="joyPanel"><span class="joy-av" aria-hidden="true"><img class="joy-av__f joy-av__f--base" src="img/joy-base.webp" width="240" height="240" decoding="async" alt=""><img class="joy-av__f joy-av__f--blink" src="img/joy-blink.webp" width="240" height="240" decoding="async" alt=""></span><span class="joy-fab__text">Спросить Джой</span></button>
 <section class="joy-panel" id="joyPanel" role="dialog" aria-labelledby="joyTitle" hidden>
   <div class="joy-head">
-    <span class="joy-av joy-av--big" id="joyAvatar" aria-hidden="true"><span class="joy-av__logo" data-brand-svg="joyrest-monogram"></span></span>
+    <span class="joy-av joy-av--big" id="joyAvatar" aria-hidden="true"><img class="joy-av__f joy-av__f--base" src="img/joy-base.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--blink" src="img/joy-blink.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--a" src="img/joy-a.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--o" src="img/joy-o.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--i" src="img/joy-i.webp" width="240" height="240" loading="lazy" decoding="async" alt=""></span>
     <div class="joy-head__text"><h4 id="joyTitle">Джой — помощник JoyRest</h4><p id="joyStatus">Отвечаю на частые вопросы</p></div>
     <button type="button" class="joy-close" id="joyClose" aria-label="Закрыть помощника">✕</button>
   </div>

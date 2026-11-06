@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
@@ -124,10 +124,17 @@ describe("помощник «Джой»: страница", () => {
   const css = readFileSync(join(root, "site/css/style.css"), "utf8");
   const bot = readFileSync(join(root, "site/js/joy-bot.js"), "utf8");
 
-  it("скрипты — после калькулятора, монограмма — из public/brand, работает и в витрине", () => {
+  it("скрипты — после калькулятора, аватар — кадры Джой, работает и в витрине", () => {
     expect(html.indexOf('<script src="js/joy-faq.js"></script>')).toBeGreaterThan(html.indexOf('<script src="js/pricing.js"></script>'));
     expect(html.indexOf('<script src="js/joy-bot.js"></script>')).toBeGreaterThan(html.indexOf('<script src="js/joy-faq.js"></script>'));
-    expect(html).toMatch(/<button type="button" class="joy-fab" id="joyFab"[^>]*>.*data-brand-svg="joyrest-monogram"/);
+    expect(html).toMatch(/<button type="button" class="joy-fab" id="joyFab"[^>]*>.*src="img\/joy-base\.webp".*src="img\/joy-blink\.webp"/);
+    // В окне — все пять кадров; у каждого CSS-слой, файлы на месте и лёгкие.
+    for (const f of ["base", "blink", "a", "o", "i"]) {
+      expect(html).toMatch(new RegExp(`id="joyAvatar"[^>]*>.*src="img/joy-${f}\\.webp" width="240" height="240"`));
+      expect(css).toContain(`joy-av__f--${f}`);
+      expect(statSync(join(root, `site/img/joy-${f}.webp`)).size).toBeLessThan(20_000);
+    }
+    expect(css).toMatch(/\.joy-av__f\{[^}]*opacity: 0/);
     expect(html).not.toMatch(/class="joy-[^"]*no-showcase/);
   });
 

@@ -147,6 +147,15 @@ describe("помощник «Джой»: страница", () => {
     expect(html).not.toMatch(/class="joy-[^"]*no-showcase/);
   });
 
+  it("Джой в шапке и в меню телефона открывает то же окно", () => {
+    expect(html).toMatch(/<div class="header-actions">\s*<button type="button" class="joy-hbtn" data-joy-open[^>]*>.*src="img\/joy-base\.webp"/);
+    expect(html).toMatch(/<div class="mobile-panel"[\s\S]*?<a href="#joy" class="nav-joy" data-joy-open>Спросить помощника Джой<\/a>/);
+    expect(bot).toContain("querySelectorAll('[data-joy-open]')");
+    // Узко (меньше 340 px) Джой — только в меню; надпись — от 1280 px, меню шапки тогда плотнее (без переносов).
+    expect(css).toMatch(/@media \(max-width: 339px\)\{ \.joy-hbtn\{ display: none; \} \}/);
+    expect(css).toMatch(/@media \(min-width: 1280px\)\{ \.nav-links\{ gap: 20px; \}[^\n]*\.joy-hbtn__text\{ display: inline; \}/);
+  });
+
   it("бот ничего не отправляет и не хранит", () => {
     expect(bot).not.toMatch(/fetch\(|XMLHttpRequest|sendBeacon|localStorage|sessionStorage/);
   });

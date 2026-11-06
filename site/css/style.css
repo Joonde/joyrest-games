@@ -708,6 +708,47 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
   .header-actions .hbtn{ font-size: 13px; padding: 0 12px; }
 }
 
+/* ---------- Помощник «Джой» (js/joy-bot.js): кнопка слева внизу, окно с перепиской ---------- */
+.joy-fab{ position: fixed; left: 20px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 30; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 3px 20px 3px 3px; border-radius: 999px; border: 1px solid var(--btn-outline); background: var(--card); color: var(--ink); font-size: 15px; font-weight: 600; box-shadow: var(--shadow); transition: transform .3s ease, opacity .3s ease; }
+.joy-av{ display: inline-grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--btn-outline); background: var(--logo-bg); color: var(--logo-color); }
+.joy-av--big{ width: 52px; height: 52px; }
+.joy-av__logo{ display: block; width: 58%; }
+.joy-av__logo > svg{ display: block; width: 100%; height: auto; }
+.joy-av.is-talking{ animation: joy-talk .9s ease-in-out infinite; }
+.joy-av.is-talking .joy-av__logo{ animation: joy-bob .45s ease-in-out infinite; }
+@keyframes joy-talk{ 0%, 100%{ box-shadow: 0 0 0 0 var(--spot); } 50%{ box-shadow: 0 0 0 8px var(--spot); } }
+@keyframes joy-bob{ 0%, 100%{ transform: translateY(0); } 50%{ transform: translateY(-2px); } }
+.joy-panel{ position: fixed; left: 20px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 35; display: flex; flex-direction: column; width: min(390px, calc(100vw - 40px)); height: min(620px, calc(100vh - 120px)); border-radius: 20px; border: 1px solid var(--line); background: var(--card); color: var(--ink); box-shadow: var(--shadow); overflow: hidden; animation: rise .3s ease both; }
+.joy-panel[hidden]{ display: none; }
+.joy-head{ display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-bottom: 1px solid var(--line); }
+.joy-head__text{ flex: 1; min-width: 0; }
+.joy-head h4{ margin: 0; font-family: 'Cormorant Garamond', serif; font-size: 22px; line-height: 1.15; }
+.joy-head p{ margin: 2px 0 0; font-size: 13px; color: var(--ink-soft); }
+.joy-close{ width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--line); background: var(--bg-alt); color: var(--ink); font-size: 16px; }
+.joy-log{ flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px; outline: none; }
+.joy-msg{ max-width: 88%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.joy-msg--bot{ align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--line); background: var(--bg-alt); color: var(--ink); }
+.joy-msg--me{ align-self: flex-end; border-bottom-right-radius: 4px; background: var(--btn-primary-bg); color: var(--btn-primary-text); }
+.joy-acts{ display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; max-width: 100%; }
+.joy-cta{ min-height: 44px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--btn-primary-bg); color: var(--btn-primary-text); font-size: 14px; font-weight: 600; }
+.joy-chip{ min-height: 44px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--btn-outline); background: transparent; color: var(--btn-outline-text); font-size: 14px; text-align: left; }
+.joy-chips{ display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; border-top: 1px solid var(--line); scrollbar-width: none; }
+.joy-chips::-webkit-scrollbar{ display: none; }
+.joy-chips .joy-chip{ flex: none; white-space: nowrap; }
+.joy-form{ display: flex; gap: 8px; padding: 0 16px 10px; }
+.joy-form input{ flex: 1; min-width: 0; min-height: 48px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; }
+.joy-send{ width: 48px; height: 48px; flex: none; border-radius: 50%; border: 0; background: var(--btn-primary-bg); color: var(--btn-primary-text); font-size: 20px; font-weight: 700; }
+.joy-foot{ margin: 0; padding: 0 16px 14px; font-size: 13px; color: var(--ink-soft); text-align: center; }
+.joy-foot a{ color: var(--accent-text); }
+@media (max-width: 760px){
+  .joy-fab{ left: 16px; padding: 3px; }
+  .joy-fab__text{ display: none; }
+  /* На телефоне кнопка не закрывает первый экран, калькулятор и форму заявки (js/joy-bot.js). */
+  .joy-fab.is-away{ opacity: 0; transform: translateY(20px); pointer-events: none; }
+  .joy-panel{ left: 8px; right: 8px; width: auto; bottom: calc(8px + env(safe-area-inset-bottom)); height: min(640px, calc(100vh - 80px)); }
+}
+@media (prefers-reduced-motion: reduce){ .joy-av.is-talking, .joy-av.is-talking .joy-av__logo, .joy-panel{ animation: none; } }
+
 /* «Уменьшить движение»: всё статично. */
 @media (prefers-reduced-motion: reduce){
   html{ scroll-behavior: auto; }

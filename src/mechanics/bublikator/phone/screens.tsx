@@ -281,7 +281,7 @@ function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null
         </span>
         <div aria-live="polite">
           <h2 className="bkp-h2">{f.title}</h2>
-          <p className="bkp-text">{flash.kind === "done" ? `${cap(w.ship)} ${verb(w, "прибавил", "прибавили")}. ${f.text}` : f.text}</p>
+          <p className="bkp-text">{flash.kind === "done" ? `${cap(w.ship)} ${verb(w, "прибавил", "прибавили", "прибавила")}. ${f.text}` : f.text}</p>
         </div>
       </section>
     );
@@ -597,7 +597,7 @@ export function RepairScreen({ v, crew, left, onTap }: { v: PersonalView; crew: 
     <Page kids={v.difficulty === "kids"} label="Ремонт">
       <Head v={v} crew={crew} />
       <Banner tone="alert">
-        {cap(w.ship)} {verb(w, "сломался", "сломались")} — аварийный ремонт
+        {cap(w.ship)} {verb(w, "сломался", "сломались", "сломалась")} — аварийный ремонт
       </Banner>
       <p className="bkp-mega bkp-mega--num">{left === null ? "" : `${Math.ceil(left / 1000)} с`}</p>
       <p className="bkp-center bkp-text">до конца ремонта · приказы на паузе</p>
@@ -633,7 +633,7 @@ export function FinishScreen({ v, crew, onSalute }: { v: PersonalView; crew: Cre
       <p className="bkp-eyebrow bkp-center">{legText(v)}</p>
       <h1 className="bkp-mega bkp-mega--gold">Финиш!</h1>
       <p className="bkp-lead bkp-center">
-        «{crew?.name ?? "Ваш экипаж"}» {verb(w, "долетел", "долетели")} до {w.goal}. Ждём остальных.
+        {crew?.name ? `Экипаж «${crew.name}»` : "Ваш экипаж"} долетел до {w.goal}. Ждём остальных.
       </p>
       <div className="bkp-hero">
         <Ship theme={v.theme} label={cap(w.ship)} size={190} />
@@ -834,7 +834,7 @@ export function CardScreen({ v, crew }: { v: PersonalView; crew: CrewSummary | n
             <dd>{c.myOrders}</dd>
           </div>
           <div>
-            <dt>Финишем первыми</dt>
+            <dt>Финишей первыми</dt>
             <dd>
               {c.firstFinishes} из {c.legs}
             </dd>

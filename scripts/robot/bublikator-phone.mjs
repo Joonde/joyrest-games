@@ -216,6 +216,9 @@ const EXPECT = {
   "feedback-done": { screen: "panel", vibes: [[40]] },
   "feedback-fail": { screen: "panel", vibes: [[40, 90, 40]] },
   "feedback-quiet": { screen: "panel", vibes: [] },
+  // Аудит 2b, №10: на финише глагол — к «экипажу», в карточке — «Финишей первыми».
+  finish: { screen: "finish", text: "Экипаж «🦊 Лисы» долетел до" },
+  card: { screen: "card", text: "Финишей первыми" },
 };
 /** Что должно быть видно после касаний. */
 const SEEN = {

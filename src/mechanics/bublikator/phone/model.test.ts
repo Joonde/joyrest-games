@@ -8,6 +8,7 @@ import { DOCK_MS, EVENT_MS, HULL_MAX, LAUNCH_MS, REPAIR_MS, WARN_MS } from "../r
 import { crewPlayers } from "../rules/crews";
 import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
+import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
 import { shakeMode, shakeReport, type ShakeSent } from "./shake";
 import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, type PhoneModel } from "./model";
@@ -443,6 +444,18 @@ describe("телефон «Бубликатора»: модель", () => {
       if (had) nav.vibrate = before;
       else delete nav.vibrate;
     }
+  });
+
+  it("слова тем (аудит 2b, №10): род глагола у субмарины женский, у саней — множественное", () => {
+    const say = (theme: keyof typeof THEME_WORDS) => {
+      const w = wordsOf(theme);
+      return `${cap(w.ship)} ${verb(w, "прибавил", "прибавили", "прибавила")}`;
+    };
+    expect(say("submarine")).toBe("Субмарина прибавила");
+    expect(say("newyear")).toBe("Сани прибавили");
+    expect(say("space")).toBe("Корабль прибавил");
+    expect(say("wedding")).toBe("Воздушный шар прибавил");
+    for (const w of Object.values(THEME_WORDS)) expect(w.fem && w.plural).toBe(false);
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

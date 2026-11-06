@@ -65,7 +65,8 @@
 }
 
 .bkp-root[data-theme-bk="wedding"] {
-  --bk-bg-top: #6a3a52;
+  /* Верх фона темнее: второстепенный текст на карточках у верха экрана — контраст ≥ 4.5. */
+  --bk-bg-top: #4a2639;
   --bk-bg-mid: #3a2038;
   --bk-bg: #1c1020;
 }
@@ -247,25 +248,28 @@
 .bkp-chip {
   display: inline-flex;
   flex: 0 1 auto;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 0 6px;
   min-width: 0;
   padding: 6px 12px 6px 6px;
-  border-radius: 999px;
+  border-radius: 22px;
   background: var(--bk-panel);
   border: 1px solid var(--bk-panel-line);
   font-size: 14px;
   font-weight: 600;
 }
 
+/* Название экипажа — целиком, в две строки, если длинное (не многоточием: «Медведи из …» не отличить от соседей). */
 .bkp-chip__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 
 .bkp-chip__role {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--bk-ink-soft);
   font-weight: 500;
 }
@@ -434,7 +438,8 @@
 .bkp-stats dt,
 .bkp-grid dt {
   font-size: 12px;
-  color: var(--bk-ink-soft);
+  /* На золотой карточке экипажа второстепенный цвет не дотягивает до 4.5 — основной. */
+  color: var(--bk-ink);
 }
 
 .bkp-stats dd,
@@ -1273,11 +1278,11 @@
   padding-top: 18vh;
 }
 
+/* Плашка «Нет связи» / ошибка — в потоке страницы и прилипает к верху: любая её высота (две строки на 320 px) сдвигает
+   страницу, а не закрывает шапку (аудит 2b, №12). */
 .bkp-offline {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
   z-index: 10;
   padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
   background: var(--bk-alert);
@@ -1287,9 +1292,8 @@
   text-align: center;
 }
 
-/* Плашка «Нет связи» прибита сверху — страница опускается под неё, шапка не прячется. */
 .bkp-root.has-banner .bkp {
-  padding-top: calc(52px + env(safe-area-inset-top));
+  padding-top: 14px;
 }
 
 .bkp-btn2 {
@@ -1465,6 +1469,22 @@
   .bkp-order__top > .bkp-eyebrow {
     display: none;
   }
+
+  .bkp-order__text {
+    font-size: 23px;
+  }
+
+  .bkp-ctl.is-half .bkp-ctl__name {
+    font-size: 17px;
+  }
+
+  .bkp-ctl.is-half .bkp-ctl__twin {
+    font-size: 14px;
+  }
+
+  .bkp-step {
+    min-height: 44px;
+  }
 }
 
 /* Выбор «трясти или тапать» до системного окна. */
@@ -1527,4 +1547,30 @@
 
 .bkp--kids .bkp-vib.is-on {
   border-color: #8a5c2a;
+}
+
+/* Узкий телефон (320 px): шесть кнопок ползунка в один ряд уже 44 px — два ряда по три (аудит 2b, №13). */
+@media (max-width: 350px) {
+  .bkp-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .bkp-step {
+    min-height: 46px;
+  }
+}
+
+/* Узкий телефон: у переключателя вибрации только значок (подпись — для читалки и подсказкой). */
+@media (max-width: 380px) {
+  .bkp-vib__text {
+    display: none;
+  }
+}
+
+/* «Выберите одного»: ещё нечего отправлять — спокойная кнопка с читаемым текстом (макет ph-vote), без полупрозрачности. */
+.bkp-vote-cta:disabled:not(.is-sent) {
+  opacity: 1;
+  background: var(--bk-panel);
+  color: var(--bk-ink-soft);
+  border: 1.5px dashed var(--bk-panel-line);
 }

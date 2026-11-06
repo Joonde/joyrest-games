@@ -495,6 +495,11 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
     toLeg(w, 0);
     return { w, pid: "p0" };
   },
+  "sender-error": () => {
+    const w = world();
+    toLeg(w, 0);
+    return { w, pid: "p0" };
+  },
   "sender-abandoned": () => {
     const w = world();
     toLeg(w, 0);
@@ -526,6 +531,7 @@ if (scenario === "removed") link.closed = "removed";
 if (scenario === "reload-finished") link.subError = "finished";
 if (scenario === "sender-finished") link.sendError = "finished";
 if (scenario === "sender-abandoned") link.sendError = "abandoned";
+if (scenario === "sender-error") link.sendError = "boom";
 const member = w.member(pid);
 const now = () => w.env.now;
 

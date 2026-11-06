@@ -279,6 +279,20 @@ for (const width of [360, 412]) {
       await page.setViewportSize({ width, height: 800 });
       await page.waitForTimeout(100);
     }
+    // Плашка ошибки или «Нет связи» не закрывает шапку (аудит 2b, №12) — и на 320 px, где она в две строки.
+    if (s === "sender-error" || s === "offline") {
+      for (const fw of [320, width]) {
+        await page.setViewportSize({ width: fw, height: 800 });
+        await page.waitForTimeout(150);
+        const r = await page.evaluate(() => {
+          const b = document.querySelector(".bkp-offline")?.getBoundingClientRect();
+          const h = document.querySelector(".bkp-head")?.getBoundingClientRect();
+          return b && h ? { b: b.bottom, h: h.top } : null;
+        });
+        if (!r) found.push("нет плашки или шапки");
+        else if (r.b > r.h) found.push(`плашка закрывает шапку на ${fw} px: ${Math.round(r.b)} > ${Math.round(r.h)}`);
+      }
+    }
     // Тайная роль: «Понятно» — в первом экране и на самом маленьком телефоне (320×568).
     if (s === "role" || s === "role-honest") {
       await page.setViewportSize({ width: 320, height: 568 });

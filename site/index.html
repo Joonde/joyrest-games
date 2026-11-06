@@ -78,6 +78,24 @@
   </form>
 </div>
 
+<!-- Помощник «Джой»: бот без ИИ, отвечает заготовленными ответами (js/joy-faq.js — ответы из pricing.js, js/joy-bot.js — окно).
+     Ничего не отправляет на сервер, поэтому работает и в витрине. -->
+<button type="button" class="joy-fab" id="joyFab" aria-expanded="false" aria-controls="joyPanel"><span class="joy-av" aria-hidden="true"><img class="joy-av__f joy-av__f--base" src="img/joy-base.webp" width="240" height="240" decoding="async" alt=""><img class="joy-av__f joy-av__f--blink" src="img/joy-blink.webp" width="240" height="240" decoding="async" alt=""></span><span class="joy-fab__text">Спросить Джой</span></button>
+<section class="joy-panel" id="joyPanel" role="dialog" aria-labelledby="joyTitle" hidden>
+  <div class="joy-head">
+    <span class="joy-av joy-av--big" id="joyAvatar" aria-hidden="true"><img class="joy-av__f joy-av__f--base" src="img/joy-base.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--blink" src="img/joy-blink.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--a" src="img/joy-a.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--o" src="img/joy-o.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--i" src="img/joy-i.webp" width="240" height="240" loading="lazy" decoding="async" alt=""></span>
+    <div class="joy-head__text"><h4 id="joyTitle">Джой — помощник JoyRest</h4><p id="joyStatus">Отвечаю на частые вопросы</p></div>
+    <button type="button" class="joy-close" id="joyClose" aria-label="Закрыть помощника">✕</button>
+  </div>
+  <div class="joy-log" id="joyLog" tabindex="-1" aria-live="polite"></div>
+  <div class="joy-chips" id="joyChips" aria-label="Частые вопросы"></div>
+  <form class="joy-form" id="joyForm" autocomplete="off">
+    <input type="text" id="joyInput" maxlength="200" placeholder="Напишите вопрос…" aria-label="Ваш вопрос Джой">
+    <button type="submit" class="joy-send" aria-label="Спросить">→</button>
+  </form>
+  <p class="joy-foot">Не нашли ответ? <a href="#contact" id="joyHuman">Напишите менеджеру</a></p>
+</section>
+
 <!-- Витрина: куда отправить расчёт. Адрес Авито — data-avito (пусто — кнопки Авито нет). -->
 <div class="vmodal send-sheet" id="sendSheet" role="dialog" aria-modal="true" aria-labelledby="sendSheetTitle" data-avito="https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349" hidden>
   <div class="send-sheet__box">
@@ -1184,9 +1202,11 @@
 </footer>
 
 <script src="js/pricing.js"></script>
+<script src="js/joy-faq.js"></script>
 <script src="js/calc-image.js"></script>
 <script src="js/script.js"></script>
 <script src="js/reviews.js"></script>
+<script src="js/joy-bot.js"></script>
 
 <!-- Уведомление сверху экрана («Расчёт добавлен в заявку», «Расчёт убран · Вернуть»). -->
 <div class="top-toast" id="topToast" role="status" aria-live="polite" hidden><span class="top-toast__text" id="topToastText"></span><button type="button" class="top-toast__action" id="topToastAction" hidden></button></div>

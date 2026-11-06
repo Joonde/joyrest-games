@@ -635,7 +635,8 @@ describe("логотип сайта", () => {
     execFileSync(process.execPath, [join(root, "node_modules/tsx/dist/cli.mjs"), join(root, "scripts/build-site.ts")], { cwd: root });
     const out = join(root, "build/site");
     const built = readFileSync(join(out, "index.html"), "utf8");
-    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(3); // логотип, монограмма, эмблема (у QR — свой атрибут)
+    // Логотип, монограмма и эмблема (у QR — свой атрибут; у помощника «Джой» — картинки, не SVG).
+    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(3);
     expect(built).not.toMatch(/<svg[^>]*aria-hidden="true"[^>]*aria-hidden=/);
     // QR канала распознаётся, как QR платформы (src/brand/qrSvg.test.ts): крупно и мелко.
     const qr = /data-brand-qr="https:\/\/t\.me\/JoyRest">(<svg[\s\S]*?<\/svg>)<\/div>/.exec(built)?.[1] ?? "";

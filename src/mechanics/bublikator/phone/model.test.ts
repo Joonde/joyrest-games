@@ -4,10 +4,11 @@
  */
 import { describe, expect, it } from "vitest";
 import type { RoomStreamEvent } from "../../../data/types";
-import { DOCK_MS, HULL_MAX, LAUNCH_MS, REPAIR_MS, WARN_MS } from "../rules/constants";
+import { DOCK_MS, EVENT_MS, HULL_MAX, LAUNCH_MS, REPAIR_MS, WARN_MS } from "../rules/constants";
 import { crewPlayers } from "../rules/crews";
 import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
+import { shakeReport, type ShakeSent } from "./shake";
 import { applyReply, applyStream, clockText, emptyModel, flashOf, leftUntil, orderLeft, screenOf, serverNow, silent, type PhoneModel } from "./model";
 
 const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
@@ -304,6 +305,53 @@ describe("телефон «Бубликатора»: модель", () => {
     expect(d.m.view?.me.role).toBe("double");
     expect(d.screen).toBe("panel");
     expect(d.m.view?.panel.map((c) => c.id)).toEqual(w.member(w.member("late").doubleOf ?? "").panel);
+  });
+
+  it("щит дождя (аудит 2b, №1): трясёт с первой секунды на 90 → щит ~90 — и когда телефон шлёт каждый такт, и когда один раз", () => {
+    let cur: World | null = null;
+    const w0 = (pid: string, p: number): void => void cur?.send(pid, [{ t: "shake", p }]);
+    const meteor = (send: (pid: string, sent: ShakeSent, eventId: string) => ShakeSent): number[] => {
+      const w = new World({ players: 6, content: { events: { meteor: true, pull: false, sos: false, captain: false } } });
+      cur = w;
+      w.toFlight();
+      if (w.s.leg) w.s.leg.schedule = [];
+      w.ok("event", { kind: "meteor" });
+      w.advance(WARN_MS + 100);
+      const ev = w.s.leg?.event;
+      expect(ev?.kind).toBe("meteor");
+      const pids = Object.keys(w.s.members);
+      const sent: Record<string, ShakeSent> = {};
+      for (let t = 0; t < EVENT_MS.meteor + 1000; t += 400) {
+        w.advance(400);
+        if (!w.s.leg?.event) continue;
+        for (const pid of pids) sent[pid] = send(pid, sent[pid] ?? { id: null, p: 0 }, w.s.leg.event.id);
+      }
+      expect(w.s.leg?.event).toBeNull();
+      return w.s.crews.map((c) => Math.round(c.legShield));
+    };
+    // Как шлёт телефон: каждый такт, пока трясут.
+    const phone = meteor((pid, prev, id) => {
+      const r = shakeReport(prev, id, 90);
+      if (r.send !== null) w0(pid, r.send);
+      return r.next;
+    });
+    // Один раз в самом начале (вторая пачка потерялась) — сервер всё равно считает силу по времени дождя.
+    const once = meteor((pid, prev, id) => {
+      if (prev.id !== id) w0(pid, 90);
+      return { id, p: 90 };
+    });
+    for (const shield of [...phone, ...once]) expect(shield).toBeGreaterThanOrEqual(88);
+    // Телефон шлёт силу на каждом такте, а не только когда она выросла.
+    let st: ShakeSent = { id: null, p: 0 };
+    const sends: (number | null)[] = [];
+    for (const peak of [0, 90, 90, 40, 90]) {
+      const r = shakeReport(st, "e1", peak);
+      st = r.next;
+      sends.push(r.send);
+    }
+    expect(sends).toEqual([null, 90, 90, 90, 90]);
+    // Новое событие — с нуля.
+    expect(shakeReport(st, "e2", 30).send).toBe(30);
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

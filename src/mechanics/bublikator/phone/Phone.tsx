@@ -9,6 +9,7 @@ import { PauseIcon, ShieldCheck } from "./art";
 import type { PhoneLink, PhoneSender } from "./link";
 import { applyReply, applyStream, emptyModel, flashOf, leftUntil, orderLeft, screenOf, serverNow, silent, type PhoneModel } from "./model";
 import { useMotion } from "./motion";
+import { SHAKE_EVERY_MS, shakeReport, type ShakeSent } from "./shake";
 import {
   CardScreen,
   CrewsScreen,
@@ -156,21 +157,17 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
   const t = now();
   const sNow = serverNow(m, t);
 
-  // Тряска «Метеоритного дождя»: сила за событие (наибольшая), раз в 0,4 с.
+  // Тряска «Метеоритного дождя»: сила за событие (наибольшая) — каждые 0,4 с, пока трясут.
   const motion = useMotion(screen === "meteor");
   const eventId = v?.event?.id ?? null;
-  const sentPower = useRef<{ id: string | null; p: number }>({ id: null, p: 0 });
+  const sentPower = useRef<ShakeSent>({ id: null, p: 0 });
   useEffect(() => {
     if (screen !== "meteor" || eventId === null) return;
     const h = setInterval(() => {
-      const p = Math.round(motion.peak());
-      const prev = sentPower.current;
-      if (prev.id !== eventId) sentPower.current = { id: eventId, p: 0 };
-      if (p > sentPower.current.p) {
-        sentPower.current = { id: eventId, p };
-        push({ t: "shake", p }, true);
-      }
-    }, 400);
+      const { next, send } = shakeReport(sentPower.current, eventId, motion.peak());
+      sentPower.current = next;
+      if (send !== null) push({ t: "shake", p: send }, true);
+    }, SHAKE_EVERY_MS);
     return () => clearInterval(h);
   }, [screen, eventId, motion, push]);
   useEffect(() => {

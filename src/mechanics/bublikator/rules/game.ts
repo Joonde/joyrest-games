@@ -1146,8 +1146,9 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
       case "shake": {
         const ev = sameCrewEvent(s, m);
         if (!ev || ev.kind !== "meteor" || !ev.started || m.crew === null || !ev.crews.includes(m.crew) || !ev.power) break;
-        // Не быстрее эталона: к этому моменту дождя сила не больше 100 × (время от начала ÷ 10 с).
-        const p = typeof e.p === "number" && Number.isFinite(e.p) ? Math.max(0, Math.min(METEOR_REF, meteorCap(ev, at), e.p)) : 0;
+        // Храним сырую силу (не больше эталона); «не быстрее эталона» — при подсчёте (`meteorPower` по текущему времени):
+        // иначе тот, кто трясёт с первой секунды и шлёт силу один раз, остался бы с силой первых долей секунды.
+        const p = typeof e.p === "number" && Number.isFinite(e.p) ? Math.max(0, Math.min(METEOR_REF, e.p)) : 0;
         const prev = ev.power[m.pid] ?? { shake: 0, taps: 0 };
         // Сводка тряски — накопленная за событие: берём наибольшую.
         ev.power[m.pid] = { shake: Math.max(prev.shake, p), taps: prev.taps };

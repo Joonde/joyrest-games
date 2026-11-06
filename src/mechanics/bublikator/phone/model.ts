@@ -40,6 +40,16 @@ export const ROLE_AUTO_MS = 8000;
 /** Сервер молчит дольше (ни потока, ни ответа на пачку) — «Нет связи». */
 export const SILENT_MS = 6000;
 
+/**
+ * Местное время телефона для отсчётов — монотонное (`performance.now()` от открытия страницы), а не `Date.now()`: часы
+ * телефона, переведённые вручную или сетью, не сдвигают остаток приказа и события (аудит 2b, №11). Сдвиг до часов сервера
+ * считается по нему же (`withClock`).
+ */
+export function localNow(): number {
+  if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.timeOrigin + performance.now();
+  return Date.now();
+}
+
 export function emptyModel(now: number): PhoneModel {
   return { view: null, crew: null, paused: false, pausedAt: null, offset: null, closed: null, flash: null, finishedAt: null, full: null, heardAt: now, flyAt: null };
 }

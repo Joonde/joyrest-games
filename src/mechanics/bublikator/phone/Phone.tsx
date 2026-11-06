@@ -7,7 +7,7 @@ import { GLITCH_SHOW_MS } from "../rules/constants";
 import type { PanelControlView } from "../rules/types";
 import { PauseIcon, ShieldCheck } from "./art";
 import type { PhoneLink, PhoneSender } from "./link";
-import { applyReply, applyStream, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, screenOf, serverNow, silent, type PhoneModel } from "./model";
+import { applyReply, applyStream, closeFinished, emptyModel, flashOf, leftUntil, localNow, orderLeft, problemOf, screenOf, serverNow, silent, type PhoneModel } from "./model";
 import { buzz } from "./haptics";
 import { loadVibration, saveVibration } from "./prefs";
 import { useMotion } from "./motion";
@@ -51,7 +51,7 @@ export interface PhoneProps {
   link: PhoneLink;
   name: string;
   code: string;
-  /** Часы для стенда (по умолчанию — `Date.now`). */
+  /** Часы для стенда (по умолчанию — монотонные `localNow`: перевод часов телефона не сбивает отсчёты). */
   now?: () => number;
 }
 
@@ -78,7 +78,7 @@ function useOnline(): boolean {
   return online;
 }
 
-export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps) {
+export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps) {
   const [m, setM] = useState<PhoneModel>(() => emptyModel(now()));
   const [take, setTake] = useState(false);
   const [gen, setGen] = useState(0);

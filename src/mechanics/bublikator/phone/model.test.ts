@@ -11,7 +11,7 @@ import { World } from "../rules/world.test-kit";
 import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
 import { shakeMode, shakeReport, type ShakeSent } from "./shake";
-import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, type PhoneModel } from "./model";
+import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, localNow, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, withClock, type PhoneModel } from "./model";
 
 const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
 const ALL_ON = { events: { meteor: true, pull: true, sos: true, captain: true } };
@@ -456,6 +456,24 @@ describe("телефон «Бубликатора»: модель", () => {
     expect(say("space")).toBe("Корабль прибавил");
     expect(say("wedding")).toBe("Воздушный шар прибавил");
     for (const w of Object.values(THEME_WORDS)) expect(w.fem && w.plural).toBe(false);
+  });
+
+  it("местные часы (аудит 2b, №11): перевод часов телефона вперёд не сбивает отсчёт — время монотонное", () => {
+    const real = Date.now;
+    try {
+      const a = localNow();
+      Date.now = () => real() + 30_000;
+      const b = localNow();
+      expect(b - a).toBeLessThan(1000);
+      expect(b - a).toBeGreaterThanOrEqual(0);
+    } finally {
+      Date.now = real;
+    }
+    // Тот же телефон по монотонным часам: событие через 10 с — через 5 с осталось ~5 с, сколько ни переводи стрелки.
+    let m = emptyModel(0);
+    m = withClock(m, 1_000_000, 500 + 80);
+    for (let i = 1; i <= 5; i += 1) m = withClock(m, 1_000_000 + i * 1000, 500 + i * 1000 + 80);
+    expect(leftUntil(m, 1_010_000, 500 + 5000 + 80)).toBe(5000);
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

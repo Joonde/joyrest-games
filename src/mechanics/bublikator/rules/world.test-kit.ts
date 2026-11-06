@@ -52,6 +52,10 @@ export interface WorldOptions {
   content?: Record<string, unknown>;
   seed?: string;
   names?: (i: number) => string;
+  /** Командная сессия: столько команд платформы (гости — по кругу), экипаж = команда. */
+  teams?: number;
+  /** Названия команд (со смайликом, как при входе). */
+  teamNames?: (i: number) => string;
 }
 
 export class World {
@@ -60,12 +64,14 @@ export class World {
   constructor(opts: WorldOptions = {}) {
     this.env = new FakeEnv(opts.seed ?? "seed");
     const n = opts.players ?? 6;
+    const teams = opts.teams ?? 0;
+    for (let t = 0; t < teams; t += 1) this.env.teams.set(`t${t}`, opts.teamNames?.(t) ?? `Команда ${t + 1}`);
     for (let i = 0; i < n; i += 1) {
       const pid = `p${i}`;
-      this.env.players.push({ pid, name: opts.names?.(i) ?? `Гость ${i}`, team: null });
+      this.env.players.push({ pid, name: opts.names?.(i) ?? `Гость ${i}`, team: teams > 0 ? `t${i % teams}` : null });
       this.env.onlineSet.add(pid);
     }
-    this.s = createState(opts.content ?? {}, false, this.env);
+    this.s = createState(opts.content ?? {}, teams > 0, this.env);
   }
   get g(): number {
     return this.env.now - this.s.offset;
@@ -85,11 +91,11 @@ export class World {
     resume(this.s, this.env.now - this.pausedAt, this.env);
     this.pausedAt = null;
   }
-  addPlayer(pid: string, name = pid): void {
-    this.env.players.push({ pid, name, team: null });
+  addPlayer(pid: string, name = pid, team: string | null = null): void {
+    this.env.players.push({ pid, name, team });
     this.env.onlineSet.add(pid);
     // Комната зовёт onJoin при новом участнике.
-    join(this.s, { pid, name, team: null }, this.env);
+    join(this.s, { pid, name, team }, this.env);
   }
   cmd(name: string, args?: unknown) {
     const out = command(this.s, name, args, this.env);

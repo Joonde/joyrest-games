@@ -151,7 +151,7 @@ export function CrewsScreen({ v, crew }: { v: PersonalView; crew: CrewSummary | 
       <Title eyebrow="Экипажи собраны">{v.me.role === "double" ? "Вы — дублёр" : "Вы в экипаже!"}</Title>
       <p className="bkp-lead">
         {v.me.role === "double"
-          ? `Экипаж больше 10 человек: вы делите пульт с ${v.me.doubleOf ?? "товарищем"} — двигайте приборы вместе.`
+          ? `В экипаже больше 10 человек: пульт у вас общий с игроком ${v.me.doubleOf ? `«${v.me.doubleOf}»` : "экипажа"} — двигайте приборы вместе.`
           : `Скоро ведущий запустит тренировку или сразу полёт — пульт ${w.shipGen} появится здесь.`}
       </p>
       <div className="bkp-hero">
@@ -212,15 +212,15 @@ export function PanelScreen(p: PanelProps) {
       {p.shake}
       {double && (
         <section className="bkp-card bkp-card--gold">
-          <p className="bkp-eyebrow">Вы дублёр {v.me.doubleOf ?? "товарища"}</p>
+          <p className="bkp-eyebrow">Вы дублёр</p>
           <h2 className="bkp-h2">Один пульт на двоих</h2>
           <p className="bkp-text">
-            Приказы приходят {v.me.doubleOf ?? "хозяину пульта"} и остальным. Слушайте экипаж и двигайте приборы вместе — кто первый, тот и сделал.
+            Пульт общий с игроком {v.me.doubleOf ? `«${v.me.doubleOf}»` : "вашего экипажа"}. Приказы приходят хозяину пульта и остальным — слушайте экипаж и двигайте приборы вместе: кто первый, тот и сделал.
           </p>
         </section>
       )}
       {!double && <OrderCard v={v} left={p.orderLeft} flash={p.flash} w={w} />}
-      <p className="bkp-eyebrow bkp-eyebrow--section">{double ? `Приборы ${v.me.doubleOf ?? "товарища"} — и ваши` : drill ? "Ваши приборы · как в полёте" : "Ваши приборы"}</p>
+      <p className="bkp-eyebrow bkp-eyebrow--section">{double ? "Общие приборы" : drill ? "Ваши приборы · как в полёте" : "Ваши приборы"}</p>
       <div className={`bkp-panel bkp-panel--${Math.min(4, v.panel.length)}`}>
         {v.panel.map((c) => (
           <Control key={c.id} c={c} shown={p.shown(c)} kids={kids} twin={twins.has(c.id)} onMove={(s) => p.onMove(c, s)} />
@@ -270,10 +270,12 @@ function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null
       <p className="bkp-eyebrow">Ваш приказ</p>
       <h2 className="bkp-order__text">{o.text}</h2>
       <p className="bkp-text">{o.frozen ? "Приказы на паузе — время стоит." : o.mine ? "Прибор у вас — двигайте сами!" : `Прибора «${o.control}» у вас нет — крикните экипажу!`}</p>
-      <div className="bkp-bar" aria-hidden="true">
-        <span className="bkp-bar__fill" style={{ transform: `scaleX(${frac})` }} />
+      <div className="bkp-order__time">
+        <div className="bkp-bar" aria-hidden="true">
+          <span className="bkp-bar__fill" style={{ transform: `scaleX(${frac})` }} />
+        </div>
+        <span className="bkp-order__left">{left === null ? "" : `${Math.ceil(left / 1000)} с`}</span>
       </div>
-      <span className="bkp-order__left">{left === null ? "" : `${Math.ceil(left / 1000)} с`}</span>
       {o.mark && <span className="bkp-order__dot" aria-hidden="true" />}
     </section>
   );

@@ -1,0 +1,156 @@
+// Проверка телефона «Бубликатора» без сервера (Блок 2b): стенд `bublikator-phone.tsx` (сборка — build.mjs с
+// ROBOT_ENTRY=scripts/robot/bublikator-phone.tsx) на 360 и 412 px, каждый сценарий — снимок и проверки: нет прокрутки
+// вбок, ничего не вылезает за край и не наезжает, текст не обрезан, кнопки не меньше 44 px, нет ошибок страницы и мусора
+// (undefined, NaN, null, [object …]). Запуск: node scripts/robot/bublikator-phone.mjs <папка сборки> <папка снимков>
+import fs from "node:fs";
+import http from "node:http";
+import path from "node:path";
+import { chromium } from "playwright";
+
+const site = path.resolve(process.argv[2] ?? "build/bublikator-phone");
+const out = path.resolve(process.argv[3] ?? "build/bublikator-phone-shots");
+const root = path.resolve(import.meta.dirname, "../..");
+const pub = path.join(root, "public");
+fs.mkdirSync(out, { recursive: true });
+// Страница стенда — как телефон: ширина по устройству (без meta viewport мобильный браузер раскладывает на 980 px).
+fs.writeFileSync(
+  path.join(site, "index.html"),
+  `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="/robot.css"></head><body><div id="root"></div><script type="module" src="/robot.js"></script></body></html>`,
+);
+
+const TYPES = { ".js": "text/javascript", ".css": "text/css", ".html": "text/html", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".webp": "image/webp", ".png": "image/png", ".json": "application/json" };
+const server = http.createServer((req, res) => {
+  const url = decodeURIComponent((req.url ?? "/").split("?")[0]);
+  const file = [path.join(site, url === "/" ? "index.html" : url), path.join(pub, url)].find((f) => fs.existsSync(f) && fs.statSync(f).isFile());
+  if (!file) return void res.writeHead(404).end();
+  res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] ?? "application/octet-stream" });
+  fs.createReadStream(file).pipe(res);
+});
+await new Promise((r) => server.listen(0, r));
+const port = server.address().port;
+const browser = await chromium.launch({ ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}), args: ["--no-sandbox"] });
+
+/** Проверки раскладки внутри страницы. */
+function inspect() {
+  const found = [];
+  const vw = window.innerWidth;
+  const doc = document.documentElement;
+  if (doc.scrollWidth > vw + 1) found.push(`прокрутка вбок: ${doc.scrollWidth} > ${vw}`);
+  const text = document.body.innerText;
+  for (const bad of ["undefined", "NaN", "[object", "null"]) if (text.includes(bad)) found.push(`мусор в тексте: «${bad}»`);
+  const visible = (el) => {
+    const r = el.getBoundingClientRect();
+    const st = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && Number(st.opacity) > 0;
+  };
+  const label = (el) => `${el.tagName.toLowerCase()}${el.className && typeof el.className === "string" ? "." + el.className.split(" ")[0] : ""} «${(el.innerText || el.getAttribute("aria-label") || "").trim().slice(0, 30)}»`;
+  // Переворот пульта — повёрнутая плитка, её края считаем по-своему: исключаем повёрнутый блок из проверок «за край».
+  const flipped = (el) => Boolean(el.closest(".bkp.is-flip .bkp-panel"));
+  for (const el of document.querySelectorAll("button, [role=radio], [role=switch], a")) {
+    if (!visible(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.height < 44 || r.width < 44) found.push(`маленькая кнопка ${Math.round(r.width)}×${Math.round(r.height)}: ${label(el)}`);
+  }
+  const leaves = [];
+  for (const el of document.querySelectorAll(".bkp-root *")) {
+    if (!visible(el) || flipped(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.right > vw + 1 || r.left < -1) found.push(`за краем экрана: ${label(el)} (${Math.round(r.left)}…${Math.round(r.right)})`);
+    const st = getComputedStyle(el);
+    const clipX = st.overflowX === "hidden" || st.overflow === "hidden";
+    if (clipX && el.scrollWidth > el.clientWidth + 1 && st.textOverflow !== "ellipsis" && el.children.length === 0) found.push(`текст обрезан: ${label(el)}`);
+    const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() !== "");
+    if (own) leaves.push({ el, r });
+  }
+  // Надписи друг на друге (не предок и не потомок; меньше 4 px — не в счёт).
+  for (let i = 0; i < leaves.length; i += 1) {
+    for (let j = i + 1; j < leaves.length; j += 1) {
+      const a = leaves[i];
+      const b = leaves[j];
+      if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      const x = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+      const y = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+      if (x > 1 && y > 1) found.push(`надписи наезжают: ${label(a.el)} и ${label(b.el)}`);
+    }
+  }
+  // Части шапки не наезжают друг на друга (название экипажа и место).
+  for (const head of document.querySelectorAll(".bkp-head")) {
+    const [a, b] = [...head.children].map((c) => c.getBoundingClientRect());
+    if (a && b && a.right > b.left + 1) found.push(`шапка: название экипажа наезжает на место (${Math.round(a.right)} > ${Math.round(b.left)})`);
+  }
+  return { found, screen: document.querySelector(".bkp-root")?.dataset.screen ?? null };
+}
+
+/** Касания сценариев и что после них должно быть в комнате. */
+const ACTIONS = {
+  panel: async (p) => {
+    const step = p.locator(".bkp-step:not(.is-on), .bkp-switch, .bkp-lever__pos:not(.is-on), .bkp-dial__pos:not(.is-on), .bkp-press").first();
+    await step.tap();
+  },
+  kids: async (p) => p.locator(".bkp-press, .bkp-switch, .bkp-lever__pos:not(.is-on)").first().tap(),
+  pull: async (p) => {
+    const box = await p.locator(".bkp-hold").boundingBox();
+    await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await p.mouse.down();
+    await p.waitForTimeout(300);
+  },
+  vote: async (p) => p.locator(".bkp-choice:not(.is-on)").first().tap(),
+  role: async (p) => p.getByRole("button", { name: "Понятно, скрыть" }).tap(),
+  sos: async (p) => p.locator(".bkp-sos__btn").first().tap(),
+};
+const changed = (a, b) => JSON.stringify(a.panel) !== JSON.stringify(b.panel);
+const CHECKS = {
+  panel: (a, b) => changed(a, b),
+  kids: (a, b) => changed(a, b),
+  pull: (a, b) => b.holding === true,
+  vote: (a, b) => b.vote !== a.vote && b.vote !== null,
+  role: (a, b, screen) => b.roleSeen === true && screen !== "role",
+  sos: (a, b) => b.sos !== a.sos,
+};
+
+const report = [];
+const scenarios = (process.env.SCENARIOS ?? "").split(",").filter(Boolean);
+const first = await browser.newPage();
+await first.goto(`http://localhost:${port}/?s=lobby`);
+await first.waitForFunction(() => window.stand !== undefined);
+const all = scenarios.length > 0 ? scenarios : await first.evaluate(() => window.stand.scenarios);
+await first.close();
+
+for (const width of [360, 412]) {
+  for (const s of all) {
+    const page = await browser.newPage({ viewport: { width, height: 800 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(`ошибка страницы: ${e.message}`));
+    page.on("console", (m) => {
+      if (m.type() === "error") errors.push(`консоль: ${m.text()}`);
+    });
+    // Тренировка: показываем шаг «Разрешить тряску», как на iPhone.
+    if (s === "drill") await page.addInitScript(() => (window.DeviceMotionEvent ??= function () {}).requestPermission = () => Promise.resolve("granted"));
+    await page.goto(`http://localhost:${port}/?s=${encodeURIComponent(s)}`);
+    await page.waitForFunction(() => window.standReady === true, null, { timeout: 15000 });
+    await page.waitForTimeout(500);
+    const { found, screen } = await page.evaluate(inspect);
+    // Касания доходят до комнаты (тот же путь, что на сервере: пачка → правила → личное обратно).
+    const act = ACTIONS[s];
+    if (act && width === 360) {
+      const before = await page.evaluate(() => window.stand.server());
+      await act(page);
+      await page.waitForTimeout(400);
+      const after = await page.evaluate(() => window.stand.server());
+      const ok = CHECKS[s](before, after, await page.evaluate(() => window.stand.screen()));
+      if (!ok) found.push(`касание не дошло: ${JSON.stringify(before)} → ${JSON.stringify(after)}`);
+    }
+    const file = path.join(out, `${s}-${width}.png`);
+    await page.screenshot({ path: file, fullPage: true });
+    const problems = [...errors.filter((e) => !e.includes("/fonts/")), ...found];
+    report.push({ scenario: s, width, screen, file, problems });
+    console.log(`${problems.length === 0 ? "✓" : "✗"} ${s} @${width} → ${screen}${problems.length ? "\n    " + problems.slice(0, 8).join("\n    ") : ""}`);
+    await page.close();
+  }
+}
+fs.writeFileSync(path.join(out, "report.json"), JSON.stringify(report, null, 2));
+const bad = report.filter((r) => r.problems.length > 0);
+console.log(`\nСценариев: ${all.length} × 2 ширины, с замечаниями: ${bad.length}`);
+await browser.close();
+server.close();
+process.exit(bad.length > 0 ? 1 : 0);

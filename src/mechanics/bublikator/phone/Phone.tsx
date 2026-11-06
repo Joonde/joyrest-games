@@ -294,7 +294,7 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
   })();
 
   return (
-    <div className="bkp-root" data-screen={screen} data-theme-bk={v?.theme ?? "space"} style={crewStyle(crew?.color)}>
+    <div className={`bkp-root${banner ? " has-banner" : ""}`} data-screen={screen} data-theme-bk={v?.theme ?? "space"} style={crewStyle(crew?.color)}>
       {banner && (
         <div className="bkp-offline" role="alert">
           {banner}

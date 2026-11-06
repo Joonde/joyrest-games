@@ -246,10 +246,10 @@
 
 .bkp-chip {
   display: inline-flex;
+  flex: 0 1 auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  max-width: 62%;
   padding: 6px 12px 6px 6px;
   border-radius: 999px;
   background: var(--bk-panel);
@@ -276,10 +276,10 @@
 
 .bkp-head__side {
   display: flex;
+  flex: none;
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
-  min-width: 0;
 }
 
 .bkp-hull {
@@ -529,10 +529,16 @@
   opacity: 0.75;
 }
 
+.bkp-order__time {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .bkp-bar {
   position: relative;
+  flex: 1;
   height: 8px;
-  margin-right: 44px;
   border-radius: 4px;
   background: var(--bk-panel-line);
   overflow: hidden;
@@ -547,9 +553,9 @@
 }
 
 .bkp-order__left {
-  position: absolute;
-  right: 16px;
-  bottom: 9px;
+  flex: none;
+  min-width: 34px;
+  text-align: right;
   font-weight: 600;
   font-size: 15px;
 }
@@ -1208,6 +1214,11 @@
   font-size: 14px;
   font-weight: 600;
   text-align: center;
+}
+
+/* Плашка «Нет связи» прибита сверху — страница опускается под неё, шапка не прячется. */
+.bkp-root.has-banner .bkp {
+  padding-top: calc(52px + env(safe-area-inset-top));
 }
 
 .bkp-btn2 {

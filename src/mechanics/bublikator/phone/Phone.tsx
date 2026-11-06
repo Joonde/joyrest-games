@@ -263,7 +263,7 @@ export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps
     if (screen !== "meteor") motion.reset();
   }, [screen, motion]);
   const shakeControls = useMemo(
-    () => ({ state: motion.state, live: motion.live, choice: motion.choice, onAllow: () => void motion.ask(), onTaps: () => motion.taps() }),
+    () => ({ state: motion.state, live: motion.live, choice: motion.choice, quickDenied: motion.quickDenied, onAllow: () => void motion.ask(), onTaps: () => motion.taps() }),
     [motion],
   );
 

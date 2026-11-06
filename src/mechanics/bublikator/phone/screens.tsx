@@ -350,6 +350,8 @@ export interface ShakeControls {
   state: MotionState;
   live: boolean;
   choice: ShakeChoice;
+  /** «Попробовать снова» получило отказ сразу, без окна. */
+  quickDenied?: boolean;
   onAllow: () => void;
   onTaps: () => void;
 }
@@ -357,6 +359,8 @@ export interface ShakeControls {
 /** Подсказка до системного окна (решение владельца 6 ноября 2026): что спросят, зачем, и что можно отказаться. */
 export const SHAKE_ASK_TEXT = "Сейчас телефон спросит доступ к движению — он нужен только чтобы считать тряску. Можно разрешить или отказаться: тогда просто тапайте по экрану — это тоже считается.";
 export const SHAKE_OFF_TEXT = "Тряска выключена — тапайте по экрану.";
+/** Safari помнит отказ до перезапуска и больше не показывает окно (аудит 2b, круг 2, №9). */
+export const SHAKE_NO_PROMPT_TEXT = "Окно не появилось? Перезапустите Safari или просто тапайте.";
 export const VIBRATION_HINT = "Телефон коротко вибрирует, когда приказ выполнен, и дважды — при ошибке. Выключить можно кнопкой вверху экрана.";
 
 function ShakeOffer({ m, compact = false }: { m: ShakeControls; compact?: boolean }) {
@@ -380,6 +384,7 @@ function ShakeOffer({ m, compact = false }: { m: ShakeControls; compact?: boolea
     return (
       <div className={`bkp-offer${compact ? " is-compact" : ""}`}>
         <p className="bkp-text">{SHAKE_OFF_TEXT}</p>
+        {m.quickDenied && <p className="bkp-small">{SHAKE_NO_PROMPT_TEXT}</p>}
         <div className="bkp-offer__btns">
           <button type="button" className="btn btn--secondary bkp-btn2" onClick={m.onAllow}>
             Попробовать тряску снова

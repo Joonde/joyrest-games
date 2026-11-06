@@ -11,7 +11,7 @@ import { World } from "../rules/world.test-kit";
 import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
 import { MoveGate } from "./moves";
-import { shakeMode, shakeReport, type ShakeSent } from "./shake";
+import { ShakeMeter, shakeMode, shakeReport, type ShakeSent } from "./shake";
 import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, localNow, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, withClock, type PhoneModel } from "./model";
 
 const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
@@ -350,6 +350,41 @@ describe("телефон «Бубликатора»: модель", () => {
     expect(d.m.view?.me.role).toBe("double");
     expect(d.screen).toBe("panel");
     expect(d.m.view?.panel.map((c) => c.id)).toEqual(w.member(w.member("late").doubleOf ?? "").panel);
+  });
+
+  it("сила тряски копится во времени (аудит 2b, круг 2, №1): рывок 0,25 с → щит < 25; трясут 10 с → ~100; на столе → ~0", () => {
+    // Датчик 60 Гц, такт телефона 0,4 с: накопленная сила (`ShakeMeter`) → `shakeReport` → комната.
+    const run = (accAt: (ms: number) => number): number[] => {
+      const w = new World({ players: 6, content: { events: { meteor: true, pull: false, sos: false, captain: false } } });
+      w.toFlight();
+      if (w.s.leg) w.s.leg.schedule = [];
+      w.ok("event", { kind: "meteor" });
+      w.advance(WARN_MS + 100);
+      const pids = Object.keys(w.s.members);
+      const st = new Map(pids.map((p) => [p, { meter: new ShakeMeter(), sent: { id: null, p: 0 } as ShakeSent }]));
+      let t = 0;
+      while (w.s.leg?.event) {
+        for (let k = 0; k < 24; k += 1) for (const x of st.values()) x.meter.add(accAt(t + k * 16.7), t + k * 16.7);
+        t += 400;
+        w.advance(400);
+        const ev = w.s.leg?.event;
+        if (!ev) break;
+        for (const [p, x] of st) {
+          const r = shakeReport(x.sent, ev.id, x.meter.value);
+          x.sent = r.next;
+          if (r.send !== null) w.send(p, [{ t: "shake", p: r.send }]);
+        }
+      }
+      return w.s.crews.map((c) => Math.round(c.legShield));
+    };
+    for (const shield of run((ms) => (ms > 300 && ms < 550 ? 20 : 0.3))) expect(shield).toBeLessThan(25);
+    for (const shield of run(() => 20)) expect(shield).toBeGreaterThanOrEqual(90);
+    for (const shield of run(() => 0.3)) expect(shield).toBeLessThanOrEqual(2);
+    // Сам счётчик: пропуск показаний (вкладка уснула) не считается тряской.
+    const m = new ShakeMeter();
+    m.add(20, 0);
+    m.add(20, 5000);
+    expect(m.value).toBeLessThan(2);
   });
 
   it("щит дождя (аудит 2b, №1): трясёт с первой секунды на 90 → щит ~90 — и когда телефон шлёт каждый такт, и когда один раз", () => {

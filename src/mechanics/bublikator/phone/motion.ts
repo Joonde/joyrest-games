@@ -1,20 +1,15 @@
 /**
- * Тряска телефона для «Метеоритного дождя» (ТЗ: без разрешения — частые нажатия). Сила 0–100: сглаженное ускорение без
- * силы тяжести, ~15 м/с² — 100. Разрешение — `DeviceMotionEvent.requestPermission` по касанию (шаг тренировки и экран дождя).
+ * Тряска телефона для «Метеоритного дождя» (ТЗ: без разрешения — частые нажатия). Сила 0–100 — накопленная во времени
+ * (`ShakeMeter`): 10 с энергичной тряски = 100, один рывок — почти ничего. Разрешение — `DeviceMotionEvent.requestPermission` по касанию (шаг тренировки и экран дождя).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadShakeChoice, saveShakeChoice } from "./prefs";
-import type { MotionState, ShakeChoice } from "./shake";
+import { ShakeMeter, type MotionState, type ShakeChoice } from "./shake";
 
 export type { MotionState } from "./shake";
 
 interface MotionPermission {
   requestPermission?: () => Promise<"granted" | "denied">;
-}
-
-/** Ускорение (м/с²) → сила 0–100. */
-export function powerOf(acc: number): number {
-  return Math.max(0, Math.min(100, (acc / 15) * 100));
 }
 
 function initialState(): MotionState {
@@ -23,8 +18,13 @@ function initialState(): MotionState {
   return typeof ask === "function" ? "need" : "granted";
 }
 
+/** Ответ на запрос быстрее — окна не было (браузер отказал сам). */
+export const QUICK_DENY_MS = 250;
+
 export interface Motion {
   state: MotionState;
+  /** «Попробовать снова» получило отказ сразу, без окна. */
+  quickDenied: boolean;
   /** «Буду тапать» — выбор гостя на этом устройстве. */
   choice: ShakeChoice;
   /** «Буду тапать»: без системного окна, датчик не слушаем. */
@@ -32,7 +32,7 @@ export interface Motion {
   /** Датчик уже присылал движение на этой странице — тряска работает (Android без вопроса, iPhone после разрешения). */
   live: boolean;
   ask: () => Promise<void>;
-  /** Наибольшая сила с последнего `reset`. */
+  /** Накопленная сила тряски с последнего `reset` (`ShakeMeter`). */
   peak: () => number;
   reset: () => void;
 }
@@ -55,8 +55,8 @@ export function useMotion(active: boolean): Motion {
   const [state, setState] = useState<MotionState>(initialState);
   const [live, setLive] = useState(false);
   const [choice, setChoice] = useState<ShakeChoice>(loadShakeChoice);
-  const peakRef = useRef(0);
-  const ema = useRef(0);
+  const [quickDenied, setQuickDenied] = useState(false);
+  const meter = useRef(new ShakeMeter());
   const activeRef = useRef(active);
   activeRef.current = active;
   useEffect(() => {
@@ -70,8 +70,7 @@ export function useMotion(active: boolean): Motion {
         setLive(true);
       }
       if (!activeRef.current) return;
-      ema.current = ema.current * 0.8 + mag * 0.2;
-      peakRef.current = Math.max(peakRef.current, powerOf(ema.current));
+      meter.current.add(mag, e.timeStamp);
     };
     window.addEventListener("devicemotion", on);
     return () => window.removeEventListener("devicemotion", on);
@@ -81,6 +80,7 @@ export function useMotion(active: boolean): Motion {
       state,
       live,
       choice,
+      quickDenied,
       taps() {
         saveShakeChoice("tap");
         setChoice("tap");
@@ -95,18 +95,22 @@ export function useMotion(active: boolean): Motion {
           setState("granted");
           return;
         }
+        const started = performance.now();
+        let answer: "granted" | "denied" = "denied";
         try {
-          setState((await ask()) === "granted" ? "granted" : "denied");
+          answer = (await ask()) === "granted" ? "granted" : "denied";
         } catch {
-          setState("denied");
+          answer = "denied";
         }
+        setState(answer);
+        // Отказ пришёл сразу, без окна (Safari помнит прошлый отказ до перезапуска) — скажем, что делать.
+        setQuickDenied(answer === "denied" && performance.now() - started < QUICK_DENY_MS);
       },
-      peak: () => peakRef.current,
+      peak: () => meter.current.value,
       reset() {
-        peakRef.current = 0;
-        ema.current = 0;
+        meter.current.reset();
       },
     }),
-    [state, live, choice],
+    [state, live, choice, quickDenied],
   );
 }

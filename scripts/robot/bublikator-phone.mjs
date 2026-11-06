@@ -154,6 +154,10 @@ const ACTIONS = {
     if ((await p.evaluate(() => window.asked)) !== 1) bad.push("«Разрешить тряску» не открыло системное окно");
     if (!(await text()).includes("Тряска выключена — тапайте по экрану")) bad.push("нет «Тряска выключена — тапайте по экрану»");
     if ((await p.getByRole("button", { name: "Попробовать тряску снова" }).count()) !== 1) bad.push("нет «Попробовать тряску снова»");
+    // Safari отказывает сразу, без окна — подсказка, что делать (аудит 2b, круг 2, №9).
+    await p.getByRole("button", { name: "Попробовать тряску снова" }).tap();
+    await p.waitForTimeout(300);
+    if (!(await text()).includes("Окно не появилось? Перезапустите Safari или просто тапайте")) bad.push("нет «Окно не появилось?…»");
     for (let i = 0; i < 6; i += 1) await p.locator(".bkp-tap--big").tap();
     await p.waitForTimeout(400);
     return bad;
@@ -199,7 +203,8 @@ const CHECKS = {
   vote: (a, b) => b.vote !== null,
   role: (a, b, screen) => b.roleSeen === true && screen !== "role",
   sos: (a, b) => b.sos !== a.sos,
-  meteor: (a, b) => (b.shake ?? 0) > 50,
+  // 1,5 с энергичной тряски — сила ~15 (копится: 10 с = 100), не 100 от одного рывка.
+  meteor: (a, b) => (b.shake ?? 0) > 5 && (b.shake ?? 0) < 30,
   "meteor-tap": (a, b) => (b.taps ?? 0) > (a.taps ?? 0),
   "meteor-ask": (a, b) => (b.taps ?? 0) > (a.taps ?? 0),
   "meteor-taps": (a, b) => (b.taps ?? 0) > (a.taps ?? 0),

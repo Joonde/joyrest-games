@@ -36,3 +36,44 @@ export function shakeMode(state: MotionState, live: boolean, choice: ShakeChoice
   if (state === "denied") return { mode: "tap", offer: "retry" };
   return { mode: "tap", offer: null };
 }
+
+/** Сглаженное ускорение ниже этого — телефон просто в руке или на столе, тряски нет (м/с²). */
+export const SHAKE_FLOOR = 3;
+/** Сглаженное ускорение от этого — энергичная тряска, полный вклад (м/с²). */
+export const SHAKE_FULL = 12;
+/** Столько секунд энергичной тряски дают силу 100 (как эталон дождя — 10 с). */
+export const SHAKE_FULL_SECONDS = 10;
+/** Одно показание датчика учитывается не дольше этого (мс): пропуск событий — не «тряска». */
+const SHAKE_MAX_STEP_MS = 100;
+
+/**
+ * Сила тряски за событие — накопленная во времени (аудит 2b, круг 2, №1): каждое показание сглаженного ускорения выше
+ * порога добавляет свою долю секунды; 10 с энергичной тряски = 100. Один рывок на четверть секунды даёт ~3, телефон на
+ * столе — 0. Телефон шлёт накопленное каждые 0,4 с (`shakeReport`), сервер хранит наибольшее и режет эталоном по времени.
+ */
+export class ShakeMeter {
+  private ema = 0;
+  private last: number | null = null;
+  private full = 0;
+
+  /** Показание датчика: модуль ускорения без силы тяжести (м/с²) и время (мс). */
+  add(magnitude: number, at: number): void {
+    if (!Number.isFinite(magnitude) || !Number.isFinite(at)) return;
+    const step = this.last === null ? 16 : Math.max(0, Math.min(SHAKE_MAX_STEP_MS, at - this.last));
+    this.last = at;
+    this.ema = this.ema * 0.8 + Math.abs(magnitude) * 0.2;
+    const share = Math.max(0, Math.min(1, (this.ema - SHAKE_FLOOR) / (SHAKE_FULL - SHAKE_FLOOR)));
+    this.full += share * step;
+  }
+
+  /** Сила 0–100. */
+  get value(): number {
+    return Math.min(100, (this.full / (SHAKE_FULL_SECONDS * 1000)) * 100);
+  }
+
+  reset(): void {
+    this.ema = 0;
+    this.last = null;
+    this.full = 0;
+  }
+}

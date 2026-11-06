@@ -918,7 +918,11 @@ function startEvent(s: BubState, env: Env, ev: EventState): void {
   env.changed();
 }
 
-/** Сила может расти не быстрее эталона: 100 × (время от начала дождя ÷ 10 с) — одним сообщением «100» щит не набрать. */
+/**
+ * Потолок силы к моменту `at`: 100 × (время от начала дождя ÷ 10 с). Применяется при подсчёте (`meteorPower`): сообщение
+ * «100» в начале дождя к концу дождя даст не больше, чем честная тряска все 10 с. Сама сила — накопленная телефоном
+ * (`ShakeMeter`: 10 с энергичной тряски = 100, один рывок — почти ничего); сервер хранит наибольшую присланную.
+ */
 export function meteorCap(ev: EventState, at: number): number {
   return METEOR_REF * Math.max(0, Math.min(1, (at - ev.startAt) / EVENT_MS.meteor));
 }
@@ -1147,8 +1151,8 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
       case "shake": {
         const ev = sameCrewEvent(s, m);
         if (!ev || ev.kind !== "meteor" || !ev.started || m.crew === null || !ev.crews.includes(m.crew) || !ev.power) break;
-        // Храним сырую силу (не больше эталона); «не быстрее эталона» — при подсчёте (`meteorPower` по текущему времени):
-        // иначе тот, кто трясёт с первой секунды и шлёт силу один раз, остался бы с силой первых долей секунды.
+        // Храним наибольшую присланную силу (не больше эталона): телефон шлёт накопленную за дождь (`ShakeMeter`), а
+        // «не быстрее эталона» — при подсчёте (`meteorPower` по текущему времени).
         const p = typeof e.p === "number" && Number.isFinite(e.p) ? Math.max(0, Math.min(METEOR_REF, e.p)) : 0;
         const prev = ev.power[m.pid] ?? { shake: 0, taps: 0 };
         // Сводка тряски — накопленная за событие: берём наибольшую.

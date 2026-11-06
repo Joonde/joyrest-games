@@ -828,6 +828,24 @@
   background: #f7efe3;
 }
 
+/* Выбранное положение в детском виде: своя заливка и тёмная рамка (контраст рамки с карточкой ≥ 3), не перебивается фоном выше. */
+.bkp--kids .bkp-step.is-on,
+.bkp--kids .bkp-lever__pos.is-on {
+  background: #f0c46a;
+  border-color: #8a5c2a;
+  border-width: 2.5px;
+  color: #221e1b;
+}
+
+.bkp--kids .bkp-dial__pos.is-on {
+  border-color: #8a5c2a;
+  border-width: 2.5px;
+}
+
+.bkp--kids .bkp-dial__pos.is-on .bkp-dial__ball {
+  outline-color: #8a5c2a;
+}
+
 .bkp-lever__arrow {
   font-size: 16px;
   line-height: 1;

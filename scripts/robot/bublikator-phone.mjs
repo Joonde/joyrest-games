@@ -209,6 +209,36 @@ for (const width of [360, 412]) {
       await page.setViewportSize({ width, height: 800 });
       await page.waitForTimeout(100);
     }
+    // Положение прибора видно (аудит 2b, №8): выбранное отличается заливкой, рамка выбранного — контраст ≥ 3 с карточкой.
+    found.push(
+      ...(await page.evaluate(() => {
+        const bad = [];
+        const rgb = (c) => (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+        const lum = ([r, g, b]) => [r, g, b].map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+        const ratio = (a, b) => {
+          const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+          return (x + 0.05) / (y + 0.05);
+        };
+        for (const box of document.querySelectorAll(".bkp-lever, .bkp-steps")) {
+          const on = box.querySelector(".is-on");
+          const off = box.querySelector(":scope > :not(.is-on)");
+          const card = box.closest(".bkp-ctl");
+          if (!on || !off || !card) continue;
+          const so = getComputedStyle(on);
+          const sf = getComputedStyle(off);
+          if (so.backgroundColor === sf.backgroundColor) bad.push(`положение не видно: заливка выбранного как у остальных (${so.backgroundColor})`);
+          // Фон под прибором: карточка, а если она полупрозрачная — фон страницы (`--bk-bg`).
+          const cardBg = getComputedStyle(card).backgroundColor;
+          const alpha = Number((cardBg.match(/rgba\([^)]*,\s*([\d.]+)\)/) ?? [])[1] ?? 1);
+          const hex = getComputedStyle(box.closest(".bkp") ?? document.body).getPropertyValue("--bk-bg").trim();
+          const page = /^#[0-9a-f]{6}$/i.test(hex) ? [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) : [255, 255, 255];
+          const bg = alpha >= 0.5 ? rgb(cardBg) : page;
+          const r = ratio(rgb(so.borderTopColor), bg);
+          if (r < 3 && ratio(rgb(so.backgroundColor), bg) < 3) bad.push(`выбранное положение слабо видно: рамка ${r.toFixed(2)} < 3`);
+        }
+        return bad;
+      })),
+    );
     const want = EXPECT[s];
     if (want) {
       if (want.screen && screen !== want.screen) found.push(`экран ${screen}, а должен быть ${want.screen}`);

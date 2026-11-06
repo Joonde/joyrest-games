@@ -479,7 +479,9 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     expect(ownerBell.items.some((n) => n.kind === "new")).toBe(true);
     await post("/api/events/ev1/cancel", owner);
     await until(() => to(BORIS).length === sentBoris + 2, "«отменено» Борису в Telegram");
-    // «Кто может» → «Снять мероприятие» (запись календаря ev-…) — тоже «Отменено» в колокольчик; повтор — без второй записи.
+  });
+  it("колокольчик ведущего: «Кто может» → «Снять мероприятие» — тоже «Отменено», повтор — без второй записи", async () => {
+    const bell = async (cookie: string) => (await get("/api/notices", cookie)).json() as { items: Array<{ title: string; eventId?: string }> };
     const sentAnna = to(ANNA).length;
     expect((await post("/api/events", owner, { id: "ev-cal", hostId: annaId, day: day(21), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 30, note: "" })).statusCode).toBe(200);
     await until(() => to(ANNA).length === sentAnna + 1, "«назначено» Анне");

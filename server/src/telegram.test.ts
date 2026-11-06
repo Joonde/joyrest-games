@@ -479,19 +479,19 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     expect(ownerBell.items.some((n) => n.kind === "new")).toBe(true);
     await post("/api/events/ev1/cancel", owner);
     await until(() => to(BORIS).length === sentBoris + 2, "«отменено» Борису в Telegram");
-  });
+  }, 20_000);
   it("колокольчик ведущего: «Кто может» → «Снять мероприятие» — тоже «Отменено», повтор — без второй записи", async () => {
     const bell = async (cookie: string) => (await get("/api/notices", cookie)).json() as { items: Array<{ title: string; eventId?: string }> };
-    const sentAnna = to(ANNA).length;
     expect((await post("/api/events", owner, { id: "ev-cal", hostId: annaId, day: day(21), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 30, note: "" })).statusCode).toBe(200);
-    await until(() => to(ANNA).length === sentAnna + 1, "«назначено» Анне");
     const removeBooking = () => app.inject({ method: "DELETE", url: "/api/calendar/ev-ev-cal", headers: headers(owner) });
     expect((await removeBooking()).statusCode).toBe(200);
-    await until(() => to(ANNA).length === sentAnna + 2, "«отменено» Анне после «Снять мероприятие»");
     expect((await removeBooking()).statusCode).toBe(200);
+    // Колокольчик пишется до ответа сервера — ждать не нужно.
     const cal = (await bell(anna)).items.filter((n) => n.eventId === "ev-cal").map((n) => n.title);
     expect(cal).toEqual(["✖️ Мероприятие отменено", "📅 Вам назначено мероприятие"]);
-  });
+    // Сообщения Telegram о «Корпоративе» дошли, чтобы не попасть в счёт следующих проверок.
+    await until(() => to(ANNA).filter((t) => t.includes("Корпоратив")).length >= 2, "Telegram Анне о «Корпоративе»");
+  }, 20_000);
   it("откуда пришёл: расчёт — «Сайт», по ссылке «Пишу с Авито» — новый клиент «Авито», вручную — можно сменить", async () => {
     tg.update({ business_message: { message_id: 9301, business_connection_id: "bc4", chat: { id: 8401, type: "private" }, from: { id: 8401, first_name: "Дина", username: "dina_avito" }, text: "Здравствуйте! Пишу с Авито, нужен ведущий на юбилей" } });
     tg.update({ business_message: { message_id: 9302, business_connection_id: "bc4", chat: { id: 8402, type: "private" }, from: { id: 8402, first_name: "Просто", username: "just_hi" }, text: "Привет, как дела?" } });

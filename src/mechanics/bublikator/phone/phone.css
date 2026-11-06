@@ -97,8 +97,9 @@
   color: var(--bk-ink);
 }
 
-/* Переворот третьего перелёта: пульт вверх ногами (у детей его нет). */
-.bkp.is-flip .bkp-panel {
+/* Переворот третьего перелёта: пульт и приказ вверх ногами, как в макете ph-flip (у детей его нет). */
+.bkp.is-flip .bkp-panel,
+.bkp.is-flip .bkp-order {
   transform: rotate(180deg);
 }
 
@@ -1573,4 +1574,11 @@
   background: var(--bk-panel);
   color: var(--bk-ink-soft);
   border: 1.5px dashed var(--bk-panel-line);
+}
+
+/* Детский приказ — с картинкой прибора. */
+.bkp-order__kid {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }

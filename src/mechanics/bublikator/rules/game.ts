@@ -443,12 +443,13 @@ function issue(s: BubState, env: Env, crew: Crew, m: Member, controls: Control[]
   s.rt.dirty.add(m.pid);
 }
 
-function cancel(s: BubState, env: Env, crew: Crew, m: Member, reason: string): void {
+/** Приказ снят без штрафа; у «хозяин прибора пропал» — его имя для телефона («Костя пропал со связи»). */
+function cancel(s: BubState, env: Env, crew: Crew, m: Member, reason: string, who?: string): void {
   const order = m.order;
   if (!order) return;
   m.order = null;
   m.nextAt = crew.clock + NEXT_AFTER_FAIL_MS;
-  send(s, env, m.pid, { t: "cancel", order: order.id, reason });
+  send(s, env, m.pid, who ? { t: "cancel", order: order.id, reason, who } : { t: "cancel", order: order.id, reason });
 }
 
 function complete(s: BubState, env: Env, crew: Crew, m: Member, ctl: Control, now: number, drill: boolean): void {
@@ -533,7 +534,7 @@ export function runOrders(s: BubState, env: Env, now: number, drill: boolean, ev
       if (!m.order) continue;
       const ctl = s.controls[m.order.control];
       if (!ctl) cancel(s, env, crew, m, "control");
-      else if (!panelOnline(s, ctl.owner, env)) cancel(s, env, crew, m, "owner");
+      else if (!panelOnline(s, ctl.owner, env)) cancel(s, env, crew, m, "owner", s.members[ctl.owner]?.name);
     }
     // Убранные и ушедшие тоже теряют приказ (без сообщения — их телефона нет).
     for (const m of crewMembers(s, crew.id)) if (m.order && !receiverOk(m, env)) {

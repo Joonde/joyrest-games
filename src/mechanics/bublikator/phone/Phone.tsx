@@ -79,6 +79,12 @@ function useOnline(): boolean {
   return online;
 }
 
+/** «Войти снова» — вход гостя по коду игры (`/play/<код>`), без кода — экран ввода кода. */
+export function rejoinHref(code: string): string {
+  const digits = code.replace(/\D/g, "");
+  return digits.length > 0 ? `/play/${digits}` : "/j";
+}
+
 export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps) {
   const [m, setM] = useState<PhoneModel>(() => emptyModel(now()));
   const [take, setTake] = useState(false);
@@ -309,7 +315,15 @@ export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps
       case "abandoned":
         return <InfoScreen title="Ждём ведущего" text="Игра давно стоит. Как только ведущий вернётся к пульту, экипаж появится здесь сам." icon={<PauseIcon />} />;
       case "removed":
-        return <InfoScreen title="Вас нет в игре" text="Ведущий убрал вас из игры или за вас вошли с другого телефона. Если это ошибка — войдите снова по коду." />;
+        return (
+          <InfoScreen title="Вас нет в игре" text="Ведущий убрал вас из игры или за вас вошли с другого телефона. Если это ошибка — войдите снова по коду.">
+            <div className="actions">
+              <a className="btn btn--block" href={rejoinHref(code)}>
+                Войти снова
+              </a>
+            </div>
+          </InfoScreen>
+        );
       case "over":
         return <InfoScreen title="Игра окончена" text="Спасибо за игру! Итоги — на большом экране." icon={<ShieldCheck />} />;
     }
@@ -361,7 +375,7 @@ export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps
       case "repair":
         return <RepairScreen v={v} crew={crew} left={leftUntil(m, v.repair?.until, t)} onTap={() => tap("tap")} />;
       case "finish":
-        return <FinishScreen v={v} crew={crew} onSalute={() => tap("salute")} />;
+        return <FinishScreen v={v} crew={crew} left={leftUntil(m, v.flightEndsAt, t)} onSalute={() => tap("salute")} />;
       case "dock":
         return <DockScreen v={v} crew={crew} />;
       case "vote":

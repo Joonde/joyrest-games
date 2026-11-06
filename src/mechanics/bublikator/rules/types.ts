@@ -402,7 +402,7 @@ export interface PersonalView {
   panel: PanelControlView[];
   flipUntil: number | null;
   glitchAt: number | null;
-  order: { id: string; text: string; control: string; mine: boolean; dueAt: number | null; left: number; total: number; frozen: boolean; mark?: true } | null;
+  order: { id: string; text: string; control: string; mine: boolean; dueAt: number | null; left: number; total: number; frozen: boolean; mark?: true; icon?: string } | null;
   event: {
     id: string;
     kind: EventKind;
@@ -417,6 +417,8 @@ export interface PersonalView {
   } | null;
   repair: { until: number; mine: number; taps: number; target: number } | null;
   finished: boolean;
+  /** Когда закончится перелёт (часы сервера) — только финишировавшему экипажу; во время события — null (время стоит). */
+  flightEndsAt: number | null;
   role: { saboteur: boolean; seen: boolean } | null;
   vote: { endsAt: number; candidates: Array<{ pid: string; name: string }>; mine: string | null; none: boolean } | null;
   voted: { guessed: boolean; saboteur: string; me: boolean; none: boolean } | null;

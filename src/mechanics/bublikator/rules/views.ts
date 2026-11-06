@@ -293,6 +293,8 @@ export function personalView(s: BubState, pid: string, env: ViewEnv, frame?: Fra
         };
         // Неприметная точка у края — только диверсанту и только у его ложного приказа.
         if (order.fake && crew?.saboteur === pid) view.mark = true;
+        // Детям — приказ с той же картинкой, что у прибора (ТЗ; аудит 2b, №16).
+        if (s.content.difficulty === "kids" && ctl?.icon) view.icon = ctl.icon;
         return view;
       })()
     : null;
@@ -399,6 +401,8 @@ export function personalView(s: BubState, pid: string, env: ViewEnv, frame?: Fra
     event,
     repair: crew?.repair ? { until: toServer(s, crew.repair.startedAt + REPAIR_MS), mine: crew.repair.by?.[pid] ?? 0, taps: crew.repair.taps, target: crew.repair.target } : null,
     finished: crew?.finishedAt != null,
+    // «До конца перелёта 0:18» на экране финиша: только финишировавшим и пока полёт идёт (во время события время стоит).
+    flightEndsAt: crew?.finishedAt != null && s.phase === "leg" && leg?.stage === "fly" && leg.event?.started !== true ? toServer(s, Math.round((now + Math.max(0, leg.duration - leg.flight)) / 1000) * 1000) : null,
     role,
     vote,
     voted,

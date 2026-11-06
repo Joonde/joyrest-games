@@ -32,10 +32,12 @@ export interface ControlProps {
   twin: boolean;
   /** В полширины (короткий прибор в паре — `halfControls`). */
   half?: boolean;
+  /** «Глюк»: плитки поменялись местами — метка ↔. */
+  swapped?: boolean;
   onMove: (state: number) => void;
 }
 
-export function Control({ c, shown, kids, twin, half = false, onMove }: ControlProps) {
+export function Control({ c, shown, kids, twin, half = false, swapped = false, onMove }: ControlProps) {
   const hint = c.type === "button" ? TYPE_TITLES.button : `${TYPE_TITLES[c.type]} · сейчас ${stateWord(c, shown)}`;
   return (
     <section className={`bkp-ctl bkp-ctl--${c.type}${half ? " is-half" : ""}`} aria-label={`${c.name}: ${hint}`}>
@@ -43,8 +45,8 @@ export function Control({ c, shown, kids, twin, half = false, onMove }: ControlP
         {kids && <KidsArt icon={c.icon} tint={c.tint} size={40} />}
         <span className="bkp-ctl__name">
           {c.name}
-          {twin && (
-            <span className="bkp-ctl__twin" title="Похожее название — не перепутайте">
+          {(twin || swapped) && (
+            <span className="bkp-ctl__twin" title={swapped ? "Плитка поменялась местами" : "Похожее название — не перепутайте"}>
               {" "}
               ↔
             </span>

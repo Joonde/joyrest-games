@@ -212,13 +212,19 @@ const EXPECT = {
   "sender-finished": { screen: "over", text: "Игра окончена" },
   "sender-abandoned": { screen: "panel", senders: 2 },
   helped: { screen: "panel", text: "Вы помогли!", selector: ".bkp-order__text", vibes: [[40]] },
-  // Вибрация вместо звука (решение владельца 6 ноября 2026): выполнен — одна короткая, не успели — две.
-  "feedback-done": { screen: "panel", vibes: [[40]] },
-  "feedback-fail": { screen: "panel", vibes: [[40, 90, 40]] },
+  // Вибрация вместо звука (решение владельца 6 ноября 2026): выполнен — одна короткая, не успели — две (ниже, с текстами).
   "feedback-quiet": { screen: "panel", vibes: [] },
   // Аудит 2b, №10: на финише глагол — к «экипажу», в карточке — «Финишей первыми».
-  finish: { screen: "finish", text: "Экипаж «🦊 Лисы» долетел до" },
+  finish: { screen: "finish", text: ["Экипаж «🦊 Лисы» долетел до", "до конца перелёта"] },
   card: { screen: "card", text: "Финишей первыми" },
+  // Аудит 2b, №16 — как в макетах.
+  "feedback-done": { screen: "panel", vibes: [[40]], text: "» — сани прибавили" },
+  "feedback-fail": { screen: "panel", vibes: [[40, 90, 40]], text: "Приказ «" },
+  "feedback-cancel": { screen: "panel", text: "нет связи: приказ снят без штрафа" },
+  glitch: { screen: "panel", text: "Первые 0,7 с после перестановки нажатия не считаются", selector: ".bkp-ctl__twin" },
+  flip: { screen: "panel", rotated: ".bkp-order" },
+  kids: { screen: "panel", selector: ".bkp-order__kid" },
+  removed: { screen: "removed", link: ["Войти снова", "/play/515042"] },
 };
 /** Что должно быть видно после касаний. */
 const SEEN = {
@@ -339,8 +345,13 @@ for (const width of [360, 412]) {
     if (want) {
       if (want.screen && screen !== want.screen) found.push(`экран ${screen}, а должен быть ${want.screen}`);
       const text = await page.evaluate(() => document.body.innerText);
-      if (want.text && !text.includes(want.text)) found.push(`не видно «${want.text}»`);
+      for (const t of want.text ? [want.text].flat() : []) if (!text.includes(t)) found.push(`не видно «${t}»`);
       if (want.selector && (await page.locator(want.selector).count()) === 0) found.push(`нет ${want.selector}`);
+      if (want.rotated && !(await page.evaluate((sel) => getComputedStyle(document.querySelector(sel) ?? document.body).transform, want.rotated)).startsWith("matrix(-1")) found.push(`${want.rotated} не перевёрнут`);
+      if (want.link) {
+        const href = await page.evaluate((t) => [...document.querySelectorAll("a")].find((a) => a.textContent?.includes(t))?.getAttribute("href") ?? null, want.link[0]);
+        if (href !== want.link[1]) found.push(`«${want.link[0]}» ведёт на ${href}`);
+      }
       if (want.vibes) {
         const vibes = await page.evaluate(() => window.vibes);
         if (JSON.stringify(vibes) !== JSON.stringify(want.vibes)) found.push(`вибрация ${JSON.stringify(vibes)}, а нужна ${JSON.stringify(want.vibes)}`);

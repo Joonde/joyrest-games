@@ -6,7 +6,7 @@ import { createContext, useContext, useState, type CSSProperties, type ReactNode
 import { cap, verb, wordsOf, type ThemeWords } from "../lexicon";
 import { HULL_MAX, PULL_HOLD_MS, SOS_BONUS, VOTE_BONUS } from "../rules/constants";
 import type { CrewSummary, PanelControlView, PersonalView } from "../rules/types";
-import { CrewMark, PauseIcon, RoleBadge, ShakePhone, Ship, ShieldCheck, Wrench } from "./art";
+import { CrewMark, KidsArt, PauseIcon, RoleBadge, ShakePhone, Ship, ShieldCheck, Wrench } from "./art";
 import { Control, twinsOf } from "./controls";
 import { halfControls } from "./layout";
 import { shakeMode, type MotionState, type ShakeChoice } from "./shake";
@@ -215,6 +215,8 @@ export function PanelScreen(p: PanelProps) {
   const w = wordsOf(v.theme);
   const twins = v.leg === 2 ? twinsOf(v.panel) : new Set<string>();
   const half = halfControls(v.panel);
+  // «Глюк»: плитки поменялись местами — метки ↔ у всех и пояснение (макет ph-glitch).
+  const glitching = p.glitchLeft !== null && p.glitchLeft > 0;
   const drill = v.phase === "drill";
   const double = v.me.role === "double";
   const ev = v.event;
@@ -248,10 +250,11 @@ export function PanelScreen(p: PanelProps) {
       <p className="bkp-eyebrow bkp-eyebrow--section">{double ? "Общие приборы" : drill ? "Ваши приборы · как в полёте" : "Ваши приборы"}</p>
       <div className={`bkp-panel bkp-panel--${Math.min(4, v.panel.length)}`}>
         {v.panel.map((c) => (
-          <Control key={c.id} c={c} shown={p.shown(c)} kids={kids} twin={twins.has(c.id)} half={half.has(c.id)} onMove={(s) => p.onMove(c, s)} />
+          <Control key={c.id} c={c} shown={p.shown(c)} kids={kids} twin={twins.has(c.id)} swapped={glitching} half={half.has(c.id)} onMove={(s) => p.onMove(c, s)} />
         ))}
         {v.panel.length === 0 && <p className="bkp-text bkp-empty">Приборы появятся со следующего перелёта.</p>}
       </div>
+      {glitching && <Foot>Названия и положения прежние — поменялся только порядок. Первые 0,7 с после перестановки нажатия не считаются.</Foot>}
       {v.me.pending && <Foot>Вы пришли во время полёта — со следующего перелёта получите свои приборы.</Foot>}
       {!v.me.pending && !double && !drill && <Foot>Слышите своё название — сразу крутите. Видите приказ — сразу кричите.</Foot>}
     </Page>
@@ -269,6 +272,15 @@ const FLASH_TEXT: Record<Flash["kind"], { mark: string; title: string; text: str
  * Карточка приказа. Читалке экрана — только текст приказа и итог (`aria-live` на них, не на всей карточке с секундами).
  * «Вы помогли!» при своём приказе — маленькой меткой над ним, приказ не закрывается (аудит 2b, №7).
  */
+/** Что случилось с приказом — как в макете ph-feedback: сам приказ и кто пропал со связи (аудит 2b, №16). */
+export function flashText(flash: Flash, w: ThemeWords, fallback: string): string {
+  const ship = `${cap(w.ship)} ${verb(w, "прибавил", "прибавили", "прибавила")}`;
+  if (flash.kind === "done") return flash.text ? `«${flash.text.replace(/!$/, "")}» — ${ship.toLowerCase()}. ${fallback}` : `${ship}. ${fallback}`;
+  if (flash.kind === "fail") return flash.text ? `Приказ «${flash.text.replace(/!$/, "")}» сгорел — прочность чуть ниже.` : fallback;
+  if (flash.kind === "cancel" && flash.who) return `${flash.who} — нет связи: приказ снят без штрафа, новый через секунду.`;
+  return fallback;
+}
+
 function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null; flash: Flash | null; w: ThemeWords }) {
   const o = v.order;
   const helpedBadge = flash?.kind === "helped" && o !== null && o.id !== flash.order;
@@ -281,7 +293,7 @@ function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null
         </span>
         <div aria-live="polite">
           <h2 className="bkp-h2">{f.title}</h2>
-          <p className="bkp-text">{flash.kind === "done" ? `${cap(w.ship)} ${verb(w, "прибавил", "прибавили", "прибавила")}. ${f.text}` : f.text}</p>
+          <p className="bkp-text">{flashText(flash, w, f.text)}</p>
         </div>
       </section>
     );
@@ -307,9 +319,18 @@ function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null
           </span>
         )}
       </div>
-      <h2 className="bkp-order__text" aria-live="polite">
-        {o.text}
-      </h2>
+      {o.icon && v.difficulty === "kids" ? (
+        <div className="bkp-order__kid">
+          <KidsArt icon={o.icon} tint={v.panel.find((c) => c.name === o.control)?.tint ?? null} size={52} />
+          <h2 className="bkp-order__text" aria-live="polite">
+            {o.text}
+          </h2>
+        </div>
+      ) : (
+        <h2 className="bkp-order__text" aria-live="polite">
+          {o.text}
+        </h2>
+      )}
       <p className="bkp-text">{o.frozen ? "Приказы на паузе — время стоит." : o.mine ? "Прибор у вас — двигайте сами!" : `Прибора «${o.control}» у вас нет — крикните экипажу!`}</p>
       <div className="bkp-order__time">
         <div className="bkp-bar" aria-hidden="true">
@@ -625,7 +646,7 @@ export function RepairScreen({ v, crew, left, onTap }: { v: PersonalView; crew: 
   );
 }
 
-export function FinishScreen({ v, crew, onSalute }: { v: PersonalView; crew: CrewSummary | null; onSalute: () => void }) {
+export function FinishScreen({ v, crew, left, onSalute }: { v: PersonalView; crew: CrewSummary | null; left: number | null; onSalute: () => void }) {
   const w = wordsOf(v.theme);
   return (
     <Page kids={v.difficulty === "kids"} label="Финиш">
@@ -633,7 +654,7 @@ export function FinishScreen({ v, crew, onSalute }: { v: PersonalView; crew: Cre
       <p className="bkp-eyebrow bkp-center">{legText(v)}</p>
       <h1 className="bkp-mega bkp-mega--gold">Финиш!</h1>
       <p className="bkp-lead bkp-center">
-        {crew?.name ? `Экипаж «${crew.name}»` : "Ваш экипаж"} долетел до {w.goal}. Ждём остальных.
+        {crew?.name ? `Экипаж «${crew.name}»` : "Ваш экипаж"} долетел до {w.goal}. Ждём остальных{left !== null && left > 0 ? ` — до конца перелёта ${clockText(left)}` : ""}.
       </p>
       <div className="bkp-hero">
         <Ship theme={v.theme} label={cap(w.ship)} size={190} />

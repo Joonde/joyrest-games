@@ -12,6 +12,10 @@ export interface Flash {
   order: string;
   /** Местное время появления. */
   at: number;
+  /** Текст своего приказа, если он был на экране («Чихометр — на 3!»). */
+  text?: string;
+  /** Отменён, потому что хозяин прибора пропал со связи: его имя. */
+  who?: string;
 }
 
 export interface PhoneModel {
@@ -108,7 +112,10 @@ function applyEvent(m0: PhoneModel, e: RoomStreamEvent, local: number): PhoneMod
         const kind: Flash["kind"] = d.t === "done" ? (d.helped === true ? "helped" : "done") : d.t;
         // Помог товарищу — вспышка только если своего приказа сейчас нет на экране (иначе своя карточка не мигает зря).
         if (kind === "helped" && m.flash && local - m.flash.at < FLASH_MS) return m;
-        return { ...m, flash: { kind, order: d.order, at: local } };
+        const flash: Flash = { kind, order: d.order, at: local };
+        if (m.view?.order?.id === d.order) flash.text = m.view.order.text;
+        if (kind === "cancel" && d.reason === "owner" && typeof d.who === "string") flash.who = d.who;
+        return { ...m, flash };
       }
       if (d.t === "finish") return { ...m, finishedAt: local };
       if (d.t === "full" && typeof d.crew === "number") return { ...m, full: d.crew };

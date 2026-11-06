@@ -258,6 +258,27 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
       },
     };
   },
+  // Хозяин прибора пропал со связи — приказ снят: «Костя — нет связи: …» (аудит 2b, №16).
+  "feedback-cancel": () => {
+    const w = world();
+    toLeg(w, 0);
+    const owner = (): string | null => {
+      const o = w.member("p0").order;
+      const ow = o ? w.s.controls[o.control]?.owner : null;
+      return ow && ow !== "p0" ? ow : null;
+    };
+    for (let i = 0; i < 600 && owner() === null; i += 1) w.advance(100);
+    const q = owner();
+    return {
+      w,
+      pid: "p0",
+      after: (l) => {
+        if (q) w.offline(q);
+        w.advance(8000);
+        l.pump();
+      },
+    };
+  },
   double: () => {
     const w = world();
     toLeg(w, 0);

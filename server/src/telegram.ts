@@ -33,6 +33,7 @@ import type { AgencyEvent, TelegramStatus } from "../../src/data/types";
 import { actorOf, apiGuard, sessionUser } from "./auth";
 import { upsertClient } from "./clients";
 import { dropBusinessOf } from "./telegramAccess";
+import { telegramBotUrl } from "./telegramApi";
 
 const CODE_TTL_MS = 30 * 60_000;
 const POLL_TIMEOUT_S = 25;
@@ -180,7 +181,7 @@ export function startBot(options: BotOptions): Bot {
   const { sql, token, log, platformUrl } = options;
   const f = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
-  const base = `https://api.telegram.org/bot${token}`;
+  const base = telegramBotUrl(token);
   let stopped = false;
   let me: string | null = null;
   let lastPollAt: number | null = null;

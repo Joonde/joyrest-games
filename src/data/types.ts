@@ -760,11 +760,14 @@ export interface ClientDetails extends ClientRecord {
 /** Уведомление колокольчика студии: новое обращение клиента или клиент ждёт ответа в Telegram. */
 export interface Notice {
   id: string;
+  /** Клиент обращения («new», «waiting»); у мероприятия — пусто. */
   clientId: string;
-  kind: "new" | "waiting";
-  /** «Заявка с сайта», «Из Telegram», «Ждёт ответа в Telegram». */
+  /** Мероприятие («event», колокольчик ведущего); у обращений клиентов — нет. */
+  eventId?: string;
+  kind: "new" | "waiting" | "event";
+  /** «Заявка с сайта», «Из Telegram», «Ждёт ответа в Telegram», «📅 Вам назначено мероприятие». */
   title: string;
-  /** Имя клиента (или телефон). */
+  /** Имя клиента (или телефон); у мероприятия — что и когда. */
   name: string;
   /** Первая строка обращения. */
   line: string;

@@ -69,12 +69,14 @@ import {
   lobbyCrewCount,
   mergeCrews,
   moveMember,
+  registerTeams,
   rosterChanged,
   seatLate,
+  teamCrewOf,
 } from "./crews";
 import { dealPanels, cleanState, orderText, randomTarget } from "./panels";
 import { shuffle } from "./names";
-import type { BubContent, BubState, Control, Crew, EventKind, EventState, LegResult, Member, Order, Runtime, Stage, VoteResult } from "./types";
+import type { BubContent, BubState, CardStats, Control, Crew, EventKind, EventState, LegResult, Member, Order, Runtime, Stage, VoteResult } from "./types";
 
 /** Что правила знают о комнате (у сервера — `RoomContext`). */
 export interface Env {
@@ -225,28 +227,33 @@ export function createState(contentRaw: unknown, teamsMode: boolean, env: Env): 
 
 /** Вход в игру: в лобби — выбор экипажа (в командной сессии — по команде платформы); позже — дублёр, полноценно со следующего перелёта. */
 export function join(s: BubState, p: { pid: string; name: string; team: string | null }, env: Env): void {
+  registerTeams(s, env.teams.keys());
+  if (p.team !== null) registerTeams(s, [p.team]);
   const known = s.members[p.pid];
   if (known) {
     known.name = p.name;
     if (known.gone) {
       known.gone = false;
+      if (s.teamsMode) known.team = p.team;
       rosterChanged(s);
-      if (s.phase !== "lobby" && s.phase !== "podium" && s.phase !== "finished") seatLate(s, known, known.crew, midLeg(s));
+      if (s.phase === "lobby" && s.teamsMode) {
+        known.crew = teamCrewOf(s, p.team);
+        rosterChanged(s);
+      } else if (s.phase !== "lobby" && s.phase !== "podium" && s.phase !== "finished") seatLate(s, known, teamCrewOf(s, p.team) ?? known.crew, midLeg(s));
     }
     return;
   }
   const m = newMember(p.pid, p.name, s.joinSeq);
   s.joinSeq += 1;
+  if (s.teamsMode) m.team = p.team;
   s.members[p.pid] = m;
   rosterChanged(s);
   if (s.phase === "lobby") {
-    if (s.teamsMode && p.team !== null) {
-      const index = [...env.teams.keys()].indexOf(p.team);
-      if (index >= 0 && index < lobbyCrewCount(s)) m.crew = index;
-    }
+    // Командная сессия: команда = экипаж (решение владельца 6 ноября 2026), сверх 10 в команде — дублёры при сборе.
+    if (s.teamsMode) m.crew = teamCrewOf(s, p.team);
     rosterChanged(s);
   } else if (s.phase === "crews" || s.phase === "drill" || s.phase === "leg") {
-    seatLate(s, m, null, midLeg(s));
+    seatLate(s, m, teamCrewOf(s, p.team), midLeg(s));
   }
   s.rt.dirty.add(p.pid);
   env.changed();
@@ -275,6 +282,7 @@ export function syncPresence(s: BubState, env: Env, now: number): void {
     }
     if (m.gone) join(s, p, env);
     if (p.name !== m.name) m.name = p.name;
+    if (s.teamsMode && (m.team ?? null) !== p.team) teamChanged(s, env, m, p.team);
     const online = env.online(m.pid);
     if (!online && m.offlineSince === null) {
       m.offlineSince = now;
@@ -286,6 +294,28 @@ export function syncPresence(s: BubState, env: Env, now: number): void {
       env.changed();
     }
   }
+}
+
+/**
+ * Командная сессия: гость сменил команду (или вошёл в неё) — пересадка в её экипаж (решение владельца 6 ноября 2026). В
+ * лобби — выбор экипажа; посреди перелёта — дублёром до следующей раздачи; во время голосования — после него (голос и
+ * кандидаты не меняются); на пьедестале — ничего. Экипажа у команды нет (появилась после сбора, сверх 20) — остаётся где был.
+ */
+function teamChanged(s: BubState, env: Env, m: Member, team: string | null): void {
+  if (s.phase === "podium" || s.phase === "finished") return;
+  if (s.phase === "leg" && s.leg?.stage === "vote") return;
+  if (team !== null) registerTeams(s, [team]);
+  m.team = team;
+  const crew = teamCrewOf(s, team);
+  if (s.phase === "lobby") {
+    m.crew = crew;
+    rosterChanged(s);
+  } else if (crew !== null && crew !== m.crew && s.crews.some((c) => c.id === crew && !c.gone) && m.role !== "out") {
+    moveMember(s, m, crew, midLeg(s));
+    for (const pid of Object.keys(s.members)) s.rt.dirty.add(pid);
+  }
+  s.rt.dirty.add(m.pid);
+  env.changed();
 }
 
 /** n экипажа: игроки на связи (без дублёров и убранных), не меньше 3. */
@@ -670,7 +700,10 @@ function saveBase(s: BubState): void {
   const { members, ...rest } = persist(s);
   const lean: Record<string, Member> = {};
   for (const [pid, m] of Object.entries(members)) lean[pid] = { ...m, panel: [], order: null, lastControl: null };
-  s.base = JSON.stringify({ ...rest, members: lean, controls: {}, base: null });
+  // Старт из «Тренировки»: точка «Назад» — «Экипажи собраны» (приборы тренировки в точке не хранятся, и вернуться в
+  // тренировку без приборов было бы тупиком; ревью 6 ноября 2026). Тренировку ведущий может запустить снова.
+  const fromDrill = rest.phase === "drill";
+  s.base = JSON.stringify({ ...rest, ...(fromDrill ? { phase: "crews", drill: null } : {}), members: lean, controls: {}, base: null });
 }
 
 /** Итог перелёта экипажа: «За приказы» + «Финиш раньше» + «События» = «За перелёт». */
@@ -804,6 +837,27 @@ function closeVote(s: BubState, env: Env): void {
   for (const m of Object.values(s.members)) s.rt.dirty.add(m.pid);
   env.checkpoint();
   env.changed();
+}
+
+/** Счётчики итоговой карточки только из своих перелётов (без влитых). */
+function ownStats(c: Crew): CardStats {
+  return {
+    orders: c.legs.reduce((a, r) => a + (r?.done ?? 0), 0),
+    firsts: c.legs.filter((r) => r?.first === true).length,
+    legs: c.legs.filter((r) => r !== undefined && r !== null).length,
+    shield: Math.max(0, ...c.legs.map((r) => r?.shield ?? 0)),
+  };
+}
+
+/** Влитые экипажи летели те же перелёты рядом: приказы и первые финиши складываются, перелёты и щит — лучшее. */
+function joinCardStats(a: CardStats, b: CardStats | undefined): CardStats {
+  if (!b) return a;
+  return { orders: a.orders + b.orders, firsts: a.firsts + b.firsts, legs: Math.max(a.legs, b.legs), shield: Math.max(a.shield, b.shield) };
+}
+
+/** Счётчики итоговой карточки экипажа вместе с влитыми в него — сходятся с `crewTotal`. */
+export function cardStats(c: Crew): CardStats {
+  return joinCardStats(ownStats(c), c.mergedStats);
 }
 
 /** Общий счёт: перелёты + угаданные диверсанты + очки влитых экипажей (решение владельца 6 ноября 2026). */
@@ -1135,7 +1189,8 @@ function count(value: unknown): number {
 }
 
 function chooseCrew(s: BubState, env: Env, m: Member, crew: unknown): void {
-  if (s.phase !== "lobby") return;
+  // Командная сессия: экипаж — это команда, выбирают её на платформе.
+  if (s.phase !== "lobby" || s.teamsMode) return;
   if (crew === null) {
     m.crew = null;
     rosterChanged(s);
@@ -1307,13 +1362,14 @@ export function command(s: BubState, cmd: string, raw: unknown, env: Env): Outco
       return { ok: true, result: "leg" };
     }
     case "vote": {
-      if (!leg || stage !== "dock") return { ok: false, error: "wrong-phase" };
+      // Только на «Привале» идущей игры: у пьедестала и после «Завершить» перелёт остаётся на `dock`, но голосовать нельзя.
+      if (!leg || !between || stage !== "dock") return { ok: false, error: "wrong-phase" };
       if (!leg.saboteurs || leg.vote !== null) return { ok: false, error: "no-saboteur" };
       openVote(s, env, t);
       return { ok: true };
     }
     case "vote-end": {
-      if (stage !== "vote") return { ok: false, error: "wrong-phase" };
+      if (s.phase !== "leg" || stage !== "vote") return { ok: false, error: "wrong-phase" };
       closeVote(s, env);
       return { ok: true };
     }
@@ -1442,6 +1498,8 @@ export function command(s: BubState, cmd: string, raw: unknown, env: Env): Outco
       if (!from || !to || from === to) return { ok: false, error: "invalid-argument" };
       // Очки влитого экипажа прибавляются к экипажу, куда его влили (решение владельца 6 ноября 2026).
       to.merged = (to.merged ?? 0) + crewTotal(from);
+      // Счётчики карточки — вместе с очками: иначе «приказов 12» и «очков 900» на карточке не сходились бы (ревью 6 ноября 2026).
+      to.mergedStats = joinCardStats(cardStats(from), to.mergedStats);
       to.guessed += from.guessed;
       mergeCrews(s, from, to);
       dirtyAll(s);
@@ -1497,16 +1555,30 @@ function restoreBase(s: BubState, env: Env): void {
         restored.gone = m.gone;
         restored.offlineSince = m.offlineSince;
         restored.name = m.name;
+        if (s.teamsMode) restored.team = m.team ?? null;
       }
       continue;
     }
     const fresh = newMember(pid, m.name, m.join);
+    if (s.teamsMode) fresh.team = m.team ?? null;
     s.members[pid] = fresh;
     if (m.gone) fresh.gone = true;
     rosterChanged(s);
     if (!m.gone && s.phase !== "lobby") seatLate(s, fresh, null, false);
   }
   rosterChanged(s);
+  // Кто в игре, а экипажа нет (ушёл ещё в лобби — в точке «Назад» он без экипажа — и вернулся посреди перелёта): за стол,
+  // как опоздавший. Иначе после «Назад» он навсегда остался бы в лобби без экипажа (ревью 6 ноября 2026).
+  if (s.phase !== "lobby") {
+    for (const m of [...activeMembers(s)]) {
+      if (m.role === "out") continue;
+      const team = teamCrewOf(s, m.team);
+      const teamLive = team !== null && s.crews.some((c) => c.id === team && !c.gone);
+      if (m.crew === null || !s.crews.some((c) => c.id === m.crew && !c.gone)) seatLate(s, m, teamLive ? team : null, false);
+      // Командная сессия: сменил команду за перелёт — после «Назад» он в экипаже своей команды.
+      else if (teamLive && team !== m.crew) moveMember(s, m, team, false);
+    }
+  }
   dirtyAll(s);
   env.checkpoint();
   env.changed();
@@ -1519,9 +1591,16 @@ export function pause(s: BubState, env: Pick<Env, "now">): void {
   s.pausedGame = env.now - s.offset;
 }
 
-/** Пауза кончилась: время игры не шло — сдвигаем смещение часов, всё назначенное (сроки, события, ремонт) сдвигается само. */
+/**
+ * Пауза кончилась: время игры не шло — продолжаем ровно с того места, где оно встало (`pausedGame`, после перезапуска —
+ * последний шаг цикла `lastTick`), всё назначенное (сроки, события, ремонт) сдвигается само. Не `offset += pausedMs`:
+ * после перезапуска движок считает простой от метки «жив» снимка, а она бывает новее последнего шага игры (тихая фаза —
+ * снимок без перемен), и время игры перескочило бы весь простой (ревью 6 ноября 2026).
+ */
 export function resume(s: BubState, pausedMs: number, env: Pick<Env, "now">): void {
-  s.offset += Math.max(0, pausedMs);
+  const frozen = s.pausedGame ?? s.lastTick;
+  if (typeof frozen === "number" && Number.isFinite(frozen)) s.offset = env.now - frozen;
+  else s.offset += Math.max(0, pausedMs);
   s.pausedGame = null;
   s.floor = env.now - s.offset;
   s.lastTick = s.floor;

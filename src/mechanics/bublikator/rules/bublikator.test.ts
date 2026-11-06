@@ -28,11 +28,11 @@ import {
 } from "./constants";
 import { defaultTasks, parseContent } from "./content";
 import { activeMembers, crewCountFor, crewMembers, crewPlayers, roster, rosterFresh } from "./crews";
-import { chooseControl, crewTotal, gameNow, impulse, orderDamage, orderSeconds, places, restore, resume, scheduleEvents, snapshot, tallyVote, voteCandidates } from "./game";
+import { cardStats, chooseControl, crewTotal, gameNow, impulse, orderDamage, orderSeconds, places, restore, resume, scheduleEvents, snapshot, tallyVote, voteCandidates, voteVoters } from "./game";
 import { closer, CREW_NAMES, distance, ENDINGS, isBlocked, joinName, KIDS_ITEMS, kidsTinted, nameCandidates, norm, ROOTS, rootClashes, THEME_ROOTS } from "./names";
 import { cleanState, controlsPerPlayer, dealPanels, orderText, randomTarget, STATES } from "./panels";
 import type { Control, Crew, Member } from "./types";
-import { hostView, personalView, screenView } from "./views";
+import { hostView, personalSnapshot, personalView, screenView } from "./views";
 import { hashRandom, World } from "./world.test-kit";
 
 const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
@@ -60,6 +60,13 @@ function orderWith(w: World, button: boolean, wait = 0): { m: Member; ctl: Contr
     if (i < wait) w.step();
   }
   throw new Error("нет подходящего приказа");
+}
+
+/** 12 гостей двумя экипажами по 6 — в каждом диверсант. */
+function sabWorld(extra: Record<string, unknown> = {}): World {
+  const w = new World({ players: 12, content: { ...NOEV, saboteur: true, ...extra } });
+  for (let i = 0; i < 12; i += 1) w.send(`p${i}`, [{ t: "crew", crew: i < 6 ? 0 : 1 }]);
+  return w;
 }
 
 /** Довести перелёт до конца времени (без ожидания минут). */
@@ -1334,24 +1341,88 @@ describe("личное — только своё", () => {
       for (const o of Object.values(w.s.members)) if (o.pid !== x.pid && o.order) expect(text).not.toContain(`"id":"${o.order.id}"`);
     }
   });
-  it("рассылка — только изменившиеся поля: первое личное целиком, дальше кусочками; телефон, сложив их, видит то же, что снимок", () => {
+  it("рассылка — только изменившиеся поля: первое личное целиком, дальше кусочками; телефон, сложив их и состав экипажа, видит то же, что снимок — и после переподключения", () => {
     const w = new World({ players: 8, content: NOEV });
     w.toFlight();
     const held = new Map<string, Record<string, unknown>>();
+    const crews = new Map<string, unknown>();
+    const take = () => {
+      for (const x of w.env.sent.splice(0)) {
+        if (x.data.t === "crew") crews.set(x.pid, x.data.crew);
+        if (x.data.t !== "me") continue;
+        const part = x.data.me as Record<string, unknown>;
+        held.set(x.pid, x.data.full === true ? { ...part } : { ...(held.get(x.pid) ?? {}), ...part });
+      }
+    };
+    /** Телефон переподключился: снимок целиком (как поток при подписке), дальше — рассылка. */
+    const reconnect = (pid: string) => {
+      take();
+      const snap = personalSnapshot(w.s, pid, w.env) as unknown as Record<string, unknown>;
+      const { crew, ...rest } = snap;
+      held.set(pid, rest);
+      crews.set(pid, crew);
+    };
     w.advance(20_000, 100, () => {
+      take();
+      if (w.env.now % 3300 === 0) reconnect(`p${(w.env.now / 3300) % 8}`);
+      // Товарищ то пропадает со связи, то возвращается — меняется состав экипажа на телефонах.
+      if (w.env.now % 2500 === 0) w.offline("p1");
+      if (w.env.now % 2500 === 1200) w.online("p1");
+      const m = Object.values(w.s.members).find((y) => y.order && w.env.now % 700 === 0);
+      if (m) w.fulfil(m.pid);
+    });
+    w.online("p1");
+    w.advance(1000, 100, take);
+    // Переподключение в окне рассылки: товарищ только что пропал (рассылка ещё не сказала), телефон взял снимок, и товарищ
+    // тут же вернулся — состав снова как в прошлой рассылке, а телефон помнит снимок (п. 4 ревью 6 ноября 2026).
+    take();
+    const mate = crewMembers(w.s, w.member("p1").crew ?? -1).find((x) => x.pid !== "p1")?.pid ?? "";
+    w.offline("p1");
+    reconnect(mate);
+    w.online("p1");
+    w.advance(1000, 100, take);
+    take();
+    for (const m of Object.values(w.s.members)) {
+      const full = personalView(w.s, m.pid, w.env) as unknown as Record<string, unknown>;
+      const got = held.get(m.pid) ?? {};
+      for (const k of Object.keys(full)) {
+        if (k === "crew") {
+          expect(JSON.stringify(crews.get(m.pid))).toBe(JSON.stringify(full.crew));
+        } else if (k === "order") {
+          // Остаток телефон считает сам: у приказа сверяем всё, кроме остатка, а срок — с точностью рассылки (0,25 с).
+          const a = got.order as Record<string, unknown> | null;
+          const b = full.order as Record<string, unknown> | null;
+          expect(a === null || a === undefined).toBe(b === null);
+          if (a && b) {
+            expect({ ...a, left: 0, dueAt: 0 }).toEqual({ ...b, left: 0, dueAt: 0 });
+            expect(Math.abs(Number(a.dueAt) - Number(b.dueAt))).toBeLessThanOrEqual(250);
+          }
+        } else expect(JSON.stringify(got[k])).toBe(JSON.stringify(full[k]));
+      }
+    }
+  });
+  it("рассылка во время голосования: свой голос и кандидаты на телефоне — как в снимке", () => {
+    const w = sabWorld();
+    w.toFlight();
+    endFlight(w);
+    const held = new Map<string, Record<string, unknown>>();
+    const take = () => {
       for (const x of w.env.sent.splice(0)) {
         if (x.data.t !== "me") continue;
         const part = x.data.me as Record<string, unknown>;
         held.set(x.pid, x.data.full === true ? { ...part } : { ...(held.get(x.pid) ?? {}), ...part });
       }
-      const m = Object.values(w.s.members).find((y) => y.order && w.env.now % 700 === 0);
-      if (m) w.fulfil(m.pid);
-    });
+    };
+    take();
+    w.ok("vote");
+    take();
+    for (const c of w.s.crews) {
+      const voters = voteVoters(w.s, c.id);
+      voters.forEach((m, i) => w.send(m.pid, [{ t: "vote", pid: voters[(i + 1) % voters.length]?.pid }]));
+    }
+    w.advance(1000, 100, take);
     for (const m of Object.values(w.s.members)) {
-      const full = personalView(w.s, m.pid, w.env) as unknown as Record<string, unknown>;
-      const got = held.get(m.pid) ?? {};
-      for (const k of ["me", "panel", "phase", "stage", "ship", "repair", "event"]) expect(JSON.stringify(got[k])).toBe(JSON.stringify(full[k]));
-      expect((got.order as { id?: string } | null)?.id).toBe((full.order as { id?: string } | null)?.id);
+      expect(JSON.stringify(held.get(m.pid)?.vote)).toBe(JSON.stringify(personalView(w.s, m.pid, w.env)?.vote));
     }
   });
   it("личное уходит только при переменах: одинаковое второй раз не шлётся", () => {
@@ -1423,7 +1494,8 @@ describe("команды пульта", () => {
     w.ok("gather");
     w.ok("drill");
     w.advance(DRILL_MS + 200);
-    const before = w.lean();
+    // Старт из тренировки: точка «Назад» — «Экипажи собраны» (п. 11 ревью 6 ноября 2026), остальное — как до старта.
+    const before = JSON.stringify({ ...JSON.parse(w.lean()), phase: "crews", drill: null });
     w.ok("start");
     const firstNames = Object.values(w.s.controls).map((c) => c.name).join();
     w.advance(LAUNCH_MS + 20_000, 100, () => {
@@ -1882,5 +1954,173 @@ describe("составы и скорость (п. 1, 13, 15)", () => {
     w.ok("back");
     check();
     expect(activeMembers(w.s).every((m) => !m.gone)).toBe(true);
+  });
+});
+
+// ===================================================================== повторное ревью Блока 2a (6 ноября 2026)
+
+describe("повторное ревью 6 ноября 2026", () => {
+  it("п. 1: на пьедестале и после «Завершить» голосование не открыть и не закончить — +50 не начислить", () => {
+    const w = sabWorld({ legs: 2 });
+    w.toFlight();
+    endFlight(w);
+    // С привала сразу к пьедесталу (голосование пропущено): перелёт остаётся на `dock`.
+    w.ok("podium");
+    const totals = w.s.crews.map((c) => crewTotal(c));
+    expect(w.cmd("vote")).toEqual({ ok: false, error: "wrong-phase" });
+    expect(w.s.leg?.vote).toBeNull();
+    // Голосование, открытое на привале и «доехавшее» до пьедестала (так было в старой версии), — тоже не закончить.
+    const v = sabWorld({ legs: 2 });
+    v.toFlight();
+    endFlight(v);
+    v.ok("vote");
+    for (const c of v.s.crews) for (const m of voteVoters(v.s, c.id)) if (m.pid !== c.saboteur) v.send(m.pid, [{ t: "vote", pid: c.saboteur }]);
+    v.s.phase = "podium";
+    expect(v.cmd("vote-end")).toEqual({ ok: false, error: "wrong-phase" });
+    expect(v.s.crews.map((c) => c.voteBonus)).toEqual([0, 0]);
+    // После «Завершить» — так же.
+    w.ok("finish");
+    expect(w.cmd("vote")).toEqual({ ok: false, error: "wrong-phase" });
+    expect(w.cmd("vote-end")).toEqual({ ok: false, error: "wrong-phase" });
+    expect(w.s.crews.map((c) => crewTotal(c))).toEqual(totals);
+  });
+  it("п. 2: перезапуск в тихой фазе (снимок старый, метка «жив» новее) → команда на паузе → «Продолжить» — отсчёт целиком", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.ok("gather");
+    w.advance(1000);
+    // Контрольная точка сразу после сбора; дальше 10 минут ничего не меняется — комната пишет только метку «жив».
+    const snap = JSON.parse(JSON.stringify(snapshot(w.s))) as unknown;
+    w.env.now += 600_000;
+    const savedAt = w.env.now;
+    w.env.now += 20_000;
+    const back = restore(snap);
+    if (!back) throw new Error("снимок");
+    w.s = back;
+    // Комната поднялась на паузе; простой движок считает от метки «жив» — от неё и `pausedMs`.
+    w.env.paused = true;
+    w.ok("drill");
+    w.env.now += 1000;
+    w.env.paused = false;
+    resume(w.s, w.env.now - savedAt, w.env);
+    expect((w.s.drill?.endsAt ?? 0) - gameNow(w.s, w.env)).toBe(DRILL_MS);
+    // И «Старт» так же: взлёт — ровно 5 с.
+    const r = new World({ players: 6, content: NOEV });
+    r.ok("gather");
+    r.advance(500);
+    const snap2 = JSON.parse(JSON.stringify(snapshot(r.s))) as unknown;
+    r.env.now += 300_000;
+    const saved2 = r.env.now;
+    r.env.now += 5000;
+    const back2 = restore(snap2);
+    if (!back2) throw new Error("снимок 2");
+    r.s = back2;
+    r.env.paused = true;
+    r.ok("start");
+    r.env.now += 3000;
+    r.env.paused = false;
+    resume(r.s, r.env.now - saved2, r.env);
+    expect((r.s.leg?.launchEnds ?? 0) - gameNow(r.s, r.env)).toBe(LAUNCH_MS);
+  });
+  it("п. 3: ушёл ещё в лобби → вернулся посреди перелёта → «Назад» → «Старт» — снова в экипаже, с приборами и приказами", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.env.players = w.env.players.filter((p) => p.pid !== "p5");
+    w.step();
+    w.ok("gather");
+    w.ok("start");
+    w.advance(LAUNCH_MS + 100);
+    w.env.players.push({ pid: "p5", name: "Гость 5", team: null });
+    w.step();
+    expect(w.member("p5").role).toBe("double");
+    endFlight(w);
+    w.ok("back");
+    const m = w.member("p5");
+    expect(m.crew).not.toBeNull();
+    expect(w.s.crews.some((c) => c.id === m.crew && !c.gone)).toBe(true);
+    expect(m.role === "player" || m.role === "double").toBe(true);
+    w.ok("start");
+    w.advance(LAUNCH_MS + 3000);
+    expect(w.member("p5").role).toBe("player");
+    expect(w.member("p5").panel.length).toBeGreaterThan(0);
+    expect(personalView(w.s, "p5", w.env)?.crew).not.toBeNull();
+  });
+  it("п. 10: с одного телефона — не больше 5 движений в секунду, через секунду — снова", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.toFlight();
+    const ctl = Object.values(w.s.controls).find((c) => c.type === "button");
+    if (!ctl) throw new Error("кнопка");
+    const start = ctl.state;
+    w.send(ctl.owner, Array.from({ length: 9 }, () => ({ t: "move", c: ctl.id, s: 0 })));
+    expect(ctl.state - start).toBe(5);
+    w.advance(1000);
+    w.send(ctl.owner, Array.from({ length: 9 }, () => ({ t: "move", c: ctl.id, s: 0 })));
+    expect(ctl.state - start).toBe(10);
+  });
+  it("п. 10: пересаженный на «Привале» честный голосует в прежнем экипаже — его голос считается там", () => {
+    const w = sabWorld();
+    w.toFlight();
+    const [a, b] = w.s.crews;
+    if (!a?.saboteur || !b?.saboteur) throw new Error("диверсанты");
+    const sab = a.saboteur;
+    const honest = crewPlayers(w.s, a.id).find((m) => m.pid !== sab);
+    if (!honest) throw new Error("честный");
+    endFlight(w);
+    w.ok("move", { pid: honest.pid, crew: b.id });
+    expect(w.member(honest.pid).crew).toBe(b.id);
+    w.ok("vote");
+    expect(voteVoters(w.s, a.id).map((m) => m.pid)).toContain(honest.pid);
+    expect(voteVoters(w.s, b.id).map((m) => m.pid)).not.toContain(honest.pid);
+    expect(personalView(w.s, honest.pid, w.env)?.vote?.candidates.map((c) => c.pid)).toContain(sab);
+    w.send(honest.pid, [{ t: "vote", pid: sab }]);
+    expect(tallyVote(w.s, a)?.votes[sab]).toBe(1);
+    expect(tallyVote(w.s, b)?.votes[sab] ?? 0).toBe(0);
+  });
+  it("п. 11: «Старт» из тренировки → «Назад» — «Экипажи собраны»: тренировку можно снова, «Старт» раздаёт приборы", () => {
+    const w = new World({ players: 6, content: NOEV });
+    w.ok("gather");
+    w.ok("drill");
+    w.advance(DRILL_MS + 200);
+    w.ok("start");
+    w.advance(LAUNCH_MS + 2000);
+    endFlight(w);
+    w.ok("back");
+    expect(w.s.phase).toBe("crews");
+    expect(w.s.drill).toBeNull();
+    w.ok("drill");
+    w.advance(1500);
+    expect(Object.keys(w.s.controls).length).toBeGreaterThan(0);
+    expect(Object.values(w.s.members).some((m) => m.order)).toBe(true);
+    w.ok("start");
+    w.advance(LAUNCH_MS + 2000);
+    expect(Object.values(w.s.members).every((m) => m.panel.length > 0)).toBe(true);
+    expect(Object.values(w.s.members).some((m) => m.order)).toBe(true);
+  });
+  it("п. 13: итоговая карточка после «Объединить» — приказы, первые финиши, перелёты и щит вместе с влитым экипажем", () => {
+    const w = new World({ players: 8, content: { ...NOEV, legMinutes: 3, legs: 1 } });
+    for (let i = 0; i < 8; i += 1) w.send(`p${i}`, [{ t: "crew", crew: i < 3 ? 0 : 1 }]);
+    w.toFlight();
+    w.advance(30_000, 100, () => {
+      const m = Object.values(w.s.members).find((x) => x.order && w.env.now % 400 === 0);
+      if (m) w.fulfil(m.pid);
+    });
+    endFlight(w);
+    const [a, b] = w.s.crews;
+    if (!a || !b) throw new Error("экипажи");
+    const ra = a.legs[0];
+    const rb = b.legs[0];
+    if (!ra || !rb) throw new Error("итоги");
+    ra.first = true;
+    ra.shield = 40;
+    rb.shield = 15;
+    expect(ra.done).toBeGreaterThan(0);
+    w.ok("merge", { from: a.id, to: b.id });
+    w.ok("podium");
+    const pid = crewMembers(w.s, b.id)[0]?.pid ?? "";
+    const card = personalView(w.s, pid, w.env)?.card;
+    expect(card?.total).toBe(crewTotal(b));
+    expect(card?.crewOrders).toBe(ra.done + rb.done);
+    expect(card?.firstFinishes).toBe(1);
+    expect(card?.legs).toBe(1);
+    expect(card?.bestShield).toBe(40);
+    expect(cardStats(b)).toEqual({ orders: ra.done + rb.done, firsts: 1, legs: 1, shield: 40 });
   });
 });

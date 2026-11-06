@@ -5,7 +5,7 @@
 import { FIRE_STREAK, GLITCH_SHOW_MS, FLIP_MS, KICK_AFTER_MS, REPAIR_MS, SPEED_WINDOW_MS } from "./constants";
 import { activeMembers, captainOf, crewMembers, crewPlayers, liveCrews, lobbyCrewCount } from "./crews";
 import { crewLook, crewName } from "./names";
-import { crewTotal, gameNow, legResultOf, meteorPower, meteorShield, orderSeconds, places, toServer, voteCandidates, voteVoters, type Env } from "./game";
+import { cardStats, crewTotal, gameNow, legResultOf, meteorPower, meteorShield, orderSeconds, places, toServer, voteCandidates, voteVoters, type Env } from "./game";
 import type { BubState, Crew, CrewSummary, EventKind, HostView, Member, PanelControlView, PersonalView, ScreenCrewView, ScreenView } from "./types";
 
 type ViewEnv = Pick<Env, "now" | "online" | "paused">;
@@ -349,17 +349,19 @@ export function personalView(s: BubState, pid: string, env: ViewEnv, frame?: Fra
   const voted = stageNow === "voted" && voteCrew ? (result ? { guessed: result.guessed, saboteur: result.name, me: result.saboteur === pid, none: false } : { guessed: false, saboteur: "", me: false, none: true }) : null;
   const flip = leg?.flip?.startedAt ?? null;
   const glitch = leg?.glitch?.startedAt ?? null;
+  const final = (s.phase === "podium" || s.phase === "finished") && crew ? cardStats(crew) : null;
   const card =
-    (s.phase === "podium" || s.phase === "finished") && crew
+    final && crew
       ? {
           place: st.get(crew)?.place ?? 1,
           total: crewTotal(crew),
-          crewOrders: crew.legs.reduce((a, r) => a + (r?.done ?? 0), 0),
+          // Вместе с влитыми экипажами — как и очки (`crewTotal`).
+          crewOrders: final.orders,
           myOrders: m.done,
-          firstFinishes: crew.legs.filter((r) => r?.first === true).length,
-          legs: crew.legs.filter((r) => r !== undefined && r !== null).length,
+          firstFinishes: final.firsts,
+          legs: final.legs,
           guessed: crew.guessed,
-          bestShield: Math.max(0, ...crew.legs.map((r) => r?.shield ?? 0)),
+          bestShield: final.shield,
           ribbon: m.ribbons > 0,
         }
       : null;
@@ -504,6 +506,18 @@ function fieldKey(key: string, value: unknown): string {
     default:
       return JSON.stringify(value) ?? "null";
   }
+}
+
+/**
+ * Личное целиком для снимка (подписка, переподключение, опрос): телефон начинает с него, поэтому прошлая рассылка этому
+ * телефону забывается — следующая уходит целиком (и состав экипажа), а не кусочками от того, что телефон уже не помнит.
+ * Иначе поле, вернувшееся к значению прошлой рассылки, на телефоне «застревало» на значении снимка (ревью 6 ноября 2026).
+ */
+export function personalSnapshot(s: BubState, pid: string, env: ViewEnv): PersonalView | null {
+  s.rt.sent.delete(pid);
+  s.rt.sentCrew.delete(pid);
+  s.rt.dirty.add(pid);
+  return personalView(s, pid, env);
 }
 
 /**

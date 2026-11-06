@@ -69,6 +69,8 @@ export interface Order {
 export interface Member {
   pid: string;
   name: string;
+  /** Команда платформы (командная сессия): смена команды — пересадка в её экипаж. */
+  team?: string | null;
   /** Порядок входа в игру. */
   join: number;
   /** Экипаж (в лобби — выбор гостя, null — ждёт распределения). */
@@ -171,6 +173,16 @@ export interface Crew {
   guessed: number;
   /** Очки влитых в этот экипаж («Объединить экипажи», решение владельца 6 ноября 2026). */
   merged: number;
+  /** Счётчики итоговой карточки влитых экипажей (приказы, первые финиши, перелёты, лучший щит) — вместе с их очками. */
+  mergedStats?: CardStats;
+}
+
+/** Счётчики итоговой карточки экипажа. */
+export interface CardStats {
+  orders: number;
+  firsts: number;
+  legs: number;
+  shield: number;
 }
 
 export interface EventState {
@@ -237,6 +249,12 @@ export interface BubState {
   v: 1;
   content: BubContent;
   teamsMode: boolean;
+  /**
+   * Командная сессия: команда платформы = экипаж (решение владельца 6 ноября 2026). Номер экипажа команды — по порядку
+   * появления команд, до 20; запомнен навсегда (команда, появившаяся после сбора, своего экипажа не получает — её люди
+   * садятся в самый маленький).
+   */
+  teamCrew?: Record<string, number>;
   phase: Phase;
   legIndex: number;
   members: Record<string, Member>;

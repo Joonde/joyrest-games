@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import type { RoomStreamEvent } from "../../../src/data/types";
 import { DRILL_MS, LAUNCH_MS, VOTE_MS } from "../../../src/mechanics/bublikator/rules/constants";
-import { crewPlayers } from "../../../src/mechanics/bublikator/rules/crews";
+import { crewMembers, crewPlayers } from "../../../src/mechanics/bublikator/rules/crews";
 import { crewTotal } from "../../../src/mechanics/bublikator/rules/game";
 import type { BubState, CrewSummary, PersonalView, ScreenView, HostView } from "../../../src/mechanics/bublikator/rules/types";
 import { bublikator } from "./bublikator";
@@ -41,8 +41,14 @@ class Phone {
     readonly r: Room,
     now: number,
   ) {
-    const listener: RoomListener = { send: (e) => this.got(e), end: () => undefined };
-    r.listen("me", listener, now, pid);
+    this.off = r.listen("me", this.listener, now, pid);
+  }
+  private readonly listener: RoomListener = { send: (e) => this.got(e), end: () => undefined };
+  private off: () => void;
+  /** Погас экран и снова подписался: прежний поток закрыт, новый начинается со снимка. */
+  reconnect(now: number): void {
+    this.off();
+    this.off = this.r.listen("me", this.listener, now, this.pid);
   }
   crew: CrewSummary | null = null;
   /** Сколько байт пришло личным потоком (события после снимка). */
@@ -431,6 +437,136 @@ describe("«Бубликатор» в игровой комнате", () => {
     expect(s.leg?.stage).toBe("fly");
     expect(Object.values(s.members).filter((m) => m.order).length).toBeGreaterThan(0);
     expect(s.crews.map((c) => crewPlayers(s, c.id).length)).toEqual([4, 4]);
+  });
+
+  it("переподключение посреди окна рассылки (п. 4 ревью 6 ноября 2026): телефон начинает со снимка — дальше видит то же, что сервер", () => {
+    let now = 1_000_000;
+    const r = room(6, { events: { meteor: false, pull: false, sos: false, captain: false } });
+    const phones = Array.from({ length: 6 }, (_, i) => new Phone(`b${i}`, r, now));
+    const s = state(r);
+    for (const p of phones) p.alive(now);
+    r.command("gather", null, null, now);
+    const crew = s.members.b0?.crew ?? -1;
+    const mate = crewPlayers(s, crew).find((m) => m.pid !== "b0")?.pid ?? "";
+    const me = phones[0];
+    if (!me || !mate) throw new Error("экипаж");
+    const mateName = s.members[mate]?.name;
+    const phoneSaysOnline = () => me.crew?.members.find((x) => x.name === mateName)?.online;
+    let reconnected = false;
+    for (let t = 0; t < 20_000; t += 100) {
+      now += 100;
+      // Товарищ молчит со 2-й секунды («без связи» через 4 с) и снова на связи сразу после переподключения телефона.
+      for (const p of phones) if (t % 1000 === 0 && (p.pid !== mate || t < 2000 || reconnected)) p.alive(now);
+      r.tick(now);
+      // Сервер уже знает «без связи», а рассылка ещё не сказала телефону (окно до 0,5 с) — тут экран и погас; и тут же
+      // товарищ вернулся: состав снова как в прошлой рассылке, а у телефона — как в снимке.
+      if (!reconnected && s.members[mate]?.offlineSince !== null && phoneSaysOnline() === true) {
+        me.reconnect(now);
+        reconnected = true;
+        expect(phoneSaysOnline()).toBe(false);
+        phones.find((p) => p.pid === mate)?.alive(now);
+      }
+    }
+    expect(reconnected).toBe(true);
+    const snap = r.meEvent("b0", now);
+    const truth = (snap.type === "snapshot" ? snap.data : null) as PersonalView;
+    expect(truth.crew?.members.find((x) => x.name === mateName)?.online).toBe(true);
+    expect(me.crew).toEqual(truth.crew);
+    expect(me.me?.ship).toEqual(truth.ship);
+    expect(me.me?.me).toEqual(truth.me);
+  });
+
+  it("команда = экипаж (решение владельца 6 ноября 2026): 1, 3, 5 и 12 команд — столько же экипажей, вся команда в своём; в команде 17 — 10 игроков и 7 дублёров", () => {
+    const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
+    const teamsRoom = (sizes: number[]) => {
+      const teams = sizes.map((_, i) => [`t${i}`, `Команда ${i}`] as [string, string]);
+      // Гости входят вперемешку, как в зале.
+      const players: Array<{ pid: string; name: string; team: string | null }> = [];
+      const left = [...sizes];
+      for (let k = 0; left.some((n) => n > 0); k += 1) {
+        const i = k % sizes.length;
+        if ((left[i] ?? 0) <= 0) continue;
+        left[i] = (left[i] ?? 0) - 1;
+        players.push({ pid: `g${players.length}`, name: `Гость ${players.length}`, team: `t${i}` });
+      }
+      return new Room({ id: "st", key: "bublikator", hostId: "h", game, players, teams, snapshot: { content: NOEV }, playMode: "teams", now: 1_000_000 });
+    };
+    for (const sizes of [[6], [4, 5, 3], [5, 5, 5, 5, 5], Array.from({ length: 12 }, () => 4), [17, 4]]) {
+      const r = teamsRoom(sizes);
+      const s = state(r);
+      expect(r.command("gather", null, null, 1_000_000)).toEqual({ ok: true });
+      expect(s.crews.length).toBe(sizes.length);
+      sizes.forEach((n, i) => {
+        const team = Object.values(s.members).filter((m) => m.team === `t${i}`);
+        const crews = new Set(team.map((m) => m.crew));
+        expect(crews.size, `команда ${i}`).toBe(1);
+        const id = [...crews][0] ?? -1;
+        expect(crewMembers(s, id).length).toBe(n);
+        expect(crewPlayers(s, id).length).toBe(Math.min(n, 10));
+        expect(crewMembers(s, id).filter((m) => m.role === "double").length).toBe(Math.max(0, n - 10));
+      });
+    }
+  });
+
+  it("команда = экипаж: смена команды в лобби и посреди игры — в экипаж новой команды, новый гость команды — в её экипаж", () => {
+    let now = 1_000_000;
+    const teams = [
+      ["t1", "Комета"],
+      ["t2", "Орбита"],
+      ["t3", "Пульсар"],
+    ] as Array<[string, string]>;
+    const r = new Room({
+      id: "st2",
+      key: "bublikator",
+      hostId: "h",
+      game,
+      players: Array.from({ length: 9 }, (_, i) => ({ pid: `b${i}`, name: `Бот ${i}`, team: `t${(i % 3) + 1}` })),
+      teams,
+      snapshot: { content: { events: { meteor: false, pull: false, sos: false, captain: false } } },
+      playMode: "teams",
+      now,
+    });
+    const s = state(r);
+    const crewOfTeam = (team: string) => s.teamCrew?.[team] ?? -1;
+    const tick = (ms: number) => {
+      for (let t = 0; t < ms; t += 100) {
+        now += 100;
+        if (t % 1000 === 0) for (const pid of Object.keys(s.members)) r.input(pid, parseInput({ stream: `s-${pid}`, events: [] }) ?? { stream: "", retry: false, seq: null, events: [] }, now);
+        r.tick(now);
+      }
+    };
+    tick(500);
+    // Лобби: выбрать экипаж с телефона нельзя — экипаж это команда; сменил команду — сменился экипаж.
+    r.input("b0", parseInput({ stream: "x-b0", seq: 0, events: [{ t: "crew", crew: crewOfTeam("t3"), ago: 0 }] }) ?? { stream: "", retry: false, seq: null, events: [] }, now);
+    expect(s.members.b0?.crew).toBe(crewOfTeam("t1"));
+    r.upsertParticipant({ id: "b0", name: "Бот 0", kind: "player", teamId: "t2" }, now);
+    tick(200);
+    expect(s.members.b0?.crew).toBe(crewOfTeam("t2"));
+    r.command("gather", null, null, now);
+    r.command("start", null, null, now);
+    tick(LAUNCH_MS + 1000);
+    // Посреди перелёта: в экипаж новой команды дублёром, со следующего перелёта — игроком.
+    r.upsertParticipant({ id: "b1", name: "Бот 1", kind: "player", teamId: "t3" }, now);
+    tick(200);
+    expect(s.members.b1?.crew).toBe(crewOfTeam("t3"));
+    expect(s.members.b1?.role).toBe("double");
+    // Новый гость команды — в её экипаж, даже если он самый большой.
+    r.upsertParticipant({ id: "n1", name: "Новенький", kind: "player", teamId: "t3" }, now);
+    tick(200);
+    expect(crewMembers(s, crewOfTeam("t3")).length).toBeGreaterThan(crewMembers(s, crewOfTeam("t1")).length);
+    expect(s.members.n1?.crew).toBe(crewOfTeam("t3"));
+    const L = s.leg;
+    if (L) {
+      L.event = null;
+      L.schedule = [];
+      L.flight = L.duration;
+    }
+    tick(200);
+    expect(r.command("next", null, null, now)).toEqual({ ok: true, result: "leg" });
+    tick(LAUNCH_MS + 500);
+    expect(s.members.b1?.role).toBe("player");
+    expect(s.members.n1?.role).toBe("player");
+    for (const m of Object.values(s.members)) expect(m.crew).toBe(crewOfTeam(m.team ?? ""));
   });
 
   it("пауза и перезапуск (п. 2): команда на паузе считает от момента паузы; перезапуск → на паузе → «Дальше» → «Продолжить» — взлёт 5 с", () => {

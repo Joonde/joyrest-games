@@ -6,7 +6,7 @@
  */
 import { BATCH_MS, BUBLIKATOR, MOVES_PER_SECOND, OFFLINE_MS, TAPS_PER_SECOND } from "../../../src/mechanics/bublikator/rules/constants";
 import { command, createState, input, join, moment, pause, restore, resume, snapshot, tick, type InEvent } from "../../../src/mechanics/bublikator/rules/game";
-import { flushPersonal, hostView, personalView, screenView } from "../../../src/mechanics/bublikator/rules/views";
+import { flushPersonal, hostView, personalSnapshot, screenView } from "../../../src/mechanics/bublikator/rules/views";
 import type { BubState } from "../../../src/mechanics/bublikator/rules/types";
 import type { RoomContext, RoomGame } from "./engine";
 
@@ -42,7 +42,8 @@ export const bublikator: RoomGame<BubState> = {
   onPause: (state, ctx) => pause(state, ctx),
   onResume: (state, pausedMs, ctx) => resume(state, pausedMs, ctx),
   screen: (state, view) => screenView(state, view),
-  personal: (state, pid, view) => personalView(state, pid, view),
+  // Снимок личного: следующая рассылка этому телефону — целиком (он начинает со снимка, а не с прошлой рассылки).
+  personal: (state, pid, view) => personalSnapshot(state, pid, view),
   host: (state, view) => hostView(state, view),
   snapshot: (state) => snapshot(state),
   restore: (data) => restore(data),

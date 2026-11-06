@@ -1889,8 +1889,8 @@ describe("решения владельца 6 ноября 2026 и сверка 
     expect(tallyVote(e.s, crew)?.votes[x.pid]).toBe(2);
     expect(tallyVote(e.s, crew)?.guessed).toBe(false);
   });
-  it("ТЗ: хозяин прибора пропал со связи — приказ на его прибор снимается, даже если его дублёр на связи", () => {
-    const w = new World({ players: 6, content: NOEV });
+  it("ТЗ: хозяин прибора пропал со связи — приказ на его прибор снимается и новых нет, даже если его дублёр на связи", () => {
+    const w = new World({ players: 6, content: { ...NOEV, legMinutes: 3 } });
     w.toFlight();
     w.advance(1500);
     // Опоздавший посреди перелёта — дублёр, делит пульт одного из игроков.
@@ -1898,12 +1898,26 @@ describe("решения владельца 6 ноября 2026 и сверка 
     const double = w.member("late");
     if (!double?.doubleOf) throw new Error("дублёр");
     const owner = double.doubleOf;
-    const target = Object.values(w.s.members).find((m) => m.order && w.s.controls[m.order.control]?.owner === owner);
+    const ownerControls = new Set(w.member(owner).panel);
     w.offline(owner);
     w.step();
-    if (target) expect(target.order === null || w.s.controls[target.order.control]?.owner !== owner).toBe(true);
-    w.advance(3000);
-    for (const m of Object.values(w.s.members)) if (m.order) expect(w.s.controls[m.order.control]?.owner).not.toBe(owner);
+    // 25 с полёта: приказы выполняются и выдаются заново — ни один не про прибор пропавшего хозяина, хотя дублёр рядом.
+    let issued = 0;
+    const seen = new Set<string>();
+    w.advance(25_000, 100, () => {
+      for (const m of Object.values(w.s.members)) {
+        if (!m.order) continue;
+        if (!seen.has(m.order.id)) {
+          seen.add(m.order.id);
+          issued += 1;
+        }
+        expect(ownerControls.has(m.order.control)).toBe(false);
+        expect(m.pid).not.toBe(owner);
+      }
+      const m = Object.values(w.s.members).find((x) => x.order && w.env.now % 300 === 0);
+      if (m) w.fulfil(m.pid);
+    });
+    expect(issued).toBeGreaterThan(15);
   });
   it("ТЗ: режим платформы — только команды, экран зала обязателен", () => {
     expect(BUBLIKATOR_SUPPORTS).toEqual({ solo: false, teams: true, noScreen: false });
@@ -1930,29 +1944,41 @@ describe("составы и скорость (п. 1, 13, 15)", () => {
       }
       expect([...a.doublesOf].sort()).toEqual([...b.doublesOf].sort());
     };
-    for (let i = 0; i < 30; i += 1) w.send(`p${i}`, [{ t: "crew", crew: i % 3 }]);
-    check();
-    w.ok("gather");
-    check();
-    w.addPlayer("late1");
-    check();
-    w.ok("start");
-    w.advance(LAUNCH_MS + 1000);
-    w.addPlayer("late2");
-    w.env.players = w.env.players.filter((p) => p.pid !== "p3");
-    w.step();
-    check();
-    w.offline("p4");
-    w.advance(61_000, 1000);
-    endFlight(w);
-    w.ok("remove", { pid: "p4" });
-    check();
-    w.ok("move", { pid: "p5", crew: w.s.crews[2]?.id });
-    check();
-    w.ok("merge", { from: w.s.crews[0]?.id, to: w.s.crews[1]?.id });
-    check();
-    w.ok("back");
-    check();
+    /** Составы посчитаны прямо перед действием: забытый `rosterChanged` в действии оставил бы их старыми. */
+    const act = (fn: () => void) => {
+      void roster(w.s);
+      fn();
+      check();
+    };
+    act(() => {
+      for (let i = 0; i < 30; i += 1) w.send(`p${i}`, [{ t: "crew", crew: i % 3 }]);
+    });
+    act(() => w.ok("gather"));
+    act(() => w.addPlayer("late1"));
+    act(() => {
+      w.ok("start");
+      w.advance(LAUNCH_MS + 1000);
+    });
+    act(() => w.addPlayer("late2"));
+    // Ушёл с платформы: сверка состава в цикле.
+    act(() => {
+      w.env.players = w.env.players.filter((p) => p.pid !== "p3");
+      w.step();
+    });
+    act(() => {
+      w.offline("p4");
+      w.advance(61_000, 1000);
+    });
+    act(() => endFlight(w));
+    act(() => w.ok("remove", { pid: "p4" }));
+    act(() => w.ok("move", { pid: "p5", crew: w.s.crews[2]?.id }));
+    act(() => w.ok("merge", { from: w.s.crews[0]?.id, to: w.s.crews[1]?.id }));
+    act(() => w.ok("back"));
+    // Вернулся после ухода — снова в игре.
+    act(() => {
+      w.env.players.push({ pid: "p3", name: "Гость 3", team: null });
+      w.step();
+    });
     expect(activeMembers(w.s).every((m) => !m.gone)).toBe(true);
   });
 });

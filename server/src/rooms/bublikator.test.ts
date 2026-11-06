@@ -609,7 +609,7 @@ describe("«Бубликатор» в игровой комнате", () => {
     for (const m of runs) {
       expect(m.sweepMedian).toBeLessThanOrEqual(10);
       expect(m.sweepP95).toBeLessThanOrEqual(10);
-      expect(m.snapshotKb).toBeLessThanOrEqual(120);
+      expect(m.snapshotKb).toBeLessThanOrEqual(95);
       expect(m.kbPerSecHall).toBeLessThanOrEqual(60);
     }
     // Ничего не растёт без предела: после трёх перелётов служебное (отправленное, лимиты) — не больше числа гостей.
@@ -643,6 +643,7 @@ function playFull(N: number, log: boolean) {
     if (!out.ok) throw new Error(`${name}: ${out.error}`);
   };
   const sweeps: number[] = [];
+  const snapshots: number[] = [];
   let span = 0;
   const fly = (ms: number) => {
     for (let t = 0; t < ms; t += 100) {
@@ -681,6 +682,13 @@ function playFull(N: number, log: boolean) {
     }
     fly(200);
     expect(s().leg?.stage).toBe("dock");
+    // Точка «Назад» — без раздачи (п. 9 ревью 6 ноября 2026): ни приборов, ни пультов, ни приказов — их раздаёт старт.
+    const base = JSON.parse(s().base ?? "null") as { controls: Record<string, unknown>; members: Record<string, { panel: unknown[]; order: unknown; lastControl: unknown }> } | null;
+    expect(base).not.toBeNull();
+    expect(Object.keys(base?.controls ?? { нет: 1 })).toHaveLength(0);
+    for (const m of Object.values(base?.members ?? {})) expect([m.panel.length, m.order, m.lastControl]).toEqual([0, null, null]);
+    // Снимок на «Привале» — самый большой (состояние перелёта + точка «Назад»).
+    snapshots.push(JSON.stringify(bublikator.snapshot(s())).length);
     timed("vote");
     timed("vote-end");
     timed("next");
@@ -693,7 +701,7 @@ function playFull(N: number, log: boolean) {
     sweepMedian: +(sorted[Math.floor(sorted.length / 2)] ?? 0).toFixed(1),
     sweepP95: +(sorted[Math.floor(sorted.length * 0.95)] ?? 0).toFixed(1),
     cmds,
-    snapshotKb: Math.round(JSON.stringify(bublikator.snapshot(s())).length / 1024),
+    snapshotKb: Math.round(Math.max(JSON.stringify(bublikator.snapshot(s())).length, ...snapshots) / 1024),
     // Личное подписанных телефонов → на весь зал, КБ в секунду.
     kbPerSecHall: Math.round(((bytes / phones.length) * N) / (span / 1000) / 1024),
     runtime: { sent: s().rt.sent.size, moves: s().rt.moves.size, taps: s().rt.taps.size },

@@ -287,6 +287,8 @@ export function personalView(s: BubState, pid: string, env: ViewEnv, frame?: Fra
           mine: ctl?.owner === pid,
           dueAt: frozen ? null : toServer(s, now + left),
           left,
+          // Сколько всего дали на приказ (с «Медленнее»/«Быстрее» и сгоревшими секундами) — для полоски на телефоне.
+          total: Math.max(left, order.due - order.issuedClock),
           frozen,
         };
         // Неприметная точка у края — только диверсанту и только у его ложного приказа.

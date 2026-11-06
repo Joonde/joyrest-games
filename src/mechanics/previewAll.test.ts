@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import { runPreview } from "./preview";
 import { allDemoGames, mechanics } from "./registry";
 
-const WITHOUT = new Set(["olymp", "evening"]);
+// «Бубликатор» идёт в игровой комнате, а не шагами сессии: предпросмотр — с экраном и пультом (2c–2d).
+const WITHOUT = new Set(["olymp", "evening", "bublikator"]);
 
 describe("предпросмотр игры", () => {
   it("есть у всех игр", () => {

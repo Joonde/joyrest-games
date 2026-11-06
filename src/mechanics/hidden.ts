@@ -4,4 +4,5 @@
  * в шаблонах библиотеки и в инструкции для ведущих. Включить — убрать id из списка.
  * 16 октября 2026 владелец открыл обе — список пуст; механизм оставлен для будущих скрытых форматов.
  */
-export const HIDDEN_MECHANICS: ReadonlySet<string> = new Set<string>([]);
+// «Бубликатор» (6 ноября 2026): готов только телефон гостя (Блок 2b), экран зала и пульт — 2c–2d.
+export const HIDDEN_MECHANICS: ReadonlySet<string> = new Set<string>(["bublikator"]);

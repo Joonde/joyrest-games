@@ -400,7 +400,7 @@ export interface PersonalView {
   panel: PanelControlView[];
   flipUntil: number | null;
   glitchAt: number | null;
-  order: { id: string; text: string; control: string; mine: boolean; dueAt: number | null; left: number; frozen: boolean; mark?: true } | null;
+  order: { id: string; text: string; control: string; mine: boolean; dueAt: number | null; left: number; total: number; frozen: boolean; mark?: true } | null;
   event: {
     id: string;
     kind: EventKind;

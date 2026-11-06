@@ -109,6 +109,15 @@ describe("помощник «Джой»: ответы", () => {
       ["нужно скачивать приложение?", "app"],
       ["привет", "hello"],
       ["Ранняя бронь Нового года", "early"],
+      // Повод праздника — рассказ о JoyRest, а не новогодняя цена или детские программы (проверка 6 ноября 2026).
+      ["корпоратив", "about"],
+      ["день рождения", "about"],
+      ["детский день рождения", "kids"],
+      ["новогодний корпоратив", "season"],
+      ["цена квиза", "price"],
+      ["пятница дороже?", "weekend"],
+      ["где вы работаете", "travel"],
+      ["нужен договор?", "booking"],
       ["крокодил", null],
       ["", null],
     ];
@@ -145,6 +154,7 @@ describe("помощник «Джой»: страница", () => {
   it("кнопки не ниже 44px, Escape закрывает, на телефоне кнопка уходит с первого экрана и калькулятора", () => {
     expect(css).toMatch(/\.joy-fab\{[^}]*min-height: 52px/);
     for (const cls of ["joy-cta", "joy-chip"]) expect(css).toMatch(new RegExp(`\\.${cls}\\{[^}]*min-height: 44px`));
+    expect(css).toMatch(/\.joy-foot a\{[^}]*min-height: 44px/);
     expect(css).toMatch(/\.joy-close\{[^}]*width: 44px; height: 44px/);
     expect(css).toContain(".joy-fab.is-away{ opacity: 0;");
     expect(bot).toContain("e.key === 'Escape'");

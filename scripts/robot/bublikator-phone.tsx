@@ -238,6 +238,14 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
     w.advance(1500);
     return { w, pid: "p0" };
   },
+  // Без датчика тряски (ноутбук, датчик выключен): «Тапайте!» на весь экран.
+  "meteor-tap": () => {
+    const w = world();
+    toLeg(w, 0);
+    event(w, "meteor");
+    w.advance(1500);
+    return { w, pid: "p0" };
+  },
   pull: () => {
     const w = world();
     toLeg(w, 0);
@@ -449,6 +457,6 @@ setInterval(() => {
   server: () => {
     const m = w.member(pid);
     const ev = w.s.leg?.event;
-    return { panel: (m.doubleOf ? w.member(m.doubleOf).panel : m.panel).map((id) => w.s.controls[id]?.state ?? null), holding: ev?.holds?.[pid]?.on === true, vote: m.vote, roleSeen: m.roleSeen, sos: w.s.crews.find((c) => c.id === m.crew)?.sos?.progress ?? null };
+    return { panel: (m.doubleOf ? w.member(m.doubleOf).panel : m.panel).map((id) => w.s.controls[id]?.state ?? null), holding: ev?.holds?.[pid]?.on === true, vote: m.vote, roleSeen: m.roleSeen, sos: w.s.crews.find((c) => c.id === m.crew)?.sos?.progress ?? null, shake: ev?.power?.[pid]?.shake ?? null, taps: ev?.power?.[pid]?.taps ?? null };
   },
 };

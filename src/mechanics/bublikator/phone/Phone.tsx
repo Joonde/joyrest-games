@@ -257,12 +257,12 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
             glitchLeft={glitchLeft !== null && glitchLeft <= GLITCH_SHOW_MS ? glitchLeft : null}
             warnLeft={ev?.warn ? leftUntil(m, ev.startsAt, t) : null}
             drillLeft={screen === "drill" ? leftUntil(m, v.endsAt, t) : undefined}
-            shake={screen === "drill" ? <MotionStep state={motion.state} onAllow={() => void motion.ask()} /> : undefined}
+            shake={screen === "drill" ? <MotionStep state={motion.state} live={motion.live} onAllow={() => void motion.ask()} /> : undefined}
           />
         );
       }
       case "meteor":
-        return <MeteorScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} onTap={() => tap("tap")} />;
+        return <MeteorScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} onTap={() => tap("tap")} motion={{ state: motion.state, live: motion.live, onAllow: () => void motion.ask() }} />;
       case "pull":
         return <PullScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} holding={holding} onHold={onHold} />;
       case "sos":

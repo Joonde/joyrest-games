@@ -283,48 +283,74 @@ function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null
 
 // ---------------------------------------------------------------- тренировка
 
-export function MotionStep({ onAllow, state }: { onAllow: () => void; state: "need" | "granted" | "denied" | "none" }) {
-  if (state === "none") return null;
+export function MotionStep({ onAllow, state, live }: { onAllow: () => void; state: "need" | "granted" | "denied" | "none"; live: boolean }) {
   return (
     <section className="bkp-card">
-      <p className="bkp-eyebrow">Шаг 1 · только на iPhone</p>
+      <p className="bkp-eyebrow">Шаг 1 · тряска телефона</p>
       <h2 className="bkp-h3">В полёте будет метеоритный дождь — нужно трясти телефон</h2>
-      {state === "need" && (
+      {live ? (
+        <p className="bkp-text">✓ Тряска работает.</p>
+      ) : state === "need" ? (
         <>
-          <p className="bkp-text">iPhone спросит один раз. Без разрешения можно часто тапать по экрану.</p>
+          <p className="bkp-text">Телефон может спросить разрешение один раз. Без него в дождь можно часто тапать по экрану.</p>
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block bkp-btn2" onClick={onAllow}>
               Разрешить тряску
             </button>
           </div>
         </>
+      ) : (
+        <p className="bkp-text">Если телефон не почувствует тряску — в дождь просто часто тапайте по экрану.</p>
       )}
-      {state === "granted" && <p className="bkp-text">✓ Тряска разрешена.</p>}
-      {state === "denied" && <p className="bkp-text">Тряски не будет — в дождь просто часто тапайте по экрану.</p>}
     </section>
   );
 }
 
 // ---------------------------------------------------------------- события
 
-export function MeteorScreen({ v, crew, left, onTap }: { v: PersonalView; crew: CrewSummary | null; left: number | null; onTap: () => void }) {
+export interface MeteorMotion {
+  state: "need" | "granted" | "denied" | "none";
+  /** Датчик присылает движение — можно трясти. */
+  live: boolean;
+  onAllow: () => void;
+}
+
+export function MeteorScreen({ v, crew, left, onTap, motion }: { v: PersonalView; crew: CrewSummary | null; left: number | null; onTap: () => void; motion: MeteorMotion }) {
   const m = v.event?.meteor;
   const shield = m?.shield ?? 0;
   const holds = shield >= 50 ? "держит" : shield >= 25 ? "минус деление" : "минус два";
+  const shake = motion.live;
   return (
     <Page kids={v.difficulty === "kids"} label="Метеоритный дождь">
       <Head v={v} crew={crew} />
       <Banner tone="alert" timer={clockText(left)}>
         Метеоритный дождь! Приказы на паузе
       </Banner>
-      <div className="bkp-hero">
-        <ShakePhone />
-      </div>
-      <h1 className="bkp-mega">ТРЯСИТЕ!</h1>
-      <p className="bkp-lead bkp-center">Держите телефон крепко. Чем сильнее трясёт весь экипаж, тем крепче щит.</p>
-      <button type="button" className="bkp-tap" onClick={onTap}>
-        Не трясётся? Тапайте сюда
-      </button>
+      {shake ? (
+        <>
+          <div className="bkp-hero">
+            <ShakePhone />
+          </div>
+          <h1 className="bkp-mega">ТРЯСИТЕ!</h1>
+          <p className="bkp-lead bkp-center">Держите телефон крепко. Чем сильнее трясёт весь экипаж, тем крепче щит.</p>
+          <button type="button" className="bkp-tap" onClick={onTap}>
+            Не трясётся? Тапайте сюда
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Без датчика — «Тапайте!» на весь экран (макет ph-meteor): вся плашка — одна большая кнопка. */}
+          <button type="button" className="bkp-tap bkp-tap--big" onClick={onTap}>
+            <span className="bkp-mega">ТАПАЙТЕ!</span>
+            <span className="bkp-tap__hint">Часто касайтесь здесь — чем чаще тапает весь экипаж, тем крепче щит</span>
+          </button>
+          {motion.state === "need" && (
+            <button type="button" className="btn btn--secondary btn--block bkp-btn2" onClick={motion.onAllow}>
+              Разрешить тряску — трясти вместо тапов
+            </button>
+          )}
+        </>
+      )}
       <section className="bkp-card">
         <Meter label="Ваш вклад" value={m?.power ?? 0} />
         <Meter label="Щит" value={shield} note={`${shield} · ${holds}`} gold />

@@ -1263,3 +1263,28 @@
     font-size: 38px;
   }
 }
+
+/* «Тапайте!» на весь экран: без датчика тряски экран дождя — одна большая кнопка. */
+.bkp-tap--big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: min(46vh, 340px);
+  padding: 20px 16px;
+  border-width: 2px;
+}
+
+.bkp-tap--big:active {
+  background: rgba(156, 195, 213, 0.22);
+}
+
+.bkp-tap__hint {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--bk-ink-soft);
+  text-wrap: balance;
+}

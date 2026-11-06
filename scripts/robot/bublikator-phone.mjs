@@ -97,6 +97,19 @@ const ACTIONS = {
   vote: async (p) => p.locator(".bkp-choice:not(.is-on)").first().tap(),
   role: async (p) => p.getByRole("button", { name: "Понятно, скрыть" }).tap(),
   sos: async (p) => p.locator(".bkp-sos__btn").first().tap(),
+  // Дождь: датчик присылает движение (как Chrome на Android, без «Разрешить тряску») — «ТРЯСИТЕ!» и сила уходит в комнату.
+  meteor: async (p) => {
+    await p.evaluate(async () => {
+      for (let i = 0; i < 30; i += 1) {
+        window.dispatchEvent(new DeviceMotionEvent("devicemotion", { acceleration: { x: 20, y: 5, z: 3 }, accelerationIncludingGravity: { x: 20, y: 14, z: 3 }, interval: 16 }));
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    });
+    await p.waitForTimeout(500);
+  },
+  "meteor-tap": async (p) => {
+    for (let i = 0; i < 6; i += 1) await p.locator(".bkp-tap--big").tap();
+  },
 };
 const changed = (a, b) => JSON.stringify(a.panel) !== JSON.stringify(b.panel);
 const CHECKS = {
@@ -106,6 +119,13 @@ const CHECKS = {
   vote: (a, b) => b.vote !== a.vote && b.vote !== null,
   role: (a, b, screen) => b.roleSeen === true && screen !== "role",
   sos: (a, b) => b.sos !== a.sos,
+  meteor: (a, b) => (b.shake ?? 0) > 50,
+  "meteor-tap": (a, b) => (b.taps ?? 0) > (a.taps ?? 0),
+};
+/** Что должно быть видно после касаний. */
+const SEEN = {
+  meteor: "ТРЯСИТЕ!",
+  "meteor-tap": "ТАПАЙТЕ!",
 };
 
 const report = [];
@@ -125,6 +145,9 @@ for (const width of [360, 412]) {
       if (m.type() === "error") errors.push(`консоль: ${m.text()}`);
     });
     // Тренировка: показываем шаг «Разрешить тряску», как на iPhone.
+    if (s === "meteor-tap") await page.addInitScript(() => delete window.DeviceMotionEvent);
+    // Как свежий Chrome на Android: requestPermission есть, но события идут и без вопроса.
+    if (s === "meteor") await page.addInitScript(() => window.DeviceMotionEvent && (window.DeviceMotionEvent.requestPermission = () => Promise.resolve("granted")));
     if (s === "drill") await page.addInitScript(() => (window.DeviceMotionEvent ??= function () {}).requestPermission = () => Promise.resolve("granted"));
     await page.goto(`http://localhost:${port}/?s=${encodeURIComponent(s)}`);
     await page.waitForFunction(() => window.standReady === true, null, { timeout: 15000 });
@@ -139,6 +162,7 @@ for (const width of [360, 412]) {
       const after = await page.evaluate(() => window.stand.server());
       const ok = CHECKS[s](before, after, await page.evaluate(() => window.stand.screen()));
       if (!ok) found.push(`касание не дошло: ${JSON.stringify(before)} → ${JSON.stringify(after)}`);
+      if (SEEN[s] && !(await page.evaluate((t) => document.body.innerText.includes(t), SEEN[s]))) found.push(`не видно «${SEEN[s]}»`);
     }
     const file = path.join(out, `${s}-${width}.png`);
     await page.screenshot({ path: file, fullPage: true });

@@ -1,6 +1,6 @@
 /**
  * Тряска телефона для «Метеоритного дождя» (ТЗ: без разрешения — частые нажатия). Сила 0–100: сглаженное ускорение без
- * силы тяжести, ~15 м/с² — 100. Разрешение на iPhone — `DeviceMotionEvent.requestPermission` по касанию (шаг тренировки).
+ * силы тяжести, ~15 м/с² — 100. Разрешение — `DeviceMotionEvent.requestPermission` по касанию (шаг тренировки и экран дождя).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -23,36 +23,56 @@ function initialState(): MotionState {
 
 export interface Motion {
   state: MotionState;
+  /** Датчик уже присылал движение на этой странице — тряска работает (Android без вопроса, iPhone после разрешения). */
+  live: boolean;
   ask: () => Promise<void>;
   /** Наибольшая сила с последнего `reset`. */
   peak: () => number;
   reset: () => void;
 }
 
+/** Есть ли в событии движение (у ноутбука без датчика событие приходит пустым). */
+function magnitudeOf(e: DeviceMotionEvent): number | null {
+  const a = e.acceleration;
+  if (a && a.x !== null && a.y !== null && a.z !== null) return Math.hypot(a.x, a.y, a.z);
+  const g = e.accelerationIncludingGravity;
+  if (!g || g.x === null || g.y === null || g.z === null) return null;
+  return Math.abs(Math.hypot(g.x, g.y, g.z) - 9.81);
+}
+
+/**
+ * Датчик слушаем сразу, а не после «Разрешить тряску»: `requestPermission` есть и в свежем Chrome на Android, но там события
+ * идут и без вопроса — тогда тряска работает и после перезагрузки, у опоздавших и без тренировки. Пришло движение — `live`.
+ * Сила копится, только пока `active` (экран дождя).
+ */
 export function useMotion(active: boolean): Motion {
   const [state, setState] = useState<MotionState>(initialState);
+  const [live, setLive] = useState(false);
   const peakRef = useRef(0);
   const ema = useRef(0);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   useEffect(() => {
-    if (!active || state !== "granted") return;
+    if (state === "none" || state === "denied") return;
+    let seen = false;
     const on = (e: DeviceMotionEvent) => {
-      const a = e.acceleration;
-      let mag: number;
-      if (a && a.x !== null && a.y !== null && a.z !== null) mag = Math.hypot(a.x, a.y, a.z);
-      else {
-        const g = e.accelerationIncludingGravity;
-        if (!g || g.x === null || g.y === null || g.z === null) return;
-        mag = Math.abs(Math.hypot(g.x, g.y, g.z) - 9.81);
+      const mag = magnitudeOf(e);
+      if (mag === null) return;
+      if (!seen) {
+        seen = true;
+        setLive(true);
       }
+      if (!activeRef.current) return;
       ema.current = ema.current * 0.8 + mag * 0.2;
       peakRef.current = Math.max(peakRef.current, powerOf(ema.current));
     };
     window.addEventListener("devicemotion", on);
     return () => window.removeEventListener("devicemotion", on);
-  }, [active, state]);
+  }, [state]);
   return useMemo(
     () => ({
       state,
+      live,
       async ask() {
         const ask = (DeviceMotionEvent as unknown as MotionPermission).requestPermission;
         if (typeof ask !== "function") {
@@ -71,6 +91,6 @@ export function useMotion(active: boolean): Motion {
         ema.current = 0;
       },
     }),
-    [state],
+    [state, live],
   );
 }

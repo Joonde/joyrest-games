@@ -2,18 +2,24 @@
  * «Бубликатор» на платформе: телефон гостя — настоящий (Блок 2b), экран зала, пульт и конструктор — заглушки до 2c–2d
  * (механика скрыта, `HIDDEN_MECHANICS`: ведущие её не видят).
  */
-import { useMemo } from "react";
-import { formatSessionCode } from "../../core/code";
+import { lazy, Suspense } from "react";
+import { ListSkeleton } from "../../components/Skeleton";
 import type { EditorProps, HostControlsProps, PlayerViewProps, ViewProps } from "../types";
 import type { BubContent } from "./rules/types";
-import { BublikatorPhone } from "./phone/Phone";
-import { roomLink } from "./phone/roomLink";
+
+/**
+ * Телефон гостя — отдельный чанк (аудит 2b, №17): его код и стили качает только гость «Бубликатора», а не гость любой
+ * игры из общего чанка реестра.
+ */
+const Phone = lazy(() => import("./phone/PlayerView").then((m) => ({ default: m.BublikatorPhoneView })));
 
 /** Телефон гостя: личный поток игровой комнаты и пачки нажатий (поток экрана телефон не слушает). */
-export function BublikatorPlayerView({ session, participant }: PlayerViewProps<BubContent, never>) {
-  const link = useMemo(() => roomLink(session.id), [session.id]);
-  const name = participant.name.replace(/^\p{Extended_Pictographic}️?\s*/u, "");
-  return <BublikatorPhone link={link} name={name || participant.name} code={formatSessionCode(session.code)} />;
+export function BublikatorPlayerView(props: PlayerViewProps<BubContent, never>) {
+  return (
+    <Suspense fallback={<ListSkeleton count={3} />}>
+      <Phone {...props} />
+    </Suspense>
+  );
 }
 
 function Soon({ what }: { what: string }) {

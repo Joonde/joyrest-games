@@ -2,6 +2,9 @@
 // и личное из `src/mechanics/bublikator/rules/` (как на сервере: снимок `personalSnapshot`, дальше куски рассылки). 50 гостей
 // в командах (решение владельца 6 ноября 2026 — проверки на 50). Сценарий — из адреса `?s=<имя>`; страница доводит игру до
 // нужного состояния (макеты ph-*), а `bublikator-phone.mjs` снимает экран на 360 и 412 px и проверяет раскладку.
+// Стили платформы — раньше стилей телефона, как в приложении (аудит 2b, круг 2, №12).
+import "../../src/fonts.css";
+import "../../src/styles.css";
 import { createRoot } from "react-dom/client";
 import type { RoomClosedReason, RoomInputEvent, RoomInputReply, RoomStreamEvent } from "../../src/data/types";
 import { BublikatorPhone } from "../../src/mechanics/bublikator/phone/Phone";
@@ -11,8 +14,6 @@ import { crewPlayers } from "../../src/mechanics/bublikator/rules/crews";
 import { personalSnapshot } from "../../src/mechanics/bublikator/rules/views";
 import { World } from "../../src/mechanics/bublikator/rules/world.test-kit";
 import { applyTheme, getTheme } from "../../src/themes/registry";
-import "../../src/fonts.css";
-import "../../src/styles.css";
 
 const TEAMS = ["🦊 Лисы", "🚀 Ракеты", "🐻 Медведи из соседнего подъезда", "🌟 Звёзды", "🎩 Джентльмены"];
 const NAMES = [
@@ -39,6 +40,7 @@ const NAMES = [
 ];
 
 const params = new URLSearchParams(location.search);
+(window as unknown as { pushes: unknown[] }).pushes = [];
 const scenario = params.get("s") ?? "lobby";
 
 /** Комната в памяти: один телефон подписан, события ему доходят после каждого шага. */
@@ -80,7 +82,8 @@ class StandLink implements PhoneLink {
       return { push: () => undefined, stop: () => undefined };
     }
     return {
-      push: (event: RoomInputEvent) => {
+      push: (event: RoomInputEvent, now?: boolean, beforeMs?: number) => {
+        (window as unknown as { pushes: unknown[] }).pushes.push({ event, now: now === true, beforeMs: beforeMs ?? 0 });
         if (this.mute) return;
         this.w.send(this.pid, [event]);
         this.pump();

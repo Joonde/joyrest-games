@@ -11,6 +11,7 @@ import { World } from "../rules/world.test-kit";
 import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
 import { MoveGate, PHONE_MOVES_PER_SECOND } from "./moves";
+import { TapBatch } from "./taps";
 import { ShakeMeter, shakeMode, shakeReport, type ShakeSent } from "./shake";
 import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, localNow, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, withClock, type PhoneModel } from "./model";
 
@@ -603,6 +604,22 @@ describe("телефон «Бубликатора»: модель", () => {
       if (final.a !== want.a || final.b !== want.b) lostLast += 1;
     }
     expect(lostLast).toBe(0);
+  });
+
+  it("нажатия пачкой (аудит 2b, круг 2, №11): `beforeMs` — от первого нажатия пачки, смена вида — прежняя пачка сразу", () => {
+    const b = new TapBatch();
+    expect(b.flush(0)).toBeNull();
+    expect(b.tap("tap", 1000)).toBeNull();
+    b.tap("tap", 1100);
+    b.tap("tap", 1250);
+    expect(b.flush(1300)).toEqual({ event: { t: "tap", n: 3 }, beforeMs: 300 });
+    expect(b.flush(1600)).toBeNull();
+    b.tap("tap", 1700);
+    // Салют после тапа: тапы уходят сразу, у салюта своя пачка от своего первого нажатия.
+    expect(b.tap("salute", 1800)).toEqual({ event: { t: "tap", n: 1 }, beforeMs: 100 });
+    b.tap("salute", 1850);
+    expect(b.flush(2000)).toEqual({ event: { t: "salute", n: 2 }, beforeMs: 200 });
+    // Телефон отдаёт отправителю именно это: `push(event, true, beforeMs)` (`Phone.tsx`), отправитель ставит `ago`.
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

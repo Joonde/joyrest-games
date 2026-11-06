@@ -193,6 +193,10 @@ const ACTIONS = {
   },
   "meteor-tap": async (p) => {
     for (let i = 0; i < 6; i += 1) await p.locator(".bkp-tap--big").tap();
+    await p.waitForTimeout(400);
+    // Нажатия уходят одной пачкой «сейчас» (часы стенда стоят, поэтому `beforeMs` проверяет `model.test.ts`).
+    const taps = await p.evaluate(() => window.pushes.filter((x) => x.event.t === "tap"));
+    if (!taps.some((x) => x.now && x.event.n > 1)) return [`нажатия не пачкой: ${JSON.stringify(taps)}`];
   },
 };
 const changed = (a, b) => JSON.stringify(a.panel) !== JSON.stringify(b.panel);

@@ -12,6 +12,7 @@ import { buzz } from "./haptics";
 import { loadVibration, saveVibration } from "./prefs";
 import { useMotion } from "./motion";
 import { MoveGate } from "./moves";
+import { TapBatch, type TapKind } from "./taps";
 import { SHAKE_EVERY_MS, shakeReport, type ShakeSent } from "./shake";
 import {
   CardScreen,
@@ -219,24 +220,19 @@ export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps
   }, [flashAt, flashKind]);
 
   // Нажатия — копим и шлём пачкой.
-  const taps = useRef<{ t: string; n: number; first: number }>({ t: "tap", n: 0, first: 0 });
+  const taps = useRef(new TapBatch());
   useEffect(() => {
     const h = setInterval(() => {
-      const t = taps.current;
-      if (t.n > 0) {
-        // `ago` — по первому нажатию пачки: последние доли секунды дождя и ремонта не теряются (аудит 2b, №14).
-        push({ t: t.t, n: t.n }, true, now() - t.first);
-        taps.current = { t: t.t, n: 0, first: 0 };
-      }
+      // `ago` — по первому нажатию пачки: последние доли секунды дождя и ремонта не теряются (аудит 2b, №14).
+      const out = taps.current.flush(now());
+      if (out) push(out.event, true, out.beforeMs);
     }, TAP_FLUSH_MS);
     return () => clearInterval(h);
   }, [push, now]);
   const tap = useCallback(
-    (kind: "tap" | "salute") => {
-      const cur = taps.current;
-      if (cur.t !== kind && cur.n > 0) push({ t: cur.t, n: cur.n }, true, now() - cur.first);
-      const same = cur.t === kind && cur.n > 0;
-      taps.current = { t: kind, n: (same ? cur.n : 0) + 1, first: same ? cur.first : now() };
+    (kind: TapKind) => {
+      const out = taps.current.tap(kind, now());
+      if (out) push(out.event, true, out.beforeMs);
     },
     [push, now],
   );

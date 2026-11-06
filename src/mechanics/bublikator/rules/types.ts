@@ -130,6 +130,8 @@ export interface SosCrew {
   progress: number;
   blockedUntil: number;
   done: boolean;
+  /** Сколько раз набор сбрасывался ошибкой: телефон шлёт его с набором — нажатия до сброса не засчитываются. */
+  attempt?: number;
 }
 
 export interface Crew {
@@ -411,7 +413,7 @@ export interface PersonalView {
     task?: string;
     meteor?: { power: number; shield: number };
     pull?: { holding: boolean; held: number; escaped: boolean; failed: boolean; members: Array<{ name: string; holding: boolean }> };
-    sos?: { captain: boolean; captainName: string | null; progress: number; length: number; blockedUntil: number | null; done: boolean };
+    sos?: { captain: boolean; captainName: string | null; progress: number; length: number; blockedUntil: number | null; done: boolean; attempt: number };
   } | null;
   repair: { until: number; mine: number; taps: number; target: number } | null;
   finished: boolean;

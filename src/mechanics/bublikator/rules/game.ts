@@ -909,7 +909,7 @@ function startEvent(s: BubState, env: Env, ev: EventState): void {
     const c = s.crews.find((x) => x.id === id);
     if (!c) continue;
     if (ev.kind === "pull") c.pull = { holdStart: null, escaped: false, failed: false };
-    if (ev.kind === "sos") c.sos = { progress: 0, blockedUntil: -1, done: false };
+    if (ev.kind === "sos") c.sos = { progress: 0, blockedUntil: -1, done: false, attempt: 0 };
     if (ev.kind === "meteor") c.shield = 0;
   }
   for (const m of Object.values(s.members)) s.rt.dirty.add(m.pid);
@@ -1165,7 +1165,7 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
         break;
       }
       case "sos":
-        sosPress(s, env, m, e.color, at);
+        sosInput(s, env, m, e, at);
         break;
       case "vote":
         castVote(s, m, e.pid);
@@ -1266,6 +1266,27 @@ function tapEvent(s: BubState, env: Env, m: Member, e: InEvent, at: number): voi
   void env;
 }
 
+/**
+ * SOS с телефона. Новый телефон шлёт весь набор с последнего сброса (`seq`) и метку сброса, которую видел (`b` —
+ * номер попытки): повтор сорвавшегося запроса может прийти после следующего цвета — набор не сбрасывается, засчитываются
+ * недостающие нажатия по порядку, уже засчитанные и нажатия до прошлого сброса (`b` — номер попытки `attempt`) не
+ * считаются (аудит 2b, №14).
+ * Старый формат — один цвет (`color`).
+ */
+function sosInput(s: BubState, env: Env, m: Member, e: Record<string, unknown>, at: number): void {
+  if (!Array.isArray(e.seq)) return sosPress(s, env, m, e.color, at);
+  const crew = s.crews.find((c) => c.id === m.crew);
+  const sos = crew?.sos;
+  if (!sos || sos.done) return;
+  if (typeof e.b === "number" && e.b !== (sos.attempt ?? 0)) return;
+  const entered = e.seq.slice(0, SOS_COLORS * 4);
+  for (let i = sos.progress; i < entered.length; i += 1) {
+    sosPress(s, env, m, entered[i], at);
+    // Ошибка (набор сброшен) или нажатие не принято — дальше этого набора не идём.
+    if (sos.progress !== i + 1 || sos.done) break;
+  }
+}
+
 function sosPress(s: BubState, env: Env, m: Member, color: unknown, at: number): void {
   const ev = sameCrewEvent(s, m);
   if (!ev || ev.kind !== "sos" || !ev.started || m.crew === null || !ev.crews.includes(m.crew)) return;
@@ -1287,6 +1308,7 @@ function sosPress(s: BubState, env: Env, m: Member, color: unknown, at: number):
     // Ошибка: кнопки неактивны 1,5 с, набор с начала — перебрать наугад нельзя.
     sos.progress = 0;
     sos.blockedUntil = at + SOS_BLOCK_MS;
+    sos.attempt = (sos.attempt ?? 0) + 1;
   }
   markCrew(s, crew.id);
 }

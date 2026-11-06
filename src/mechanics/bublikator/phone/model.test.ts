@@ -10,6 +10,7 @@ import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
 import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
+import { MoveGate } from "./moves";
 import { shakeMode, shakeReport, type ShakeSent } from "./shake";
 import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, localNow, orderLeft, problemOf, ROLE_AUTO_MS, screenOf, serverNow, silent, withClock, type PhoneModel } from "./model";
 
@@ -474,6 +475,43 @@ describe("телефон «Бубликатора»: модель", () => {
     m = withClock(m, 1_000_000, 500 + 80);
     for (let i = 1; i <= 5; i += 1) m = withClock(m, 1_000_000 + i * 1000, 500 + i * 1000 + 80);
     expect(leftUntil(m, 1_010_000, 500 + 5000 + 80)).toBe(5000);
+  });
+
+  it("движения приборов (аудит 2b, №14): чаще 5 в секунду телефон придерживает и шлёт последнее — на сервере то, что на экране", () => {
+    const run = (gated: boolean): { server: number; last: number } => {
+      const w = new World({ players: 6, content: NOEV });
+      w.toFlight();
+      const id = w.member("p0").panel.find((c) => w.s.controls[c]?.type === "slider") ?? w.member("p0").panel[0] ?? "";
+      const gate = new MoveGate();
+      const send = (c: string, s: number) => w.send("p0", [{ t: "move", c, s }]);
+      let last = 0;
+      // Гость быстро листает ползунок: 0 → 5 → 0 → 5…, 10 касаний за секунду.
+      for (let i = 1; i <= 10; i += 1) {
+        w.advance(100);
+        last = i % 2 === 0 ? 0 : 5;
+        if (!gated || gate.move(w.env.now, id, last)) send(id, last);
+        if (gated) for (const [c, s] of gate.release(w.env.now)) send(c, s);
+      }
+      for (let k = 0; k < 20 && gated && gate.pending.size > 0; k += 1) {
+        w.advance(Math.max(20, gate.waitMs(w.env.now)));
+        for (const [c, s] of gate.release(w.env.now)) send(c, s);
+      }
+      w.advance(100);
+      return { server: w.s.controls[id]?.state ?? -1, last };
+    };
+    const g = run(true);
+    expect(g.server).toBe(g.last);
+    // Без придержки часть движений сервер отбросил бы — прибор «отскочил» бы к другому положению.
+    const raw = run(false);
+    expect(raw.server).not.toBe(raw.last);
+    // Сама придержка: 5 сразу, шестое ждёт ~200 мс, у одного прибора ждёт только последнее положение.
+    const gate = new MoveGate();
+    for (let i = 0; i < 5; i += 1) expect(gate.move(0, `c${i}`, 1)).toBe(true);
+    expect(gate.move(0, "c9", 1)).toBe(false);
+    expect(gate.move(10, "c9", 3)).toBe(false);
+    expect([...gate.pending]).toEqual([["c9", 3]]);
+    expect(gate.waitMs(10)).toBeGreaterThan(0);
+    expect(gate.release(250)).toEqual([["c9", 3]]);
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

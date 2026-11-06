@@ -86,6 +86,28 @@ describe("быстрый канал: отправитель пачек теле�
     sender.stop();
   });
 
+  it("`beforeMs` (аудит 2b, №14): накопленные нажатия — `ago` по первому из них; склейка «сейчас» — по времени отправки", async () => {
+    const sent: Body[] = [];
+    const { deps, advance } = fakeDeps(async (_path, body) => {
+      sent.push(body as Body);
+      return {};
+    });
+    const sender = createRoomSender("s1", {}, deps);
+    await advance(400);
+    sender.push({ t: "tap", n: 5 }, { now: true, beforeMs: 280 });
+    expect(sent.at(-1)).toMatchObject({ events: [{ t: "tap", n: 5, ago: 280 }] });
+    // Следующее «сейчас» через 200 мс уходит сразу: окно склейки — от отправки, а не от первого нажатия.
+    await advance(200);
+    const before = sent.length;
+    sender.push({ t: "move", id: "m1" }, { now: true });
+    expect(sent.length).toBe(before + 1);
+    // Больше 4 с назад не бывает (сервер всё равно не примет).
+    sender.push({ t: "tap", n: 1 }, { beforeMs: 60_000 });
+    sender.flush();
+    expect(sent.at(-1)?.events[0]?.ago).toBe(4000);
+    sender.stop();
+  });
+
   it("пачка с событиями повторяется с тем же номером, пока не дойдёт; пустая — нет", async () => {
     const sent: Body[] = [];
     let failing = true;

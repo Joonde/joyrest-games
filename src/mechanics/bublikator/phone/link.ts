@@ -5,8 +5,11 @@
 import type { RoomInputEvent, RoomInputReply, RoomStreamEvent } from "../../../data/types";
 
 export interface PhoneSender {
-  /** Событие в пачку; `now` — сразу отдельным запросом (движения приборов, «Тяга», SOS, голос). */
-  push(event: RoomInputEvent, now?: boolean): void;
+  /**
+   * Событие в пачку; `now` — сразу отдельным запросом (движения приборов, «Тяга», SOS, голос); `beforeMs` — событие
+   * случилось столько мс назад (накопленные нажатия — по первому).
+   */
+  push(event: RoomInputEvent, now?: boolean, beforeMs?: number): void;
   stop(): void;
 }
 

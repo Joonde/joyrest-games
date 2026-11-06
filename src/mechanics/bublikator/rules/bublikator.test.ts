@@ -925,6 +925,37 @@ describe("события", () => {
     expect(w.s.leg?.event).toBeNull();
     expect(w.s.leg?.history.map((h) => h.kind)).toEqual(["pull"]);
   });
+  it("«Сигнал SOS» (аудит 2b, №14): повтор сорвавшегося нажатия после следующего — набор не сбрасывается; нажатия до сброса не считаются", () => {
+    const w = new World({ players: 6, content: { ...ALL_ON } });
+    w.toFlight();
+    startEvent(w, "sos");
+    const crew = w.s.crews[0];
+    if (!crew?.sos) throw new Error("экипаж");
+    const seq = w.s.leg?.event?.seq ?? [];
+    const captain = crewPlayers(w.s, crew.id)[0]?.pid ?? "";
+    const a = seq[0] ?? 0;
+    const b = seq[1] ?? 0;
+    // Первое нажатие сорвалось, второе дошло раньше — с набором из обоих: засчитаны оба по порядку.
+    w.send(captain, [{ t: "sos", color: b, seq: [a, b], b: 0 }]);
+    expect(crew.sos.progress).toBe(2);
+    // Повтор первого пришёл позже — уже засчитано, ничего не меняется.
+    w.send(captain, [{ t: "sos", color: a, seq: [a], b: 0 }]);
+    expect([crew.sos.progress, crew.sos.attempt]).toEqual([2, 0]);
+    // Ошибка — сброс, попытка 1.
+    const wrong = ((seq[2] ?? 0) + 1) % 4;
+    w.send(captain, [{ t: "sos", color: wrong, seq: [a, b, wrong], b: 0 }]);
+    expect([crew.sos.progress, crew.sos.attempt]).toEqual([0, 1]);
+    w.advance(SOS_BLOCK_MS + 100);
+    // Опоздавшее нажатие прошлой попытки (b = 0) не засчитывается и не сбрасывает новую.
+    w.send(captain, [{ t: "sos", color: a, seq: [a], b: 1 }]);
+    expect(crew.sos.progress).toBe(1);
+    w.send(captain, [{ t: "sos", color: b, seq: [a, b, seq[2] ?? 0], b: 0 }]);
+    expect([crew.sos.progress, crew.sos.attempt]).toEqual([1, 1]);
+    // Набор до конца — бонус.
+    w.send(captain, [{ t: "sos", color: seq[seq.length - 1] ?? 0, seq: [...seq], b: 1 }]);
+    expect(crew.sos.done).toBe(true);
+    expect(crew.bonus.sos).toBe(SOS_BONUS);
+  });
   it("«Сигнал SOS»: длина 4 / 5 / 6 по перелётам; ошибка — с начала и 1,5 с пауза; верно — +30; жмёт только капитан, пропал — следующий", () => {
     const w = new World({ players: 6, content: { ...ALL_ON, legs: 3 } });
     w.toFlight();

@@ -201,10 +201,12 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
   return {
     push(event, opts) {
       if (stopped) return;
-      const item = { event, at: deps.now() };
+      const before = typeof opts?.beforeMs === "number" && Number.isFinite(opts.beforeMs) ? Math.max(0, Math.min(4000, opts.beforeMs)) : 0;
+      const pushedAt = deps.now();
+      const item = { event, at: pushedAt - before };
       if (opts?.now) {
-        if (nowTimer === null && item.at - lastNowAt >= ROOM_NOW_GAP_MS) {
-          lastNowAt = item.at;
+        if (nowTimer === null && pushedAt - lastNowAt >= ROOM_NOW_GAP_MS) {
+          lastNowAt = pushedAt;
           send([item]);
         } else {
           nowQueue.push(item);
@@ -215,7 +217,7 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
               const items = nowQueue;
               nowQueue = [];
               for (const batch of splitBatches(items)) send(batch);
-            }, Math.max(0, lastNowAt + ROOM_NOW_GAP_MS - item.at));
+            }, Math.max(0, lastNowAt + ROOM_NOW_GAP_MS - pushedAt));
           }
         }
       } else {

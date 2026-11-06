@@ -8,7 +8,7 @@ export function roomLink(sessionId: string): PhoneLink {
     subscribe: (onEvent, onError, take) => roomsRepo.subscribe(sessionId, "me", onEvent, onError, take ? { take: true } : undefined),
     sender(onReply, onError) {
       const s = roomsRepo.sender(sessionId, { everyMs: BATCH_MS, onReply, onError });
-      return { push: (event, now) => s.push(event, now ? { now: true } : undefined), stop: () => s.stop() };
+      return { push: (event, now, beforeMs) => s.push(event, now || beforeMs ? { now: now === true, beforeMs } : undefined), stop: () => s.stop() };
     },
   };
 }

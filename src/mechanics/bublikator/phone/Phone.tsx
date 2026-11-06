@@ -11,6 +11,7 @@ import { applyReply, applyStream, closeFinished, emptyModel, flashOf, leftUntil,
 import { buzz } from "./haptics";
 import { loadVibration, saveVibration } from "./prefs";
 import { useMotion } from "./motion";
+import { MoveGate } from "./moves";
 import { SHAKE_EVERY_MS, shakeReport, type ShakeSent } from "./shake";
 import {
   CardScreen,
@@ -133,7 +134,7 @@ export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps
     );
   }, [link, take, gen, now, finished]);
 
-  const push = useCallback((event: Record<string, unknown> & { t: string }, nowFlag = false) => sender.current?.push(event, nowFlag), []);
+  const push = useCallback((event: Record<string, unknown> & { t: string }, nowFlag = false, beforeMs?: number) => sender.current?.push(event, nowFlag, beforeMs), []);
 
   // Своё положение приборов до ответа сервера.
   const [local, setLocal] = useState<Record<string, { s: number; at: number }>>({});
@@ -146,13 +147,48 @@ export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps
     },
     [local, now],
   );
+  // Движения не чаще, чем принимает комната: лишние придерживаем и шлём последнее положение (аудит 2b, №14).
+  const gate = useRef(new MoveGate());
+  const gateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const releaseMoves = useCallback(() => {
+    gateTimer.current = null;
+    const t0 = now();
+    for (const [c, s] of gate.current.release(t0)) {
+      // Пока ждало — показывали своё положение; продлеваем его до ответа сервера.
+      setLocal((x) => (x[c] ? { ...x, [c]: { s: x[c].s, at: t0 } } : x));
+      push({ t: "move", c, s }, true);
+    }
+    if (gate.current.pending.size > 0) gateTimer.current = setTimeout(releaseMoves, Math.max(20, gate.current.waitMs(now())));
+  }, [push, now]);
+  useEffect(() => () => void (gateTimer.current !== null && clearTimeout(gateTimer.current)), []);
   const onMove = useCallback(
     (c: PanelControlView, s: number) => {
-      setLocal((x) => ({ ...x, [c.id]: { s, at: now() } }));
+      const t0 = now();
+      setLocal((x) => ({ ...x, [c.id]: { s, at: t0 } }));
       // На движение прибора не вибрируем (решение владельца 6 ноября 2026): вибрация — только итог приказа.
-      push({ t: "move", c: c.id, s: c.type === "button" ? 0 : s }, true);
+      const state = c.type === "button" ? 0 : s;
+      if (gate.current.move(t0, c.id, state)) push({ t: "move", c: c.id, s: state }, true);
+      else if (gateTimer.current === null) gateTimer.current = setTimeout(releaseMoves, Math.max(20, gate.current.waitMs(t0)));
     },
-    [push, now],
+    [push, now, releaseMoves],
+  );
+
+  // SOS: весь набор с последнего сброса и метка сброса — повтор сорвавшегося запроса не сбивает порядок (аудит 2b, №14).
+  const sosRef = useRef<{ event: string | null; b: number; seq: number[] }>({ event: null, b: 0, seq: [] });
+  const sosEvent = m.view?.event?.id ?? null;
+  const sosAttempt = m.view?.event?.sos?.attempt ?? 0;
+  const sosProgress = m.view?.event?.sos?.progress ?? 0;
+  const onSos = useCallback(
+    (color: number) => {
+      const cur = sosRef.current;
+      // Новое событие или набор сброшен ошибкой — с чистого листа; уже засчитанные сервером места — заглушками (−1).
+      const fresh = cur.event !== sosEvent || cur.b !== sosAttempt;
+      const seq = fresh ? Array.from({ length: sosProgress }, () => -1) : cur.seq;
+      const next = { event: sosEvent, b: sosAttempt, seq: [...seq, color] };
+      sosRef.current = next;
+      push({ t: "sos", color, seq: next.seq, b: sosAttempt }, true);
+    },
+    [push, sosEvent, sosAttempt, sosProgress],
   );
 
   // Итог приказа — вибрацией (звука на телефоне нет): выполнен — одна короткая, не успели — две.
@@ -177,21 +213,27 @@ export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps
   }, [flashAt, flashKind]);
 
   // Нажатия — копим и шлём пачкой.
-  const taps = useRef<{ t: string; n: number }>({ t: "tap", n: 0 });
+  const taps = useRef<{ t: string; n: number; first: number }>({ t: "tap", n: 0, first: 0 });
   useEffect(() => {
     const h = setInterval(() => {
       const t = taps.current;
       if (t.n > 0) {
-        push({ t: t.t, n: t.n }, true);
-        taps.current = { t: t.t, n: 0 };
+        // `ago` — по первому нажатию пачки: последние доли секунды дождя и ремонта не теряются (аудит 2b, №14).
+        push({ t: t.t, n: t.n }, true, now() - t.first);
+        taps.current = { t: t.t, n: 0, first: 0 };
       }
     }, TAP_FLUSH_MS);
     return () => clearInterval(h);
-  }, [push]);
-  const tap = useCallback((kind: "tap" | "salute") => {
-    if (taps.current.t !== kind && taps.current.n > 0) push({ t: taps.current.t, n: taps.current.n }, true);
-    taps.current = { t: kind, n: (taps.current.t === kind ? taps.current.n : 0) + 1 };
-  }, [push]);
+  }, [push, now]);
+  const tap = useCallback(
+    (kind: "tap" | "salute") => {
+      const cur = taps.current;
+      if (cur.t !== kind && cur.n > 0) push({ t: cur.t, n: cur.n }, true, now() - cur.first);
+      const same = cur.t === kind && cur.n > 0;
+      taps.current = { t: kind, n: (same ? cur.n : 0) + 1, first: same ? cur.first : now() };
+    },
+    [push, now],
+  );
 
   const v = m.view;
   const screen = screenOf(m, now());
@@ -311,7 +353,7 @@ export function BublikatorPhone({ link, name, code, now = localNow }: PhoneProps
       case "pull":
         return <PullScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} holding={holding} onHold={onHold} />;
       case "sos":
-        return <SosScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} now={sNow} onColor={(color) => push({ t: "sos", color }, true)} />;
+        return <SosScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} now={sNow} onColor={onSos} />;
       case "sos-crew":
         return <SosCrewScreen v={v} crew={crew} left={leftUntil(m, v.event?.endsAt, t)} />;
       case "deck":

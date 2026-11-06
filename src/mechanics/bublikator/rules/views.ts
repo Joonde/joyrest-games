@@ -326,6 +326,7 @@ export function personalView(s: BubState, pid: string, env: ViewEnv, frame?: Fra
               length: ev.seq?.length ?? 0,
               blockedUntil: crew.sos.blockedUntil > now ? toServer(s, crew.sos.blockedUntil) : null,
               done: crew.sos.done,
+              attempt: crew.sos.attempt ?? 0,
             };
           }
         }

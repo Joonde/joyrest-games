@@ -11,7 +11,10 @@ import { isPermanentError } from "../retry";
 import type { Unsubscribe } from "../types";
 
 export interface StreamOptions<E> {
-  /** Адрес потока событий. */
+  /**
+   * Адрес потока событий. Читается при каждом подключении (может быть геттером): сменился, пока браузер сам
+   * переподключается, — подключаемся заново по новому (быстрый канал: «Открыть здесь» с `take` — только первый раз).
+   */
   url: string;
   /** Опрос без потока: загружает снимок и передаёт его в onEvent. */
   poll: () => Promise<void>;
@@ -161,7 +164,8 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
       return poll();
     }
     let gotSnapshot = false;
-    const es = new EventSource(options.url);
+    const href = options.url;
+    const es = new EventSource(href);
     source = es;
     lastSeen = Date.now();
     stopWatchdog();
@@ -193,7 +197,15 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
     es.onerror = () => {
       // CONNECTING — браузер сам переподключится и получит новый снимок; CLOSED — ответ не поток.
       if (es.readyState === EventSource.CLOSED) streamFailed();
-      else reportFromCache(true);
+      else if (options.url !== href && source === es) {
+        // Браузер переподключился бы по старому адресу — закрываем и подключаемся по новому.
+        stopWatchdog();
+        stopTimer();
+        es.close();
+        source = null;
+        reportFromCache(true);
+        connect();
+      } else reportFromCache(true);
     };
   }
 

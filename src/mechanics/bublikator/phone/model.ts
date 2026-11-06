@@ -160,13 +160,14 @@ export type Screen =
   | "pause"
   | "out";
 
-/** Какой экран показать: закрытие потока сильнее всего, потом пауза, потом этап игры. */
+/** Какой экран показать: закрытие потока сильнее всего (кроме карточки итогов), потом пауза, потом этап игры. */
 export function screenOf(m: PhoneModel): Screen {
   if (m.closed === "busy" || m.closed === "replaced") return "tab";
   if (m.closed === "abandoned") return "abandoned";
   if (m.closed === "removed") return "removed";
-  if (m.closed === "finished") return "over";
   const v = m.view;
+  // Игра завершена: карточка итогов остаётся, если она уже пришла (закрытие потока её не отнимает).
+  if (m.closed === "finished") return v?.card ? "card" : "over";
   if (!v) return "connecting";
   if (v.phase === "podium" || v.phase === "finished") return v.card ? "card" : "over";
   if (m.paused) return "pause";
@@ -202,4 +203,31 @@ export function flashOf(m: PhoneModel, local: number): Flash | null {
 /** Связи нет: браузер без сети или сервер молчит дольше `SILENT_MS`. */
 export function silent(m: PhoneModel, local: number, online: boolean): boolean {
   return !online || local - m.heardAt > SILENT_MS;
+}
+
+/** Причина отказа комнаты из ошибки слоя данных (`ApiError.reason`), без импорта самого класса. */
+export function reasonOf(error: unknown): string | null {
+  const r = (error as { reason?: unknown } | null)?.reason;
+  return typeof r === "string" ? r : null;
+}
+
+/** Что делать телефону с ошибкой отправителя или подписки. */
+export type LinkProblem = "finished" | "abandoned" | "quiet" | "error";
+
+/**
+ * Ошибка связи → что показать. «Игра завершена» — не ошибка, а экран «Игра окончена» (или карточка); «забыта» — отправитель
+ * пересоздаётся вместе с подпиской, когда комната снова пришлёт снимок; убрали, вытеснили, занято — экран сам знает из
+ * закрытия потока; остальное — плашка ошибки.
+ */
+export function problemOf(error: unknown): LinkProblem {
+  const reason = reasonOf(error);
+  if (reason === "finished") return "finished";
+  if (reason === "abandoned") return "abandoned";
+  if (reason === "removed" || reason === "replaced" || reason === "busy") return "quiet";
+  return "error";
+}
+
+/** Комната ответила «игра завершена» (на пачку или на подписку): как закрытие потока, часы не трогаем. */
+export function closeFinished(m: PhoneModel): PhoneModel {
+  return m.closed === "finished" ? m : { ...m, closed: "finished" };
 }

@@ -2,7 +2,7 @@
  * Экраны телефона «Бубликатора» по согласованным макетам (`ph-*`): только вид, без связи. Данные — личное
  * (`PersonalView`), состав экипажа и уже посчитанные остатки времени; действия — колбэки.
  */
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { cap, verb, wordsOf, type ThemeWords } from "../lexicon";
 import { HULL_MAX, PULL_HOLD_MS, SOS_BONUS, VOTE_BONUS } from "../rules/constants";
 import type { CrewSummary, PanelControlView, PersonalView } from "../rules/types";
@@ -659,8 +659,17 @@ export function DockScreen({ v, crew }: { v: PersonalView; crew: CrewSummary | n
   );
 }
 
-export function VoteScreen({ v, crew, left, onVote }: { v: PersonalView; crew: CrewSummary | null; left: number | null; onVote: (pid: string | null) => void }) {
+/**
+ * Голос — как в макете ph-vote (аудит 2b, №5): касание выбирает, отдельная кнопка «Голосую: …» отправляет, дальше
+ * «✓ Голос принят». Повторное касание выбранного ничего не снимает; передумать — выбрать другого и снова «Голосую».
+ */
+export function VoteScreen({ v, crew, left, onVote }: { v: PersonalView; crew: CrewSummary | null; left: number | null; onVote: (pid: string) => void }) {
   const vote = v.vote;
+  const mine = vote?.mine ?? null;
+  const [picked, setPicked] = useState<string | null>(mine);
+  const choice = picked ?? mine;
+  const name = vote?.candidates.find((c) => c.pid === choice)?.name ?? null;
+  const sent = choice !== null && choice === mine;
   return (
     <Page kids={false} label="Кто диверсант">
       <Head v={v} crew={crew} />
@@ -670,18 +679,21 @@ export function VoteScreen({ v, crew, left, onVote }: { v: PersonalView; crew: C
       <p className="bkp-lead">Вспомните, после чьих приказов трясло. Один голос, за себя нельзя.</p>
       <div className="bkp-choices" role="radiogroup" aria-label="Кто диверсант">
         {(vote?.candidates ?? []).map((c) => {
-          const on = vote?.mine === c.pid;
+          const on = choice === c.pid;
           return (
-            <button key={c.pid} type="button" role="radio" aria-checked={on} className={`bkp-choice${on ? " is-on" : ""}`} onClick={() => onVote(on ? null : c.pid)}>
+            <button key={c.pid} type="button" role="radio" aria-checked={on} className={`bkp-choice${on ? " is-on" : ""}`} onClick={() => setPicked(c.pid)}>
               <span className="bkp-choice__ring" aria-hidden="true" />
               <span className="bkp-choice__name">{c.name}</span>
             </button>
           );
         })}
       </div>
-      <Foot>
-        {vote?.mine ? "Голос принят — можно передумать до конца отсчёта." : `Угадали — экипажу +${VOTE_BONUS}. Поровну — считается, что не угадали.`}
-      </Foot>
+      <div className="actions">
+        <button type="button" className={`btn btn--block bkp-vote-cta${sent ? " is-sent" : ""}`} disabled={choice === null || sent} onClick={() => choice !== null && onVote(choice)}>
+          {choice === null ? "Выберите одного" : sent ? `✓ Голос принят: ${name ?? ""}` : `Голосую: ${name ?? ""}`}
+        </button>
+      </div>
+      <Foot>{sent ? "Можно передумать до конца отсчёта: выберите другого и нажмите «Голосую»." : `Угадали — экипажу +${VOTE_BONUS}. Поровну — считается, что не угадали.`}</Foot>
     </Page>
   );
 }

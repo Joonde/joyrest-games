@@ -9,7 +9,7 @@ import { crewPlayers } from "../rules/crews";
 import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
 import { shakeReport, type ShakeSent } from "./shake";
-import { applyReply, applyStream, clockText, emptyModel, flashOf, leftUntil, orderLeft, screenOf, serverNow, silent, type PhoneModel } from "./model";
+import { applyReply, applyStream, clockText, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, screenOf, serverNow, silent, type PhoneModel } from "./model";
 
 const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
 const ALL_ON = { events: { meteor: true, pull: true, sos: true, captain: true } };
@@ -110,6 +110,26 @@ describe("телефон «Бубликатора»: модель", () => {
     look();
     expect(seen).toEqual(["lobby", "crews", "drill", "launch", "panel", "dock", "launch", "panel", "dock", "card"]);
     expect(p.m.view?.card?.total).toBe(personalView(w.s, "p0", w.env)?.card?.total);
+    // «Завершить игру» (аудит 2b, №3): поток закрылся с `finished` — карточка остаётся, а не «Игра окончена».
+    p.feed({ type: "closed", at: w.env.now, reason: "finished" });
+    expect(p.screen).toBe("card");
+    // Пачка или подписка получили отказ «игра завершена» — то же самое (часы не трогаются).
+    const before = p.m.offset;
+    p.m = closeFinished(p.m);
+    expect([p.screen, p.m.offset]).toEqual(["card", before]);
+  });
+
+  it("ошибки связи (аудит 2b, №4): «завершена» — экран итогов, а не «обновите страницу»; «забыта» — пересоздать отправителя", () => {
+    const err = (reason?: string) => Object.assign(new Error("x"), reason ? { reason } : {});
+    expect(problemOf(err("finished"))).toBe("finished");
+    expect(problemOf(err("abandoned"))).toBe("abandoned");
+    for (const r of ["removed", "replaced", "busy"]) expect(problemOf(err(r))).toBe("quiet");
+    expect(problemOf(err())).toBe("error");
+    expect(problemOf(null)).toBe("error");
+    // После перезагрузки завершённой игры: снимка нет, подписка ответила «finished» — «Игра окончена», а не «Подключаемся».
+    const m = emptyModel(0);
+    expect(screenOf(m)).toBe("connecting");
+    expect(screenOf(closeFinished(m))).toBe("over");
   });
 
   it("пауза: экран «Пауза», остаток приказа — `left` сервера и не тикает; после «Продолжить» — с того же места", () => {

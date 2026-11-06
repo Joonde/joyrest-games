@@ -94,7 +94,34 @@ const ACTIONS = {
     await p.mouse.down();
     await p.waitForTimeout(300);
   },
-  vote: async (p) => p.locator(".bkp-choice:not(.is-on)").first().tap(),
+  // Голос как в ph-vote: касание выбирает (в комнату ничего), «Голосую: …» — отправляет, повтор касания выбранного не
+  // снимает, передумать — другой и снова «Голосую». Возвращает замечания по ходу.
+  vote: async (p) => {
+    const bad = [];
+    const server = () => p.evaluate(() => window.stand.server().vote);
+    const start = await server();
+    const other = p.locator(".bkp-choice:not(.is-on)").first();
+    const pickName = (await other.innerText()).trim();
+    await other.tap();
+    await p.waitForTimeout(300);
+    if ((await server()) !== start) bad.push("голос ушёл по касанию, без «Голосую»");
+    const cta = p.locator(".bkp-vote-cta");
+    if (!(await cta.innerText()).includes(`Голосую: ${pickName}`)) bad.push(`кнопка не «Голосую: ${pickName}»: ${await cta.innerText()}`);
+    await cta.tap();
+    await p.waitForTimeout(400);
+    const sent = await server();
+    if (sent === start || sent === null) bad.push("«Голосую» не отправило голос");
+    if (!(await cta.innerText()).includes("✓ Голос принят")) bad.push(`нет «✓ Голос принят»: ${await cta.innerText()}`);
+    await p.locator(".bkp-choice.is-on").tap();
+    await p.waitForTimeout(400);
+    if ((await server()) !== sent) bad.push("повторное касание выбранного сняло голос");
+    await p.locator(".bkp-choice:not(.is-on)").first().tap();
+    await cta.tap();
+    await p.waitForTimeout(400);
+    const again = await server();
+    if (again === sent || again === null) bad.push("передумать не вышло");
+    return bad;
+  },
   role: async (p) => p.getByRole("button", { name: "Понятно, скрыть" }).tap(),
   sos: async (p) => p.locator(".bkp-sos__btn").first().tap(),
   // Дождь: датчик присылает движение (как Chrome на Android, без «Разрешить тряску») — «ТРЯСИТЕ!» и сила уходит в комнату.
@@ -116,11 +143,18 @@ const CHECKS = {
   panel: (a, b) => changed(a, b),
   kids: (a, b) => changed(a, b),
   pull: (a, b) => b.holding === true,
-  vote: (a, b) => b.vote !== a.vote && b.vote !== null,
+  vote: (a, b) => b.vote !== null,
   role: (a, b, screen) => b.roleSeen === true && screen !== "role",
   sos: (a, b) => b.sos !== a.sos,
   meteor: (a, b) => (b.shake ?? 0) > 50,
   "meteor-tap": (a, b) => (b.taps ?? 0) > (a.taps ?? 0),
+};
+/** Что должно быть на экране сразу (без касаний): экран и текст; и чего не должно быть. */
+const EXPECT = {
+  "card-finished": { screen: "card" },
+  "reload-finished": { screen: "over", text: "Игра окончена" },
+  "sender-finished": { screen: "over", text: "Игра окончена" },
+  "sender-abandoned": { screen: "panel", senders: 2 },
 };
 /** Что должно быть видно после касаний. */
 const SEEN = {
@@ -153,11 +187,20 @@ for (const width of [360, 412]) {
     await page.waitForFunction(() => window.standReady === true, null, { timeout: 15000 });
     await page.waitForTimeout(500);
     const { found, screen } = await page.evaluate(inspect);
+    const want = EXPECT[s];
+    if (want) {
+      if (want.screen && screen !== want.screen) found.push(`экран ${screen}, а должен быть ${want.screen}`);
+      const text = await page.evaluate(() => document.body.innerText);
+      if (want.text && !text.includes(want.text)) found.push(`не видно «${want.text}»`);
+      if (/обновите страницу|Подключаемся/i.test(text)) found.push("лишнее «обновите страницу» / «Подключаемся»");
+      if (want.senders && (await page.evaluate(() => window.stand.senders())) !== want.senders) found.push(`отправитель не пересоздан: ${await page.evaluate(() => window.stand.senders())}`);
+    }
     // Касания доходят до комнаты (тот же путь, что на сервере: пачка → правила → личное обратно).
     const act = ACTIONS[s];
     if (act && width === 360) {
       const before = await page.evaluate(() => window.stand.server());
-      await act(page);
+      const said = await act(page);
+      if (Array.isArray(said)) found.push(...said);
       await page.waitForTimeout(400);
       const after = await page.evaluate(() => window.stand.server());
       const ok = CHECKS[s](before, after, await page.evaluate(() => window.stand.screen()));

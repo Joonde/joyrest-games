@@ -1288,3 +1288,12 @@
   color: var(--bk-ink-soft);
   text-wrap: balance;
 }
+
+/* Голос отправлен: кнопка не гаснет до серого — это подтверждение, а не запрет. */
+.bkp-vote-cta.is-sent:disabled {
+  opacity: 1;
+  background: rgba(163, 194, 170, 0.18);
+  color: var(--bk-ink);
+  border: 1.5px solid var(--bk-good);
+  cursor: default;
+}

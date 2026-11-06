@@ -47,20 +47,38 @@ class StandLink implements PhoneLink {
   private reply: ((r: RoomInputReply) => void) | null = null;
   closed: RoomClosedReason | null = null;
   mute = false;
+  /** Подписка отвечает отказом с этой причиной (перезагрузка завершённой игры). */
+  subError: string | null = null;
+  /** Первая пачка отправителя — отказ с этой причиной (игра завершена, комната забыта). */
+  sendError: string | null = null;
+  senders = 0;
   constructor(
     readonly w: World,
     public pid: string,
   ) {}
-  subscribe(onEvent: (e: RoomStreamEvent) => void): () => void {
+  subscribe(onEvent: (e: RoomStreamEvent) => void, onError: (e: Error) => void): () => void {
     this.listeners.add(onEvent);
+    const fail = this.subError;
+    if (fail) {
+      queueMicrotask(() => onError(Object.assign(new Error(fail), { reason: fail })));
+      return () => this.listeners.delete(onEvent);
+    }
     queueMicrotask(() => {
       if (this.closed) onEvent({ type: "closed", at: this.w.env.now, reason: this.closed });
       else onEvent({ type: "snapshot", at: this.w.env.now, paused: this.w.env.paused, every: 2000, offlineMs: 4000, data: personalSnapshot(this.w.s, this.pid, this.w.env) });
     });
     return () => this.listeners.delete(onEvent);
   }
-  sender(onReply: (r: RoomInputReply) => void) {
+  sender(onReply: (r: RoomInputReply) => void, onError: (e: Error) => void) {
     this.reply = onReply;
+    this.senders += 1;
+    const fail = this.sendError;
+    if (fail) {
+      this.sendError = null;
+      // Как на сервере: отказ приходит на первую пачку «я на связи», уже после снимка.
+      setTimeout(() => onError(Object.assign(new Error(fail), { reason: fail })), 60);
+      return { push: () => undefined, stop: () => undefined };
+    }
     return {
       push: (event: RoomInputEvent) => {
         if (this.mute) return;
@@ -77,6 +95,13 @@ class StandLink implements PhoneLink {
     const mine = this.w.env.sent.filter((x) => x.pid === this.pid);
     this.w.env.sent = [];
     for (const x of mine) for (const l of this.listeners) l({ type: "event", at: this.w.env.now, data: x.data });
+  }
+  listenersClosed(reason: RoomClosedReason): void {
+    for (const l of this.listeners) l({ type: "closed", at: this.w.env.now, reason });
+  }
+  /** Снимок заново (комнату подняли после «забыта»). */
+  resnap(): void {
+    for (const l of this.listeners) l({ type: "snapshot", at: this.w.env.now, paused: this.w.env.paused, every: 2000, offlineMs: 4000, data: personalSnapshot(this.w.s, this.pid, this.w.env) });
   }
   room(paused: boolean): void {
     for (const l of this.listeners) l({ type: "room", at: this.w.env.now, paused });
@@ -409,6 +434,23 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
     return { w, pid: "p0" };
   },
   abandoned: () => ({ w: world(), pid: "p0" }),
+  // Аудит 2b, №3–4: конец игры и забытая комната.
+  "card-finished": () => {
+    const s = SCENARIOS.card?.();
+    if (!s) throw new Error("нет card");
+    return { ...s, after: (l) => l.listenersClosed("finished") };
+  },
+  "reload-finished": () => ({ w: world(), pid: "p0" }),
+  "sender-finished": () => {
+    const w = world();
+    toLeg(w, 0);
+    return { w, pid: "p0" };
+  },
+  "sender-abandoned": () => {
+    const w = world();
+    toLeg(w, 0);
+    return { w, pid: "p0", after: (l) => l.resnap() };
+  },
   removed: () => ({ w: world(), pid: "p0" }),
   offline: () => {
     const w = world();
@@ -432,6 +474,9 @@ const link = new StandLink(w, pid);
 if (scenario === "tab") link.closed = "busy";
 if (scenario === "abandoned") link.closed = "abandoned";
 if (scenario === "removed") link.closed = "removed";
+if (scenario === "reload-finished") link.subError = "finished";
+if (scenario === "sender-finished") link.sendError = "finished";
+if (scenario === "sender-abandoned") link.sendError = "abandoned";
 const member = w.member(pid);
 const now = () => w.env.now;
 
@@ -451,6 +496,7 @@ setInterval(() => {
 }, 500);
 (window as unknown as { stand: unknown }).stand = {
   scenarios: Object.keys(SCENARIOS),
+  senders: () => link.senders,
   pid,
   screen: () => document.querySelector<HTMLElement>(".bkp-root")?.dataset.screen ?? null,
   /** Что знает комната (для проверки касаний): положения приборов этого телефона, «Тяга», голос, роль прочитана. */

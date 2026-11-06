@@ -7,7 +7,7 @@ import { GLITCH_SHOW_MS } from "../rules/constants";
 import type { PanelControlView } from "../rules/types";
 import { PauseIcon, ShieldCheck } from "./art";
 import type { PhoneLink, PhoneSender } from "./link";
-import { applyReply, applyStream, emptyModel, flashOf, leftUntil, orderLeft, screenOf, serverNow, silent, type PhoneModel } from "./model";
+import { applyReply, applyStream, closeFinished, emptyModel, flashOf, leftUntil, orderLeft, problemOf, screenOf, serverNow, silent, type PhoneModel } from "./model";
 import { useMotion } from "./motion";
 import { SHAKE_EVERY_MS, shakeReport, type ShakeSent } from "./shake";
 import {
@@ -81,33 +81,54 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
   const [gen, setGen] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const sender = useRef<PhoneSender | null>(null);
+  // Отправитель остановился на «забытой» комнате: новый — как только подписка снова получит снимок.
+  const [senderGen, setSenderGen] = useState(0);
+  const senderDown = useRef(false);
   const online = useOnline();
   useTick(200);
 
+  const finished = useCallback(() => setM(closeFinished), []);
+
   useEffect(() => {
+    senderDown.current = false;
     const s = link.sender(
       (reply) => setM((x) => applyReply(x, reply, now())),
-      () => setError("Не получилось отправить нажатия — обновите страницу."),
+      (problem) => {
+        const kind = problemOf(problem);
+        if (kind === "finished") return finished();
+        if (kind === "abandoned") {
+          senderDown.current = true;
+          return;
+        }
+        if (kind === "error") setError("Не получилось отправить нажатия — обновите страницу.");
+      },
     );
     sender.current = s;
     return () => {
       s.stop();
       sender.current = null;
     };
-  }, [link, now]);
+  }, [link, now, senderGen, finished]);
 
   useEffect(() => {
     setError(null);
     return link.subscribe(
-      (event) => setM((x) => applyStream(x, event, now())),
+      (event) => {
+        setM((x) => applyStream(x, event, now()));
+        if (event.type === "snapshot" && senderDown.current) {
+          senderDown.current = false;
+          setSenderGen((g) => g + 1);
+        }
+      },
       (problem) => {
-        const reason = (problem as { reason?: unknown }).reason;
-        if (reason === "removed" || reason === "replaced" || reason === "busy") return;
-        setError("Связь с игрой прервалась — обновите страницу.");
+        const kind = problemOf(problem);
+        // После перезагрузки завершённой игры подписка получает отказ «finished» — это «Игра окончена», а не «Подключаемся».
+        if (kind === "finished") return finished();
+        if (kind === "error") setError("Связь с игрой прервалась — обновите страницу.");
       },
       take,
     );
-  }, [link, take, gen, now]);
+  }, [link, take, gen, now, finished]);
 
   const push = useCallback((event: Record<string, unknown> & { t: string }, nowFlag = false) => sender.current?.push(event, nowFlag), []);
 
@@ -278,7 +299,7 @@ export function BublikatorPhone({ link, name, code, now = Date.now }: PhoneProps
       case "dock":
         return <DockScreen v={v} crew={crew} />;
       case "vote":
-        return <VoteScreen v={v} crew={crew} left={leftUntil(m, v.vote?.endsAt ?? v.endsAt, t)} onVote={(pid) => push({ t: "vote", pid }, true)} />;
+        return <VoteScreen v={v} crew={crew} left={leftUntil(m, v.vote?.endsAt ?? v.endsAt, t)} key={v.vote?.endsAt ?? 0} onVote={(pid) => push({ t: "vote", pid }, true)} />;
       case "nosab":
         return <NoSabScreen v={v} crew={crew} />;
       case "voted":

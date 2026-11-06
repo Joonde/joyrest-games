@@ -265,7 +265,10 @@ export function subscribeRoom(
 ): () => void {
   const id = encodeURIComponent(sessionId);
   const sub = newId().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 16);
-  const url = `/api/stream/room/${id}/${kind}?sub=${sub}${options.take ? "&take=1" : ""}`;
+  const base = `/api/stream/room/${id}/${kind}?sub=${sub}`;
+  // «Открыть здесь» вытесняет только один раз: как только поток открылся (пришло первое событие), переподключения —
+  // и самого браузера, и после «забыта» — идут без `take` и никого больше не вытесняют.
+  let take = options.take === true;
   const setTimer = deps.setTimer ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
   const clearTimer = deps.clearTimer ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>));
   let stopped = false;
@@ -292,6 +295,7 @@ export function subscribeRoom(
     if (stopped) return;
     const event = streamEventOf(value);
     if (!event) return;
+    take = false;
     onEvent(event);
     if (event.type === "closed") {
       if (event.reason === "removed") halt(new ApiError("permission-denied", 403, "removed"));
@@ -303,7 +307,9 @@ export function subscribeRoom(
   function start() {
     let ended = false;
     const stop = deps.open<unknown>({
-      url,
+      get url() {
+        return take ? `${base}&take=1` : base;
+      },
       poll: async () => {
         try {
           deliver(await deps.get(`/api/rooms/${id}/${kind}`));

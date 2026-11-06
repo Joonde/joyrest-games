@@ -712,6 +712,14 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
 .joy-fab{ position: fixed; left: 20px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 30; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 3px 20px 3px 3px; border-radius: 999px; border: 1px solid var(--btn-outline); background: var(--card); color: var(--ink); font-size: 15px; font-weight: 600; box-shadow: var(--shadow); transition: transform .3s ease, opacity .3s ease; }
 .joy-av{ position: relative; display: block; width: 44px; height: 44px; flex: none; overflow: hidden; border-radius: 50%; border: 1px solid var(--btn-outline); background: var(--logo-bg); }
 .joy-av--big{ width: 52px; height: 52px; }
+/* Джой в шапке: лицо, от 1280 px — с надписью «Спросить Джой», уже 340 px — только в меню; в меню телефона — строка «Спросить помощника Джой». */
+.joy-hbtn{ display: inline-flex; align-items: center; gap: 8px; flex: none; min-height: 44px; padding: 0; border-radius: 999px; border: 0; background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.joy-av--head{ width: 44px; height: 44px; }
+.joy-hbtn__text{ display: none; }
+.joy-hbtn:hover .joy-av{ box-shadow: 0 0 0 4px var(--spot); }
+@media (max-width: 339px){ .joy-hbtn{ display: none; } }
+@media (min-width: 1280px){ .nav-links{ gap: 20px; } .joy-hbtn{ padding: 0 16px 0 0; border: 1.5px solid var(--btn-outline); } .joy-av--head{ width: 41px; height: 41px; border: 0; } .joy-hbtn__text{ display: inline; } }
+.mobile-panel .nav-joy{ color: var(--accent-text); font-weight: 600; }
 /* Кадры Джой лежат друг на друге: снизу всегда «обычный», сверху виден один — моргание или рот (js/joy-bot.js, data-frame). */
 .joy-av__f{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
 .joy-av__f--base,

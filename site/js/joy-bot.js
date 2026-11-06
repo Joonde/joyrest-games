@@ -23,7 +23,10 @@
   var talkTimer = 0;
   var mouthTimer = 0;
   var talking = false;
-  var faces = [fab.querySelector('.joy-av'), avatar];
+  var openers = Array.prototype.slice.call(document.querySelectorAll('[data-joy-open]'));
+  var lastOpener = fab;
+  // Лица Джой на кнопках (плавающая и в шапке) моргают вместе с окном.
+  var faces = [fab.querySelector('.joy-av'), avatar].concat(openers.map(function (o) { return o.querySelector('.joy-av'); })).filter(Boolean);
   var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var MOUTH = ['a', 'i', 'o', 'base', 'a', 'o', 'i', 'base', 'i', 'a'];
   var started = false;
@@ -135,16 +138,28 @@
   function setOpen(open, quiet) {
     panel.hidden = !open;
     fab.setAttribute('aria-expanded', String(open));
+    openers.forEach(function (o) { if (o.tagName === 'BUTTON') o.setAttribute('aria-expanded', String(open)); });
     if (open) {
       start();
       log.focus({ preventScroll: true });
       scrollDown();
     } else if (!quiet) {
-      fab.focus();
+      // Фокус — туда, откуда открыли; плавающая кнопка на телефоне может быть спрятана.
+      var shown = function (n) { return n && n.offsetParent !== null && !n.classList.contains('is-away'); };
+      var back = [lastOpener, fab, document.getElementById('burgerBtn')].filter(shown)[0];
+      if (back) back.focus({ preventScroll: true });
     }
   }
 
-  fab.addEventListener('click', function () { setOpen(panel.hidden); });
+  fab.addEventListener('click', function () { lastOpener = fab; setOpen(panel.hidden); });
+  // Джой в шапке и в меню телефона: открыть окно (ссылка меню сама закрывает меню — js/script.js).
+  openers.forEach(function (o) {
+    o.addEventListener('click', function (e) {
+      e.preventDefault();
+      lastOpener = o.tagName === 'BUTTON' ? o : document.querySelector('.joy-hbtn');
+      setOpen(true);
+    });
+  });
   document.getElementById('joyClose').addEventListener('click', function () { setOpen(false); });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !panel.hidden) setOpen(false);

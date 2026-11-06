@@ -240,16 +240,21 @@ const FLASH_TEXT: Record<Flash["kind"], { mark: string; title: string; text: str
   cancel: { mark: "×", title: "Приказ отменён", text: "Без штрафа, новый через секунду." },
 };
 
+/**
+ * Карточка приказа. Читалке экрана — только текст приказа и итог (`aria-live` на них, не на всей карточке с секундами).
+ * «Вы помогли!» при своём приказе — маленькой меткой над ним, приказ не закрывается (аудит 2b, №7).
+ */
 function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null; flash: Flash | null; w: ThemeWords }) {
   const o = v.order;
-  if (flash) {
+  const helpedBadge = flash?.kind === "helped" && o !== null && o.id !== flash.order;
+  if (flash && !helpedBadge) {
     const f = FLASH_TEXT[flash.kind];
     return (
-      <section className={`bkp-order bkp-order--${flash.kind}`} aria-live="polite">
+      <section className={`bkp-order bkp-order--${flash.kind}`}>
         <span className="bkp-order__mark" aria-hidden="true">
           {f.mark}
         </span>
-        <div>
+        <div aria-live="polite">
           <h2 className="bkp-h2">{f.title}</h2>
           <p className="bkp-text">{flash.kind === "done" ? `${cap(w.ship)} ${verb(w, "прибавил", "прибавили")}. ${f.text}` : f.text}</p>
         </div>
@@ -258,17 +263,28 @@ function OrderCard({ v, left, flash, w }: { v: PersonalView; left: number | null
   }
   if (!o) {
     return (
-      <section className="bkp-order bkp-order--wait" aria-live="polite">
+      <section className="bkp-order bkp-order--wait">
         <p className="bkp-eyebrow">Ваш приказ</p>
-        <h2 className="bkp-h2">Сейчас придёт…</h2>
+        <h2 className="bkp-h2" aria-live="polite">
+          Сейчас придёт…
+        </h2>
       </section>
     );
   }
   const frac = o.total > 0 && left !== null ? Math.max(0, Math.min(1, left / o.total)) : 1;
   return (
-    <section className={`bkp-order${o.frozen ? " is-frozen" : ""}`} aria-live="polite">
-      <p className="bkp-eyebrow">Ваш приказ</p>
-      <h2 className="bkp-order__text">{o.text}</h2>
+    <section className={`bkp-order${o.frozen ? " is-frozen" : ""}`}>
+      <div className="bkp-order__top">
+        <p className="bkp-eyebrow">Ваш приказ</p>
+        {helpedBadge && (
+          <span className="bkp-helped" role="status">
+            ✓ Вы помогли!
+          </span>
+        )}
+      </div>
+      <h2 className="bkp-order__text" aria-live="polite">
+        {o.text}
+      </h2>
       <p className="bkp-text">{o.frozen ? "Приказы на паузе — время стоит." : o.mine ? "Прибор у вас — двигайте сами!" : `Прибора «${o.control}» у вас нет — крикните экипажу!`}</p>
       <div className="bkp-order__time">
         <div className="bkp-bar" aria-hidden="true">

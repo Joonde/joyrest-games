@@ -38,6 +38,15 @@ function inspect() {
   if (doc.scrollWidth > vw + 1) found.push(`прокрутка вбок: ${doc.scrollWidth} > ${vw}`);
   const text = document.body.innerText;
   for (const bad of ["undefined", "NaN", "[object", "null"]) if (text.includes(bad)) found.push(`мусор в тексте: «${bad}»`);
+  // Читалке экрана — только текст приказа и итоги: в «живой» области не должно быть тикающих секунд.
+  for (const el of document.querySelectorAll("[aria-live]")) {
+    if (/\d+ с\b/.test(el.textContent ?? "") || el.querySelector(".bkp-order__left, .bkp-bar")) found.push(`aria-live с секундами: ${(el.textContent ?? "").slice(0, 40)}`);
+  }
+  // Анимации — только transform и opacity.
+  for (const el of document.querySelectorAll(".bkp-root *")) {
+    const t = getComputedStyle(el).transitionProperty;
+    if (/box-shadow|width|height|top|left/.test(t) && getComputedStyle(el).transitionDuration !== "0s") found.push(`анимация не transform/opacity: ${t} у ${el.className}`);
+  }
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     const st = getComputedStyle(el);
@@ -155,6 +164,7 @@ const EXPECT = {
   "reload-finished": { screen: "over", text: "Игра окончена" },
   "sender-finished": { screen: "over", text: "Игра окончена" },
   "sender-abandoned": { screen: "panel", senders: 2 },
+  helped: { screen: "panel", text: "Вы помогли!", selector: ".bkp-order__text" },
 };
 /** Что должно быть видно после касаний. */
 const SEEN = {
@@ -172,7 +182,7 @@ await first.close();
 
 for (const width of [360, 412]) {
   for (const s of all) {
-    const page = await browser.newPage({ viewport: { width, height: 800 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+    const page = await browser.newPage({ viewport: { width, height: 800 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, reducedMotion: process.env.MOTION ?? "reduce" });
     const errors = [];
     page.on("pageerror", (e) => errors.push(`ошибка страницы: ${e.message}`));
     page.on("console", (m) => {
@@ -204,6 +214,7 @@ for (const width of [360, 412]) {
       if (want.screen && screen !== want.screen) found.push(`экран ${screen}, а должен быть ${want.screen}`);
       const text = await page.evaluate(() => document.body.innerText);
       if (want.text && !text.includes(want.text)) found.push(`не видно «${want.text}»`);
+      if (want.selector && (await page.locator(want.selector).count()) === 0) found.push(`нет ${want.selector}`);
       if (/обновите страницу|Подключаемся/i.test(text)) found.push("лишнее «обновите страницу» / «Подключаемся»");
       if (want.senders && (await page.evaluate(() => window.stand.senders())) !== want.senders) found.push(`отправитель не пересоздан: ${await page.evaluate(() => window.stand.senders())}`);
     }

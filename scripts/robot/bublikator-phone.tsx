@@ -224,6 +224,27 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
       },
     };
   },
+  // Аудит 2b, №7: свой прибор выполнил приказ товарища, а у самого приказ на экране — метка, приказ не закрывается.
+  helped: () => {
+    const w = world();
+    toLeg(w, 0);
+    const helper = (): string | null => {
+      if (!w.member("p0").order) return null;
+      const q = Object.values(w.s.members).find((m) => m.pid !== "p0" && m.order && w.s.controls[m.order.control]?.owner === "p0");
+      return q?.pid ?? null;
+    };
+    for (let i = 0; i < 400 && helper() === null; i += 1) w.advance(100);
+    const q = helper();
+    return {
+      w,
+      pid: "p0",
+      after: (l) => {
+        if (q) w.fulfil(q);
+        w.advance(800);
+        l.pump();
+      },
+    };
+  },
   double: () => {
     const w = world();
     toLeg(w, 0);

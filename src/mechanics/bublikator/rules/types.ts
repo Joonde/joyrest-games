@@ -175,6 +175,8 @@ export interface Crew {
   merged: number;
   /** Счётчики итоговой карточки влитых экипажей (приказы, первые финиши, перелёты, лучший щит) — вместе с их очками. */
   mergedStats?: CardStats;
+  /** Командная сессия: команда платформы этого экипажа (по ней и название). */
+  team?: string;
 }
 
 /** Счётчики итоговой карточки экипажа. */
@@ -255,6 +257,8 @@ export interface BubState {
    * садятся в самый маленький).
    */
   teamCrew?: Record<string, number>;
+  /** Названия команд платформы (как назвали при входе, со смайликом) — это и названия их экипажей (решение владельца 6 ноября 2026). */
+  teamNames?: Record<string, string>;
   phase: Phase;
   legIndex: number;
   members: Record<string, Member>;

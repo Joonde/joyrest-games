@@ -479,7 +479,7 @@ describe("«Бубликатор» в игровой комнате", () => {
   it("команда = экипаж (решение владельца 6 ноября 2026): 1, 3, 5 и 12 команд — столько же экипажей, вся команда в своём; в команде 17 — 10 игроков и 7 дублёров", () => {
     const NOEV = { events: { meteor: false, pull: false, sos: false, captain: false } };
     const teamsRoom = (sizes: number[]) => {
-      const teams = sizes.map((_, i) => [`t${i}`, `Команда ${i}`] as [string, string]);
+      const teams = sizes.map((_, i) => [`t${i}`, `🦊 Команда ${i}`] as [string, string]);
       // Гости входят вперемешку, как в зале.
       const players: Array<{ pid: string; name: string; team: string | null }> = [];
       const left = [...sizes];
@@ -504,6 +504,8 @@ describe("«Бубликатор» в игровой комнате", () => {
         expect(crewMembers(s, id).length).toBe(n);
         expect(crewPlayers(s, id).length).toBe(Math.min(n, 10));
         expect(crewMembers(s, id).filter((m) => m.role === "double").length).toBe(Math.max(0, n - 10));
+        // Экипаж называется как команда — со смайликом (решение владельца 6 ноября 2026).
+        expect(s.crews.find((c) => c.id === id)?.name).toBe(`🦊 Команда ${i}`);
       });
     }
   });
@@ -567,6 +569,24 @@ describe("«Бубликатор» в игровой комнате", () => {
     expect(s.members.b1?.role).toBe("player");
     expect(s.members.n1?.role).toBe("player");
     for (const m of Object.values(s.members)) expect(m.crew).toBe(crewOfTeam(m.team ?? ""));
+    // Название экипажа — как у команды; переименовали команду — переименовался экипаж; «Объединить» не меняет название.
+    expect(s.crews.map((c) => c.name)).toEqual(["Комета", "Орбита", "Пульсар"]);
+    r.upsertParticipant({ id: "t2", name: "🚀 Орбита-2", kind: "team", teamId: null }, now);
+    tick(200);
+    expect(s.crews.find((c) => c.id === crewOfTeam("t2"))?.name).toBe("🚀 Орбита-2");
+    const L2 = s.leg;
+    if (L2) {
+      L2.event = null;
+      L2.schedule = [];
+      L2.flight = L2.duration;
+    }
+    tick(200);
+    expect(r.command("merge", { from: crewOfTeam("t1"), to: crewOfTeam("t3") }, null, now)).toEqual({ ok: true });
+    tick(200);
+    expect(s.crews.find((c) => c.id === crewOfTeam("t3"))?.name).toBe("Пульсар");
+    r.upsertParticipant({ id: "t1", name: "Комета-2", kind: "team", teamId: null }, now);
+    tick(200);
+    expect(s.crews.find((c) => c.id === crewOfTeam("t3"))?.name).toBe("Пульсар");
   });
 
   it("пауза и перезапуск (п. 2): команда на паузе считает от момента паузы; перезапуск → на паузе → «Дальше» → «Продолжить» — взлёт 5 с", () => {

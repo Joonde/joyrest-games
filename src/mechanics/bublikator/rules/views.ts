@@ -3,8 +3,8 @@
  * (свои приборы, свой приказ, своя роль; пометка ложного приказа — только диверсанту) и пульт. Время — по часам сервера.
  */
 import { FIRE_STREAK, GLITCH_SHOW_MS, FLIP_MS, KICK_AFTER_MS, REPAIR_MS, SPEED_WINDOW_MS } from "./constants";
-import { activeMembers, captainOf, crewMembers, crewPlayers, liveCrews, lobbyCrewCount } from "./crews";
-import { crewLook, crewName } from "./names";
+import { activeMembers, captainOf, crewMembers, crewPlayers, crewTitle, liveCrews, lobbyCrewCount } from "./crews";
+import { crewLook } from "./names";
 import { cardStats, crewTotal, gameNow, legResultOf, meteorPower, meteorShield, orderSeconds, places, toServer, voteCandidates, voteVoters, type Env } from "./game";
 import type { BubState, Crew, CrewSummary, EventKind, HostView, Member, PanelControlView, PersonalView, ScreenCrewView, ScreenView } from "./types";
 
@@ -41,7 +41,7 @@ export function frameOf(s: BubState, env: ViewEnv): Frame {
     for (const m of activeMembers(s)) if (m.crew !== null) count.set(m.crew, (count.get(m.crew) ?? 0) + 1);
     const max = s.content.crewSize.max;
     lobby = {
-      crews: Array.from({ length: lobbyCrewCount(s) }, (_, id) => ({ id, name: crewName(s.content.theme, id), count: count.get(id) ?? 0, full: (count.get(id) ?? 0) >= max })),
+      crews: Array.from({ length: lobbyCrewCount(s) }, (_, id) => ({ id, name: crewTitle(s, id), count: count.get(id) ?? 0, full: (count.get(id) ?? 0) >= max })),
       max,
     };
   }
@@ -212,7 +212,7 @@ export function screenView(s: BubState, env: ViewEnv): ScreenView {
             crews: Array.from({ length: count }, (_, id) => {
               const look = crewLook(id, count);
               const names = active.filter((m) => m.crew === id).map((m) => m.name);
-              return { id, name: crewName(s.content.theme, id), color: look.color, icon: look.icon, count: names.length, names };
+              return { id, name: crewTitle(s, id), color: look.color, icon: look.icon, count: names.length, names };
             }),
             waiting: active.filter((m) => m.crew === null).map((m) => m.name),
             max: s.content.crewSize.max,

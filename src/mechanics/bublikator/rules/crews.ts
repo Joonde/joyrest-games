@@ -63,6 +63,40 @@ export function registerTeams(s: BubState, teams: Iterable<string>): void {
   }
 }
 
+/** Названия команд платформы: запоминаем и переименования (экипаж называется как команда). */
+export function nameTeams(s: BubState, teams: ReadonlyMap<string, string>): boolean {
+  if (!s.teamsMode) return false;
+  const names = (s.teamNames ??= {});
+  let changed = false;
+  for (const [id, name] of teams) {
+    if (names[id] === name) continue;
+    names[id] = name;
+    changed = true;
+  }
+  if (!changed) return false;
+  for (const c of s.crews) {
+    const title = c.team !== undefined ? names[c.team] : undefined;
+    if (title && title !== c.name) c.name = title;
+  }
+  return true;
+}
+
+/** Командная сессия: название экипажа — название его команды (первой по порядку, если в экипаж влили другие). */
+export function teamTitle(s: BubState, crew: number): string | null {
+  if (!s.teamsMode || !s.teamCrew) return null;
+  for (const [team, id] of Object.entries(s.teamCrew)) {
+    if (id !== crew) continue;
+    const name = s.teamNames?.[team];
+    if (name) return name;
+  }
+  return null;
+}
+
+/** Название экипажа: в командной сессии — как команда, иначе — по теме. */
+export function crewTitle(s: BubState, crew: number): string {
+  return teamTitle(s, crew) ?? crewName(s.content.theme, crew);
+}
+
 /** Экипаж команды (командная сессия); null — не командная сессия, без команды или команда сверх 20. */
 export function teamCrewOf(s: BubState, team: string | null | undefined): number | null {
   if (!s.teamsMode || team === null || team === undefined) return null;
@@ -276,7 +310,12 @@ function gatherTeams(s: BubState): boolean {
   const active = [...activeMembers(s)];
   const ids = [...new Set(active.map((m) => m.crew).filter((c): c is number => c !== null && c < CREWS_MAX))].sort((a, b) => a - b);
   if (ids.length === 0) return false;
-  s.crews = ids.map((id) => newCrew(id, crewName(s.content.theme, id), crewLook(id, ids.length)));
+  s.crews = ids.map((id) => {
+    const c = newCrew(id, crewTitle(s, id), crewLook(id, ids.length));
+    const team = Object.entries(s.teamCrew ?? {}).find(([, x]) => x === id)?.[0];
+    if (team !== undefined) c.team = team;
+    return c;
+  });
   const count = new Map<number, number>();
   const waiting: Member[] = [];
   for (const m of active) {

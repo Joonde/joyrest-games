@@ -69,6 +69,7 @@ import {
   lobbyCrewCount,
   mergeCrews,
   moveMember,
+  nameTeams,
   registerTeams,
   rosterChanged,
   seatLate,
@@ -229,6 +230,7 @@ export function createState(contentRaw: unknown, teamsMode: boolean, env: Env): 
 export function join(s: BubState, p: { pid: string; name: string; team: string | null }, env: Env): void {
   registerTeams(s, env.teams.keys());
   if (p.team !== null) registerTeams(s, [p.team]);
+  nameTeams(s, env.teams);
   const known = s.members[p.pid];
   if (known) {
     known.name = p.name;
@@ -268,6 +270,11 @@ export function midLeg(s: BubState): boolean {
 
 /** Сверка состава и связи: ушедшие из сессии, без связи (с какого момента), вернувшиеся после «Убрать». */
 export function syncPresence(s: BubState, env: Env, now: number): void {
+  // Команду переименовали на платформе — экипаж называется так же.
+  if (s.teamsMode && nameTeams(s, env.teams)) {
+    for (const pid of Object.keys(s.members)) s.rt.dirty.add(pid);
+    env.changed();
+  }
   const present = new Map(env.players.map((p) => [p.pid, p]));
   for (const m of Object.values(s.members)) {
     const p = present.get(m.pid);

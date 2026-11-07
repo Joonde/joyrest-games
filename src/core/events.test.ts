@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyEvent } from "../data/types";
-import { bookingId, bookingNote, calcHoursMax, cleanPhone, contactLabel, contactLinks, crowdedClusters, formatContact, noticeText, parseContact, telegramNick, validEmail, periodOf, reminderDue, shiftPeriod, statsOf, endIn, eventSpan, eventStatus, fillFromRequest, parseEventInput, parseLeadText, sortEvents, timelineHours, timelineOf, weekStart } from "./events";
+import { bookingId, bookingNote, eventLink, eventOfBooking, calcHoursMax, cleanPhone, contactLabel, contactLinks, crowdedClusters, formatContact, noticeText, parseContact, telegramNick, validEmail, periodOf, reminderDue, shiftPeriod, statsOf, endIn, eventSpan, eventStatus, fillFromRequest, parseEventInput, parseLeadText, sortEvents, timelineHours, timelineOf, weekStart } from "./events";
 
 const ev = (id: string, day: string, start: number, end: number, extra: Partial<AgencyEvent> = {}): AgencyEvent => ({
   id,
@@ -158,6 +158,15 @@ describe("планировщик: уведомления ведущему в Tel
     for (const secret of ["Ольга", "900", "Ленина"]) expect(text).not.toContain(secret);
     expect(noticeText("hours", e, "u", start - 2 * 3_600_000)).toContain("Через 2 ч");
     expect(noticeText("cancelled", e, "u")).not.toContain("студии");
+  });
+  it("ссылка ведёт на карточку этого мероприятия (там «✅ Принял, готовлюсь»), запись календаря знает своё мероприятие", () => {
+    expect(eventLink("https://g.ru", "abc")).toBe("https://g.ru/studio/calendar?tab=events&event=abc");
+    expect(eventLink("https://g.ru", "a b/c")).toBe("https://g.ru/studio/calendar?tab=events&event=a%20b%2Fc");
+    expect(eventLink("https://g.ru")).toBe("https://g.ru/studio/calendar?tab=events");
+    expect(noticeText("created", { ...e, id: "ev42" }, "https://g.ru")).toContain("https://g.ru/studio/calendar?tab=events&event=ev42");
+    expect(eventOfBooking(bookingId("ev42"))).toBe("ev42");
+    expect(eventOfBooking("ev-")).toBeNull();
+    expect(eventOfBooking("cal-123")).toBeNull();
   });
 });
 

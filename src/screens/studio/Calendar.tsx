@@ -5,7 +5,7 @@
  * время за ведущим («Мероприятие JoyRest» — у ведущего это время становится занятым).
  */
 import { useMemo, useRef, useState, type CSSProperties } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   addDays,
   availabilityOf,
@@ -29,7 +29,7 @@ import {
   type MemberStatus,
 } from "../../core/calendar";
 import { professionOf, professionTitle } from "../../core/professions";
-import { bookingId, bookingNote } from "../../core/events";
+import { bookingId, bookingNote, eventOfBooking } from "../../core/events";
 import { calendarRepo, eventsRepo, permissions, useLoad, type AgencyEvent, type AvailabilityEntry, type AvailabilityKind, type CalendarMember, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
@@ -93,6 +93,8 @@ function CalendarPage({ profile }: { profile: UserProfile }) {
                 me={profile.uid}
                 openDraft={params.get("draft")}
                 openClient={params.get("client")}
+                openEvent={params.get("event")}
+                onEventOpened={() => setParams({ tab: "events" }, { replace: true })}
                 onClientOpened={() => setParams({ tab: "events" }, { replace: true })}
                 onDraftOpened={() => setParams({ tab: "events" }, { replace: true })}
                 onToast={showToast}
@@ -382,7 +384,14 @@ function MyCalendar({ onToast }: { onToast: (text: string) => void }) {
                 </span>
                 {e.note && <span className="muted small cal-entry__note">{e.note}</span>}
                 {e.kind === "booked" ? (
-                  <span className="muted small">Закрепил владелец</span>
+                  eventsRepo && eventOfBooking(e.id) ? (
+                    // Мероприятие JoyRest — его карточка с программой и «✅ Принял, готовлюсь» (решение владельца 7 ноября 2026).
+                    <Link className="btn btn--secondary" to={`/studio/calendar?tab=events&event=${encodeURIComponent(eventOfBooking(e.id) ?? "")}`}>
+                      Открыть мероприятие →
+                    </Link>
+                  ) : (
+                    <span className="muted small">Закрепил владелец</span>
+                  )
                 ) : (
                   <button type="button" className="btn btn--quiet" onClick={() => remove(e)}>
                     Убрать

@@ -270,6 +270,8 @@ export function Planner({
   const [openId, setOpenId] = useState<string | null>(null);
   // Карточка, к которой нужно прокрутить, когда день загрузится (переход из колокольчика или Telegram).
   const [focusId, setFocusId] = useState<string | null>(null);
+  // Отменённое мероприятие в дне не показывается — его карточка из уведомления стоит отдельно сверху.
+  const [pinned, setPinned] = useState<AgencyEvent | null>(null);
   useEffect(() => {
     if (!openEvent || !eventsRepo) return;
     const repo = eventsRepo;
@@ -281,6 +283,7 @@ export function Planner({
         if (gone) return;
         if (found) {
           setForm(null);
+          setPinned(found.cancelled ? found : null);
           setView("day");
           setDay(found.day);
           setOpenId(found.id);
@@ -452,6 +455,11 @@ export function Planner({
             + Новое мероприятие
           </button>
         </div>
+      )}
+      {pinned && (
+        <section className="stack stack--tight" aria-label="Мероприятие из уведомления">
+          {card(pinned, true)}
+        </section>
       )}
       <div className="seg plan-seg plan-seg--views" role="group" aria-label="Вид">
         {(Object.keys(VIEW_TITLES) as View[]).filter((v) => admin || v !== "stats").map((v) => (

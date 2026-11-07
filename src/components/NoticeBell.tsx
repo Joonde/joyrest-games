@@ -16,7 +16,8 @@ function agoLabel(ms: number): string {
 /**
  * Колокольчик уведомлений в шапке студии. Владелец и менеджер по продажам (`clients`): обращения клиентов и клиенты,
  * которые ждут ответа в Telegram (касание строки — карточка клиента в «Клиентах»). Все: свои мероприятия — назначено,
- * изменено, снято, отменено (касание — «Мероприятия» календаря; решение владельца 6 ноября 2026).
+ * изменено, снято, отменено (касание — карточка этого мероприятия в «Мероприятиях» календаря, раскрыта; решения владельца
+ * 6 и 7 ноября 2026).
  */
 export function NoticeBell({ clients = false }: { clients?: boolean }) {
   const navigate = useNavigate();
@@ -119,7 +120,8 @@ export function NoticeBell({ clients = false }: { clients?: boolean }) {
 
   function go(n: Notice) {
     setOpen(false);
-    if (n.kind === "event") navigate("/studio/calendar?tab=events");
+    // Своё мероприятие — сразу его карточка с «✅ Принял, готовлюсь» (а не просто календарь).
+    if (n.kind === "event") navigate(`/studio/calendar?tab=events${n.eventId ? `&event=${encodeURIComponent(n.eventId)}` : ""}`);
     else navigate(`/studio/clients?id=${encodeURIComponent(n.clientId)}`);
   }
 

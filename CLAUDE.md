@@ -403,7 +403,8 @@ Firebase удаляются, Firebase-код удаляется отдельны
   шрифты — файлы платформы из `public/fonts/` (Google Fonts не подключаем); логотипы из
   `public/brand/` встраиваются в элементы `data-brand-svg="<имя>"` (без метаданных, id
   уникальны, цвет — `--logo-color`, контраст с `--logo-bg` ≥ 3 в обеих темах сайта);
-  иконки — `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png` (180×180) из `favicon.svg`.
+  иконки — `favicon.svg`, `favicon-32.png`, `favicon-120.png` и `favicon.ico` (PNG 16/32/48 внутри ICO) — значок в выдаче Яндекса
+  (он просит не меньше 120×120 и ищет `/favicon.ico`; решение владельца 7 ноября 2026), `apple-touch-icon.png` (180×180) из `favicon.svg`.
 - **Пока сайт не открываем** (у владельца нет ИП, заявки принимать нельзя). На joy-rest.ru по
   умолчанию заглушка «скоро» (`deploy/caddy/soon`, её отдаёт `app-prod`), `/api/lead` — 404.
   Сайт включает только владелец: `sudo joyrest site on|off` → `SITE_ENABLED` в

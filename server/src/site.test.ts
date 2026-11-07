@@ -657,6 +657,18 @@ describe("логотип сайта", () => {
       return [png.readUInt32BE(16), png.readUInt32BE(20)];
     };
     expect(size("favicon-32.png")).toEqual([32, 32]);
+    expect(size("favicon-120.png")).toEqual([120, 120]);
+    expect(built).toContain('rel="icon" href="/favicon-120.png" type="image/png" sizes="120x120"');
+    // favicon.ico: ICO с тремя PNG 16, 32, 48 — Яндекс берёт значок сайта и отсюда.
+    const ico = readFileSync(join(out, "favicon.ico"));
+    expect([ico.readUInt16LE(0), ico.readUInt16LE(2), ico.readUInt16LE(4)]).toEqual([0, 1, 3]);
+    for (const [i, side] of [16, 32, 48].entries()) {
+      const at = 6 + 16 * i;
+      expect([ico.readUInt8(at), ico.readUInt8(at + 1)]).toEqual([side, side]);
+      const start = ico.readUInt32LE(at + 12);
+      expect(ico.subarray(start + 1, start + 4).toString("latin1")).toBe("PNG");
+      expect(start + ico.readUInt32LE(at + 8)).toBeLessThanOrEqual(ico.length);
+    }
     expect(size("apple-touch-icon.png")).toEqual([180, 180]);
     expect(built).toContain('rel="apple-touch-icon" href="/apple-touch-icon.png"');
     for (const dir of ["css", "js", "img"]) {

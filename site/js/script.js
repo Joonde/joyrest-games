@@ -720,6 +720,9 @@
       // Готовый пакет заменяет расчёт калькулятора в заявке: иначе тип и карточка «Ваш расчёт» противоречили бы друг другу.
       const hadCalc = !!sentCalc;
       if(hadCalc) clearCalcCard();
+      // Число гостей, вписанное калькулятором, к пакету «до 25» не относится — убираем; своё число клиента не трогаем.
+      const guestsInput = $('guests');
+      if(autoGuests && guestsInput && guestsInput.value === autoGuests){ guestsInput.value = ''; autoGuests = ''; }
       selectType('Готовый пакет «' + b.name + '»');
       goToForm();
       topToast('Пакет «' + b.name + '» — в заявке ✓' + (hadCalc ? ' Расчёт калькулятора убран.' : ''));
@@ -941,7 +944,7 @@
       cur = (i + thumbs.length) % thumbs.length;
       const t = thumbs[cur];
       img.classList.add('is-loading');
-      img.onerror = () => img.classList.remove('is-loading');
+      img.onerror = () => { img.classList.remove('is-loading'); print.classList.remove('is-square'); };
       img.onload = () => {
         img.classList.remove('is-loading');
         print.classList.toggle('is-square', img.naturalWidth > 0 && img.naturalWidth / img.naturalHeight < 1.2);

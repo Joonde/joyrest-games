@@ -676,7 +676,15 @@ describe("готовые пакеты (решение владельца 7–8 �
     expect(text).toContain("Гостей: до 25");
     expect(text).toContain("Цена: 24 900 ₽ — опытный ведущий, будни");
     expect(text).toContain("Программа: Музыкальный\nДопы: Танцевальная пауза\nДлительность: ≈ 1,5–2 часа");
-    expect(text).toContain("с 5 декабря и перед праздниками — праздничная цена");
+    expect(text).toContain("выходные и праздничные дни — по правилам калькулятора");
+    // Студия разбирает сообщение пакета («Заполнить из сообщения», «Вставить расчёт», бот): даты клиент не называл — её нет.
+    for (const b of B.BUNDLES) {
+      for (const today of ["2026-11-08", "2027-01-10", "2027-06-01"]) {
+        const fill = parseLeadText(B.bundleMessage(b.id, "Анна"), today);
+        expect(fill.day, `${b.name} ${today}`).toBeUndefined();
+        expect(fill.clientName, b.name).toBe("Анна");
+      }
+    }
     expect(nb(B.bundleMessage("joyrest"))).toContain("Программа: Квиз → Игровой вечер\nДопы: нет\nДлительность: ≈ 2,5–3 часа");
     // Тема письма у пакета — своя, у расчёта — прежняя.
     expect(decodeURIComponent(P.mailLinks("x", "Готовый пакет JoyRest").gmail)).toContain("su=Готовый пакет JoyRest");

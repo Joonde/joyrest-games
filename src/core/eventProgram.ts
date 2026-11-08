@@ -54,6 +54,11 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  */
 export function programFromCalc(text: string): EventProgram | null {
   let rest = text.replace(/ /g, " ");
+  // Готовый пакет с сайта («🎁 Готовый пакет JoyRest»): программа — только строки «Программа», «Допы», «Длительность»;
+  // в «Что входит» встречаются слова форматов («Мини-квиз»), они программу не задают.
+  if (/Готовый\s+пакет\s+JoyRest/i.test(rest) && /^Программа:/m.test(rest)) {
+    rest = rest.split("\n").filter((l) => /^(Программа|Допы|Длительность):/.test(l.trim())).join("\n");
+  }
   // Старый расчёт мог назвать выезд «Выезд за Московскую область».
   for (const [was, now] of Object.entries(ADDON_RENAMES)) rest = rest.replace(new RegExp(escape(was), "gi"), now);
   const addons = PROGRAM_ADDONS.filter((a) => new RegExp(escape(a), "i").test(rest));

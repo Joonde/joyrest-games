@@ -300,8 +300,8 @@
   }
   /** Письмо с расчётом: почта в браузере (Gmail, Яндекс, Mail.ru) или почтовое приложение (mailto).
    *  Решение владельца 24 октября 2026: клиенту не нужно открывать почтовую программу Mac. */
-  function mailLinks(text) {
-    var to = 'joyrest@mail.ru', su = 'Расчёт JoyRest', enc = encodeURIComponent;
+  function mailLinks(text, subject) {
+    var to = 'joyrest@mail.ru', su = subject || 'Расчёт JoyRest', enc = encodeURIComponent;
     var app = 'mailto:' + to + '?subject=' + enc(su) + '&body=' + enc(String(text || ''));
     return {
       gmail: 'https://mail.google.com/mail/?view=cm&fs=1&to=' + enc(to) + '&su=' + enc(su) + '&body=' + enc(String(text || '')),
@@ -436,10 +436,14 @@
     var who = cleanName(name);
     var out = ['🎁 Готовый пакет JoyRest'];
     if (who) out.push('Имя: ' + who);
-    out.push(line, 'Пакет: ' + b.name, 'Длительность: ' + b.time, 'Гостей: до ' + TIERS[BUNDLE_TIER]);
+    var r = calcPrice({ pkg: b.calc.pkg, tier: BUNDLE_TIER, extras: b.calc.extras, addons: b.calc.addons });
+    var program = [b.calc.pkg].concat(b.calc.extras).map(function (id) { return pkgById(id).name; }).join(' → ');
+    var addons = ADDONS.filter(function (a) { return b.calc.addons.indexOf(a.id) >= 0; }).map(function (a) { return a.label; });
+    out.push(line, 'Пакет: ' + b.name, 'Программа: ' + program, 'Допы: ' + (addons.length ? addons.join(', ') : 'нет'),
+      'Длительность: ≈ ' + hh(r.hours.min) + '–' + hh(r.hours.max) + ' ' + hoursWord(r.hours.max), 'Гостей: до ' + TIERS[BUNDLE_TIER]);
     out.push('Что входит: ' + b.includes.join('; '));
     out.push(line, 'Цена: ' + money(b.price) + ' — опытный ведущий, будни');
-    out.push('Дату, время и число гостей уточним в переписке: пт–вс +10%, в декабре и перед праздниками — праздничная цена.');
+    out.push('Дату, время и число гостей уточним в переписке: пт–вс +10%, с 5 декабря и перед праздниками — праздничная цена.');
     return out.join('\n');
   }
 

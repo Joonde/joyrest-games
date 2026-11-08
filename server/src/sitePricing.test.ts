@@ -41,7 +41,7 @@ interface Pricing {
   parseDate(iso: string): { y: number; m: number; d: number; t: number; wd: number } | null;
   telegramText(text: string): string;
   cleanName(n: unknown): string;
-  mailLinks(text: string): { gmail: string; yandex: string; mailru: string; app: string };
+  mailLinks(text: string, subject?: string): { gmail: string; yandex: string; mailru: string; app: string };
   ADDONS: { id: string; label: string; price: number; fixed: boolean }[];
   TIERS: number[];
   LEVELS: { id: string; discount: number }[];
@@ -660,6 +660,11 @@ describe("готовые пакеты (решение владельца 7–8 �
     expect(html.indexOf('id="packages"')).toBeLessThan(html.indexOf('id="calcPacks"'));
     for (const b of B.BUNDLES) expect(html).toContain(`<option>Готовый пакет «${b.name}»</option>`);
     expect(nb(html)).toContain("Цены — с опытным ведущим, в будни, до 25 гостей.");
+    expect(nb(html)).toContain("с 5 декабря и перед праздниками — праздничная цена");
+    // Скрытая подпись «в калькуляторе» не должна растягивать страницу: карточки и лента — точка отсчёта.
+    const css = readFileSync(join(root, "site/css/style.css"), "utf8");
+    expect(css).toMatch(/\.bundles\{ position: relative;/);
+    expect(css).toMatch(/\.bundle\{ position: relative;/);
   });
 
   it("сообщение менеджеру о пакете: состав, цена, условия; имя — только очищенное", () => {
@@ -670,6 +675,12 @@ describe("готовые пакеты (решение владельца 7–8 �
     expect(text).toContain("Пакет: Всего понемногу");
     expect(text).toContain("Гостей: до 25");
     expect(text).toContain("Цена: 24 900 ₽ — опытный ведущий, будни");
+    expect(text).toContain("Программа: Музыкальный\nДопы: Танцевальная пауза\nДлительность: ≈ 1,5–2 часа");
+    expect(text).toContain("с 5 декабря и перед праздниками — праздничная цена");
+    expect(nb(B.bundleMessage("joyrest"))).toContain("Программа: Квиз → Игровой вечер\nДопы: нет\nДлительность: ≈ 2,5–3 часа");
+    // Тема письма у пакета — своя, у расчёта — прежняя.
+    expect(decodeURIComponent(P.mailLinks("x", "Готовый пакет JoyRest").gmail)).toContain("su=Готовый пакет JoyRest");
+    expect(decodeURIComponent(P.mailLinks("x").gmail)).toContain("su=Расчёт JoyRest");
     expect(text).toContain("праздничная цена");
     expect(B.bundleMessage("mix")).not.toContain("Имя:");
     expect(B.bundleMessage("nope")).toBe("");

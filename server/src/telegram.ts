@@ -154,9 +154,9 @@ interface TgBusinessConnection {
   is_enabled: boolean;
 }
 
-/** Сообщение — расчёт с сайта JoyRest (калькулятор, витрина, /calc/). */
+/** Сообщение — расчёт с сайта JoyRest (калькулятор, витрина, /calc/) или готовый пакет с сайта («🎁 Готовый пакет JoyRest»). */
 export function isCalcMessage(text: string): boolean {
-  return /Расч[её]т\s+JoyRest/i.test(text);
+  return /Расч[её]т\s+JoyRest|Готовый\s+пакет\s+JoyRest/i.test(text);
 }
 
 /** Откуда новая заявка: с сайта, вопрос с сайта, запрос по QR-анкете. */

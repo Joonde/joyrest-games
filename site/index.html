@@ -408,7 +408,7 @@
           </div>
         </article>
       </div>
-      <p class="bundles__note">Цены — с опытным ведущим, в будни, до 25 гостей. В каждом пакете — ведущий, сценарий, игровая платформа JoyRest, реквизит и выезд по Москве. Пятница–воскресенье +10%, в декабре и перед праздниками — праздничная цена, как в калькуляторе.</p>
+      <p class="bundles__note">Цены — с опытным ведущим, в будни, до 25 гостей. В каждом пакете — ведущий, сценарий, игровая платформа JoyRest, реквизит и выезд по Москве. Пятница–воскресенье +10%, с 5 декабря и перед праздниками — праздничная цена, как в калькуляторе.</p>
       <div class="calc-head">
         <p class="calc-head__or">Хотите по-своему?</p>
         <h2>Соберите свой вечер</h2>
@@ -552,7 +552,7 @@
       </aside>
       <!-- «Как проходят наши вечера» (решение владельца 8 ноября 2026): фото с мероприятий целиком, без обрезки — стопка
            распечаток; не список ведущих (в кадре могут быть не все). Новое фото: img/moment-*.webp и строка в .moments__strip. -->
-      <div class="moments" id="moments" aria-labelledby="momentsTitle">
+      <div class="moments" id="moments" role="region" aria-labelledby="momentsTitle">
         <div class="moments__text">
           <div class="moments__head">
             <p class="moments__kicker">Живые кадры</p>
@@ -565,20 +565,20 @@
             <button type="button" class="moments__arrow moments__arrow--next" id="momentNext" aria-label="Следующее фото"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
           </div>
           <ul class="moments__strip" aria-label="Все фото">
-          <li><button type="button" class="moments__thumb is-on" data-moment="0" data-tag="Мафия" data-cap="Город засыпает — просыпается мафия" data-alt="Ведущий в чёрном костюме указывает на гостей в масках за праздничным столом — идёт игра в Мафию" aria-label="Фото 1: Город засыпает — просыпается мафия" aria-current="true"><img src="img/moment-mafia.webp" alt="" loading="lazy" decoding="async"></button></li>
-          <li><button type="button" class="moments__thumb" data-moment="1" data-tag="Игры на ловкость" data-cap="Один бросок — и весь зал замер" data-alt="Ведущий бросает шарик в стаканчики, гости на диване следят за броском" aria-label="Фото 2: Один бросок — и весь зал замер"><img src="img/moment-pong.webp" alt="" loading="lazy" decoding="async"></button></li>
-          <li><button type="button" class="moments__thumb" data-moment="2" data-tag="Праздник" data-cap="Держим зал от начала до финала" data-alt="Ведущий с микрофоном говорит с гостями за накрытыми столами в ресторане" aria-label="Фото 3: Держим зал от начала до финала"><img src="img/moment-host.webp" alt="" loading="lazy" decoding="async"></button></li>
-          <li><button type="button" class="moments__thumb" data-moment="3" data-tag="Ролевая настолка" data-cap="Мастер игры, драконы и кубики" data-alt="Мастер игры за ширмой с драконом улыбается и разводит руками" aria-label="Фото 4: Мастер игры, драконы и кубики"><img src="img/moment-tabletop.webp" alt="" loading="lazy" decoding="async"></button></li>
-          <li><button type="button" class="moments__thumb" data-moment="4" data-tag="Свадьбы — на заказ" data-cap="Первый танец в облаках" data-alt="Первый танец молодожёнов в облаке тяжёлого дыма, гости снимают на телефоны" aria-label="Фото 5: Первый танец в облаках"><img src="img/moment-wedding.webp" alt="" loading="lazy" decoding="async"></button></li>
-          <li><button type="button" class="moments__thumb" data-moment="5" data-tag="Праздник" data-cap="Жених и друзья — фото на память" data-alt="Жених с друзьями стоят вместе у кирпичной стены с гирляндами" aria-label="Фото 6: Жених и друзья — фото на память"><img src="img/moment-friends.webp" alt="" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb is-on" data-moment="0" data-tag="Мафия" data-cap="Город засыпает — просыпается мафия" data-alt="Ведущий в чёрном костюме указывает на гостей в масках за праздничным столом — идёт игра в Мафию" aria-label="Фото 1: Город засыпает — просыпается мафия" aria-current="true"><img src="img/moment-mafia.webp" alt="" width="1280" height="839" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="1" data-tag="Игры на ловкость" data-cap="Один бросок — и весь зал замер" data-alt="Ведущий бросает шарик в стаканчики, гости на диване следят за броском" aria-label="Фото 2: Один бросок — и весь зал замер"><img src="img/moment-pong.webp" alt="" width="1280" height="853" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="2" data-tag="Праздник" data-cap="Держим зал от начала до финала" data-alt="Ведущий с микрофоном говорит с гостями за накрытыми столами в ресторане" aria-label="Фото 3: Держим зал от начала до финала"><img src="img/moment-host.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="3" data-tag="Ролевая настолка" data-cap="Мастер игры, драконы и кубики" data-alt="Мастер игры за ширмой с драконом улыбается и разводит руками" aria-label="Фото 4: Мастер игры, драконы и кубики"><img src="img/moment-tabletop.webp" alt="" width="640" height="640" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="4" data-tag="Свадьбы — на заказ" data-cap="Первый танец в облаках" data-alt="Первый танец молодожёнов в облаке тяжёлого дыма, гости снимают на телефоны" aria-label="Фото 5: Первый танец в облаках"><img src="img/moment-wedding.webp" alt="" width="1280" height="960" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="5" data-tag="Праздник" data-cap="Жених и друзья — фото на память" data-alt="Жених с друзьями стоят вместе у кирпичной стены с гирляндами" aria-label="Фото 6: Жених и друзья — фото на память"><img src="img/moment-friends.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></button></li>
           </ul>
         </div>
         <div class="moments__stage">
-          <div class="moments__back moments__back--2" aria-hidden="true"><img id="momentBack2" src="img/moment-host.webp" alt="" loading="lazy" decoding="async"></div>
-          <div class="moments__back moments__back--1" aria-hidden="true"><img id="momentBack1" src="img/moment-pong.webp" alt="" loading="lazy" decoding="async"></div>
+          <div class="moments__back moments__back--2" aria-hidden="true"><img id="momentBack2" src="img/moment-host.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></div>
+          <div class="moments__back moments__back--1" aria-hidden="true"><img id="momentBack1" src="img/moment-pong.webp" alt="" width="1280" height="853" loading="lazy" decoding="async"></div>
           <figure class="moments__print" id="momentPrint">
             <span class="moments__tape" aria-hidden="true"></span>
-            <img id="momentImg" src="img/moment-mafia.webp" alt="Ведущий в чёрном костюме указывает на гостей в масках за праздничным столом — идёт игра в Мафию" loading="lazy" decoding="async">
+            <img id="momentImg" src="img/moment-mafia.webp" alt="Ведущий в чёрном костюме указывает на гостей в масках за праздничным столом — идёт игра в Мафию" width="1280" height="839" loading="lazy" decoding="async">
             <figcaption aria-live="polite"><span class="moments__cap" id="momentCap">Город засыпает — просыпается мафия</span><span class="moments__tag" id="momentTag">Мафия</span></figcaption>
           </figure>
         </div>

@@ -638,7 +638,7 @@
     $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
     // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
     $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(sheetText));
-    const mails = P.mailLinks(sheetText);
+    const mails = P.mailLinks(sheetText, sheetWord === 'пакет' ? 'Готовый пакет JoyRest' : '');
     document.querySelectorAll('#sendMailList [data-mail]').forEach((a) => { a.href = mails[a.dataset.mail]; });
   }
   if(sheet){
@@ -717,9 +717,12 @@
       if(!b) return;
       e.preventDefault();
       if(SHOWCASE){ shareBundle(b.id, e); return; }
+      // Готовый пакет заменяет расчёт калькулятора в заявке: иначе тип и карточка «Ваш расчёт» противоречили бы друг другу.
+      const hadCalc = !!sentCalc;
+      if(hadCalc) clearCalcCard();
       selectType('Готовый пакет «' + b.name + '»');
       goToForm();
-      topToast('Пакет «' + b.name + '» — в заявке ✓');
+      topToast('Пакет «' + b.name + '» — в заявке ✓' + (hadCalc ? ' Расчёт калькулятора убран.' : ''));
     });
   });
   $('calcCardEdit').addEventListener('click', () => {
@@ -938,10 +941,14 @@
       cur = (i + thumbs.length) % thumbs.length;
       const t = thumbs[cur];
       img.classList.add('is-loading');
+      img.onerror = () => img.classList.remove('is-loading');
       img.onload = () => {
         img.classList.remove('is-loading');
         print.classList.toggle('is-square', img.naturalWidth > 0 && img.naturalWidth / img.naturalHeight < 1.2);
       };
+      const small = t.querySelector('img');
+      img.width = Number(small.getAttribute('width')) || img.width;
+      img.height = Number(small.getAttribute('height')) || img.height;
       img.src = srcOf(cur);
       img.alt = t.dataset.alt || '';
       $('momentCap').textContent = t.dataset.cap || '';

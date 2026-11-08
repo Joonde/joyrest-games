@@ -689,7 +689,7 @@ describe("готовые пакеты (решение владельца 7–8 �
     // Тема письма у пакета — своя, у расчёта — прежняя.
     expect(decodeURIComponent(P.mailLinks("x", "Готовый пакет JoyRest").gmail)).toContain("su=Готовый пакет JoyRest");
     expect(decodeURIComponent(P.mailLinks("x").gmail)).toContain("su=Расчёт JoyRest");
-    expect(text).toContain("праздничная цена");
+    expect(text).toContain("праздничные дни — по правилам калькулятора");
     expect(B.bundleMessage("mix")).not.toContain("Имя:");
     expect(B.bundleMessage("nope")).toBe("");
   });

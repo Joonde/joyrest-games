@@ -577,7 +577,7 @@
     return P.calcMessage(Object.assign({}, calcOpts(), { name: nameEl ? nameEl.value : '' }), hostLevelField.value || '');
   }
   function copyCalc(value, message){
-    const done = () => topToast(message || 'Расчёт скопирован — вставьте его в чат с менеджером', null, null, 6000);
+    const done = () => topToast(message || (sheetWord === 'пакет' ? 'Пакет' : 'Расчёт') + ' скопирован — вставьте его в чат с менеджером', null, null, 6000);
     const fallback = () => {
       const area = document.createElement('textarea');
       area.value = value;
@@ -598,6 +598,15 @@
   const avitoUrl = sheet ? (sheet.dataset.avito || '').trim() : '';
   document.querySelectorAll('[data-avito-link]').forEach((a) => { if(avitoUrl){ a.href = avitoUrl; a.hidden = false; } });
   let sheetText = '', sheetFrom = null;
+  // Что отправляем: расчёт калькулятора или готовый пакет («Выбрать пакет» в витрине) — свой текст и подписи окна.
+  let sheetMake = () => showcaseText(), sheetWord = 'расчёт';
+  const sheetTitle = $('sendSheetTitle'), sheetHint = $('sendSheetHint');
+  const sheetTitleCalc = sheetTitle ? sheetTitle.textContent : '', sheetHintCalc = sheetHint ? sheetHint.textContent : '';
+  function sheetMode(word){
+    sheetWord = word;
+    if(sheetTitle) sheetTitle.textContent = word === 'пакет' ? 'Куда отправить выбранный пакет?' : sheetTitleCalc;
+    if(sheetHint) sheetHint.textContent = word === 'пакет' ? 'Откроется чат с нами, пакет уже будет в сообщении — останется нажать «Отправить».' : sheetHintCalc;
+  }
   function closeSheet(){
     if(!sheet || sheet.hidden) return;
     sheet.hidden = true; document.body.style.overflow = '';
@@ -605,7 +614,8 @@
   }
   let sheetFile = null;
   function shareCalc(e){
-    sheetText = showcaseText();
+    sheetMake = () => showcaseText(); sheetMode('расчёт');
+    sheetText = sheetMake();
     if(!sheet){ copyCalc(sheetText); return; }
     sheetFrom = e && e.currentTarget;
     sheetLinks();
@@ -624,7 +634,7 @@
   }
   // Ссылки окна — по текущему тексту (имя меняется прямо в окне).
   function sheetLinks(){
-    sheetText = showcaseText();
+    sheetText = sheetMake();
     $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
     // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
     $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(sheetText));
@@ -642,10 +652,10 @@
     });
     document.querySelectorAll('#sendMailList [data-mail]').forEach((a) => a.addEventListener('click', () => {
       if(a.dataset.mail === 'app'){ setTimeout(closeSheet, 0); return; }
-      copyCalc(sheetText, 'Открываем почту — расчёт уже в письме (и скопирован, если понадобится вставить)'); closeSheet();
+      copyCalc(sheetText, 'Открываем почту — ' + sheetWord + ' уже в письме (и скопирован, если понадобится вставить)'); closeSheet();
     }));
     // Текст копируем и для Telegram: если приложение не подставит его, останется вставить.
-    $('sendTg').addEventListener('click', () => { copyCalc(sheetText, 'Открываем Telegram — расчёт уже в сообщении (и скопирован, если понадобится вставить)'); closeSheet(); });
+    $('sendTg').addEventListener('click', () => { copyCalc(sheetText, 'Открываем Telegram — ' + sheetWord + ' уже в сообщении (и скопирован, если понадобится вставить)'); closeSheet(); });
     // Авито не даёт подставить текст: копируем его, открываем профиль — там «Написать» и вставить.
     // Авито не даёт подставить текст: сначала шаги прямо в окне (клиент уходит на вкладку Авито и уведомление сайта
     // не видит — жалоба владельца 24 октября 2026), потом копируем расчёт и открываем профиль.
@@ -654,7 +664,7 @@
       $('sendAvito').setAttribute('aria-expanded', String(!box.hidden));
       if(!box.hidden) $('sendAvitoGo').focus();
     });
-    $('sendAvitoGo').addEventListener('click', () => { copyCalc(sheetText, 'Расчёт скопирован. На Авито нажмите «Написать» и вставьте его в сообщение'); closeSheet(); });
+    $('sendAvitoGo').addEventListener('click', () => { copyCalc(sheetText, (sheetWord === 'пакет' ? 'Пакет' : 'Расчёт') + ' скопирован. На Авито нажмите «Написать» и вставьте его в сообщение'); closeSheet(); });
     $('sendImg').addEventListener('click', () => {
       const go = (f) => window.JoyCalcImage.share(f, sheetText).then((how) => {
         if(how === 'saved') topToast('Картинка расчёта сохранена — прикрепите её в чат с нами', null, null, 6000);
@@ -685,6 +695,33 @@
   }
   $('calcSubmit').addEventListener('click', SHOWCASE ? shareCalc : sendCalc);
   $('calcBarSend').addEventListener('click', SHOWCASE ? shareCalc : sendCalc);
+  // «Выбрать пакет» у готовых пакетов: в витрине — окно «Куда отправить» с текстом пакета (bundleMessage), без картинки
+  // расчёта; на открытом сайте — пакет в «Тип мероприятия» заявки и к форме.
+  function shareBundle(id, e){
+    sheetMake = () => P.bundleMessage(id, $('sendName') ? $('sendName').value : ''); sheetMode('пакет');
+    sheetText = sheetMake();
+    if(!sheet){ copyCalc(sheetText); return; }
+    sheetFrom = e && e.currentTarget;
+    sheetLinks();
+    $('sendMailList').hidden = true; $('sendMail').setAttribute('aria-expanded', 'false');
+    if(avitoUrl){ $('sendAvitoGo').href = avitoUrl; $('sendAvito').hidden = false; }
+    $('sendAvitoBox').hidden = true; $('sendAvito').setAttribute('aria-expanded', 'false');
+    sheetFile = null;
+    $('sendImg').hidden = true;
+    sheet.hidden = false; document.body.style.overflow = 'hidden';
+    $('sendWa').focus();
+  }
+  document.querySelectorAll('[data-bundle]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const b = P.bundleById(link.dataset.bundle);
+      if(!b) return;
+      e.preventDefault();
+      if(SHOWCASE){ shareBundle(b.id, e); return; }
+      selectType('Готовый пакет «' + b.name + '»');
+      goToForm();
+      topToast('Пакет «' + b.name + '» — в заявке ✓');
+    });
+  });
   $('calcCardEdit').addEventListener('click', () => {
     $('calculator').scrollIntoView({ behavior: smooth, block: 'start' });
     topToast('Меняйте выбор — расчёт в заявке обновится сам');
@@ -888,6 +925,46 @@
     }, $('formNote'), $('formError'));
     if(ok){ this.reset(); clearCalcCard(); update(); markHosts(); }
   });
+
+  /* «Как проходят наши вечера»: одно фото крупно (целиком, без обрезки), за ним — два следующих; стрелки, лента,
+     касание фото и свайп листают. Адрес фото берётся из миниатюры — сборка переписывает его с отпечатком. */
+  const moments = $('moments');
+  if(moments){
+    const thumbs = Array.from(moments.querySelectorAll('[data-moment]'));
+    const print = $('momentPrint'), img = $('momentImg');
+    let cur = 0;
+    const srcOf = (i) => thumbs[(i + thumbs.length) % thumbs.length].querySelector('img').getAttribute('src');
+    function showMoment(i){
+      cur = (i + thumbs.length) % thumbs.length;
+      const t = thumbs[cur];
+      img.classList.add('is-loading');
+      img.onload = () => {
+        img.classList.remove('is-loading');
+        print.classList.toggle('is-square', img.naturalWidth > 0 && img.naturalWidth / img.naturalHeight < 1.2);
+      };
+      img.src = srcOf(cur);
+      img.alt = t.dataset.alt || '';
+      $('momentCap').textContent = t.dataset.cap || '';
+      $('momentTag').textContent = t.dataset.tag || '';
+      $('momentNum').textContent = String(cur + 1);
+      $('momentBack1').src = srcOf(cur + 1);
+      $('momentBack2').src = srcOf(cur + 2);
+      print.classList.toggle('is-alt', cur % 2 === 1);
+      thumbs.forEach((b, k) => { b.classList.toggle('is-on', k === cur); if(k === cur) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+    }
+    thumbs.forEach((b, k) => b.addEventListener('click', () => showMoment(k)));
+    $('momentPrev').addEventListener('click', () => showMoment(cur - 1));
+    $('momentNext').addEventListener('click', () => showMoment(cur + 1));
+    print.addEventListener('click', () => showMoment(cur + 1));
+    let x0 = null, y0 = 0;
+    print.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    print.addEventListener('touchend', (e) => {
+      if(x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+      x0 = null;
+      if(Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)){ e.preventDefault(); showMoment(cur + (dx < 0 ? 1 : -1)); }
+    });
+  }
 
   /* Промо-ролик: превью в «Обзоре игр» открывает плеер поверх страницы. Видео грузится только сейчас
      (preload="none"); обложка — та же картинка превью (атрибут poster сборка не переписывает). */

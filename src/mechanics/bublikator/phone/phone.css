@@ -1505,6 +1505,11 @@
     line-height: 1.3;
   }
 
+  /* Подсказка «рычаг · сейчас вниз» — лишняя строка: положение и так видно по подсвеченной кнопке. */
+  .bkp-ctl__hint {
+    display: none;
+  }
+
   .bkp-ctl.is-half .bkp-ctl__twin {
     font-size: 14px;
   }

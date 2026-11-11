@@ -35,6 +35,7 @@ export function blockPrepOf(mechanic: string): string {
 
 /** Номера блоков (с 1), где в личном вечере стоит игра библиотеки — со стандартными вопросами. */
 export function templateBlocks(eveningScope: "agency" | "personal", blockScopes: Array<"agency" | "personal" | null>): number[] {
+  void eveningScope;
 
   return blockScopes.flatMap((scope, i) => (scope === "agency" ? [i + 1] : []));
 }

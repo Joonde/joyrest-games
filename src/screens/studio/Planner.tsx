@@ -218,6 +218,8 @@ export function Planner({
   onDraftOpened,
   openClient,
   onClientOpened,
+  openEvent,
+  onEventOpened,
   onToast,
 }: {
   owner: boolean;
@@ -228,6 +230,9 @@ export function Planner({
   /** «📅 Записать мероприятие ведущему» из карточки клиента: форма с его данными. */
   openClient?: string | null;
   onClientOpened?: () => void;
+  /** Из колокольчика и Telegram (`?event=<id>`): день этого мероприятия, его карточка раскрыта — с «✅ Принял, готовлюсь». */
+  openEvent?: string | null;
+  onEventOpened?: () => void;
   onToast: (text: string) => void;
 }) {
   const today = todayMoscow();
@@ -263,12 +268,51 @@ export function Planner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openClient]);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Карточка, к которой нужно прокрутить, когда день загрузится (переход из колокольчика или Telegram).
+  const [focusId, setFocusId] = useState<string | null>(null);
+  // Отменённое мероприятие в дне не показывается — его карточка из уведомления стоит отдельно сверху.
+  const [pinned, setPinned] = useState<AgencyEvent | null>(null);
+  useEffect(() => {
+    if (!openEvent || !eventsRepo) return;
+    const repo = eventsRepo;
+    let gone = false;
+    (async () => {
+      // Сначала предстоящие (обычный случай — «Вам назначено»), потом прошедшие и отменённые.
+      for (const scope of ["upcoming", "past", "cancelled"] as const) {
+        const found = (await repo.list(scope)).find((e) => e.id === openEvent);
+        if (gone) return;
+        if (found) {
+          setForm(null);
+          setPinned(found.cancelled ? found : null);
+          setView("day");
+          setDay(found.day);
+          setOpenId(found.id);
+          setFocusId(found.id);
+          return;
+        }
+      }
+      if (!gone) onToast("Этого мероприятия уже нет — его удалили или сняли с вас");
+    })()
+      .catch(() => !gone && onToast("Не получилось открыть мероприятие — проверьте интернет"))
+      .finally(() => !gone && onEventOpened?.());
+    return () => {
+      gone = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openEvent]);
   // Удалённые и изменённые здесь — чтобы списки не показывали устаревшее до перезагрузки.
   const [removed, setRemoved] = useState<string[]>([]);
   const [changed, setChanged] = useState<AgencyEvent[]>([]);
   const range = loadRange(day);
   const [state, retry, update] = useLoad(() => (eventsRepo ? eventsRepo.range(range.from, range.to) : Promise.resolve([] as AgencyEvent[])), [range.from, range.to]);
   const shown = useLastReady(state);
+  useEffect(() => {
+    if (!focusId) return;
+    const el = document.querySelector(`[data-event-card="${CSS.escape(focusId)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    setFocusId(null);
+  }, [focusId, shown, view, day]);
   const [confirm, ask] = useConfirm();
   const now = usePlannerNow();
 
@@ -411,6 +455,11 @@ export function Planner({
             + Новое мероприятие
           </button>
         </div>
+      )}
+      {pinned && (
+        <section className="stack stack--tight" aria-label="Мероприятие из уведомления">
+          {card(pinned, true)}
+        </section>
       )}
       <div className="seg plan-seg plan-seg--views" role="group" aria-label="Вид">
         {(Object.keys(VIEW_TITLES) as View[]).filter((v) => admin || v !== "stats").map((v) => (
@@ -1038,7 +1087,11 @@ function EventCard({
   const mine = Boolean(me) && me === event.hostId;
   const accepted = Boolean(event.acceptedAt);
   return (
-    <article className={open ? "card plan-card is-open" : "card plan-card"} style={{ "--plan-color": hostColor(event.hostId) } as CSSProperties}>
+    <article
+      className={open ? "card plan-card is-open" : "card plan-card"}
+      data-event-card={event.id}
+      style={{ "--plan-color": hostColor(event.hostId) } as CSSProperties}
+    >
       <button type="button" className="plan-card__head" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
         <span className="plan-card__top">
           <span className="plan-card__title">

@@ -9,9 +9,10 @@ import { OWNER_CHECKS, OWNER_SETUP, SALES_ESCALATE, SALES_NEVER, SALES_PRICES, S
  * слова — с условиями сайта («предоплата», не «залог»), в каждом разделе есть что делать.
  */
 const root = resolve(import.meta.dirname, "../..");
-const sandbox: { JoyPricing?: { PACKAGES: { name: string; prices: number[] }[] } } = {};
+const sandbox: { JoyPricing?: { PACKAGES: { name: string; prices: number[] }[]; BUNDLES: { name: string; price: number }[] } } = {};
 runInNewContext(readFileSync(join(root, "site/js/pricing.js"), "utf8"), sandbox);
 const packages = sandbox.JoyPricing?.PACKAGES ?? [];
+const bundles = sandbox.JoyPricing?.BUNDLES ?? [];
 
 describe("инструкция менеджера по продажам", () => {
   it("цены пакетов — как в калькуляторе сайта", () => {
@@ -21,6 +22,16 @@ describe("инструкция менеджера по продажам", () => 
       const site = packages.find((s) => s.name === p.name);
       expect(site?.prices[0]).toBe(p.from);
       expect(site?.prices[site.prices.length - 1]).toBe(p.to);
+    }
+  });
+
+  it("готовые пакеты — те же названия и цены, что на сайте", () => {
+    expect(bundles.length).toBeGreaterThan(0);
+    const text = JSON.stringify(SALES_SECTIONS).replace(/\u00a0/g, " ");
+    for (const b of bundles) {
+      const price = String(b.price).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₽";
+      expect(text, b.name).toContain(`«${b.name}»`);
+      expect(text, b.name).toMatch(new RegExp(`«${b.name}»[^«]*— ${price}`));
     }
   });
 

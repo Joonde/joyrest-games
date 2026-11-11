@@ -323,8 +323,98 @@
   <section id="calculator" class="section">
     <div class="wrap">
       <p class="eyebrow"><span class="eyebrow__n">1</span><span class="eyebrow__t">Пакеты и цены</span></p>
-      <h2>Соберите свой вечер</h2>
-      <p class="sub">Выберите пакет, гостей и дату — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
+      <!-- Готовые пакеты (решение владельца 7–8 ноября 2026): одна цена за весь пакет, дешевле той же сборки в калькуляторе.
+           Цены и состав — BUNDLES в js/pricing.js (сверяет server/src/sitePricing.test.ts); «Выбрать пакет» — js/script.js. -->
+      <h2>Готовые пакеты — считать ничего не нужно</h2>
+      <p class="sub">Одна цена за весь пакет — это дешевле, чем собрать то же самое в калькуляторе. Выберите вечер и напишите нам.</p>
+      <div class="bundles" id="packages">
+        <article class="bundle bundle--hit" data-bundle-card="joyrest">
+          <div class="bundle__top"><span class="bundle__tag bundle__tag--hit">Хит · фирменный</span><span class="bundle__time">≈ 2,5–3 часа</span></div>
+          <h3 class="bundle__name">Вечер JoyRest</h3>
+          <p class="bundle__sub">Наш главный формат: квиз и вторая игра за один вечер</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Квиз на выбор: классический или авторский</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Вторая игра: Мафия, Убежище или Шпион</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Экран зала и вход гостей по QR</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>29 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>34 400 ₽</s></p>
+            <p class="bundle__save">Выгода 4 500 ₽</p>
+            <a href="#contact" class="hbtn hbtn--primary bundle__go" data-bundle="joyrest">Выбрать пакет</a>
+          </div>
+        </article>
+        <article class="bundle" data-bundle-card="nyshow">
+          <div class="bundle__top"><span class="bundle__tag bundle__tag--ny">Новый год</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Новогоднее телешоу</h3>
+          <p class="bundle__sub">«Ставка на знания» и «Миллион на кону» в праздничной редакции</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>«Ставка на знания» — новогодние темы</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>«Миллион на кону» с залом</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Мини-квиз на финал</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Призы и медали победителям</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>27 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>30 400 ₽</s></p>
+            <p class="bundle__save">Выгода 2 500 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="nyshow">Выбрать пакет</a>
+          </div>
+        </article>
+        <article class="bundle" data-bundle-card="nyquiz">
+          <div class="bundle__top"><span class="bundle__tag bundle__tag--ny">Новый год</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Новогодний квиз</h3>
+          <p class="bundle__sub">Вопросы про зиму, праздники и уходящий год</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Новогодние раунды: кино, музыка, традиции</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Классический или авторский формат</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Призы и медали победителям</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>25 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>27 400 ₽</s></p>
+            <p class="bundle__save">Выгода 1 500 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="nyquiz">Выбрать пакет</a>
+          </div>
+        </article>
+        <article class="bundle" data-bundle-card="mix">
+          <div class="bundle__top"><span class="bundle__tag">Сборный</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Всего понемногу</h3>
+          <p class="bundle__sub">Музыка и танцы — для смешанной компании</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>«Узнай по нотам» или Музыкальное лото</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Танцевальная пауза между раундами</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Экран зала и вход гостей по QR</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>24 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>27 900 ₽</s></p>
+            <p class="bundle__save">Выгода 3 000 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="mix">Выбрать пакет</a>
+          </div>
+        </article>
+        <article class="bundle" data-bundle-card="mafia">
+          <div class="bundle__top"><span class="bundle__tag">Игра</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Мафия-вечер</h3>
+          <p class="bundle__sub">Детективная игра с ведущим-судьёй</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Мафия на всех гостей, роли — на телефонах</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Разминка «Шпион» в начале</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Призы и медали лучшим игрокам</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>19 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>21 400 ₽</s></p>
+            <p class="bundle__save">Выгода 1 500 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="mafia">Выбрать пакет</a>
+          </div>
+        </article>
+      </div>
+      <p class="bundles__note">Цены — с опытным ведущим, в будни, до 25 гостей. В каждом пакете — ведущий, сценарий, игровая платформа JoyRest, реквизит и выезд по Москве. Пятница–воскресенье +10%, с 5 декабря и перед праздниками — праздничная цена, как в калькуляторе.</p>
+      <div class="calc-head">
+        <p class="calc-head__or">Хотите по-своему?</p>
+        <h2>Соберите свой вечер</h2>
+        <p class="sub">Выберите пакет, гостей и дату — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
+      </div>
       <!-- Ранняя бронь Нового года (решение владельца 22 октября 2026): видна с 1 сентября по 15 ноября по Москве, показывает js/script.js. -->
       <aside class="early" id="earlyPromo" hidden aria-labelledby="earlyTitle">
         <p class="early__tag">До 15 ноября</p>
@@ -461,6 +551,39 @@
           <p class="busy__text">Ведущих у нас ограниченное число, и на популярные даты разбирают их быстро. Поэтому на ваш день один или даже несколько форматов могут быть уже заняты. Менеджер сразу скажет, кто свободен, и предложит варианты: другой формат, другое время или соседнюю дату. Чтобы выбор был шире — пишите заранее.</p>
         </div>
       </aside>
+      <!-- «Как проходят наши вечера» (решение владельца 8 ноября 2026): фото с мероприятий целиком, без обрезки — стопка
+           распечаток; не список ведущих (в кадре могут быть не все). Новое фото: img/moment-*.webp и строка в .moments__strip. -->
+      <div class="moments" id="moments" role="region" aria-labelledby="momentsTitle">
+        <div class="moments__text">
+          <div class="moments__head">
+            <p class="moments__kicker">Живые кадры</p>
+            <h3 class="moments__title" id="momentsTitle">Как проходят наши вечера</h3>
+            <p class="moments__lead">Ведущего подбираем под ваш формат и компанию — расскажите о празднике, и мы предложим программу.</p>
+          </div>
+          <div class="moments__nav">
+            <button type="button" class="moments__arrow" id="momentPrev" aria-label="Предыдущее фото"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <p class="moments__count" aria-hidden="true"><b id="momentNum">1</b> / 6</p>
+            <button type="button" class="moments__arrow moments__arrow--next" id="momentNext" aria-label="Следующее фото"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <ul class="moments__strip" aria-label="Все фото">
+          <li><button type="button" class="moments__thumb is-on" data-moment="0" data-tag="Мафия" data-cap="Город засыпает — просыпается мафия" data-alt="Ведущий в чёрном костюме указывает на гостей в масках за праздничным столом — идёт игра в Мафию" aria-label="Фото 1: Город засыпает — просыпается мафия" aria-current="true"><img src="img/moment-mafia.webp" alt="" width="1280" height="839" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="1" data-tag="Игры на ловкость" data-cap="Один бросок — и весь зал замер" data-alt="Ведущий бросает шарик в стаканчики, гости на диване следят за броском" aria-label="Фото 2: Один бросок — и весь зал замер"><img src="img/moment-pong.webp" alt="" width="1280" height="853" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="2" data-tag="Праздник" data-cap="Держим зал от начала до финала" data-alt="Ведущий с микрофоном говорит с гостями за накрытыми столами в ресторане" aria-label="Фото 3: Держим зал от начала до финала"><img src="img/moment-host.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="3" data-tag="Ролевая настолка" data-cap="Мастер игры, драконы и кубики" data-alt="Мастер игры за ширмой с драконом улыбается и разводит руками" aria-label="Фото 4: Мастер игры, драконы и кубики"><img src="img/moment-tabletop.webp" alt="" width="640" height="640" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="4" data-tag="Свадьбы — на заказ" data-cap="Первый танец в облаках" data-alt="Первый танец молодожёнов в облаке тяжёлого дыма, гости снимают на телефоны" aria-label="Фото 5: Первый танец в облаках"><img src="img/moment-wedding.webp" alt="" width="1280" height="960" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="5" data-tag="Праздник" data-cap="Жених и друзья — фото на память" data-alt="Жених с друзьями стоят вместе у кирпичной стены с гирляндами" aria-label="Фото 6: Жених и друзья — фото на память"><img src="img/moment-friends.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></button></li>
+          </ul>
+        </div>
+        <div class="moments__stage">
+          <div class="moments__back moments__back--2" aria-hidden="true"><img id="momentBack2" src="img/moment-host.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></div>
+          <div class="moments__back moments__back--1" aria-hidden="true"><img id="momentBack1" src="img/moment-pong.webp" alt="" width="1280" height="853" loading="lazy" decoding="async"></div>
+          <figure class="moments__print" id="momentPrint">
+            <span class="moments__tape" aria-hidden="true"></span>
+            <img id="momentImg" src="img/moment-mafia.webp" alt="Ведущий в чёрном костюме указывает на гостей в масках за праздничным столом — идёт игра в Мафию" width="1280" height="839" loading="lazy" decoding="async">
+            <figcaption aria-live="polite"><span class="moments__cap" id="momentCap">Город засыпает — просыпается мафия</span><span class="moments__tag" id="momentTag">Мафия</span></figcaption>
+          </figure>
+        </div>
+      </div>
       <a class="next" href="#games"><span class="next__k">Дальше · 3</span><span class="next__t">Игры: выберите, во что играть</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
@@ -1040,6 +1163,13 @@
                 <option>Корпоратив</option>
                 <option>День рождения</option>
                 <option>Частное событие</option>
+              </optgroup>
+              <optgroup label="Готовый пакет">
+                <option>Готовый пакет «Вечер JoyRest»</option>
+                <option>Готовый пакет «Новогоднее телешоу»</option>
+                <option>Готовый пакет «Новогодний квиз»</option>
+                <option>Готовый пакет «Всего понемногу»</option>
+                <option>Готовый пакет «Мафия-вечер»</option>
               </optgroup>
               <optgroup label="Пакет">
                 <option>Пакет «Игровой вечер»</option>

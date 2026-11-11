@@ -61,6 +61,33 @@
   var WEEKEND = 1.1;
   var MAX_EXTRAS = 2;
 
+  /** Готовые пакеты (решение владельца 7–8 ноября 2026): одна цена за весь пакет — опытный ведущий, будни, до 25 гостей
+   *  (BUNDLE_TIER). calc — та же сборка в калькуляторе: её цена на сайте зачёркнута, пакет дешевле (проверяет
+   *  server/src/sitePricing.test.ts). Пт–вс, праздничная цена, больше гостей — по правилам калькулятора, считает менеджер. */
+  var BUNDLE_TIER = 1;
+  var BUNDLES = [
+    { id: 'joyrest', name: 'Вечер JoyRest', tag: 'Хит · фирменный', time: '≈ 2,5–3 часа', price: 29900,
+      sub: 'Наш главный формат: квиз и вторая игра за один вечер',
+      includes: ['Квиз на выбор: классический или авторский', 'Вторая игра: Мафия, Убежище или Шпион', 'Экран зала и вход гостей по QR', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'quiz', extras: ['game'], addons: [] } },
+    { id: 'nyshow', name: 'Новогоднее телешоу', tag: 'Новый год', time: '1,5–2 часа', price: 27900,
+      sub: '«Ставка на знания» и «Миллион на кону» в праздничной редакции',
+      includes: ['«Ставка на знания» — новогодние темы', '«Миллион на кону» с залом', 'Мини-квиз на финал', 'Призы и медали победителям'],
+      calc: { pkg: 'show', extras: [], addons: ['prize'] } },
+    { id: 'nyquiz', name: 'Новогодний квиз', tag: 'Новый год', time: '1,5–2 часа', price: 25900,
+      sub: 'Вопросы про зиму, праздники и уходящий год',
+      includes: ['Новогодние раунды: кино, музыка, традиции', 'Классический или авторский формат', 'Призы и медали победителям', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'quiz', extras: [], addons: ['prize'] } },
+    { id: 'mix', name: 'Всего понемногу', tag: 'Сборный', time: '1,5–2 часа', price: 24900,
+      sub: 'Музыка и танцы — для смешанной компании',
+      includes: ['«Узнай по нотам» или Музыкальное лото', 'Танцевальная пауза между раундами', 'Экран зала и вход гостей по QR', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'music', extras: [], addons: ['dance'] } },
+    { id: 'mafia', name: 'Мафия-вечер', tag: 'Игра', time: '1,5–2 часа', price: 19900,
+      sub: 'Детективная игра с ведущим-судьёй',
+      includes: ['Мафия на всех гостей, роли — на телефонах', 'Разминка «Шпион» в начале', 'Призы и медали лучшим игрокам', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'game', extras: [], addons: ['prize'] } }
+  ];
+
 
   // ---------- Праздничная цена ----------
   /** Праздники со ступенями «за 2 недели / за неделю / в сам день» (решение владельца 22 октября 2026). */
@@ -273,8 +300,8 @@
   }
   /** Письмо с расчётом: почта в браузере (Gmail, Яндекс, Mail.ru) или почтовое приложение (mailto).
    *  Решение владельца 24 октября 2026: клиенту не нужно открывать почтовую программу Mac. */
-  function mailLinks(text) {
-    var to = 'joyrest@mail.ru', su = 'Расчёт JoyRest', enc = encodeURIComponent;
+  function mailLinks(text, subject) {
+    var to = 'joyrest@mail.ru', su = subject || 'Расчёт JoyRest', enc = encodeURIComponent;
     var app = 'mailto:' + to + '?subject=' + enc(su) + '&body=' + enc(String(text || ''));
     return {
       gmail: 'https://mail.google.com/mail/?view=cm&fs=1&to=' + enc(to) + '&su=' + enc(su) + '&body=' + enc(String(text || '')),
@@ -392,7 +419,37 @@
     return p ? p.d + ' ' + MONTHS[p.m - 1] + ' ' + p.y : isoDate;
   }
 
+  function bundleById(id) {
+    for (var i = 0; i < BUNDLES.length; i++) if (BUNDLES[i].id === id) return BUNDLES[i];
+    return null;
+  }
+  /** Цена той же сборки в калькуляторе: опытный ведущий, будни, до 25 гостей, без даты. */
+  function bundleCalcPrice(b) {
+    var r = calcPrice({ pkg: b.calc.pkg, tier: BUNDLE_TIER, weekend: false, extras: b.calc.extras, ext: 0, addons: b.calc.addons });
+    return r.totals[0].price;
+  }
+  /** Сообщение менеджеру о готовом пакете (витрина: WhatsApp, Telegram, почта, Авито) — как calcMessage, без разметки. */
+  function bundleMessage(id, name) {
+    var b = bundleById(id);
+    if (!b) return '';
+    var line = '────────────';
+    var who = cleanName(name);
+    var out = ['🎁 Готовый пакет JoyRest'];
+    if (who) out.push('Имя: ' + who);
+    var r = calcPrice({ pkg: b.calc.pkg, tier: BUNDLE_TIER, extras: b.calc.extras, addons: b.calc.addons });
+    var program = [b.calc.pkg].concat(b.calc.extras).map(function (id) { return pkgById(id).name; }).join(' → ');
+    var addons = ADDONS.filter(function (a) { return b.calc.addons.indexOf(a.id) >= 0; }).map(function (a) { return a.label; });
+    out.push(line, 'Пакет: ' + b.name, 'Программа: ' + program, 'Допы: ' + (addons.length ? addons.join(', ') : 'нет'),
+      'Длительность: ≈ ' + hh(r.hours.min) + '–' + hh(r.hours.max) + ' ' + hoursWord(r.hours.max), 'Гостей: до ' + TIERS[BUNDLE_TIER]);
+    out.push('Что входит: ' + b.includes.join('; '));
+    out.push(line, 'Цена: ' + money(b.price) + ' — опытный ведущий, будни');
+    // Без дат и чисел месяца: студия (parseLeadText) взяла бы их за дату праздника.
+    out.push('Дату, время и число гостей уточним в переписке: выходные и праздничные дни — по правилам калькулятора.');
+    return out.join('\n');
+  }
+
   var api = {
+    BUNDLES: BUNDLES, BUNDLE_TIER: BUNDLE_TIER, bundleById: bundleById, bundleCalcPrice: bundleCalcPrice, bundleMessage: bundleMessage,
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
     MAX_EXTRAS: MAX_EXTRAS, HOLIDAYS: HOLIDAYS, TRAVEL: TRAVEL, NY_MIN: NY_MIN, EARLY_UNTIL: EARLY_UNTIL,
     seasonFor: seasonFor, seasonHint: seasonHint, seasonBadge: seasonBadge, seasonLine: seasonLine, moscowToday: moscowToday,

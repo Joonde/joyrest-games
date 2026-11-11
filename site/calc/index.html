@@ -176,6 +176,7 @@
   .nynote__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
   .nynote__rows li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 12px; background: var(--card-alt); font-size: 15px; }
   .nynote__rows b { color: var(--accent-text, var(--ink)); white-space: nowrap; }
+  .nynote__go { justify-self: start; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; font-size: 15px; cursor: pointer; }
   @media (prefers-reduced-motion: no-preference) { .opt, .total { transition: border-color .15s, background-color .15s; } }
 </style>
 </head>
@@ -188,13 +189,14 @@
   </header>
 
   <aside class="nynote" id="nyNote" hidden aria-labelledby="h-ny">
-    <h2 id="h-ny">🎄 Новогодняя надбавка</h2>
+    <h2 id="h-ny"><span aria-hidden="true">🎄 </span>Новогодняя надбавка</h2>
     <p class="small muted">В праздничные даты к итоговой цене прибавляется надбавка — калькулятор посчитает её сам, укажите дату праздника.</p>
     <ul class="nynote__rows">
       <li><span>10–20 декабря</span><b>+20%</b></li>
       <li><span>21 декабря —&nbsp;1&nbsp;января</span><b>+35%</b></li>
       <li><span>31 декабря и 1 января</span><b>от 50&nbsp;000&nbsp;₽</b></li>
     </ul>
+    <button type="button" class="nynote__go" id="nyCalc">Указать дату праздника</button>
   </aside>
 
   <section aria-labelledby="h-pkg">

@@ -124,6 +124,9 @@ describe("помощник «Джой»: ответы", () => {
     ];
     for (const [q, id] of cases) expect(F.match(q, items).item?.id ?? null, q).toBe(id);
     expect(F.match("новый год", items).item?.id).toBe("season");
+    // «ВКонтакте» — в ответе «Где посмотреть…», но короткое «вк» не перехватывает «включено» (проверка 11 ноября 2026).
+    expect(F.match("у вас есть группа вконтакте?", items).item?.id).toBe("show");
+    for (const q of ["Что включено?", "Всё включено?", "где ваш канал"]) expect(F.match(q, items).item?.id ?? null, q).not.toBe("show");
   });
 });
 

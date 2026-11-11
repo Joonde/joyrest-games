@@ -238,7 +238,7 @@
   // ---------- Калькулятор ----------
   const P = window.JoyPricing;
   const calc = { pkg: 'quiz', tier: 0, weekend: false, date: '', time: '', extras: {}, ext: 0, addons: {}, info: '' };
-  // Сегодня по Москве — для ранней брони и чтобы не выбрать прошедшую дату.
+  // Сегодня по Москве — чтобы не выбрать прошедшую дату и показать уведомление о новогодней надбавке.
   const today = () => P.moscowToday();
   const money = (n) => P.money(n);
   const CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
@@ -347,7 +347,7 @@
   });
 
   const DAY_LABEL = (wk) => wk ? 'пятница–воскресенье' : 'будни';
-  // «27 400 + 5 500» под ценой: сумма вечера и праздничная цена (выезд — отдельной строкой ниже).
+  // «27 400 + 5 500» под ценой: сумма вечера и надбавка (выезд — отдельной строкой ниже).
   function levelCalc(t, r){
     const s = r.season;
     if(s.min && t.base + P.roundUp(t.base * s.pct / 100) < s.min) return `минимум ${money(s.min)}`;

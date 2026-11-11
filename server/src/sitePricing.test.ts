@@ -538,9 +538,9 @@ describe("калькулятор сайта: новогодняя надбавк
     expect(P.moscowToday(Date.UTC(2026, 11, 31, 21, 0))).toBe("2027-01-01");
   });
 
-  it("подсказка «до 9 декабря — без новогодней надбавки»: с 14 ноября по 9 декабря", () => {
-    expect(P.seasonHint("2026-11-13")).toBe("");
-    for (let t = utc("2026-11-14"); t <= utc("2026-12-09"); t += DAY) expect(P.seasonHint(isoOf(t)), isoOf(t)).toContain("до 9 декабря");
+  it("подсказка «до 9 декабря — без новогодней надбавки»: с 1 ноября по 9 декабря", () => {
+    expect(P.seasonHint("2026-10-31")).toBe("");
+    for (let t = utc("2026-11-01"); t <= utc("2026-12-09"); t += DAY) expect(P.seasonHint(isoOf(t)), isoOf(t)).toContain("до 9 декабря");
     expect(P.seasonHint("2026-12-10")).toBe("");
     expect(P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-11-20" }).hint).toContain("9 декабря");
     expect(P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-07" }).hint).toContain("С 10 декабря");

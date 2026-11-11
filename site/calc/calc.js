@@ -11,7 +11,7 @@
     var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (saved && typeof saved === 'object') for (var k in state) if (k in saved) state[k] = saved[k];
   } catch (e) { /* без памяти — просто с начала */ }
-  // Сегодня по Москве: ранняя бронь и прошедшие даты. Прошедшая или кривая дата из памяти не возвращается.
+  // Сегодня по Москве: уведомление о новогодней надбавке и прошедшие даты. Прошедшая или кривая дата из памяти не возвращается.
   function today() { return P.moscowToday(); }
   if (typeof state.date !== 'string' || !P.parseDate(state.date) || state.date < today()) state.date = '';
   state.time = P.cleanTime(state.time);
@@ -93,7 +93,7 @@
       info.appendChild(b);
       info.appendChild(document.createTextNode(' — ' + (r.weekend ? 'пятница–воскресенье, +10%' : 'будний день') +
         (r.season ? ' · ' + r.season.title.toLowerCase() : '') + '.' + (state.date < today() ? ' Эта дата уже прошла — проверьте.' : '')));
-    } else info.textContent = 'Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.';
+    } else info.textContent = 'Укажите дату — день недели и надбавку в праздничные даты посчитаем сами. Дата ещё не известна — выберите день ниже.';
     fill('days', [
       opt('Будни', 'пн–чт', '', !r.weekend, function () { set({ weekend: false }); }, !!r.date),
       opt('Пятница–воскресенье', '+10%', '', r.weekend, function () { set({ weekend: true }); }, !!r.date)
@@ -179,7 +179,7 @@
         b.querySelector('.total__badge').textContent = t.badge;
         b.querySelector('.total__calc').textContent = !season ? '' : (season.min && t.base + P.roundUp(t.base * season.pct / 100) < season.min
           ? 'минимум в новогоднюю ночь ' + money(season.min)
-          : money(t.base) + ' + праздничная цена ' + money(t.extra));
+          : money(t.base) + ' + ' + P.seasonWord(season) + ' ' + money(t.extra));
         b.querySelector('.total__price').textContent = money(t.price);
         b.addEventListener('click', function () { set({ level: t.id }); });
         totals.appendChild(b);
@@ -343,6 +343,12 @@
   (function () {
     var md = today().slice(5);
     $('nyNote').hidden = !(md >= '10-01' || md === '01-01');
+    $('nyCalc').addEventListener('click', function () {
+      var input = $('date');
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      input.focus({ preventScroll: true });
+      try { if (input.showPicker) input.showPicker(); } catch (e) { /* не везде можно открыть календарь из скрипта */ }
+    });
   })();
   $('send').addEventListener('click', send);
   $('barSend').addEventListener('click', send);

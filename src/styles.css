@@ -3397,6 +3397,25 @@ kbd {
   font-variant-numeric: lining-nums tabular-nums;
 }
 
+/* 7–8 строк на невысоком экране (ноутбук 16:10, проектор) не помещались над строкой «Вход: … · код» —
+   с 7 строк таблица плотнее, как листаемая (Ревизор, 11 ноября 2026). */
+.board-view:has(.board-view__row:nth-child(7)) {
+  gap: 1.4cqh;
+  font-size: 3.4cqh;
+}
+
+.board-view:has(.board-view__row:nth-child(7)) .board-view__title {
+  font-size: 5.6cqh;
+}
+
+.board-view:has(.board-view__row:nth-child(7)) .board-view__list {
+  gap: 0.9cqh;
+}
+
+.board-view:has(.board-view__row:nth-child(7)) .board-view__row {
+  padding: 0.8cqh 2cqw;
+}
+
 /* Длинная таблица (больше 8 строк): строки плотнее, страницы листаются сами, внизу — какие места и точки страниц. */
 .board-view--paged {
   gap: 1.4cqh;
@@ -24296,7 +24315,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   justify-content: center;
   font-weight: 600;
   font-size: 3.6cqh;
-  line-height: 1.3;
+  /* 1.2, не 1.3: на телевизоре строка «Букет невесты» срезалась снизу на 4 px (Ревизор, 11 ноября 2026). */
+  line-height: 1.2;
   overflow: hidden;
   overflow-wrap: anywhere;
 }
@@ -26094,4 +26114,13 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   padding: 6px;
   border-radius: 12px;
   background: radial-gradient(circle at 50% 30%, #3a2630 0%, #120b0e 80%);
+}
+
+/* «Нуар» в итогах «Мафии»: рисунок вписан в квадрат слота (раньше выше квадрата и заезжал под имя). */
+.mf-reveal__art .mf-art--img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: cover;
+  object-position: 50% 15%;
 }

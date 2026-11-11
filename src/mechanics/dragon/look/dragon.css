@@ -1445,3 +1445,22 @@
       #a9dcff;
   }
 }
+
+/* На нарисованной арене у детей своё небо, солнце, облака и холмы — рисунки кода поверх не нужны (солнце закрывало счёт заданий),
+   а белые надписи на светлом небе плохо читались (Ревизор и снимки, 11 ноября 2026). */
+.dg-stage--kid .dg-sun,
+.dg-stage--kid .dg-cloud,
+.dg-stage--kid .dg-hills {
+  display: none;
+}
+.dg-stage--kid .dg-round {
+  padding: calc(0.6 * var(--u)) calc(1.2 * var(--u));
+  border-radius: calc(1.2 * var(--u));
+  background: rgba(255, 255, 255, 0.88);
+  color: #3b2a63;
+  box-shadow: 0 calc(0.3 * var(--u)) calc(1.2 * var(--u)) rgba(59, 42, 99, 0.18);
+}
+.dg-stage--kid .dg-boss__name {
+  color: #3b2a63;
+  text-shadow: 0 0 calc(0.6 * var(--u)) #fff, 0 0 calc(1.2 * var(--u)) #fff;
+}

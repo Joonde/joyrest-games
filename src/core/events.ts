@@ -403,7 +403,7 @@ export function parseLeadText(text: string, today: string): LeadFill {
   // Дата: строка «Дата: …» главнее всего (24 октября 2026: в расчёте сайта ниже стоит «Ранняя бронь: до 15 ноября» — это не
   // дата праздника); нет строки — самая ранняя дата в тексте без строк про раннюю бронь и праздничную цену.
   const dateLine = field(t, ["Дата праздника", "Дата", "Когда"]);
-  const day = (dateLine && dateIn(dateLine, today)) || dateIn(t.replace(/^\s*(?:ранняя бронь|праздничная цена)\s*[:：].*$/gim, ""), today);
+  const day = (dateLine && dateIn(dateLine, today)) || dateIn(t.replace(/^\s*(?:ранняя бронь|праздничная цена|новогодняя надбавка)\s*[:：].*$/gim, ""), today);
   if (day) out.day = day;
   // Время: 18:00–23:00, 18.00-23.00, «с 18 до 23».
   const range = /(\d{1,2})[:.](\d{2})\s*(?:[–—-]|до)\s*(\d{1,2})[:.](\d{2})/.exec(t) ?? null;

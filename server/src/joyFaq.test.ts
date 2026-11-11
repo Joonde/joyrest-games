@@ -44,15 +44,14 @@ describe("помощник «Джой»: ответы", () => {
     }
   });
 
-  it("стартовых кнопок 6, пока действует ранняя бронь, и 5 после неё", () => {
-    expect(items.filter((i) => i.star).map((i) => i.id)).toEqual(["games", "price", "early", "booking", "travel", "contact"]);
-    for (const day of ["2026-11-16", "2026-08-31", "2027-01-10"]) {
-      const later = F.build(P, day);
-      expect(later.some((i) => i.id === "early"), day).toBe(false);
-      expect(later.filter((i) => i.star)).toHaveLength(5);
-      for (const it of later) for (const n of it.next) expect(later.some((i) => i.id === n), `${day}: ${it.id} → ${n}`).toBe(true);
+  it("стартовых кнопок 5 в любой день; ранней брони Нового года больше нет (решение владельца 11 ноября 2026)", () => {
+    for (const day of ["2026-09-01", "2026-11-06", "2026-11-15", "2026-11-16", "2026-12-25", "2027-01-10"]) {
+      const list = F.build(P, day);
+      expect(list.some((i) => i.id === "early"), day).toBe(false);
+      expect(list.filter((i) => i.star).map((i) => i.id), day).toEqual(["games", "price", "booking", "travel", "contact"]);
+      expect(list.map((i) => i.a).join("\n"), day).not.toMatch(/ранн[яе][яй] брон|вдвое меньше|вместо \+/i);
+      for (const it of list) for (const n of it.next) expect(list.some((i) => i.id === n), `${day}: ${it.id} → ${n}`).toBe(true);
     }
-    expect(F.build(P, "2026-09-01").some((i) => i.id === "early")).toBe(true);
   });
 
   it("цены — из калькулятора", () => {
@@ -68,11 +67,11 @@ describe("помощник «Джой»: ответы", () => {
     const travel = nbsp(byId("travel").a);
     for (const v of [P.TRAVEL.normal, P.TRAVEL.holiday, P.TRAVEL.peak]) expect(travel).toContain(nbsp(P.money(v)));
     const season = nbsp(byId("season").a);
-    expect(season).toContain("+20%");
-    expect(season).toContain("+40%");
+    expect(season).toContain("новогодняя надбавка: 10–20 декабря +20%, с 21 декабря по 1 января +35%");
     expect(season).toContain(nbsp(P.money(P.NY_MIN)));
+    expect(byId("nyfree").a).toContain("до 9 декабря включительно — без новогодней надбавки");
     expect(byId("holidays").a).toMatch(/\+10%.*\+15%.*\+25%/);
-    expect(byId("early").a).toMatch(/до 15 ноября 2026.*\+10% вместо \+20%.*\+20% вместо \+40%/);
+    expect(travel).toContain("10–20 декабря и в праздничные дни — 5 000 ₽, с 21 декабря по 1 января — 7 000 ₽");
     const addons = nbsp(byId("addons").a);
     for (const id of ["corp", "logo", "prize", "dance", "out"]) {
       const a = P.ADDONS.find((x) => x.id === id);
@@ -108,7 +107,9 @@ describe("помощник «Джой»: ответы", () => {
       ["можно позвонить", "call"],
       ["нужно скачивать приложение?", "app"],
       ["привет", "hello"],
-      ["Ранняя бронь Нового года", "early"],
+      ["Ранняя бронь Нового года", "season"],
+      ["почему в декабре дороже", "season"],
+      ["новогодняя надбавка", "season"],
       // Повод праздника — рассказ о JoyRest, а не новогодняя цена или детские программы (проверка 6 ноября 2026).
       ["корпоратив", "about"],
       ["день рождения", "about"],
@@ -122,9 +123,7 @@ describe("помощник «Джой»: ответы", () => {
       ["", null],
     ];
     for (const [q, id] of cases) expect(F.match(q, items).item?.id ?? null, q).toBe(id);
-    const unclear = F.match("новый год", items);
-    expect(unclear.item).toBeNull();
-    expect(unclear.others.map((i) => i.id).sort()).toEqual(["early", "season"]);
+    expect(F.match("новый год", items).item?.id).toBe("season");
   });
 });
 

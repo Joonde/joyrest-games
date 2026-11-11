@@ -353,14 +353,13 @@
     if(s.min && t.base + P.roundUp(t.base * s.pct / 100) < s.min) return `минимум ${money(s.min)}`;
     return `${money(t.base)} + ${money(t.extra)}`;
   }
-  // Ранняя бронь Нового года: блок виден с 1 сентября по 15 ноября по Москве.
+  // Уведомление о новогодней надбавке перед калькулятором (решение владельца 11 ноября 2026): видно с 1 октября по 1 января по Москве.
   (() => {
-    const promo = $('earlyPromo');
-    if(!promo) return;
+    const note = $('nyNote');
+    if(!note) return;
     const t = today();
-    const y = t.slice(0, 4);
-    promo.hidden = !(t >= `${y}-09-01` && t <= `${y}-${String(P.EARLY_UNTIL.m).padStart(2, '0')}-${String(P.EARLY_UNTIL.d).padStart(2, '0')}`);
-    $('earlyCalc').addEventListener('click', () => {
+    note.hidden = !(t.slice(5) >= '10-01' || t.slice(5) === '01-01');
+    $('nyCalc').addEventListener('click', () => {
       const input = $('calcDate');
       input.closest('.step-q').scrollIntoView({ behavior: smooth, block: 'center' });
       input.focus({ preventScroll: true });
@@ -377,7 +376,7 @@
     const ti = tierIndex();
     ui.packs.forEach(([id, b]) => pressable(b, id === calc.pkg));
     ui.tiers.forEach((b, i) => pressable(b, i === calc.tier));
-    const r = P.calcPrice({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() });
+    const r = P.calcPrice({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, extras: extrasList(), ext: calc.ext, addons: addonsList() });
     // Дата есть — день недели берётся из неё, кнопки дня только показывают его.
     ui.days.forEach(([wk, b]) => { pressable(b, wk === r.weekend); b.disabled = !!r.date; });
     // Пока человек вводит дату или время с клавиатуры, браузер отдаёт пустое значение до конца ввода —
@@ -388,7 +387,7 @@
     $('calcTimeClear').hidden = !calc.time;
     $('calcDateInfo').innerHTML = r.date
       ? `<b>${esc(r.date.label.replace(/, [а-я]+$/, ''))}, ${esc(r.date.weekday)}</b> — ${r.weekend ? 'пятница–воскресенье, +10%' : 'будний день'}${r.season ? ' · ' + esc(r.season.title.toLowerCase()) : ''}.${calc.date < today() ? ' Эта дата уже прошла — проверьте.' : ''}`
-      : 'Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.';
+      : 'Укажите дату — день недели и надбавку в праздничные даты посчитаем сами. Дата ещё не известна — выберите день ниже.';
     ui.extras.forEach(([id, b]) => {
       const same = id === calc.pkg;
       b.hidden = same;
@@ -405,19 +404,14 @@
     });
 
     lastResult = r;
-    // Праздничная цена: причина над ценами, у каждой цены — из чего она.
+    // Новогодняя надбавка или праздничная цена: причина над ценами, у каждой цены — из чего она.
     const season = r.individual ? null : r.season;
     $('calcSeason').hidden = !season;
     if(season){
-      $('calcSeasonTitle').textContent = 'Праздничная цена · ' + season.title;
+      $('calcSeasonTitle').textContent = season.label + ' · ' + season.title;
       $('calcSeasonBadge').textContent = P.seasonBadge(season);
       $('calcSeasonText').textContent = season.text;
-      $('calcSeasonEarly').hidden = !season.early;
-      if(season.early){
-        const t = r.totals.find((x) => x.id === (hostLevelField.value || 'standard')) || r.totals[0];
-        const full = t.base + P.roundUp(t.base * season.fullPct / 100) - t.base;
-        $('calcSeasonEarly').textContent = `Ранняя бронь до ${P.earlyUntilLabel(calc.date)}: +${season.pct}% вместо +${season.fullPct}% — экономия ${money(full - t.extra)} на формате «${t.name}».`;
-      }
+      $('calcSeasonNote').textContent = season.label + ' зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.';
     }
     const hint = r.individual ? '' : r.hint;
     $('calcSeasonHint').hidden = !hint;
@@ -446,7 +440,7 @@
     if(lines.length) lines[0][1] = money(r.lines[0].value);
     if(r.weekend) lines.push(['Пятница–воскресенье', '+10%']);
     r.lines.filter((l) => l.fixed && !/^Выезд/.test(l.label)).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
-    if(season) lines.push(['Праздничная цена · ' + season.title, P.seasonBadge(season)]);
+    if(season) lines.push([season.label + ' · ' + season.title, P.seasonBadge(season)]);
     r.lines.filter((l) => l.fixed && /^Выезд/.test(l.label)).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
     $('calcLines').innerHTML = lines.map(([k, v]) => `<li><span>${esc(k)}</span><span>${v}</span></li>`).join('');
     // Полоска итога внизу экрана телефона
@@ -472,7 +466,7 @@
   // калькулятором. Касание цены в карточке выбирает формат ведущего. Расчёт помнит телефон (jr-calc), после
   // отправки заявки — забывает. В /api/lead уходит полем calc.
   const CALC_KEY = 'jr-calc';
-  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, time: calc.time || '', today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
+  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, time: calc.time || '', extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
   function saveCalc(opts){
     try{ if(opts) localStorage.setItem(CALC_KEY, JSON.stringify(opts)); else localStorage.removeItem(CALC_KEY); }catch(_){ /* приватный режим — расчёт до перезагрузки */ }
   }

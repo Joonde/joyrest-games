@@ -495,7 +495,7 @@ describe("тексты и устройство страницы", () => {
     expect(t).toContain("Продление — 3 900 ₽ за 30 минут.");
     expect(t).toContain("Бронь даты — предоплата 2 000 ₽, засчитывается в стоимость. Отмена за 2 дня и раньше — возвращаем.");
     expect(t).toContain("По Москве выезд включён; если рядом с местом праздника нет метро (дальше 10–15 минут пешком) — такси ведущему по факту.");
-    expect(t).toContain("Города Подмосковья (Химки, Мытищи, Балашиха и другие) — +2 000 ₽ и такси ведущему; в праздничные дни — 5 000 ₽, с 19 декабря по 1 января — 7 000 ₽.");
+    expect(t).toContain("Города Подмосковья (Химки, Мытищи, Балашиха и другие) — +2 000 ₽ и такси ведущему; 10–20 декабря и в праздничные дни — 5 000 ₽, с 21 декабря по 1 января — 7 000 ₽.");
     expect(t).toContain("Подробные условия — в договоре.");
     expect(plain).toContain("Утверждаем программу и тайминг. Бронь даты — предоплата 2 000 ₽, засчитывается в стоимость.");
     expect(plain).toContain("Пакеты рассчитаны на 1,5–2 часа. Нужно дольше — добавьте продление");
@@ -535,12 +535,20 @@ describe("тексты и устройство страницы", () => {
     expect(plain).toContain("Каждые следующие 30 минут — 3 900 ₽.");
     expect(plain).toContain("Это итог за весь вечер — без скрытых доплат. Отдельно только такси ведущему — за город и туда, где рядом нет метро.");
     expect(plain).toContain("Выезд по Москве");
-    // Праздничная цена (22 октября 2026): дата праздника, причина и подсказка, блок ранней брони.
-    for (const id of ["calcDate", "calcDateInfo", "calcDateClear", "calcSeason", "calcSeasonTitle", "calcSeasonBadge", "calcSeasonText", "calcSeasonEarly", "calcSeasonHint", "calcNoDate", "earlyPromo", "earlyCalc"]) {
+    // Надбавка (22 октября, 11 ноября 2026): дата праздника, причина и подсказка, уведомление о новогодней надбавке.
+    for (const id of ["calcDate", "calcDateInfo", "calcDateClear", "calcSeason", "calcSeasonTitle", "calcSeasonBadge", "calcSeasonText", "calcSeasonNote", "calcSeasonHint", "calcNoDate", "nyNote", "nyCalc"]) {
       expect(html, id).toContain(`id="${id}"`);
     }
-    expect(plain).toContain("Праздничная цена зависит от даты праздника, а не от дня брони");
-    expect(plain).toContain("Новый год дешевле — если забронировать заранее!");
+    expect(plain).toContain("зависит от даты праздника, а не от дня брони");
+    expect(plain).toContain("Новогодняя надбавка");
+    expect(plain).toMatch(/10–20 декабря\s*\+20%/);
+    expect(plain).toMatch(/21 декабря —(?:\s|&nbsp;)*1(?:\s|&nbsp;)*января\s*\+35%/);
+    // Ранней брони больше нет — ни на главной, ни на /calc/, ни в скриптах.
+    const calcPage = readFileSync(join(root, "site/calc/index.html"), "utf8") + readFileSync(join(root, "site/calc/calc.js"), "utf8");
+    for (const text of [html, js, calcPage]) {
+      expect(text).not.toMatch(/earlyPromo|EARLY_UNTIL|earlyUntilLabel|Новый год дешевле|ранн[яе][яй] брон|вдвое меньше/i);
+    }
+    expect(calcPage).toContain('id="nyNote"');
     expect(js).toContain("window.JoyPricing");
     // Старого почасового калькулятора нет.
     for (const old of ["calcHours", "calcGuests", "calcCustom", "calcComplexity", "calcQuiz", "calcHostLevel", "isWeekend ? 8500"]) {

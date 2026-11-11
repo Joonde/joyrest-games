@@ -16,7 +16,7 @@
   if (typeof state.date !== 'string' || !P.parseDate(state.date) || state.date < today()) state.date = '';
   state.time = P.cleanTime(state.time);
   function opts() {
-    return { pkg: state.pkg, tier: state.tier, weekend: state.weekend, date: state.date, time: state.time, today: today(), extras: state.extras, ext: state.ext, addons: state.addons };
+    return { pkg: state.pkg, tier: state.tier, weekend: state.weekend, date: state.date, time: state.time, extras: state.extras, ext: state.ext, addons: state.addons };
   }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -131,7 +131,7 @@
       var title = document.createElement('p');
       title.className = 'season__title';
       var tName = document.createElement('span');
-      tName.textContent = 'Праздничная цена · ' + season.title;
+      tName.textContent = season.label + ' · ' + season.title;
       var tBadge = document.createElement('span');
       tBadge.className = 'season__badge';
       tBadge.textContent = P.seasonBadge(season);
@@ -140,16 +140,8 @@
       var why = document.createElement('p');
       why.textContent = season.text;
       box.appendChild(why);
-      if (season.early) {
-        var std = r.totals[0];
-        var early = document.createElement('p');
-        early.className = 'early';
-        early.textContent = 'Ранняя бронь до ' + P.earlyUntilLabel(state.date) + ': +' + season.pct + '% вместо +' + season.fullPct + '% — экономия ' +
-          money(P.roundUp(std.base * season.fullPct / 100) - std.extra) + ' на формате «' + std.name + '».';
-        box.appendChild(early);
-      }
       var note = document.createElement('p');
-      note.textContent = 'Праздничная цена зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.';
+      note.textContent = season.label + ' зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.';
       box.appendChild(note);
       body.appendChild(box);
     }
@@ -162,7 +154,7 @@
     if (!r.individual && !r.date) {
       var nd = document.createElement('p');
       nd.className = 'small muted';
-      nd.textContent = 'Укажите дату праздника — в декабре, перед праздниками и в сами праздники действует праздничная цена.';
+      nd.textContent = 'Укажите дату праздника — с 10 декабря по 1 января действует новогодняя надбавка, перед праздниками и в сами праздники — праздничная цена.';
       body.appendChild(nd);
     }
     if (r.individual) {
@@ -347,11 +339,10 @@
   $('time').addEventListener('input', setTime);
   $('date').addEventListener('blur', function () { setTimeout(function () { set({}); }, 0); });
   $('time').addEventListener('blur', function () { setTimeout(function () { set({}); }, 0); });
-  // Ранняя бронь Нового года — с 1 сентября по 15 ноября по Москве.
+  // Новогодняя надбавка — уведомление с 1 октября по 1 января по Москве.
   (function () {
-    var t = today(), y = t.slice(0, 4);
-    var until = y + '-' + ('0' + P.EARLY_UNTIL.m).slice(-2) + '-' + ('0' + P.EARLY_UNTIL.d).slice(-2);
-    $('promo').hidden = !(t >= y + '-09-01' && t <= until);
+    var md = today().slice(5);
+    $('nyNote').hidden = !(md >= '10-01' || md === '01-01');
   })();
   $('send').addEventListener('click', send);
   $('barSend').addEventListener('click', send);

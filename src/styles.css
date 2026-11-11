@@ -24315,8 +24315,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   justify-content: center;
   font-weight: 600;
   font-size: 3.6cqh;
-  /* 1.2, не 1.3: на телевизоре строка «Букет невесты» срезалась снизу на 4 px (Ревизор, 11 ноября 2026). */
-  line-height: 1.2;
+  /* Высота строки — по шрифту Jost (верх и низ букв ≈ 1,45 em): при 1,3 «Букет невесты» срезалось снизу на 4 px (Ревизор, 11 ноября 2026). */
+  line-height: 1.45;
   overflow: hidden;
   overflow-wrap: anywhere;
 }

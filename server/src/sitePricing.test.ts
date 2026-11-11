@@ -666,8 +666,12 @@ describe("готовые пакеты (решение владельца 7–8 �
       expect(text, b.name).toContain(`data-bundle="${b.id}">Выбрать пакет</a>`);
       for (const line of b.includes) expect(text, line).toContain(`<span>${line}</span>`);
     }
-    // Пакеты — в начале раздела «Пакеты и цены», над калькулятором; в заявке — свой вариант «Тип мероприятия».
-    expect(html.indexOf('id="packages"')).toBeGreaterThan(html.indexOf('<section id="calculator"'));
+    // Пакеты — первый раздел «Пакеты и цены» (11 ноября 2026), калькулятор «Свой вечер» — ниже, после игр и «Как играют гости»;
+    // в заявке — свой вариант «Тип мероприятия».
+    expect(html.indexOf('id="packages"')).toBeGreaterThan(html.indexOf('<section id="prices"'));
+    expect(html.indexOf('id="packages"')).toBeLessThan(html.indexOf('<section id="look"'));
+    expect(html.indexOf('<section id="games"')).toBeLessThan(html.indexOf('<section id="calculator"'));
+    expect(html.indexOf('<section id="platform"')).toBeLessThan(html.indexOf('<section id="calculator"'));
     expect(html.indexOf('id="packages"')).toBeLessThan(html.indexOf('id="calcPacks"'));
     for (const b of B.BUNDLES) expect(html).toContain(`<option>Готовый пакет «${b.name}»</option>`);
     expect(nb(html)).toContain("Цены — с опытным ведущим, в будни, до 25 гостей.");

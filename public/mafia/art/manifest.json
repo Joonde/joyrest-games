@@ -1,0 +1,41 @@
+{
+  "comment": "Карты «Мафии», стиль «Нуар» (Figma AI). Ссылки Figma живут 7 дней — задача «Картинки карт» скачивает файлы сюда и делает web/*.webp 720×960.",
+  "files": [
+    {
+      "file": "noir-back.png",
+      "what": "«Мафия», стиль «Нуар» — рубашка карты (Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, узел 40:34)",
+      "url": "https://www.figma.com/api/mcp/asset/69d9926a-f8f5-4e39-8f01-6016183bc152.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "noir-mafia.png",
+      "what": "«Мафия», стиль «Нуар» — Мафия (узел 40:35)",
+      "url": "https://www.figma.com/api/mcp/asset/b8ea1766-584a-4ee1-a93a-6f68686223fd.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "noir-don.png",
+      "what": "«Мафия», стиль «Нуар» — Дон (узел 40:37)",
+      "url": "https://www.figma.com/api/mcp/asset/27a0469d-0fd9-4322-be6d-dec9146d3900.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "noir-sheriff.png",
+      "what": "«Мафия», стиль «Нуар» — Комиссар (узел 40:38)",
+      "url": "https://www.figma.com/api/mcp/asset/12a7b3cd-e219-45fb-96e6-c4190b57b2c1.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "noir-doctor.png",
+      "what": "«Мафия», стиль «Нуар» — Доктор (узел 40:39)",
+      "url": "https://www.figma.com/api/mcp/asset/3d774bd7-6373-4af2-942d-7de561c4cc46.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "noir-civilian.png",
+      "what": "«Мафия», стиль «Нуар» — Мирный житель (узел 40:40)",
+      "url": "https://www.figma.com/api/mcp/asset/2fefee30-759a-4bee-9ec0-4da427dda59e.png",
+      "expires": "2026-11-18"
+    }
+  ]
+}

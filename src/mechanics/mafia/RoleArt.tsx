@@ -1,6 +1,12 @@
-import { useEffect, useId, useState } from "react";
+import { createContext, useContext, useEffect, useId, useState } from "react";
 import { Logo } from "../../components/Logo";
-import { ROLES, type RoleId } from "./content";
+import { ROLES, type MafiaCardStyle, type RoleId } from "./content";
+
+/** Стиль карт игры: «Классика» — свои рисунки SVG с живыми глазами, «Нуар» — рисунки Figma AI. */
+export const MafiaCardStyleContext = createContext<MafiaCardStyle>("classic");
+
+const NOIR_FILE: Record<RoleId, string> = { mafia: "mafia", don: "don", commissar: "sheriff", doctor: "doctor", civilian: "civilian" };
+const noirSrc = (name: string) => `/mafia/art/web/noir-${name}.webp`;
 
 // Персонажи «Мафии» — свои рисунки (SVG) в стиле нуар: портрет по пояс, свет со спины, тени на лице и
 // живые детали у каждой роли. Анимации — только CSS (transform/opacity/stroke), при «уменьшить
@@ -84,6 +90,12 @@ function Fedora({ crown, band, tilt = 0 }: { crown: string; band: string; tilt?:
 }
 
 export function RoleArt({ role }: { role: RoleId }) {
+  const look = useContext(MafiaCardStyleContext);
+  if (look === "noir") return <img className={`mf-art mf-art--img mf-art--${role}`} src={noirSrc(NOIR_FILE[role])} alt={ROLES[role].title} loading="lazy" decoding="async" />;
+  return <RoleArtSvg role={role} />;
+}
+
+function RoleArtSvg({ role }: { role: RoleId }) {
   const uid = useId().replace(/:/g, "");
   const id = (name: string) => `mf-${name}-${uid}`;
   return (
@@ -355,6 +367,13 @@ export function RoleArt({ role }: { role: RoleId }) {
 
 /** Рубашка карты: узор и монограмма JoyRest. */
 export function CardBack({ city }: { city: string }) {
+  const look = useContext(MafiaCardStyleContext);
+  if (look === "noir")
+    return (
+      <div className="mf-card__face mf-card__back mf-card__back--noir" aria-hidden="true" style={{ backgroundImage: `url(${noirSrc("back")})` }}>
+        {city && <span className="mf-card__back-city">{city}</span>}
+      </div>
+    );
   return (
     <div className="mf-card__face mf-card__back" aria-hidden="true">
       <div className="mf-card__pattern" />
@@ -369,6 +388,23 @@ export function CardBack({ city }: { city: string }) {
 
 export function RoleFace({ role, seat, family }: { role: RoleId; seat?: number; family?: Array<{ name: string; role: RoleId }> }) {
   const info = ROLES[role];
+  const look = useContext(MafiaCardStyleContext);
+  if (look === "noir")
+    return (
+      <div className={`mf-card__face mf-card__front mf-card__front--noir mf-role--${role}`} style={{ backgroundImage: `url(${noirSrc(NOIR_FILE[role])})` }}>
+        {seat ? <span className="mf-card__seat">№ {seat}</span> : null}
+        <span className={info.side === "mafia" ? "mf-card__side is-mafia" : "mf-card__side"}>{info.side === "mafia" ? "Мафия" : "Город"}</span>
+        <div className="mf-card__noir-text">
+          <h3 className="mf-card__title">{info.title}</h3>
+          <p className="mf-card__power">{info.power}</p>
+          {family && family.length > 0 && (
+            <p className="mf-card__family">
+              Ваша семья: {family.map((f) => `${f.name}${f.role === "don" ? " (Дон)" : ""}`).join(", ")}
+            </p>
+          )}
+        </div>
+      </div>
+    );
   return (
     <div className={`mf-card__face mf-card__front mf-role--${role}`}>
       <div className="mf-card__frame" aria-hidden="true" />

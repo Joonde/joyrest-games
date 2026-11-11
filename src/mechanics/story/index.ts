@@ -13,6 +13,7 @@ const StoryEditor = lazy(() => import("./Editor").then((m) => ({ default: m.Stor
 export const story: Mechanic<StoryContent, StoryAnswerValue> = {
   id: "story",
   title: "Давайте знакомиться",
+  art: () => "story",
   supports: { solo: true, teams: true, noScreen: true },
   create: createStory,
   parse: parseStory,

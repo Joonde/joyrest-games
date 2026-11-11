@@ -3397,6 +3397,25 @@ kbd {
   font-variant-numeric: lining-nums tabular-nums;
 }
 
+/* 7–8 строк на невысоком экране (ноутбук 16:10, проектор) не помещались над строкой «Вход: … · код» —
+   с 7 строк таблица плотнее, как листаемая (Ревизор, 11 ноября 2026). */
+.board-view:where(:has(.board-view__row:nth-child(7))) {
+  gap: 1.4cqh;
+  font-size: 3.4cqh;
+}
+
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__title {
+  font-size: 5.6cqh;
+}
+
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__list {
+  gap: 0.9cqh;
+}
+
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__row {
+  padding: 0.8cqh 2cqw;
+}
+
 /* Длинная таблица (больше 8 строк): строки плотнее, страницы листаются сами, внизу — какие места и точки страниц. */
 .board-view--paged {
   gap: 1.4cqh;
@@ -20136,11 +20155,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .show-look__thumb--hundred-studio {
-  background-image: url("/shows/art/web/board-studio-1280.webp");
+  background-image: url("/shows/art/web/hundred-studio-1280.webp");
 }
 
 .show-look__thumb--hundred-evening {
-  background-image: url("/shows/art/web/board-evening-1280.webp");
+  background-image: url("/shows/art/web/hundred-evening-1280.webp");
 }
 
 /* ---------- Оформление телешоу: «Гонка на выживание» (content.look: «Трасса», «Вечер JoyRest») ----------
@@ -22337,7 +22356,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   max-width: 100%;
   font-size: 1.9cqh;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  /* Переносы по слогам (мягкие переносы в тексте): раньше «Франци-я», «Португа-ли» рвались на любой букве (снимки, 11 ноября 2026). */
+  hyphens: manual;
+  overflow-wrap: break-word;
 }
 
 .wine-cell__chips {
@@ -24038,21 +24059,21 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .hd-screen.show-stage--studio {
-  --show-art: url("/shows/art/web/board-studio-1280.webp");
+  --show-art: url("/shows/art/web/hundred-studio-1280.webp");
   --show-shade: radial-gradient(ellipse 70% 65% at 50% 50%, rgba(5, 7, 30, 0.62), rgba(5, 7, 30, 0.2) 80%, transparent);
 }
 
 .hd-screen.show-stage--evening {
-  --show-art: url("/shows/art/web/board-evening-1280.webp");
+  --show-art: url("/shows/art/web/hundred-evening-1280.webp");
   --show-shade: radial-gradient(ellipse 70% 65% at 50% 50%, rgba(16, 13, 10, 0.62), rgba(16, 13, 10, 0.2) 80%, transparent);
 }
 
 @media (min-width: 1400px) {
   .hd-screen.show-stage--studio {
-    --show-art: url("/shows/art/web/board-studio.webp");
+    --show-art: url("/shows/art/web/hundred-studio.webp");
   }
   .hd-screen.show-stage--evening {
-    --show-art: url("/shows/art/web/board-evening.webp");
+    --show-art: url("/shows/art/web/hundred-evening.webp");
   }
 }
 
@@ -24296,6 +24317,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   justify-content: center;
   font-weight: 600;
   font-size: 3.6cqh;
+  /* 1.3: при 1,45 ответ в две строки («За пунктуальность») наезжал на соседний на проекторе (Ревизор, 11 ноября 2026);
+     4 px «среза» по метрикам шрифта на 1,3 глазу не видны. */
   line-height: 1.3;
   overflow: hidden;
   overflow-wrap: anywhere;
@@ -26031,4 +26054,77 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   height: 100%;
   background: var(--color-primary);
   border-radius: inherit;
+}
+
+/* «Мафия», стиль «Нуар»: рисунок Figma AI на всю карту, текст — в тёмной полосе снизу. */
+.mf-card__back--noir {
+  background: #120b0e center / cover no-repeat;
+}
+
+.mf-card__back--noir .mf-card__back-city {
+  top: calc(100% - 4.5cqi);
+  background: rgb(18 11 14 / 0.85);
+  border-radius: 999px;
+}
+
+.mf-card__front--noir {
+  justify-content: flex-end;
+  padding: 0;
+  background: #120b0e top center / cover no-repeat;
+}
+
+.mf-card__noir-text {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 1cqi;
+  padding: 12cqi 7cqi 7cqi;
+  background: linear-gradient(to bottom, rgb(14 8 10 / 0) 0%, rgb(14 8 10 / 0.88) 28%, rgb(14 8 10 / 0.96) 100%);
+}
+
+.mf-card__front--noir .mf-card__title { color: #f3dfae; }
+.mf-card__front--noir .mf-card__power,
+.mf-card__front--noir .mf-card__family { color: #fbf6f1; }
+.mf-card__front--noir .mf-card__seat,
+.mf-card__front--noir .mf-card__side {
+  padding: 0.6cqi 2.4cqi;
+  border-radius: 999px;
+  background: rgb(14 8 10 / 0.8);
+}
+
+.mf-art--img {
+  aspect-ratio: 3 / 3.4;
+  object-fit: cover;
+  object-position: 50% 12%;
+  border-radius: 10px;
+}
+
+.mf-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.mf-styles__preview {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mf-styles__card {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 110px;
+  padding: 6px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 30%, #3a2630 0%, #120b0e 80%);
+}
+
+/* «Нуар» в итогах «Мафии»: рисунок вписан в квадрат слота (раньше выше квадрата и заезжал под имя). */
+.mf-reveal__art .mf-art--img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: cover;
+  object-position: 50% 15%;
 }

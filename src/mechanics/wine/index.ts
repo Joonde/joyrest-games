@@ -13,6 +13,7 @@ const WineEditor = lazy(() => import("./Editor").then((m) => ({ default: m.WineE
 export const wine: Mechanic<WineContent, WineAnswerValue> = {
   id: "wine",
   title: "Винное казино",
+  art: () => "wine",
   supports: { solo: true, teams: true, noScreen: false },
   // Счётчик «Ответили» пульт механики пишет сам.
   ownAnswered: true,

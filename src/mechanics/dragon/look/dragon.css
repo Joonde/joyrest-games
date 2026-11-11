@@ -1416,3 +1416,51 @@
     transition: none !important;
   }
 }
+
+/* Нарисованные арены (Figma AI, public/shows/art/web/dragon-arena*.webp): дракон и всё остальное — свои рисунки поверх.
+   Окрасы драконов меняют только самого дракона, фон арены один на бой. */
+.dg-stage.dg-stage--adult[class] {
+  background:
+    radial-gradient(60% 70% at 50% 55%, rgba(13, 8, 7, 0.15) 0%, rgba(13, 8, 7, 0.55) 100%),
+    url("/shows/art/web/dragon-arena-1280.webp") center / cover no-repeat,
+    #0d0807;
+}
+.dg-stage.dg-stage--kid[class] {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)),
+    url("/shows/art/web/dragon-arena-kids-1280.webp") center / cover no-repeat,
+    #a9dcff;
+}
+@media (min-width: 1400px) {
+  .dg-stage.dg-stage--adult[class] {
+    background:
+      radial-gradient(60% 70% at 50% 55%, rgba(13, 8, 7, 0.15) 0%, rgba(13, 8, 7, 0.55) 100%),
+      url("/shows/art/web/dragon-arena.webp") center / cover no-repeat,
+      #0d0807;
+  }
+  .dg-stage.dg-stage--kid[class] {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)),
+      url("/shows/art/web/dragon-arena-kids.webp") center / cover no-repeat,
+      #a9dcff;
+  }
+}
+
+/* На нарисованной арене у детей своё небо, солнце, облака и холмы — рисунки кода поверх не нужны (солнце закрывало счёт заданий),
+   а белые надписи на светлом небе плохо читались (Ревизор и снимки, 11 ноября 2026). */
+.dg-stage--kid .dg-sun,
+.dg-stage--kid .dg-cloud,
+.dg-stage--kid .dg-hills {
+  display: none;
+}
+.dg-stage--kid .dg-round {
+  padding: calc(0.6 * var(--u)) calc(1.2 * var(--u));
+  border-radius: calc(1.2 * var(--u));
+  background: rgba(255, 255, 255, 0.88);
+  color: #3b2a63;
+  box-shadow: 0 calc(0.3 * var(--u)) calc(1.2 * var(--u)) rgba(59, 42, 99, 0.18);
+}
+.dg-stage--kid .dg-boss__name {
+  color: #3b2a63;
+  text-shadow: 0 0 calc(0.6 * var(--u)) #fff, 0 0 calc(1.2 * var(--u)) #fff;
+}

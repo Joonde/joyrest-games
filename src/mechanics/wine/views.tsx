@@ -1,6 +1,7 @@
 // «Винное казино»: экран зала — сукно рулетки с категориями и фишками гостей, после «Открыть бутылку» — паспорт
 // вина и выигравшие ячейки; телефон — свои фишки на поле.
 import { useEffect, useRef, useState } from "react";
+import { softHyphens } from "../lotto/content";
 import { HallTimer } from "../../components/live/HallTimer";
 import { NameText } from "../../components/NameText";
 import { playSound } from "../../components/live/sound";
@@ -47,7 +48,7 @@ export function WineTable({ content, r, win, compact = false }: { content: WineC
               const isWin = winning.has(o.key);
               return (
                 <span key={o.key} className={`wine-cell${n > 0 ? " has-chips" : ""}${isWin ? " is-win" : ""}${win && !isWin ? " is-lost" : ""}`}>
-                  <span className="wine-cell__label">{o.label}</span>
+                  <span className="wine-cell__label">{softHyphens(o.label, 6)}</span>
                   {n > 0 && <span className="wine-cell__chips">{n}</span>}
                 </span>
               );

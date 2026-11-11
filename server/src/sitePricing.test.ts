@@ -621,7 +621,7 @@ describe("калькулятор сайта: новогодняя надбавк
 });
 
 describe("готовые пакеты (решение владельца 7–8 ноября 2026)", () => {
-  interface Bundle { id: string; name: string; tag: string; time: string; price: number; sub: string; includes: string[]; calc: { pkg: string; extras: string[]; addons: string[] } }
+  interface Bundle { id: string; name: string; tag: string; time: string; price: number; sub: string; includes: string[]; calc: { pkg: string; extras: string[]; addons: string[] }; compare?: boolean; guests?: string }
   const B = P as unknown as Pricing & {
     BUNDLES: Bundle[];
     BUNDLE_TIER: number;
@@ -633,10 +633,16 @@ describe("готовые пакеты (решение владельца 7–8 �
   const nb = (s: string) => s.replace(/ /g, " ");
   const rub = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₽";
 
-  it("пять пакетов; каждый дешевле той же сборки в калькуляторе (опытный, будни, до 25 гостей), цена кратна 100", () => {
-    expect(B.BUNDLES.map((b) => b.id)).toEqual(["joyrest", "nyshow", "nyquiz", "mix", "mafia"]);
+  it("семь пакетов; каждый дешевле той же сборки в калькуляторе (опытный, будни, до 25 гостей), цена кратна 100", () => {
+    expect(B.BUNDLES.map((b) => b.id)).toEqual(["joyrest", "tvshow", "nyshow", "nyquiz", "mix", "mafia", "kids"]);
     expect(B.TIERS[B.BUNDLE_TIER]).toBe(25);
+    // «Телешоу» и детский (решение владельца 11 ноября 2026): 24 900 ₽ и 10 900 ₽ (до 10 детей, 1,5 часа — без сравнения с калькулятором).
+    expect(B.bundleById("tvshow")?.price).toBe(24900);
+    expect(B.bundleById("kids")).toMatchObject({ price: 10900, guests: "до 10 детей", time: "1,5 часа", compare: false });
     for (const b of B.BUNDLES) {
+      expect(b.price % 100, b.name).toBe(0);
+      expect(b.includes.length, b.name).toBeGreaterThanOrEqual(3);
+      if (b.compare === false) continue;
       const calc = B.bundleCalcPrice(b);
       // Независимо: пакет + добавленные игры по 50% + обычные допы → вверх до 100 → + призы.
       const flex = PRICES[b.calc.pkg]![1]! + b.calc.extras.reduce((s, id) => s + Math.ceil(PRICES[id]![1]! * 0.5 / 100) * 100, 0)
@@ -661,8 +667,14 @@ describe("готовые пакеты (решение владельца 7–8 �
       const calc = B.bundleCalcPrice(b);
       expect(text, b.name).toContain(`<h3 class="bundle__name">${b.name}</h3>`);
       expect(text, b.name).toContain(`<b data-bundle-price>${rub(b.price)}</b>`);
-      expect(text, b.name).toContain(`<span class="vh">в калькуляторе </span>${rub(calc)}</s>`);
-      expect(text, b.name).toContain(`Выгода ${rub(calc - b.price)}`);
+      if (b.compare === false) {
+        expect(text, b.name).not.toContain("data-bundle-old");
+        expect(text, b.name).not.toContain("Выгода");
+      } else {
+        expect(text, b.name).toContain(`<span class="vh">в калькуляторе </span>${rub(calc)}</s>`);
+        expect(text, b.name).toContain(`Выгода ${rub(calc - b.price)}`);
+      }
+      expect(text, b.name).toContain(`<span class="bundle__time">${b.time}</span>`);
       expect(text, b.name).toContain(`data-bundle="${b.id}">Выбрать пакет</a>`);
       for (const line of b.includes) expect(text, line).toContain(`<span>${line}</span>`);
     }
@@ -674,7 +686,7 @@ describe("готовые пакеты (решение владельца 7–8 �
     expect(html.indexOf('<section id="platform"')).toBeLessThan(html.indexOf('<section id="calculator"'));
     expect(html.indexOf('id="packages"')).toBeLessThan(html.indexOf('id="calcPacks"'));
     for (const b of B.BUNDLES) expect(html).toContain(`<option>Готовый пакет «${b.name}»</option>`);
-    expect(nb(html)).toContain("Цены — с опытным ведущим, в будни, до 25 гостей.");
+    expect(nb(html)).toContain("Цены — с опытным ведущим, в будни, до 25 гостей; «День рождения ребёнка» — до 10 детей, 1,5 часа.");
     expect(nb(html)).toContain("с 10 декабря — новогодняя надбавка, перед 14 февраля, 23 февраля и 8 марта — праздничная цена");
     // Скрытая подпись «в калькуляторе» не должна растягивать страницу: карточки и лента — точка отсчёта.
     const css = readFileSync(join(root, "site/css/style.css"), "utf8");
@@ -692,6 +704,11 @@ describe("готовые пакеты (решение владельца 7–8 �
     expect(text).toContain("Цена: 24 900 ₽ — опытный ведущий, будни");
     expect(text).toContain("Программа: Музыкальный\nДопы: Танцевальная пауза\nДлительность: ≈ 1,5–2 часа");
     expect(text).toContain("выходные, новогодняя надбавка и праздничные дни — по правилам калькулятора");
+    const kids = nb(B.bundleMessage("kids"));
+    expect(kids).toContain("Пакет: День рождения ребёнка");
+    expect(kids).toContain("Длительность: 1,5 часа\nГостей: до 10 детей");
+    expect(kids).toContain("Цена: 10 900 ₽ — опытный ведущий, будни, до 10 детей");
+    expect(nb(B.bundleMessage("tvshow"))).toContain("Цена: 24 900 ₽ — опытный ведущий, будни");
     // Студия разбирает сообщение пакета («Заполнить из сообщения», «Вставить расчёт», бот): даты клиент не называл — её нет.
     for (const b of B.BUNDLES) {
       for (const today of ["2026-11-08", "2027-01-10", "2027-06-01"]) {

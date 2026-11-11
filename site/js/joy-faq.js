@@ -19,6 +19,7 @@
     var y = t.y;
     var pk = P.PACKAGES;
     var top = P.TIERS.length - 1;
+    var kidsBundle = P.bundleById ? P.bundleById('kids') : null;
     var cheapest = pk.reduce(function (a, b) { return b.prices[0] < a.prices[0] ? b : a; });
 
     // Пакеты с одинаковой вилкой цен — одной строкой («Квиз, Музыкальный и Танцевальный 19 900–49 900 ₽»).
@@ -82,7 +83,7 @@
 
       // ---------- Пакеты и цены ----------
       { id: 'price', topic: 'Пакеты и цены', q: 'Сколько стоит праздник?', star: true,
-        a: 'От ' + money(cheapest.prices[0]) + ' — «' + cheapest.name + '» до ' + P.TIERS[0] + ' гостей. Цена зависит от пакета, числа гостей, дня и даты праздника. Точная сумма — в калькуляторе.',
+        a: 'От ' + money(cheapest.prices[0]) + ' — «' + cheapest.name + '» до ' + P.TIERS[0] + ' гостей' + (kidsBundle ? ', детский день рождения — готовым пакетом за ' + money(kidsBundle.price) + ' (' + kidsBundle.guests + ', ' + kidsBundle.time + ')' : '') + '. Цена зависит от пакета, числа гостей, дня и даты праздника. Точная сумма — в калькуляторе.',
         keys: ['сколько стоит', 'стоимост', 'цена', 'цены', 'прайс', 'почем', 'сколько будет', 'бюджет', 'стоит', 'цена квиз', 'цена игр', 'цены на'],
         next: ['packages', 'levels', 'season'], cta: 'calc' },
       { id: 'packages', topic: 'Пакеты и цены', q: 'Какие есть пакеты?',

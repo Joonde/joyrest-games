@@ -65,10 +65,13 @@ describe("программа мероприятия из расчёта клие
   it("готовый пакет с сайта: программа — из строк «Программа», «Допы», «Длительность», не из «Что входит»", () => {
     const want: Record<string, { formats: string[]; addons: string[]; duration: string }> = {
       joyrest: { formats: ["Квиз", "Игровой вечер"], addons: [], duration: "≈ 2,5–3 часа" },
+      tvshow: { formats: ["Шоу-вечер"], addons: [], duration: "≈ 1,5–2 часа" },
       nyshow: { formats: ["Шоу-вечер"], addons: ["Призы и медали"], duration: "≈ 1,5–2 часа" },
       nyquiz: { formats: ["Квиз"], addons: ["Призы и медали"], duration: "≈ 1,5–2 часа" },
       mix: { formats: ["Музыкальный"], addons: ["Танцевальная пауза"], duration: "≈ 1,5–2 часа" },
       mafia: { formats: ["Игровой вечер"], addons: ["Призы и медали"], duration: "≈ 1,5–2 часа" },
+      // Детский — ровно 1,5 часа без «≈ …–…»: длительность ведущий видит в «до» мероприятия.
+      kids: { formats: ["Активные настолки"], addons: [], duration: "" },
     };
     expect(P.BUNDLES.map((b) => b.id)).toEqual(Object.keys(want));
     for (const b of P.BUNDLES) {

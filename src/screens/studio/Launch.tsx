@@ -20,6 +20,7 @@ import { LoadFailed, Message, Pending } from "../../components/Status";
 import { TopBar } from "../../components/TopBar";
 import { getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
 import { EVENING_MECHANIC } from "../../core/program";
+import { prepWarning, templateBlocks } from "../../core/eveningPrep";
 import { NOT_IN_EVENING, parseEvening } from "../../mechanics/evening/content";
 import { getTheme, THEME_HINTS, themesForRating, themeStyle } from "../../themes/registry";
 import { Scene } from "../../components/live/Scene";
@@ -109,6 +110,8 @@ function LaunchLoader({ gameId, profile }: { gameId: string; profile: UserProfil
 /** Мероприятие из блоков: игры вечера загружаются и проверяются до запуска — каждая станет снимком. */
 function EveningLoader({ game, profile }: { game: Game; profile: UserProfile }) {
   const refs = parseEvening(game.content).blocks;
+  // В личном вечере остались шаблоны библиотеки — сначала спросить (решение владельца 11 ноября 2026).
+  const [asIs, setAsIs] = useState(false);
   // Нет доступа к игре блока (чужая личная игра) — как «не найдена», а не общая ошибка загрузки.
   const [state, retry] = useLoad(
     () => Promise.all(refs.map((r) => gamesRepo.get(r.gameId).catch((e: unknown) => (isPermanentError(e) ? null : Promise.reject(e))))),
@@ -148,6 +151,26 @@ function EveningLoader({ game, profile }: { game: Game; profile: UserProfile }) 
           <Link className="btn btn--secondary btn--block" to="/studio">
             В студию
           </Link>
+        </div>
+      </Message>
+    );
+  }
+  const warning = prepWarning(templateBlocks(game.scope, state.data.map((g) => g?.scope ?? null)));
+  if (warning && !asIs) {
+    return (
+      <Message title="Вечер ещё не подготовлен?">
+        <p>{warning}</p>
+        <p className="muted small">
+          Подготовьте их в программе: «✍️ Подготовить под вечер» сделает вашу копию и откроет её конструктор. Для пробного вечера можно
+          запустить и так.
+        </p>
+        <div className="actions">
+          <Link className="btn btn--block" to={`/studio/games/${game.id}`}>
+            ✍️ Подготовить в программе
+          </Link>
+          <button type="button" className="btn btn--secondary btn--block" onClick={() => setAsIs(true)}>
+            Запустить как есть
+          </button>
         </div>
       </Message>
     );

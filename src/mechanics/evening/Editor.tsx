@@ -65,7 +65,7 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
       else missing.push(slotLabel(slot));
     }
     set(picked);
-    setNote(missing.length > 0 ? `Не нашлось игр: ${missing.join(", ")}. Добавьте их ниже или скопируйте из библиотеки.` : `Программа «${t.title}» собрана — поменяйте игры и порядок, как нужно.`);
+    setNote(missing.length > 0 ? `Не нашлось игр: ${missing.join(", ")}. Добавьте их ниже или скопируйте из библиотеки.` : `Программа «${t.title}» собрана — поменяйте игры и порядок, как нужно. 👥 ${t.setup}`);
   }
 
   return (
@@ -131,6 +131,7 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
                       <span className="choice__text">
                         <span className="choice__title">{t.title}</span>
                         <span className="choice__hint">{t.hint}</span>
+                        <span className="choice__hint">👥 {t.setup}</span>
                       </span>
                     </button>
                   ))}

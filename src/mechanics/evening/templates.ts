@@ -29,6 +29,8 @@ export interface Template {
   id: string;
   title: string;
   hint: string;
+  /** Как делить гостей: режим, сколько команд и людей — показывается под программой и в инструкции ведущих. */
+  setup: string;
   slots: TemplateSlot[];
 }
 
@@ -60,7 +62,7 @@ export const TEMPLATES: Template[] = [
   {
     id: "trial",
     title: "Пробный вечер",
-    hint: "«Бой с драконом» → «Активная настолка» → квиз",
+    hint: "«Бой с драконом» → «Активная настолка» → квиз", setup: "Лучше командами: 3–6 команд по 3–8 человек — в настолке ходят по очереди. Каждый сам за себя — только до 10 гостей.",
     slots: [
       { mechanic: "dragon", look: ["classic"], label: "Бой с драконом" },
       { mechanic: "quest", look: ADULT_LOOKS, label: "Активная настолка (Классика или Вечеринка)" },
@@ -70,30 +72,75 @@ export const TEMPLATES: Template[] = [
   {
     id: "trial-kids",
     title: "Детский пробный вечер",
-    hint: "Детский «Бой с драконом» → «Сладкая страна» → детский квиз",
+    hint: "Детский «Бой с драконом» → «Сладкая страна» → детский квиз", setup: "Дети — командами по 3–6 с капитаном постарше, взрослые помогают, но не играют. До 8 детей — можно каждый сам.",
     slots: [
       { mechanic: "dragon", look: ["kids"], label: "Бой с драконом (детский)" },
       { mechanic: "quest", look: ["kids"], label: "Активная настолка (Детская)" },
       { mechanic: "quiz", category: "quiz", age: "0+", label: "Квиз 0+" },
     ],
   },
-  { id: "corp", title: "Корпоратив", hint: "Квиз → «Ставка на знания» → «Миллион на кону»", slots: [{ mechanic: "quiz", category: "quiz" }, { mechanic: "board" }, { mechanic: "millionaire" }] },
-  { id: "birthday", title: "День рождения", hint: "«Давайте знакомиться» → квиз → «Правда или действие»", slots: [{ mechanic: "story" }, { mechanic: "quiz", category: "quiz" }, { mechanic: "truth" }] },
-  { id: "music", title: "Музыкальный вечер", hint: "«Узнай по нотам» → музыкальное лото → танцевальный батл", slots: [{ mechanic: "quiz", category: "music" }, { mechanic: "lotto" }, { mechanic: "dance" }] },
-  { id: "table", title: "Вечер настолок", hint: "«Кости лжеца» → «Мафия»", slots: [{ mechanic: "perudo" }, { mechanic: "mafia" }] },
+  {
+    id: "kids-break",
+    title: "Детский праздник с перерывом",
+    hint: "Детский «Бой с драконом» → «Аквариум» (рисуем рыбок) → «Сладкая страна»", setup: "Командами по 3–6 детей. Нужен экран зала: в «Аквариуме» каждый рисует рыбку со своего телефона, и она плывёт на экране — команды не мешают.",
+    slots: [
+      { mechanic: "dragon", look: ["kids"], label: "Бой с драконом (детский)" },
+      { mechanic: "aquarium" },
+      { mechanic: "quest", look: ["kids"], label: "Активная настолка (Детская)" },
+    ],
+  },
+  {
+    id: "smart",
+    title: "Интеллектуальный вечер",
+    hint: "Квиз → «Ставка на знания» · два больших блока на эрудицию", setup: "Каждый сам — до 15 гостей; больше — команды по 4–6: обсуждают вместе, отвечает капитан.",
+    slots: [{ mechanic: "quiz", category: "quiz" }, { mechanic: "board" }],
+  },
+  {
+    id: "team-battle",
+    title: "Командный батл",
+    hint: "«Давайте знакомиться» → «Бой с драконом» → «Гонка на выживание» → «Активная настолка»", setup: "Только команды: 3–6 команд по 4–8 человек. Команды собираются при входе и играют весь вечер одним составом.",
+    slots: [
+      { mechanic: "story" },
+      { mechanic: "dragon", look: ["classic"], label: "Бой с драконом" },
+      { mechanic: "survival" },
+      { mechanic: "quest", look: ADULT_LOOKS, label: "Активная настолка (Классика или Вечеринка)" },
+    ],
+  },
+  {
+    id: "new-year-show",
+    title: "Новогоднее телешоу",
+    hint: "«Что скажет большинство» → «Ставка на знания» → «Миллион на кону» · поставьте новогодние версии игр", setup: "Каждый сам — до 15 гостей; больше — команды по 4–8.",
+    slots: [{ mechanic: "hundred" }, { mechanic: "board" }, { mechanic: "millionaire" }],
+  },
+  {
+    id: "show-dance",
+    title: "Шоу и танцы",
+    hint: "Квиз → «Узнай по нотам» → «Танцуй как звезда» · командами, с экраном зала", setup: "Только команды и только с экраном зала (так требует «Танцуй как звезда»): 3–6 команд по 4–8 человек.",
+    slots: [{ mechanic: "quiz", category: "quiz" }, { mechanic: "quiz", category: "music", label: "Узнай по нотам" }, { mechanic: "stage", variant: "dance", label: "Танцуй как звезда" }],
+  },
+  { id: "corp", title: "Корпоратив", hint: "Квиз → «Ставка на знания» → «Миллион на кону»", setup: "Каждый сам — до 15 гостей; больше — команды по 4–8.", slots: [{ mechanic: "quiz", category: "quiz" }, { mechanic: "board" }, { mechanic: "millionaire" }] },
+  { id: "birthday", title: "День рождения", hint: "«Давайте знакомиться» → квиз → «Правда или действие»", setup: "Каждый сам — до 15 гостей; больше — команды по 4–8.", slots: [{ mechanic: "story" }, { mechanic: "quiz", category: "quiz" }, { mechanic: "truth" }] },
+  { id: "music", title: "Музыкальный вечер", hint: "«Узнай по нотам» → музыкальное лото → танцевальный батл", setup: "Только команды (так требует танцевальный батл): 3–6 команд по 4–8 человек, с экраном зала.", slots: [{ mechanic: "quiz", category: "music" }, { mechanic: "lotto" }, { mechanic: "dance" }] },
+  { id: "table", title: "Вечер настолок", hint: "«Кости лжеца» → «Мафия»", setup: "Только каждый сам за себя, 5–10 гостей: в «Костях лжеца» до 10 стаканов, «Мафии» нужно от 5.", slots: [{ mechanic: "perudo" }, { mechanic: "mafia" }] },
   {
     id: "intrigue",
     title: "Вечер интриг",
-    hint: "«Шпион» → «Убежище» → «Мафия» · каждый сам за себя",
+    hint: "«Шпион» → «Убежище» → «Мафия» · каждый сам за себя", setup: "Только каждый сам за себя, 5–20 гостей: «Мафии» нужно от 5, «Шпион» — до 20.",
     slots: [{ mechanic: "spy" }, { mechanic: "bunker" }, { mechanic: "mafia" }],
+  },
+  {
+    id: "cards",
+    title: "Карточный вечер",
+    hint: "«Дурак» → «Кости лжеца» → «Мафия» · каждый сам за себя", setup: "Только каждый сам за себя, лучше 5–8 гостей: в «Дураке» до 6 мест (52 карты — до 8), в «Костях лжеца» до 10 стаканов. Гостей больше — берите «Вечер интриг».",
+    slots: [{ mechanic: "durak" }, { mechanic: "perudo" }, { mechanic: "mafia" }],
   },
   {
     id: "dance",
     title: "Танцевальный вечер",
-    hint: "Джаз-фанк → диско → латина → Танцуй как звезда",
+    hint: "Джаз-фанк → диско → латина → Танцуй как звезда", setup: "Только команды и только с экраном зала: 3–6 команд по 4–8 человек.",
     slots: [{ mechanic: "dance", style: "jazz" }, { mechanic: "dance", style: "disco" }, { mechanic: "dance", style: "latin" }, { mechanic: "stage", variant: "dance" }],
   },
-  { id: "show", title: "Телешоу", hint: "«Ставка на знания» → «Гонка на выживание» → «Миллион на кону»", slots: [{ mechanic: "board" }, { mechanic: "survival" }, { mechanic: "millionaire" }] },
+  { id: "show", title: "Телешоу", hint: "«Ставка на знания» → «Гонка на выживание» → «Миллион на кону»", setup: "Каждый сам — до 15 гостей; больше — команды по 4–8.", slots: [{ mechanic: "board" }, { mechanic: "survival" }, { mechanic: "millionaire" }] },
 ];
 
 /** Сколько блоков может быть в программе — для проверки шаблонов. */

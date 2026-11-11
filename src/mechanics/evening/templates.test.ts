@@ -28,6 +28,31 @@ describe("готовые программы вечера", () => {
     }
   });
 
+  it("у каждой программы есть подсказка, как делить гостей, и она не спорит с режимами", () => {
+    for (const t of TEMPLATES) {
+      expect(t.setup.length, t.title).toBeGreaterThan(20);
+      const supports = t.slots.map((s) => getMechanic(s.mechanic)!.supports);
+      if (supports.some((s) => !s.teams)) expect(t.setup, t.title).toMatch(/^Только каждый сам/);
+      if (supports.some((s) => !s.solo)) expect(t.setup, t.title).toMatch(/^Только команды/);
+      if (supports.some((s) => !s.noScreen)) expect(t.setup + t.hint, t.title).toMatch(/экран/);
+    }
+  });
+
+  it("нет двух одинаковых программ", () => {
+    const keys = TEMPLATES.map((t) => JSON.stringify(t.slots));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("программы 11 ноября 2026 на месте", () => {
+    const of = (id: string) => TEMPLATES.find((t) => t.id === id)?.slots.map((s) => s.mechanic);
+    expect(of("team-battle")).toEqual(["story", "dragon", "survival", "quest"]);
+    expect(of("cards")).toEqual(["durak", "perudo", "mafia"]);
+    expect(of("new-year-show")).toEqual(["hundred", "board", "millionaire"]);
+    expect(of("show-dance")).toEqual(["quiz", "quiz", "stage"]);
+    expect(of("kids-break")).toEqual(["dragon", "aquarium", "quest"]);
+    expect(of("smart")).toEqual(["quiz", "board"]);
+  });
+
   it("пробный вечер: дракон, настолка и квиз", () => {
     const trial = TEMPLATES.find((t) => t.id === "trial");
     expect(trial?.slots.map((s) => s.mechanic)).toEqual(["dragon", "quest", "quiz"]);

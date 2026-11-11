@@ -162,6 +162,17 @@ export function isCalcMessage(text: string): boolean {
 /** Откуда новая заявка: с сайта, вопрос с сайта, запрос по QR-анкете. */
 export type SalesLeadKind = "site" | "question" | "venue" | "telegram";
 
+/** Менеджер JoyRest в Telegram — тот же чат, что в калькуляторе и у Джой на сайте. */
+export const MANAGER_CHAT = "https://t.me/+79857822689";
+/**
+ * Ответ незнакомцу (решение владельца 11 ноября 2026): клиенту — куда написать менеджеру (бот служебный, переписку
+ * клиентов не передаёт), человеку из команды — как подключить уведомления.
+ */
+export const STRANGER_TEXT =
+  `Здравствуйте! Это служебный бот JoyRest — он не передаёт сообщения менеджеру.\n\n` +
+  `Чтобы обсудить праздник, напишите нашему менеджеру: ${MANAGER_CHAT} — ответим лично.\n\n` +
+  `Вы из команды JoyRest? Подключите уведомления в студии: «Мой профиль» → «Уведомления в Telegram».`;
+
 /** Текст «Новая заявка» для менеджера: что пришло и куда смотреть — без имени, телефона и адреса клиента. */
 export function salesNoticeText(kind: SalesLeadKind, platformUrl: string): string {
   const what =
@@ -431,7 +442,7 @@ export function startBot(options: BotOptions): Bot {
     if (start) {
       const code = start[1];
       if (!code) {
-        await sendChat(chatId, "Это бот агентства JoyRest. Чтобы получать свои мероприятия и напоминания, откройте студию → «Мой профиль» → «Подключить Telegram».");
+        await sendChat(chatId, STRANGER_TEXT);
         return;
       }
       const [row] = await sql<{ user_id: string }[]>`delete from tg_codes where code = ${code} and expires_at > now() returning user_id`;
@@ -464,7 +475,7 @@ export function startBot(options: BotOptions): Bot {
       return;
     }
     if (!link) {
-      await sendChat(chatId, "Это бот агентства JoyRest. Чтобы получать свои мероприятия и напоминания, откройте студию → «Мой профиль» → «Подключить Telegram».");
+      await sendChat(chatId, STRANGER_TEXT);
       return;
     }
     const owner = permissions.canManageClients({ uid: link.user_id, role: link.role === "admin" ? "admin" : "host", active: link.active, accessRole: link.access_role });

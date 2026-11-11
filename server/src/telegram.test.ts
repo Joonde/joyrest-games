@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { migrate } from "./migrate";
-import { answerHoursOpen, startBot, type Bot } from "./telegram";
+import { answerHoursOpen, startBot, STRANGER_TEXT, type Bot } from "./telegram";
 
 interface Sent {
   chat: number;
@@ -287,7 +287,12 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
   it("чужой чат — подсказка; /stop — уведомления больше не приходят", async () => {
     tg.push(333, "привет");
     await until(() => to(333).length === 1, "ответ незнакомцу");
-    expect(to(333)[0]).toContain("Подключить Telegram");
+    expect(to(333)[0]).toBe(STRANGER_TEXT);
+    expect(to(333)[0]).toContain("https://t.me/+79857822689");
+    expect(to(333)[0]).toContain("«Мой профиль» → «Уведомления в Telegram»");
+    tg.push(334, "/start");
+    await until(() => to(334).length === 1, "«Старт» без кода");
+    expect(to(334)[0]).toBe(STRANGER_TEXT);
     tg.push(ANNA, "/stop");
     await until(async () => (await get("/api/telegram/me", anna)).json().linked === false, "отключение Анны");
     const n = to(ANNA).length;

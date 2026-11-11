@@ -45,7 +45,7 @@ export function fits(game: Pick<Game, "mechanic" | "content" | "ageRating" | "ti
     const look = typeof raw?.style === "string" ? raw.style : "classic";
     if (!slot.look.includes(look)) return false;
   }
-  if (slot.age && game.ageRating !== slot.age) return false;
+
   return true;
 }
 
@@ -127,7 +127,7 @@ export const TEMPLATES: Template[] = [
     id: "intrigue",
     title: "Вечер интриг",
     hint: "«Шпион» → «Убежище» → «Мафия» · каждый сам за себя", setup: "Только каждый сам за себя, 5–16 гостей: «Мафии» нужно от 5, в «Убежище» — до 16 игроков. Гостей больше — берите команды и другую программу.",
-    slots: [{ mechanic: "spy" }, { mechanic: "bunker" }, { mechanic: "mafia" }],
+    slots: [{ mechanic: "spy" }, { mechanic: "bunker" }, { mechanic: "mafia" }, { mechanic: "dance" }],
   },
   {
     id: "cards",

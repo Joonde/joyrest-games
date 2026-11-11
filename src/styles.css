@@ -19516,6 +19516,51 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   justify-content: flex-end;
 }
 
+/* Подготовка блоков (11 ноября 2026): метка шаблона или своей игры, кнопка и памятка. Цвета — только токены темы. */
+.ev-edit__tag {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.ev-edit__tag--template {
+  border: 1.5px dashed var(--color-highlight);
+}
+
+.ev-edit__go {
+  display: flex;
+  margin-top: 8px;
+}
+
+.ev-edit__go .btn {
+  width: 100%;
+}
+
+.ev-memo {
+  margin-top: 6px;
+}
+
+.ev-memo > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.ev-memo p {
+  margin: 4px 0;
+}
+
+.ev-memo__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
 .ev-template {
   width: 100%;
   text-align: left;

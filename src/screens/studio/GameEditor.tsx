@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { GamePreview } from "./GamePreview";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { editorGuideFor } from "../../core/editorGuideSkip";
 import { AGE_RATINGS, cleanGameTitle, copyOfGame, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
 import {
@@ -221,6 +221,10 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
     while (statusRef.current !== "saved" && statusRef.current !== "error" && statusRef.current !== "conflict" && statusRef.current !== "denied" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
   }
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
+  // Пришли из программы вечера («✍️ Подготовить под вечер» / «Редактировать») — сверху возврат к ней (решение владельца 11 ноября 2026).
+  const [search] = useSearchParams();
+  const eveningParam = search.get("evening");
+  const eveningId = eveningParam && /^[\w-]{1,128}$/.test(eveningParam) && eveningParam !== game.id ? eveningParam : null;
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
   const errors = useMemo(() => validateGame(game.mechanic, game.content), [game.mechanic, game.content]);
   const stepsText = stepsLabel(game.mechanic, game.content);
@@ -439,9 +443,15 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   return (
     <main className="page">
       <TopBar title={editable ? "Игра" : "Игра JoyRest"} actions={[{ label: "В студию", onClick: () => goBack(back) }]} onHome={() => goBack("/studio")} />
-      <button type="button" className="btn btn--quiet back-link" onClick={() => goBack()}>
-        ← К играм
-      </button>
+      {eveningId ? (
+        <button type="button" className="btn btn--secondary back-link" onClick={() => goBack(`/studio/games/${eveningId}`)}>
+          ← Вернуться к программе вечера
+        </button>
+      ) : (
+        <button type="button" className="btn btn--quiet back-link" onClick={() => goBack()}>
+          ← К играм
+        </button>
+      )}
       {editable ? (
         <>
           <span ref={statusSentinel} className="save-status__sentinel" aria-hidden="true" />
@@ -654,6 +664,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
             content={game.content}
             editable={editable}
             scope={game.scope}
+            gameTitle={game.title}
+            openGame={(path) => goBack(path)}
             onChange={(content) => edit({ content })}
           />
         </Suspense>

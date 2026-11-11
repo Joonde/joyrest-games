@@ -20136,11 +20136,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .show-look__thumb--hundred-studio {
-  background-image: url("/shows/art/web/board-studio-1280.webp");
+  background-image: url("/shows/art/web/hundred-studio-1280.webp");
 }
 
 .show-look__thumb--hundred-evening {
-  background-image: url("/shows/art/web/board-evening-1280.webp");
+  background-image: url("/shows/art/web/hundred-evening-1280.webp");
 }
 
 /* ---------- Оформление телешоу: «Гонка на выживание» (content.look: «Трасса», «Вечер JoyRest») ----------
@@ -24038,21 +24038,21 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .hd-screen.show-stage--studio {
-  --show-art: url("/shows/art/web/board-studio-1280.webp");
+  --show-art: url("/shows/art/web/hundred-studio-1280.webp");
   --show-shade: radial-gradient(ellipse 70% 65% at 50% 50%, rgba(5, 7, 30, 0.62), rgba(5, 7, 30, 0.2) 80%, transparent);
 }
 
 .hd-screen.show-stage--evening {
-  --show-art: url("/shows/art/web/board-evening-1280.webp");
+  --show-art: url("/shows/art/web/hundred-evening-1280.webp");
   --show-shade: radial-gradient(ellipse 70% 65% at 50% 50%, rgba(16, 13, 10, 0.62), rgba(16, 13, 10, 0.2) 80%, transparent);
 }
 
 @media (min-width: 1400px) {
   .hd-screen.show-stage--studio {
-    --show-art: url("/shows/art/web/board-studio.webp");
+    --show-art: url("/shows/art/web/hundred-studio.webp");
   }
   .hd-screen.show-stage--evening {
-    --show-art: url("/shows/art/web/board-evening.webp");
+    --show-art: url("/shows/art/web/hundred-evening.webp");
   }
 }
 
@@ -26031,4 +26031,67 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   height: 100%;
   background: var(--color-primary);
   border-radius: inherit;
+}
+
+/* «Мафия», стиль «Нуар»: рисунок Figma AI на всю карту, текст — в тёмной полосе снизу. */
+.mf-card__back--noir {
+  background: #120b0e center / cover no-repeat;
+}
+
+.mf-card__back--noir .mf-card__back-city {
+  top: calc(100% - 4.5cqi);
+  background: rgb(18 11 14 / 0.85);
+  border-radius: 999px;
+}
+
+.mf-card__front--noir {
+  justify-content: flex-end;
+  padding: 0;
+  background: #120b0e top center / cover no-repeat;
+}
+
+.mf-card__noir-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1cqi;
+  padding: 12cqi 7cqi 7cqi;
+  background: linear-gradient(to bottom, rgb(14 8 10 / 0) 0%, rgb(14 8 10 / 0.88) 28%, rgb(14 8 10 / 0.96) 100%);
+}
+
+.mf-card__front--noir .mf-card__title { color: #f3dfae; }
+.mf-card__front--noir .mf-card__power,
+.mf-card__front--noir .mf-card__family { color: #fbf6f1; }
+.mf-card__front--noir .mf-card__seat,
+.mf-card__front--noir .mf-card__side {
+  padding: 0.6cqi 2.4cqi;
+  border-radius: 999px;
+  background: rgb(14 8 10 / 0.8);
+}
+
+.mf-art--img {
+  aspect-ratio: 3 / 3.4;
+  object-fit: cover;
+  object-position: 50% 12%;
+  border-radius: 10px;
+}
+
+.mf-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.mf-styles__preview {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mf-styles__card {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 110px;
+  padding: 6px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 30%, #3a2630 0%, #120b0e 80%);
 }

@@ -59,6 +59,9 @@ export interface RoleCounts {
   doctor: number;
 }
 
+/** Стиль карт: classic — свои рисунки SVG (старые игры), noir — рисунки Figma AI. */
+export type MafiaCardStyle = "classic" | "noir";
+
 export interface MafiaContent {
   /** auto — роли по числу игроков; custom — как задал ведущий (лишние — мирные). */
   roles: "auto" | "custom";
@@ -79,6 +82,8 @@ export interface MafiaContent {
   city: string;
   /** Партий за игру: после каждой — «Следующая партия», очки копятся в общий счёт. */
   parties: number;
+  /** Стиль карт ролей и рубашки. */
+  cardStyle: MafiaCardStyle;
 }
 
 export const MAFIA_LIMITS = {
@@ -101,6 +106,7 @@ export function createMafia(): MafiaContent {
     survivorBonus: 50,
     city: "Палермо",
     parties: 3,
+    cardStyle: "noir",
   };
 }
 
@@ -132,6 +138,7 @@ export function parseMafia(raw: unknown): MafiaContent {
     survivorBonus: int(d.survivorBonus, base.survivorBonus, 0, 1000),
     city: typeof d.city === "string" && d.city.trim() ? d.city.trim().slice(0, MAFIA_LIMITS.city) : base.city,
     parties: int(d.parties, base.parties, 1, 10),
+    cardStyle: d.cardStyle === "noir" ? "noir" : "classic",
   };
 }
 

@@ -11,7 +11,7 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { ROLES, type MafiaContent, type RoleId } from "./content";
-import { CardBack, RoleArt, RoleCardView, RoleFace } from "./RoleArt";
+import { CardBack, MafiaCardStyleContext, RoleArt, RoleCardView, RoleFace } from "./RoleArt";
 import { canHeal, checkOf, isMafia, parseMafiaResult, parseRoleCard, parseWhisper, targetOf, voteOf, type MafiaResult, type RoleCard, type Whisper } from "./logic";
 import { isKey, newKey, storedKey, storeKey, unseal } from "./seal";
 
@@ -143,7 +143,15 @@ function Speaker({ session, r, now }: { session: Session; r: MafiaResult; now: n
   );
 }
 
-export function MafiaScreenView({ session, content }: ViewProps<MafiaContent>) {
+export function MafiaScreenView(props: ViewProps<MafiaContent>) {
+  return (
+    <MafiaCardStyleContext.Provider value={props.content.cardStyle}>
+      <MafiaScreen {...props} />
+    </MafiaCardStyleContext.Provider>
+  );
+}
+
+function MafiaScreen({ session, content }: ViewProps<MafiaContent>) {
   const r = parseMafiaResult(session.state.result);
   const { stage, step } = session.state;
   const started = r.seats.length > 0;
@@ -465,7 +473,15 @@ function NightMove({ session, r, me, card, whisper, myAnswer, sending, onAnswer 
   );
 }
 
-export function MafiaPlayerView({ session, content, pid, myAnswer, sending, onAnswer }: PlayerViewProps<MafiaContent, MafiaAnswerValue>) {
+export function MafiaPlayerView(props: PlayerViewProps<MafiaContent, MafiaAnswerValue>) {
+  return (
+    <MafiaCardStyleContext.Provider value={props.content.cardStyle}>
+      <MafiaPlayer {...props} />
+    </MafiaCardStyleContext.Provider>
+  );
+}
+
+function MafiaPlayer({ session, content, pid, myAnswer, sending, onAnswer }: PlayerViewProps<MafiaContent, MafiaAnswerValue>) {
   const r = parseMafiaResult(session.state.result);
   const { stage } = session.state;
   const [key, setKey] = useState<string | null>(() => storedKey(session.id, pid));

@@ -546,7 +546,7 @@ describe("тексты и устройство страницы", () => {
     // Ранней брони больше нет — ни на главной, ни на /calc/, ни в скриптах.
     const calcPage = readFileSync(join(root, "site/calc/index.html"), "utf8") + readFileSync(join(root, "site/calc/calc.js"), "utf8");
     for (const text of [html, js, calcPage]) {
-      expect(text).not.toMatch(/earlyPromo|EARLY_UNTIL|earlyUntilLabel|Новый год дешевле|ранн[яе][яй] брон|вдвое меньше/i);
+      expect(text).not.toMatch(/earlyPromo|EARLY_UNTIL|earlyUntilLabel|Новый год дешевле|ранн[яе][яй] брон|праздничная цена новогоднего сезона вдвое меньше/i);
     }
     expect(calcPage).toContain('id="nyNote"');
     expect(js).toContain("window.JoyPricing");

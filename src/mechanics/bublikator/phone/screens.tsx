@@ -8,6 +8,7 @@ import { HULL_MAX, PULL_HOLD_MS, SOS_BONUS, VOTE_BONUS } from "../rules/constant
 import type { CrewSummary, PanelControlView, PersonalView } from "../rules/types";
 import { CrewMark, KidsArt, PauseIcon, RoleBadge, ShakePhone, Ship, ShieldCheck, Wrench } from "./art";
 import { Control, twinsOf } from "./controls";
+import { canVibrate } from "./haptics";
 import { halfControls, twoColumns } from "./layout";
 import { shakeMode, type MotionState, type ShakeChoice } from "./shake";
 import { clockText, type Flash } from "./model";
@@ -20,7 +21,7 @@ export const VibrationContext = createContext<{ on: boolean; toggle: () => void 
 
 function VibrationToggle() {
   const vib = useContext(VibrationContext);
-  if (!vib) return null;
+  if (!vib || !canVibrate()) return null;
   return (
     <button type="button" className={`bkp-vib${vib.on ? " is-on" : ""}`} aria-pressed={vib.on} aria-label={`Вибрация: ${vib.on ? "вкл" : "выкл"}`} title={`Вибрация: ${vib.on ? "вкл" : "выкл"}`} onClick={vib.toggle}>
       <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
@@ -43,8 +44,9 @@ export function Head({ v, crew, extra }: { v: PersonalView; crew: CrewSummary | 
     <header className="bkp-head">
       <span className="bkp-chip">
         <CrewMark />
-        <span className="bkp-chip__name">«{crew?.name ?? "Экипаж"}»</span>
-        {role && <span className="bkp-chip__role">· {role}</span>}
+        <span className="bkp-chip__name" title={crew?.name ?? undefined}>
+          «{crew?.name ?? "Экипаж"}»
+        </span>
       </span>
       <span className="bkp-head__side">
         {hull !== null && (
@@ -54,9 +56,9 @@ export function Head({ v, crew, extra }: { v: PersonalView; crew: CrewSummary | 
             ))}
           </span>
         )}
+        {/* Роль — строкой у места, а не в плашке экипажа: плашка не растёт в третью строку (аудит 2b, круг 2, №6). */}
         <span className="bkp-head__place">
-          {v.ship ? `${v.ship.place}-е место` : ""}
-          {extra ? ` · ${extra}` : ""}
+          {[role, v.ship ? `${v.ship.place}-е место` : "", extra ?? ""].filter((x) => x).join(" · ")}
         </span>
       </span>
       <VibrationToggle />
@@ -238,11 +240,12 @@ export function PanelScreen(p: PanelProps) {
       {ev && !ev.warn && !ev.joined && <Banner tone="info">У других экипажей — {eventTitle(ev.kind, w)}</Banner>}
       {p.shake}
       {double && (
-        <section className="bkp-card bkp-card--gold">
+        <section className="bkp-card bkp-card--gold bkp-double">
           <p className="bkp-eyebrow">Вы дублёр</p>
-          <h2 className="bkp-h2">Один пульт на двоих</h2>
+          <h2 className="bkp-h2 bkp-double__title">Один пульт на двоих</h2>
           <p className="bkp-text">
-            Пульт общий с игроком {v.me.doubleOf ? `«${v.me.doubleOf}»` : "вашего экипажа"}. Слушайте экипаж и двигайте приборы вместе: кто первый, тот и сделал.
+            Пульт общий с игроком {v.me.doubleOf ? `«${v.me.doubleOf}»` : "вашего экипажа"}.{" "}
+            <span className="bkp-double__more">Слушайте экипаж и двигайте приборы вместе: кто первый, тот и сделал.</span>
           </p>
         </section>
       )}
@@ -404,7 +407,7 @@ export function MotionStep({ m }: { m: ShakeControls }) {
       <h2 className="bkp-h3">В полёте будет метеоритный дождь — трясите телефон или тапайте по экрану</h2>
       {mode === "shake" ? <p className="bkp-text">✓ Тряска работает.</p> : <ShakeOffer m={m} />}
       {mode === "tap" && offer === null && <p className="bkp-text">В дождь просто часто тапайте по экрану — это тоже считается.</p>}
-      <p className="bkp-small">{VIBRATION_HINT}</p>
+      {canVibrate() && <p className="bkp-small">{VIBRATION_HINT}</p>}
     </section>
   );
 }

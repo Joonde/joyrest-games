@@ -9,7 +9,7 @@ import { crewPlayers } from "../rules/crews";
 import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
 import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
-import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
+import { BUZZ_GAP_MS, BUZZ_MS, buzz, canVibrate, vibrationFor } from "./haptics";
 import { chunkUrlOf, importWithRetry } from "./chunk";
 import { twoColumns, VOTE_SHORT_NAME } from "./layout";
 import { MoveGate, PHONE_MOVES_PER_SECOND } from "./moves";
@@ -476,9 +476,11 @@ describe("телефон «Бубликатора»: модель", () => {
         throw new Error("нет");
       };
       buzz("done");
-      // Вибрации нет совсем — ничего.
+      expect(canVibrate()).toBe(true);
+      // Вибрации нет совсем — ничего, и переключателя «Вибрация» нет (аудит 2b, круг 2, №10).
       delete nav.vibrate;
       buzz("done");
+      if (typeof (globalThis.navigator as unknown as { vibrate?: unknown }).vibrate !== "function") expect(canVibrate()).toBe(false);
     } finally {
       if (had) nav.vibrate = before;
       else delete nav.vibrate;

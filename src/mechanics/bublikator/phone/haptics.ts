@@ -33,3 +33,11 @@ export function buzz(kind: Flash["kind"]): void {
     // Нет вибрации — ничего.
   }
 }
+
+/**
+ * Телефон умеет вибрировать (`navigator.vibrate`). Нет (Safari на iPhone) — переключатель «Вибрация» и подсказку о ней не
+ * показываем: обещать то, чего не будет, незачем (решение проверки 2b, круг 2, №10, 11 ноября 2026).
+ */
+export function canVibrate(): boolean {
+  return typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+}

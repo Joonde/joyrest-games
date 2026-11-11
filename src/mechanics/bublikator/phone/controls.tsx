@@ -15,6 +15,9 @@ const TYPE_TITLES: Record<PanelControlView["type"], string> = {
   dial: "крутилка",
 };
 
+/** Подписи кнопок рычага — короткие (как в макете ph-kids): «середина» помещается рядом с точкой и на 320 px. */
+export const LEVER_BUTTONS = ["вверх", "середина", "вниз"];
+
 function stateWord(c: PanelControlView, state: number): string {
   if (c.type === "toggle") return state === 1 ? "вкл" : "выкл";
   if (c.type === "lever") return LEVER_WORDS[state] ?? "";
@@ -89,12 +92,12 @@ function body(c: PanelControlView, shown: number, kids: boolean, onMove: (s: num
     case "lever":
       return (
         <div className="bkp-lever" role="radiogroup" aria-label={c.name}>
-          {LEVER_WORDS.map((w, n) => (
-            <button key={w} type="button" role="radio" aria-checked={shown === n} className={`bkp-lever__pos${shown === n ? " is-on" : ""}`} onClick={() => onMove(n)}>
+          {LEVER_BUTTONS.map((w, n) => (
+            <button key={w} type="button" role="radio" aria-checked={shown === n} aria-label={LEVER_WORDS[n]} className={`bkp-lever__pos${shown === n ? " is-on" : ""}`} onClick={() => onMove(n)}>
               <span className="bkp-lever__arrow" aria-hidden="true">
                 {n === 0 ? "▲" : n === 1 ? "●" : "▼"}
               </span>
-              {w}
+              <span className="bkp-lever__word">{w}</span>
             </button>
           ))}
         </div>

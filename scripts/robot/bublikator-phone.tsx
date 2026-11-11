@@ -290,6 +290,17 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
     w.step();
     return { w, pid: "late" };
   },
+  // Аудит 2b, круг 2, №6: дублёр в экипаже с длинным названием, имя хозяина в 30 знаков — пульт в первом экране 320×568.
+  "double-long": () => {
+    const w = world();
+    toLeg(w, 2);
+    w.addPlayer("late", "Опоздавший Валентин Петрович", "t2");
+    w.send("late", [{ t: "role-ok" }]);
+    const host = w.member("late").doubleOf;
+    if (host) w.member(host).name = "Константинопольская Александра";
+    w.step();
+    return { w, pid: "late" };
+  },
   glitch: () => {
     const w = world();
     toLeg(w, 1);
@@ -392,6 +403,28 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
     w.send("p0", [{ t: "tap", n: 9 }]);
     w.send("p5", [{ t: "tap", n: 20 }]);
     w.advance(2000);
+    return { w, pid: "p0" };
+  },
+  // Аудит 2b, круг 2, №5 и №8: детский вид — крупные цифры ремонта и знак J✦R тёмным золотом.
+  "kids-repair": () => {
+    const w = world({ content: { difficulty: "kids", theme: "space" } });
+    toLeg(w, 0);
+    const crew = w.s.crews.find((c) => c.id === w.member("p0").crew);
+    if (crew) {
+      crew.hull = 0.1;
+      for (const m of crewPlayers(w.s, crew.id)) if (m.order) m.order.due = -1;
+    }
+    w.step();
+    w.advance(1000);
+    return { w, pid: "p0" };
+  },
+  "kids-lobby": () => ({ w: world({ content: { difficulty: "kids", theme: "space" } }), pid: "p0" }),
+  // Аудит 2b, круг 2, №10: телефон без вибрации — переключателя и подсказки о ней нет.
+  "drill-novib": () => {
+    const w = world();
+    w.ok("gather");
+    w.ok("drill");
+    w.advance(2500);
     return { w, pid: "p0" };
   },
   finish: () => {

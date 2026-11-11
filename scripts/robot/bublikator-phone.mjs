@@ -227,6 +227,10 @@ const EXPECT = {
   "sender-finished": { screen: "over", text: "Игра окончена" },
   "sender-abandoned": { screen: "panel", senders: 2 },
   "vote-long": { screen: "vote", wrap: ".bkp-choice__name" },
+  "kids-repair": { screen: "repair", kids: [".bkp-mega--num", 4.5] },
+  "kids-lobby": { screen: "lobby", kids: [".bkp-brand__mark", 3] },
+  "drill-novib": { screen: "drill", absent: [".bkp-vib", "вибрирует"] },
+  drill: { screen: "drill", present: [".bkp-vib", "вибрирует"] },
   helped: { screen: "panel", text: "Вы помогли!", selector: ".bkp-order__text", vibes: [[40]] },
   // Вибрация вместо звука (решение владельца 6 ноября 2026): выполнен — одна короткая, не успели — две (ниже, с текстами).
   "feedback-quiet": { screen: "panel", vibes: [] },
@@ -279,8 +283,9 @@ for (const width of [360, 412]) {
       });
     }
     if (s === "feedback-quiet") await page.addInitScript(() => localStorage.setItem("joyrest.bub.vibration", "off"));
+    if (s === "drill-novib") await page.addInitScript(() => delete Navigator.prototype.vibrate);
     // Вибрация понарошку: что телефон просил вибрировать.
-    await page.addInitScript(() => {
+    if (s !== "drill-novib") await page.addInitScript(() => {
       window.vibes = [];
       navigator.vibrate = (p) => (window.vibes.push(p), true);
     });
@@ -290,13 +295,30 @@ for (const width of [360, 412]) {
     await page.waitForTimeout(500);
     const { found, screen } = await page.evaluate(inspect);
     // Главное — в первом экране маленьких телефонов (аудит 2b, №9): пульт третьего перелёта, «Тяга».
-    const FOLD = { "vote-long": ".bkp-vote-cta", vote: ".bkp-vote-cta", "panel-leg3": ".bkp-panel", "kids-leg3": ".bkp-panel", panel: ".bkp-panel", pull: ".bkp-hold", "meteor-ask": ".bkp-offer", "meteor-taps": ".bkp-offer", "meteor-tap": ".bkp-tap--big", "drill-taps": ".bkp-offer" };
+    const FOLD = { "double-long": ".bkp-panel", double: ".bkp-panel", "vote-long": ".bkp-vote-cta", vote: ".bkp-vote-cta", "panel-leg3": ".bkp-panel", "kids-leg3": ".bkp-panel", panel: ".bkp-panel", pull: ".bkp-hold", "meteor-ask": ".bkp-offer", "meteor-taps": ".bkp-offer", "meteor-tap": ".bkp-tap--big", "drill-taps": ".bkp-offer" };
     if (FOLD[s] && width === 360) {
       for (const [fw, fh] of [[360, 640], [320, 568]]) {
         await page.setViewportSize({ width: fw, height: fh });
         await page.waitForTimeout(200);
         const bottom = await page.evaluate((sel) => document.querySelector(sel)?.getBoundingClientRect().bottom ?? null, FOLD[s]);
         if (bottom === null || bottom > fh) found.push(`${FOLD[s]} не в первом экране ${fw}×${fh}: низ ${Math.round(bottom ?? -1)}`);
+        // Название экипажа — не больше двух строк; подписи рычага — без наезда (аудит 2b, круг 2, №6, №7).
+        const extra = await page.evaluate(() => {
+          const bad = [];
+          const name = document.querySelector(".bkp-chip__name");
+          if (name) {
+            const lh = parseFloat(getComputedStyle(name).lineHeight);
+            if (name.getBoundingClientRect().height > lh * 2 + 2) bad.push(`название экипажа выше двух строк: ${Math.round(name.getBoundingClientRect().height)} px`);
+          }
+          for (const b of document.querySelectorAll(".bkp-lever__pos")) {
+            if (b.scrollWidth > b.clientWidth + 1) bad.push(`подпись рычага шире кнопки: ${b.textContent}`);
+            const dot = b.querySelector(".bkp-lever__arrow")?.getBoundingClientRect();
+            const word = b.querySelector(".bkp-lever__word")?.getBoundingClientRect();
+            if (dot && word && Math.min(dot.right, word.right) - Math.max(dot.left, word.left) > 1 && Math.min(dot.bottom, word.bottom) - Math.max(dot.top, word.top) > 1) bad.push(`точка рычага наезжает на подпись: ${b.textContent}`);
+          }
+          return bad;
+        });
+        found.push(...extra.map((x) => `${fw}×${fh}: ${x}`));
       }
       await page.setViewportSize({ width, height: 800 });
       await page.waitForTimeout(100);
@@ -364,6 +386,21 @@ for (const width of [360, 412]) {
       for (const t of want.text ? [want.text].flat() : []) if (!text.includes(t)) found.push(`не видно «${t}»`);
       if (want.selector && (await page.locator(want.selector).count()) === 0) found.push(`нет ${want.selector}`);
       if (want.rotated && !(await page.evaluate((sel) => getComputedStyle(document.querySelector(sel) ?? document.body).transform, want.rotated)).startsWith("matrix(-1")) found.push(`${want.rotated} не перевёрнут`);
+      if (want.kids) {
+        // Детский вид: контраст с самым светлым и самым тёмным местом фона страницы.
+        const r = await page.evaluate((sel) => {
+          const rgb = (c) => (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+          const lum = ([r, g, b]) => [r, g, b].map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+          const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+          const el = document.querySelector(sel);
+          if (!el) return null;
+          const c = rgb(getComputedStyle(el).color);
+          return Math.min(ratio(c, [251, 243, 230]), ratio(c, [246, 231, 210]));
+        }, want.kids[0]);
+        if (r === null || r < want.kids[1]) found.push(`детский ${want.kids[0]}: контраст ${r?.toFixed(2)} < ${want.kids[1]}`);
+      }
+      for (const x of want.absent ?? []) if (x.startsWith(".") ? await page.locator(x).count() : (await page.evaluate(() => document.body.innerText)).includes(x)) found.push(`лишнее: ${x}`);
+      for (const x of want.present ?? []) if (!(x.startsWith(".") ? await page.locator(x).count() : (await page.evaluate(() => document.body.innerText)).includes(x))) found.push(`нет: ${x}`);
       if (want.wrap) {
         // Переносы по словам и слогам, без разрыва посреди слова (аудит 2b, круг 2, №3).
         const st = await page.evaluate((sel) => {

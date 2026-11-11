@@ -450,6 +450,20 @@ const SCENARIOS: Record<string, () => { w: World; pid: string; after?: (l: Stand
     w.step();
     return { w, pid: "p0" };
   },
+  // Аудит 2b, круг 2, №3: экипаж из 10, имена по 30 знаков — «Голосую» видна (прилеплена к низу).
+  "vote-long": () => {
+    const w = new World({
+      players: 10,
+      teams: 1,
+      teamNames: () => "🐻 Медведи из соседнего подъезда",
+      names: (i) => `Константинопольская Александра${i}`.slice(0, 29) + String(i),
+      content: { theme: "newyear", legMinutes: 3, saboteur: true },
+    });
+    toLeg(w, 0);
+    endFlight(w);
+    w.advance(DOCK_MS + 200);
+    return { w, pid: "p0" };
+  },
   voted: () => {
     const w = world();
     toLeg(w, 0);

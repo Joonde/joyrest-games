@@ -76,7 +76,8 @@
   box-sizing: border-box;
   background: radial-gradient(130% 55% at 50% 0%, var(--bk-bg-top) 0%, var(--bk-bg-mid) 48%, var(--bk-bg) 100%);
   padding: calc(14px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
-  overflow-x: hidden;
+  /* clip, а не hidden: hidden делает .bkp контейнером прокрутки, и «Голосую» (sticky) перестаёт прилипать к экрану. */
+  overflow-x: clip;
 }
 
 .bkp__inner {
@@ -1170,7 +1171,6 @@
 
 .bkp-choices--two .bkp-choice__name {
   font-size: 16px;
-  overflow-wrap: anywhere;
 }
 
 .bkp-choice {
@@ -1581,4 +1581,22 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* «Голосую» прилеплена к низу экрана (аудит 2b, круг 2, №3): видна при любом числе кандидатов и длине имён. */
+.bkp-vote-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 14px 0 calc(10px + env(safe-area-inset-bottom));
+  /* Сверху — короткий переход, под кнопкой — сплошной фон: список под ней не просвечивает. */
+  background: linear-gradient(180deg, transparent 0, var(--bk-bg) 14px);
+}
+
+/* Имена кандидатов — переносы по словам и слогам, без разрыва посреди слова. */
+.bkp-choice__name {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
+  -webkit-hyphens: auto;
 }

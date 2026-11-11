@@ -11,6 +11,7 @@ import { World } from "../rules/world.test-kit";
 import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
 import { chunkUrlOf, importWithRetry } from "./chunk";
+import { twoColumns, VOTE_SHORT_NAME } from "./layout";
 import { MoveGate, PHONE_MOVES_PER_SECOND } from "./moves";
 import { TapBatch } from "./taps";
 import { ShakeMeter, shakeMode, shakeReport, type ShakeSent } from "./shake";
@@ -661,6 +662,14 @@ describe("телефон «Бубликатора»: модель", () => {
     const err = await importWithRetry({ load: fail("load"), again: (u, n) => fail(`${u}?retry=${n}`)() }, state, 3, 1500, sleep).catch((e: unknown) => e);
     expect(err instanceof Error).toBe(true);
     expect([calls.length, sleeps, state.url]).toEqual([3, [1500, 3000], url]);
+  });
+
+  it("голосование (аудит 2b, круг 2, №3): два столбца — только короткие имена и больше пяти кандидатов", () => {
+    const names = (n: number, name: (i: number) => string) => Array.from({ length: n }, (_, i) => ({ name: name(i) }));
+    expect(twoColumns(names(9, (i) => `Аня ${i}`))).toBe(true);
+    expect(twoColumns(names(5, (i) => `Аня ${i}`))).toBe(false);
+    expect(twoColumns(names(9, (i) => (i === 4 ? "Константинопольская Александра" : `Аня ${i}`)))).toBe(false);
+    expect(twoColumns(names(9, () => "А".repeat(VOTE_SHORT_NAME)))).toBe(true);
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

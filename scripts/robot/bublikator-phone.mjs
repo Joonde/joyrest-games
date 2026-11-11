@@ -71,12 +71,18 @@ function inspect() {
     const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() !== "");
     if (own) leaves.push({ el, r });
   }
-  // Надписи друг на друге (не предок и не потомок; меньше 4 px — не в счёт).
+  // Надписи друг на друге (не предок и не потомок; меньше 4 px — не в счёт). Прилипшая к краю экрана плашка (sticky/fixed,
+  // «Голосую») лежит поверх прокручиваемого списка — это не наезд.
+  const pinned = (el) => {
+    for (let e = el; e; e = e.parentElement) if (["sticky", "fixed"].includes(getComputedStyle(e).position)) return true;
+    return false;
+  };
   for (let i = 0; i < leaves.length; i += 1) {
     for (let j = i + 1; j < leaves.length; j += 1) {
       const a = leaves[i];
       const b = leaves[j];
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      if (pinned(a.el) !== pinned(b.el)) continue;
       const x = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
       const y = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
       if (x > 1 && y > 1) found.push(`надписи наезжают: ${label(a.el)} и ${label(b.el)}`);
@@ -220,6 +226,7 @@ const EXPECT = {
   "reload-finished": { screen: "over", text: "Игра окончена" },
   "sender-finished": { screen: "over", text: "Игра окончена" },
   "sender-abandoned": { screen: "panel", senders: 2 },
+  "vote-long": { screen: "vote", wrap: ".bkp-choice__name" },
   helped: { screen: "panel", text: "Вы помогли!", selector: ".bkp-order__text", vibes: [[40]] },
   // Вибрация вместо звука (решение владельца 6 ноября 2026): выполнен — одна короткая, не успели — две (ниже, с текстами).
   "feedback-quiet": { screen: "panel", vibes: [] },
@@ -283,7 +290,7 @@ for (const width of [360, 412]) {
     await page.waitForTimeout(500);
     const { found, screen } = await page.evaluate(inspect);
     // Главное — в первом экране маленьких телефонов (аудит 2b, №9): пульт третьего перелёта, «Тяга».
-    const FOLD = { "panel-leg3": ".bkp-panel", "kids-leg3": ".bkp-panel", panel: ".bkp-panel", pull: ".bkp-hold", "meteor-ask": ".bkp-offer", "meteor-taps": ".bkp-offer", "meteor-tap": ".bkp-tap--big", "drill-taps": ".bkp-offer" };
+    const FOLD = { "vote-long": ".bkp-vote-cta", vote: ".bkp-vote-cta", "panel-leg3": ".bkp-panel", "kids-leg3": ".bkp-panel", panel: ".bkp-panel", pull: ".bkp-hold", "meteor-ask": ".bkp-offer", "meteor-taps": ".bkp-offer", "meteor-tap": ".bkp-tap--big", "drill-taps": ".bkp-offer" };
     if (FOLD[s] && width === 360) {
       for (const [fw, fh] of [[360, 640], [320, 568]]) {
         await page.setViewportSize({ width: fw, height: fh });
@@ -357,6 +364,15 @@ for (const width of [360, 412]) {
       for (const t of want.text ? [want.text].flat() : []) if (!text.includes(t)) found.push(`не видно «${t}»`);
       if (want.selector && (await page.locator(want.selector).count()) === 0) found.push(`нет ${want.selector}`);
       if (want.rotated && !(await page.evaluate((sel) => getComputedStyle(document.querySelector(sel) ?? document.body).transform, want.rotated)).startsWith("matrix(-1")) found.push(`${want.rotated} не перевёрнут`);
+      if (want.wrap) {
+        // Переносы по словам и слогам, без разрыва посреди слова (аудит 2b, круг 2, №3).
+        const st = await page.evaluate((sel) => {
+          const c = getComputedStyle(document.querySelector(sel));
+          return { wrap: c.overflowWrap, hyphens: c.hyphens, cols: getComputedStyle(document.querySelector(".bkp-choices")).display };
+        }, want.wrap);
+        if (st.wrap === "anywhere" || st.hyphens !== "auto") found.push(`переносы имён: ${JSON.stringify(st)}`);
+        if (st.cols === "grid") found.push("длинные имена — в два столбца");
+      }
       if (want.link) {
         const href = await page.evaluate((t) => [...document.querySelectorAll("a")].find((a) => a.textContent?.includes(t))?.getAttribute("href") ?? null, want.link[0]);
         if (href !== want.link[1]) found.push(`«${want.link[0]}» ведёт на ${href}`);

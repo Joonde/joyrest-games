@@ -13,3 +13,11 @@ export function halfControls(panel: readonly Pick<PanelControlView, "id" | "type
   const pairs = short.length - (short.length % 2);
   return new Set(short.slice(0, pairs).map((c) => c.id));
 }
+
+/** Имя кандидата не длиннее — «короткое». */
+export const VOTE_SHORT_NAME = 14;
+
+/** Голосование в два столбца — только если кандидатов больше пяти и все имена короткие; длинные — в один столбец, целиком. */
+export function twoColumns(candidates: ReadonlyArray<{ name: string }>): boolean {
+  return candidates.length > 5 && candidates.every((c) => [...c.name].length <= VOTE_SHORT_NAME);
+}

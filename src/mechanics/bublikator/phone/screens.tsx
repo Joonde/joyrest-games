@@ -8,7 +8,7 @@ import { HULL_MAX, PULL_HOLD_MS, SOS_BONUS, VOTE_BONUS } from "../rules/constant
 import type { CrewSummary, PanelControlView, PersonalView } from "../rules/types";
 import { CrewMark, KidsArt, PauseIcon, RoleBadge, ShakePhone, Ship, ShieldCheck, Wrench } from "./art";
 import { Control, twinsOf } from "./controls";
-import { halfControls } from "./layout";
+import { halfControls, twoColumns } from "./layout";
 import { shakeMode, type MotionState, type ShakeChoice } from "./shake";
 import { clockText, type Flash } from "./model";
 
@@ -773,7 +773,7 @@ export function VoteScreen({ v, crew, left, onVote }: { v: PersonalView; crew: C
         Кто диверсант?
       </Title>
       <p className="bkp-lead">Вспомните, после чьих приказов трясло. Один голос, за себя нельзя.</p>
-      <div className={`bkp-choices${(vote?.candidates.length ?? 0) > 5 ? " bkp-choices--two" : ""}`} role="radiogroup" aria-label="Кто диверсант">
+      <div className={`bkp-choices${twoColumns(vote?.candidates ?? []) ? " bkp-choices--two" : ""}`} role="radiogroup" aria-label="Кто диверсант">
         {(vote?.candidates ?? []).map((c) => {
           const on = choice === c.pid;
           return (
@@ -784,7 +784,7 @@ export function VoteScreen({ v, crew, left, onVote }: { v: PersonalView; crew: C
           );
         })}
       </div>
-      <div className="actions">
+      <div className="actions bkp-vote-bar">
         <button type="button" className={`btn btn--block bkp-vote-cta${sent ? " is-sent" : ""}`} disabled={choice === null || sent} onClick={() => choice !== null && onVote(choice)}>
           {choice === null ? "Выберите одного" : sent ? `✓ Голос принят: ${name ?? ""}` : `Голосую: ${name ?? ""}`}
         </button>

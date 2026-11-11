@@ -1,10 +1,76 @@
 {
   "files": [
-    {"file": "board-studio.png", "what": "«Ставка на знания»: фон экрана зала «Студия» (телестудия, индиго и фиолетовый, прожекторы, середина пустая под поле)", "url": "https://www.figma.com/api/mcp/asset/3d18af1c-c49a-4185-a658-f828ce0a49fd.png", "expires": "2026-10-19"},
-    {"file": "millionaire-studio.png", "what": "«Миллион на кону»: фон экрана зала «Студия» (круглая студия, сине-фиолетовые лучи, кольца на полу)", "url": "https://www.figma.com/api/mcp/asset/9fe9d45d-ca6c-43ec-88c2-a6d2253bf616.png", "expires": "2026-10-19"},
-    {"file": "board-evening.png", "what": "«Ставка на знания»: фон экрана зала «Вечер JoyRest» (тёплый тёмный, золото ар-деко по углам)", "url": "https://www.figma.com/api/mcp/asset/bf57d20e-5c58-4af7-a1d5-d8f18140f79c.png", "expires": "2026-10-19"},
-    {"file": "millionaire-evening.png", "what": "«Миллион на кону»: фон экрана зала «Вечер JoyRest» (тёплый тёмный, золотые лучи и кольца)", "url": "https://www.figma.com/api/mcp/asset/c333d767-fbc4-4a77-bd39-4bda4afcf950.png", "expires": "2026-10-19"},
-    {"file": "survival-track.png", "what": "«Гонка на выживание»: фон экрана зала «Трасса» (ночной автодром, неоновая разметка, прожекторы, верх тёмный под вопрос)", "url": "https://www.figma.com/api/mcp/asset/f0134fee-1b87-45fc-83fd-ac1d90549be3.png", "expires": "2026-10-19"},
-    {"file": "survival-evening.png", "what": "«Гонка на выживание»: фон экрана зала «Вечер JoyRest» (тёплая тёмная трасса, золотая разметка, веера ар-деко по углам)", "url": "https://www.figma.com/api/mcp/asset/1c5c5d1a-66d9-48ad-90ca-e77c1d34f3a6.png", "expires": "2026-10-19"}
+    {
+      "file": "board-studio.png",
+      "what": "«Ставка на знания»: фон экрана зала «Студия» (телестудия, индиго и фиолетовый, прожекторы, середина пустая под поле)",
+      "url": "https://www.figma.com/api/mcp/asset/3d18af1c-c49a-4185-a658-f828ce0a49fd.png",
+      "expires": "2026-10-19"
+    },
+    {
+      "file": "millionaire-studio.png",
+      "what": "«Миллион на кону»: фон экрана зала «Студия» (круглая студия, сине-фиолетовые лучи, кольца на полу)",
+      "url": "https://www.figma.com/api/mcp/asset/9fe9d45d-ca6c-43ec-88c2-a6d2253bf616.png",
+      "expires": "2026-10-19"
+    },
+    {
+      "file": "board-evening.png",
+      "what": "«Ставка на знания»: фон экрана зала «Вечер JoyRest» (тёплый тёмный, золото ар-деко по углам)",
+      "url": "https://www.figma.com/api/mcp/asset/bf57d20e-5c58-4af7-a1d5-d8f18140f79c.png",
+      "expires": "2026-10-19"
+    },
+    {
+      "file": "millionaire-evening.png",
+      "what": "«Миллион на кону»: фон экрана зала «Вечер JoyRest» (тёплый тёмный, золотые лучи и кольца)",
+      "url": "https://www.figma.com/api/mcp/asset/c333d767-fbc4-4a77-bd39-4bda4afcf950.png",
+      "expires": "2026-10-19"
+    },
+    {
+      "file": "survival-track.png",
+      "what": "«Гонка на выживание»: фон экрана зала «Трасса» (ночной автодром, неоновая разметка, прожекторы, верх тёмный под вопрос)",
+      "url": "https://www.figma.com/api/mcp/asset/f0134fee-1b87-45fc-83fd-ac1d90549be3.png",
+      "expires": "2026-10-19"
+    },
+    {
+      "file": "survival-evening.png",
+      "what": "«Гонка на выживание»: фон экрана зала «Вечер JoyRest» (тёплая тёмная трасса, золотая разметка, веера ар-деко по углам)",
+      "url": "https://www.figma.com/api/mcp/asset/1c5c5d1a-66d9-48ad-90ca-e77c1d34f3a6.png",
+      "expires": "2026-10-19"
+    },
+    {
+      "file": "dragon-arena.png",
+      "what": "«Бой с драконом»: фон экрана зала «Пещера» — тёмная арена, лава и золотые сталактиты по краям, центр пустой (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0027-1410148522382315382.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH4R7NKVBA%2F20261111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261111T114952Z&X-Amz-Expires=7209&X-Amz-Signature=8fd81a0a29ee391032327705b0661d34c228c197403d3ad5df85a382cd3de713&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Wed%2C%2011%20Nov%202026%2013%3A50%3A01%20GMT",
+      "expires": "2026-11-11"
+    },
+    {
+      "file": "dragon-arena-kids.png",
+      "what": "«Бой с драконом», детский: фон «Сказочная страна» — небо, радуга, змеи, замки из сладостей по краям (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0028-1410148522382315382.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH4R7NKVBA%2F20261111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261111T010154Z&X-Amz-Expires=47941&X-Amz-Signature=ccaa9b63bafcadb92af352c15b78c7673c46a004a95726341c8e9634c1f8a565&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Wed%2C%2011%20Nov%202026%2014%3A20%3A55%20GMT",
+      "expires": "2026-11-11"
+    },
+    {
+      "file": "dragon.png",
+      "what": "«Бой с драконом»: дракон ар-деко (чёрная чешуя с золотом) на сером фоне — вырезать для экрана (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0029-1410148522382315382.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH4R7NKVBA%2F20261111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261111T123551Z&X-Amz-Expires=7300&X-Amz-Signature=7b6bd84b0332703cb3bad35eacb44bb11b2346125a669444aa586cc74418e7f4&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Wed%2C%2011%20Nov%202026%2014%3A37%3A31%20GMT",
+      "expires": "2026-11-11"
+    },
+    {
+      "file": "dragon-kids.png",
+      "what": "«Бой с драконом», детский: мятный дракончик на белом фоне — вырезать для экрана (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0030-1410148522382315382.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH4R7NKVBA%2F20261110%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261110T124753Z&X-Amz-Expires=89770&X-Amz-Signature=83f0886111799491bbb379b249afea9811733da01437a23c18bdc4e09889c8c7&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Wed%2C%2011%20Nov%202026%2013%3A44%3A03%20GMT",
+      "expires": "2026-11-11"
+    },
+    {
+      "file": "hundred-studio.png",
+      "what": "«Что скажет большинство»: фон «Студия» — красный бархат, золотые лампы, прожекторы, центр пустой (Figma AI)",
+      "url": "https://www.figma.com/api/mcp/asset/f8921bca-0092-49ef-8d4c-8367c3fc982e.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "hundred-evening.png",
+      "what": "«Что скажет большинство»: фон «Вечер JoyRest» — ар-деко веера по углам, золотые лучи (Figma AI)",
+      "url": "https://www.figma.com/api/mcp/asset/8a95f11d-9b54-4be8-94f3-ff4c10a2790d.png",
+      "expires": "2026-11-18"
+    }
   ]
 }

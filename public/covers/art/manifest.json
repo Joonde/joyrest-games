@@ -47,6 +47,36 @@
       "what": "Фон экрана зала (Canva AI) — «Узнай по нотам»: рояль, золотая нота, гости у звонка",
       "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0025-4543526024425541417.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261022%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261022T233931Z&X-Amz-Expires=65993&X-Amz-Signature=8e7ece89ab1e3e78277a3eac6e72f131c3b0bfe4e2efc3bc3d67dd2367372156&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2023%20Oct%202026%2017%3A59%3A24%20GMT",
       "expires": "2026-10-23"
+    },
+    {
+      "file": "dancefloor.png",
+      "what": "Фон экрана зала — «Танцуй как звезда»: светящийся танцпол, прожекторы, зеркальный шар (Figma AI, узел 40:41)",
+      "url": "https://www.figma.com/api/mcp/asset/b9d703c7-5af0-444e-88d6-43983a71b40f.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "story.png",
+      "what": "Фон экрана зала — «Давайте знакомиться»: уютная гостиная, письма, фото, печатная машинка (узел 40:42)",
+      "url": "https://www.figma.com/api/mcp/asset/15ed9f40-28ef-4201-87c4-5cc082920158.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "checkers.png",
+      "what": "Фон экрана зала — «Шашки»: клубная комната, зелёные лампы, шашки и часы (узел 40:43)",
+      "url": "https://www.figma.com/api/mcp/asset/e722231e-ded8-4c3a-9839-c73aaf977613.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "wine.png",
+      "what": "Фон экрана зала — «Винное казино»: винный погреб, бокалы, фишки (узел 40:44)",
+      "url": "https://www.figma.com/api/mcp/asset/4898bc39-4e5e-4e4b-804c-39935a65b846.png",
+      "expires": "2026-11-18"
+    },
+    {
+      "file": "perudo.png",
+      "what": "Фон экрана зала — «Кости лжеца»: пиратская таверна, стаканы и кости (узел 40:45)",
+      "url": "https://www.figma.com/api/mcp/asset/ac73ba50-900b-41e7-b653-acccbc5e3b34.png",
+      "expires": "2026-11-18"
     }
   ]
 }

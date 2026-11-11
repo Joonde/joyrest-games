@@ -62,9 +62,9 @@ a.dl{display:block;text-align:center;padding:14px;border-radius:12px;background:
 </div>
 
 <div class="card" id="c3">
-  <div class="row" style="justify-content:space-between"><b>3. Запись танца (30 с)</b><span class="st" id="st3">—</span></div>
+  <div class="row" style="justify-content:space-between"><b>3. Запись танца (39 с)</b><span class="st" id="st3">—</span></div>
   <div class="big" id="dance">—</div>
-  <div class="hint" id="dhint">Будет метроном 118 уд/мин и подсказки «вверх / вниз / в сторону». Двигайся под счёт.</div>
+  <div class="hint" id="dhint">Отсчёт 4 доли, потом метроном 118 уд/мин и подсказки по позам — те же, что в эталоне стенда. Двигай правой рукой под счёт.</div>
   <div class="bar" style="margin:10px 0"><i id="dbar"></i></div>
   <div class="kv" style="margin:8px 0"><b>наклон руки сейчас</b><span id="tilt">—</span><b>событий записано</b><span id="n">0</span></div>
   <button id="b3" disabled>Начать запись</button>
@@ -97,7 +97,7 @@ function onMotion(e) {
   if (lastT) rates.push(1 / Math.max(1e-3, (t - lastT)));
   lastT = t;
   if (phase === "cal") calEv.push(rec);
-  if (phase === "dance") { danceEv.push(rec); $("n").textContent = danceEv.length; }
+  if (phase === "dance") { danceEv.push({ ...rec, t: +((e.timeStamp || performance.now()) - danceStart).toFixed(4) / 1000 }); $("n").textContent = danceEv.length; }
   if (rates.length > 60) rates.shift();
   if ((calEv.length + danceEv.length + rates.length) % 10 === 0) {
     $("hz").textContent = rates.length ? Math.round(rates.reduce((x, y) => x + y) / rates.length) + " Гц" : "—";
@@ -193,21 +193,32 @@ function finishCal() {
   }
 }
 
-// ---------- запись танца ----------
+// ---------- запись танца: ровно хореография стенда (choreo.ROUTINE, 118 уд/мин, 38 тактов по 2 доли, музыка с 0,40 с) ----------
 let actx = null;
 function click(acc) { if (!actx) return; const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = acc ? 1200 : 800; g.gain.value = .25; o.connect(g); g.connect(actx.destination); o.start(); g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + .08); o.stop(actx.currentTime + .09); }
+const T0 = 0.40, COUNT_IN = 4;
+const R = (m, n) => Array(n).fill(m);
+const ROUTINE = [].concat(R("rest", 2), R("disco", 4), R("vup", 4), R("wide", 4), R("knee", 4), R("clap", 4), R("spring", 4), R("disco", 2), R("knee", 2), R("vup", 2), R("wide", 2), R("clap", 2), R("rest", 2));
+// подсказки: [1-я доля, 2-я доля] — что делает ПРАВАЯ рука с телефоном
+const CUE = { rest: ["СТОЙКА", "стой"], disco: ["ДИСКО ↗ рука вверх", "↙ рука вниз"], vup: ["РУКИ ВВЕРХ", "вниз"],
+  wide: ["В СТОРОНЫ, кисть вниз", "кисть вверх"], knee: ["В СТОРОНЫ · колено", "другое колено"], clap: ["ХЛОПОК НАД ГОЛОВОЙ", "вниз"], spring: ["ПРУЖИНА, руки согнуты", "присядь"] };
+const DUR = T0 + ROUTINE.length * 2 * BEAT;          // 39,0 с
 $("b3").onclick = () => {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
-  danceEv = []; phase = "dance"; danceStart = performance.now(); setSt("st3", "warn", "запись"); $("b3").disabled = true; $("b2").disabled = true;
-  // 30 с: 4 такта «вверх» на 1-ю долю / «вниз» на 3-ю, потом 4 такта «в сторону» и обратно, потом свободно
-  const CUES = ["ВВЕРХ", "", "ВНИЗ", ""]; let beat = -1, cnt = 0;
+  danceEv = []; setSt("st3", "warn", "отсчёт"); $("b3").disabled = true; $("b2").disabled = true;
+  const pressed = performance.now(); danceStart = pressed + COUNT_IN * BEAT * 1000; let beat = -99;
   const tick = () => {
-    const s = (performance.now() - danceStart) / 1000; const b = Math.floor(s / BEAT);
-    if (b !== beat) { beat = b; click(b % 4 === 0); const bar = Math.floor(b / 4);
-      let cue; if (bar < 4) cue = CUES[b % 4]; else if (bar < 8) cue = ["В СТОРОНУ", "", "ВНИЗ", ""][b % 4]; else if (bar < 12) cue = ["ВВЕРХ", "ВНИЗ", "ВВЕРХ", "ВНИЗ"][b % 4]; else cue = "СВОБОДНО";
-      if (cue) $("dance").textContent = cue; $("dhint").textContent = `такт ${bar + 1}, доля ${b % 4 + 1}`; }
-    $("dbar").style.width = Math.min(100, s / 30 * 100) + "%";
-    if (s < 30) requestAnimationFrame(tick); else finishDance();
+    const now = performance.now(); const s = (now - danceStart) / 1000;
+    if (s < 0) {                                           // отсчёт 4 доли перед записью
+      const b = Math.floor((now - pressed) / 1000 / BEAT); if (b !== beat) { beat = b; click(b === 0); $("dance").textContent = String(COUNT_IN - b); $("dhint").textContent = "приготовься — телефон в правой руке"; }
+      requestAnimationFrame(tick); return;
+    }
+    if (phase !== "dance") phase = "dance";
+    const b = Math.floor((s - T0) / BEAT);                 // доля с момента музыки
+    if (b >= 0 && b !== beat) { beat = b; click(b % 2 === 0); const bar = Math.floor(b / 2), m = ROUTINE[Math.min(bar, ROUTINE.length - 1)];
+      $("dance").textContent = CUE[m][b % 2]; $("dhint").textContent = `такт ${bar + 1} из ${ROUTINE.length} · ${m}`; }
+    $("dbar").style.width = Math.min(100, s / DUR * 100) + "%";
+    if (s < DUR) requestAnimationFrame(tick); else finishDance();
   };
   requestAnimationFrame(tick);
 };
@@ -216,7 +227,7 @@ function finishDance() {
   const nAcc = danceEv.filter(e => e.acc).length, nRot = danceEv.filter(e => e.rot).length;
   const data = { version: 1, ua: navigator.userAgent, bpm: BPM, made: new Date().toISOString(),
     calib: { events: calEv, prompts: [0, 2.5, 5], result: calib && { ok: true, f: calib.f, n: calib.n, rotScale: calib.rotScale, ratio: calib.ratio, upAngle: calib.upAngle } },
-    dance: { events: danceEv, hasAcc: nAcc / Math.max(1, danceEv.length), hasRot: nRot / Math.max(1, danceEv.length), rateHz: danceEv.length / 30 } };
+    dance: { events: danceEv, routine: ROUTINE, t0: T0, hasAcc: nAcc / Math.max(1, danceEv.length), hasRot: nRot / Math.max(1, danceEv.length), rateHz: danceEv.length / DUR } };
   const txt = JSON.stringify(data); $("out").value = txt;
   const url = URL.createObjectURL(new Blob([txt], { type: "application/json" }));
   $("dl").href = url; $("dl").hidden = false; $("b4").disabled = false; setSt("st4", "ok", Math.round(txt.length / 1024) + " КБ");

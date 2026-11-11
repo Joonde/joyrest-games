@@ -42,6 +42,8 @@ async function shoot({ m, demo, mode, n }) {
     const sig = await hall.evaluate((e) => e.innerText.replace(/\s+/g, " ").slice(0, 600) + "|" + e.innerHTML.length).catch(() => "");
     if (!sig || sig === last) return;
     last = sig;
+    // SETTLE — подождать, пока доиграют анимации (карточка задания «Активной настолки» выходит после шагов фишки).
+    if (Number(process.env.SETTLE ?? 0) > 0) await page.waitForTimeout(Number(process.env.SETTLE));
     const n3 = String(++shots).padStart(3, "0");
     await hall.screenshot({ path: path.join(dir, `${n3}-hall.jpg`), type: "jpeg", quality: 90 }).catch(() => {});
     const phone = page.locator("[data-phone]").first();

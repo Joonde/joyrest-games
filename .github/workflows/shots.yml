@@ -11,6 +11,18 @@ on:
         description: "Игры: механика:шаблон:режим:гостей через запятую (пусто — набор по умолчанию)"
         required: false
         default: ""
+      settle:
+        description: "Ждать перед снимком, мс (дать доиграть анимациям; 0 — сразу)"
+        required: false
+        default: "0"
+      limit:
+        description: "Снимков на игру, не больше (по умолчанию 45)"
+        required: false
+        default: "45"
+      budget:
+        description: "Ходов робота на игру (по умолчанию 90; до финиша длинных игр — 400)"
+        required: false
+        default: "90"
   push:
     branches: ["claude/**"]
 
@@ -45,6 +57,10 @@ jobs:
           cat /tmp/robot-build.log
           if [ $st -ne 0 ]; then grep -iE "error|✘|could not|no matching" /tmp/robot-build.log | head -20 | sed 's/^/::error::/'; exit 1; fi
       - name: Снимки
+        env:
+          SETTLE: ${{ github.event.inputs.settle || '0' }}
+          SHOTS_LIMIT: ${{ github.event.inputs.limit || '45' }}
+          BUDGET: ${{ github.event.inputs.budget || '90' }}
         run: node scripts/robot/shots.mjs /tmp/robot /tmp/shots "${{ github.event.inputs.games }}" | tee /tmp/shots-log.txt
       - name: Снимки в ветку e2e-shots
         if: always()

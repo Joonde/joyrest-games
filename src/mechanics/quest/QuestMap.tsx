@@ -202,7 +202,7 @@ export function QuestMap({ session, content, result: r, size = "screen" }: { ses
           </g>
         )}
         <Label x={field.startLabel.x} y={field.startLabel.y} text="СТАРТ" />
-        <Label x={field.finishLabel.x} y={field.finishLabel.y} text={content.finishPoints > 0 ? `ФИНИШ · ${content.finishPoints} очков` : "ФИНИШ"} />
+        <Label x={field.finishLabel.x} y={field.finishLabel.y} text={content.finishPoints > 0 ? `ФИНИШ · +${content.finishPoints}` : "ФИНИШ"} />
         {/* Бонус — искры, ловушка — пыль */}
         {burst && points[burst.at] && (
           <g transform={`translate(${points[burst.at]?.x ?? 0} ${points[burst.at]?.y ?? 0})`} className={`qm-burst qm-burst--${burst.kind}`}>

@@ -12,7 +12,7 @@ import { parseLeadText } from "../../src/core/events";
  *   × (1 / 0,8 / 0,65) → вверх до 100 ₽ → + фиксированные допы (призы, выезд за область).
  */
 interface Total { id: string; name: string; badge: string; price: number; base: number; extra: number }
-interface Season { id: string; pct: number; fullPct: number; early: boolean; min: number; travel: string; title: string; text: string; holiday?: string }
+interface Season { id: string; ny: boolean; label: string; pct: number; min: number; travel: string; title: string; text: string; holiday?: string }
 interface Result {
   individual: boolean;
   reason: string;
@@ -34,7 +34,7 @@ interface Pricing {
   calcMessage(o: Options, level: string): string;
   hoursWord(n: number): string;
   gamesWord(n: number): string;
-  seasonFor(date: string, today: string): Season | null;
+  seasonFor(date: string): Season | null;
   seasonHint(date: string): string;
   seasonBadge(s: Season | null): string;
   moscowToday(nowMs?: number): string;
@@ -265,40 +265,40 @@ describe("калькулятор сайта: цены", () => {
 });
 
 /**
- * Праздничная цена (решение владельца 22 октября 2026). Своя независимая модель здесь, в тесте: процент по дате праздника
- * (границы включительно), ранняя бронь до 15 ноября, минимум 50 000 ₽ в новогоднюю ночь, выезд за город по периодам,
- * день недели из даты. Сверяем каждый день трёх лет, все пути калькулятора на ключевых датах и тексты менеджеру.
+ * Новогодняя надбавка (решение владельца 11 ноября 2026) и праздничная цена (22 октября 2026). Своя независимая модель
+ * здесь, в тесте: процент по дате праздника (границы включительно), без ранней брони и без зависимости от «сегодня»,
+ * минимум 50 000 ₽ в новогоднюю ночь, выезд за город по периодам, день недели из даты. Сверяем каждый день трёх лет,
+ * все пути калькулятора на ключевых датах и тексты менеджеру.
  */
 const DAY = 86400000;
 const utc = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); return Date.UTC(y!, m! - 1, d!); };
 const isoOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-interface Want { kind: string; pct: number; full: number; min: number; travel: number; early: boolean }
-function want(date: string, today: string): Want | null {
+interface Want { kind: string; pct: number; min: number; travel: number; ny: boolean }
+function want(date: string): Want | null {
   const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  let full = 0;
+  let pct = 0;
   let min = 0;
   let peak = false;
   let kind = "";
-  if ((m === 12 && d === 31) || (m === 1 && d === 1)) { full = 40; min = 50000; peak = true; kind = "nynight"; }
-  else if (m === 12 && d >= 19) { full = 40; peak = true; kind = "nypeak"; }
-  else if (m === 12 && d >= 5) { full = 20; kind = "nyseason"; }
+  if ((m === 12 && d === 31) || (m === 1 && d === 1)) { pct = 35; min = 50000; peak = true; kind = "nynight"; }
+  else if (m === 12 && d >= 21) { pct = 35; peak = true; kind = "nypeak"; }
+  else if (m === 12 && d >= 10) { pct = 20; kind = "nyseason"; }
   else {
     let best = Infinity;
     for (const yy of [y, y + 1]) for (const [hm, hd] of [[2, 14], [2, 23], [3, 8]] as const) {
       const diff = (Date.UTC(yy, hm - 1, hd) - utc(date)) / DAY;
       if (diff >= 0 && diff <= 14) best = Math.min(best, diff);
     }
-    if (best === 0) { full = 25; kind = "holiday"; }
-    else if (best <= 7) { full = 15; kind = "week"; }
-    else if (best <= 14) { full = 10; kind = "twoweeks"; }
+    if (best === 0) { pct = 25; kind = "holiday"; }
+    else if (best <= 7) { pct = 15; kind = "week"; }
+    else if (best <= 14) { pct = 10; kind = "twoweeks"; }
   }
-  if (!full) return null;
-  const early = m === 12 && d >= 5 && d <= 28 && today <= `${y}-11-15`;
-  return { kind, pct: early ? full / 2 : full, full, min, travel: peak ? 7000 : 5000, early };
+  if (!pct) return null;
+  return { kind, pct, min, travel: peak ? 7000 : 5000, ny: kind.startsWith("ny") };
 }
 const weekendOf = (date: string) => { const wd = new Date(utc(date)).getUTCDay(); return wd === 0 || wd === 5 || wd === 6; };
-function modelAt(pkg: string, tier: number, date: string, today: string, extras: string[], ext: number, addons: string[]): { price: number; base: number; extra: number }[] {
-  const w = want(date, today);
+function modelAt(pkg: string, tier: number, date: string, extras: string[], ext: number, addons: string[]): { price: number; base: number; extra: number }[] {
+  const w = want(date);
   let flex = PRICES[pkg]![tier]!;
   let prizes = 0;
   for (const e of extras) flex += Math.ceil((PRICES[e]![tier]! * 0.5) / 100) * 100;
@@ -319,88 +319,88 @@ function modelAt(pkg: string, tier: number, date: string, today: string, extras:
   });
 }
 
-describe("калькулятор сайта: праздничная цена", () => {
-  it("каждый день 2026–2028 × «сегодня» до, в день и после 15 ноября — процент, минимум, выезд, ранняя бронь", () => {
+describe("калькулятор сайта: новогодняя надбавка и праздничная цена", () => {
+  it("каждый день 2026–2028 — процент, минимум, выезд, название; «сегодня» на цену не влияет (ранней брони нет)", () => {
     let days = 0;
     for (let t = utc("2026-01-01"); t <= utc("2028-12-31"); t += DAY) {
       const date = isoOf(t);
-      const y = date.slice(0, 4);
-      for (const today of [`${y}-01-10`, `${y}-10-22`, `${y}-11-15`, `${y}-11-16`, `${y}-12-20`]) {
-        const w = want(date, today);
-        const s = P.seasonFor(date, today);
-        if (!w) {
-          if (s) throw new Error(`${date}: лишняя праздничная цена ${s.pct}%`);
-          continue;
-        }
-        if (!s) throw new Error(`${date}: нет праздничной цены, ждали ${w.pct}%`);
-        const got = [s.id, s.pct, s.fullPct, s.min, s.early, s.travel === "peak" ? 7000 : 5000].join();
-        const exp = [w.kind, w.pct, w.full, w.min, w.early, w.travel].join();
-        if (got !== exp) throw new Error(`${date} (сегодня ${today}): ${got} ≠ ${exp}`);
+      const w = want(date);
+      const s = P.seasonFor(date);
+      if (!w) {
+        if (s) throw new Error(`${date}: лишняя надбавка ${s.pct}%`);
+      } else {
+        if (!s) throw new Error(`${date}: нет надбавки, ждали ${w.pct}%`);
+        const got = [s.id, s.pct, s.min, s.ny, s.label, s.travel === "peak" ? 7000 : 5000].join();
+        const exp = [w.kind, w.pct, w.min, w.ny, w.ny ? "Новогодняя надбавка" : "Праздничная цена", w.travel].join();
+        if (got !== exp) throw new Error(`${date}: ${got} ≠ ${exp}`);
         if (!s.title || !s.text) throw new Error(`${date}: нет причины`);
+        if ("early" in s || "fullPct" in s) throw new Error(`${date}: остатки ранней брони`);
       }
+      // Тот же расчёт при любом «сегодня» (поле today осталось только у старых вызовов и игнорируется).
+      const a = P.calcPrice({ pkg: "quiz", tier: 1, date, today: "2026-11-01", addons: ["far"] });
+      const b = P.calcPrice({ pkg: "quiz", tier: 1, date, today: "2026-11-30", addons: ["far"] });
+      if (JSON.stringify(a.totals) !== JSON.stringify(b.totals)) throw new Error(`${date}: цена зависит от «сегодня»`);
       days += 1;
     }
     expect(days).toBe(366 + 365 + 365 - 1 + 1);
   }, 30000);
 
   it("границы включительно — эталонная таблица", () => {
-    const table: [string, string, number | null, number][] = [
-      // дата, сегодня, процент (null — без), выезд
-      ["2026-12-04", "2026-11-20", null, 2000],
-      ["2026-12-05", "2026-11-20", 20, 5000],
-      ["2026-12-18", "2026-11-20", 20, 5000],
-      ["2026-12-19", "2026-11-20", 40, 7000],
-      ["2026-12-28", "2026-11-20", 40, 7000],
-      ["2026-12-30", "2026-11-20", 40, 7000],
-      ["2026-12-31", "2026-11-20", 40, 7000],
-      ["2027-01-01", "2026-11-20", 40, 7000],
-      ["2027-01-02", "2026-11-20", null, 2000],
-      // ранняя бронь: до 15 ноября включительно, только 5–28 декабря
-      ["2026-12-05", "2026-11-15", 10, 5000],
-      ["2026-12-18", "2026-11-15", 10, 5000],
-      ["2026-12-19", "2026-11-15", 20, 7000],
-      ["2026-12-28", "2026-11-15", 20, 7000],
-      ["2026-12-29", "2026-11-15", 40, 7000],
-      ["2026-12-31", "2026-11-15", 40, 7000],
-      ["2027-01-01", "2026-11-15", 40, 7000],
-      ["2026-12-10", "2026-11-16", 20, 5000],
+    const table: [string, number | null, number, string][] = [
+      // дата, процент (null — без), выезд, название
+      ["2026-12-04", null, 2000, ""],
+      ["2026-12-05", null, 2000, ""],
+      ["2026-12-09", null, 2000, ""],
+      ["2026-12-10", 20, 5000, "Новогодняя надбавка"],
+      ["2026-12-18", 20, 5000, "Новогодняя надбавка"],
+      ["2026-12-19", 20, 5000, "Новогодняя надбавка"],
+      ["2026-12-20", 20, 5000, "Новогодняя надбавка"],
+      ["2026-12-21", 35, 7000, "Новогодняя надбавка"],
+      ["2026-12-28", 35, 7000, "Новогодняя надбавка"],
+      ["2026-12-30", 35, 7000, "Новогодняя надбавка"],
+      ["2026-12-31", 35, 7000, "Новогодняя надбавка"],
+      ["2027-01-01", 35, 7000, "Новогодняя надбавка"],
+      ["2027-01-02", null, 2000, ""],
+      ["2027-01-08", null, 2000, ""],
       // праздники: 14 → 8 дней — 10%, 7 → 1 — 15%, в сам день — 25%, на следующий день — следующий праздник или ничего
-      ["2027-02-22", "2027-01-10", 15, 5000],
-      ["2027-02-23", "2027-01-10", 25, 5000],
-      ["2027-02-24", "2027-01-10", 10, 5000],
-      ["2027-02-28", "2027-01-10", 10, 5000],
-      ["2027-03-01", "2027-01-10", 15, 5000],
-      ["2027-03-07", "2027-01-10", 15, 5000],
-      ["2027-03-08", "2027-01-10", 25, 5000],
-      ["2027-03-09", "2027-01-10", null, 2000],
-      ["2027-01-30", "2027-01-10", null, 2000],
-      ["2027-01-31", "2027-01-10", 10, 5000],
-      ["2027-02-06", "2027-01-10", 10, 5000],
-      ["2027-02-07", "2027-01-10", 15, 5000],
-      ["2027-02-14", "2027-01-10", 25, 5000],
-      ["2027-02-15", "2027-01-10", 10, 5000],
-      ["2027-02-16", "2027-01-10", 15, 5000],
-      ["2027-07-15", "2027-01-10", null, 2000],
+      ["2027-02-22", 15, 5000, "Праздничная цена"],
+      ["2027-02-23", 25, 5000, "Праздничная цена"],
+      ["2027-02-24", 10, 5000, "Праздничная цена"],
+      ["2027-02-28", 10, 5000, "Праздничная цена"],
+      ["2027-03-01", 15, 5000, "Праздничная цена"],
+      ["2027-03-07", 15, 5000, "Праздничная цена"],
+      ["2027-03-08", 25, 5000, "Праздничная цена"],
+      ["2027-03-09", null, 2000, ""],
+      ["2027-01-30", null, 2000, ""],
+      ["2027-01-31", 10, 5000, "Праздничная цена"],
+      ["2027-02-06", 10, 5000, "Праздничная цена"],
+      ["2027-02-07", 15, 5000, "Праздничная цена"],
+      ["2027-02-14", 25, 5000, "Праздничная цена"],
+      ["2027-02-15", 10, 5000, "Праздничная цена"],
+      ["2027-02-16", 15, 5000, "Праздничная цена"],
+      ["2027-07-15", null, 2000, ""],
     ];
-    for (const [date, today, pct, travel] of table) {
-      const r = P.calcPrice({ pkg: "quiz", tier: 1, date, today, addons: ["far"] });
-      expect(r.season?.pct ?? null, `${date} / ${today}`).toBe(pct);
+    for (const [date, pct, travel, label] of table) {
+      const r = P.calcPrice({ pkg: "quiz", tier: 1, date, addons: ["far"] });
+      expect(r.season?.pct ?? null, date).toBe(pct);
+      expect(r.season?.label ?? "", date).toBe(label);
       expect(r.travel, `${date}: выезд`).toBe(travel);
     }
   });
 
   const KEY_DATES: [string, string][] = [
-    ["2026-11-12", "2026-10-22"], // обычный четверг
-    ["2026-12-05", "2026-10-22"], // ранняя бронь, суббота
-    ["2026-12-18", "2026-11-20"], // +20%, пятница
-    ["2026-12-19", "2026-10-22"], // ранняя бронь пика, суббота
-    ["2026-12-29", "2026-10-22"], // пик без ранней брони
+    // дата праздника, «сегодня» (для разбора планировщиком)
+    ["2026-11-12", "2026-11-11"], // обычный четверг
+    ["2026-12-05", "2026-11-11"], // суббота, надбавки ещё нет
+    ["2026-12-10", "2026-11-11"], // первый день +20%, четверг
+    ["2026-12-19", "2026-11-11"], // +20%, суббота
+    ["2026-12-21", "2026-11-11"], // первый день +35%, понедельник
     ["2026-12-31", "2026-11-20"], // новогодняя ночь, минимум
     ["2027-02-23", "2027-01-10"], // сам праздник
     ["2027-03-03", "2027-01-10"], // неделя до 8 марта
   ];
-  for (const [date, today] of KEY_DATES) {
-    it(`все пути калькулятора на дату ${date} (сегодня ${today}) совпадают с моделью`, () => {
+  for (const [date] of KEY_DATES) {
+    it(`все пути калькулятора на дату ${date} совпадают с моделью`, () => {
       let paths = 0;
       for (const pkg of PACKS) {
         const others = PACKS.filter((p) => p !== pkg);
@@ -410,8 +410,8 @@ describe("калькулятор сайта: праздничная цена", (
               for (const addons of subsets(Object.keys(ADDONS))) {
                 paths += 1;
                 // день недели берётся из даты, даже если выбран другой
-                const r = P.calcPrice({ pkg, tier, weekend: !weekendOf(date), date, today, extras, ext, addons });
-                const want2 = modelAt(pkg, tier, date, today, extras, ext, addons);
+                const r = P.calcPrice({ pkg, tier, weekend: !weekendOf(date), date, extras, ext, addons });
+                const want2 = modelAt(pkg, tier, date, extras, ext, addons);
                 const got = r.totals.map((t) => `${t.price}/${t.base}/${t.extra}`).join();
                 const exp = want2.map((t) => `${t.price}/${t.base}/${t.extra}`).join();
                 if (got !== exp) throw new Error(`${date} ${pkg}/${tier}/${extras}/${ext}/${addons}: ${got} ≠ ${exp}`);
@@ -419,7 +419,7 @@ describe("калькулятор сайта: праздничная цена", (
                 const p = r.totals.map((t) => t.price);
                 if (!(p[0]! >= p[1]! && p[1]! >= p[2]!)) throw new Error(`порядок ведущих: ${p}`);
                 if (p.some((x) => x % 100 !== 0)) throw new Error(`не кратно 100: ${p}`);
-                if (r.totals.some((t) => t.extra < 0)) throw new Error("праздничная цена меньше нуля");
+                if (r.totals.some((t) => t.extra < 0)) throw new Error("надбавка меньше нуля");
               }
             }
           }
@@ -429,46 +429,52 @@ describe("калькулятор сайта: праздничная цена", (
     }, 60000);
   }
 
-  it("праздничная цена считается последней: от итога с выходным, ведущим и призами", () => {
+  it("надбавка считается последней: от итога с выходным, ведущим и призами", () => {
     // Квиз до 25, пятница 18 декабря: 24 900 × 1,1 = 27 400; + призы 2 500 = 29 900; +20% = 5 980 → 6 000.
-    const r = P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-18", today: "2026-11-20", addons: ["prize"] });
+    const r = P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-18", addons: ["prize"] });
     expect(r.totals.map((t) => [t.base, t.extra, t.price])).toEqual([[29900, 6000, 35900], [24500, 4900, 29400], [20400, 4100, 24500]]);
-    // Добавили игру — праздничная цена пересчиталась от новой суммы.
-    const more = P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-18", today: "2026-11-20", addons: ["prize"], extras: ["game"] });
+    // Добавили игру — надбавка пересчиталась от новой суммы.
+    const more = P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-18", addons: ["prize"], extras: ["game"] });
     expect(more.totals[0]!.base).toBe(up((24900 + 9500) * 1.1) + 2500);
     expect(more.totals[0]!.extra).toBe(up(more.totals[0]!.base * 0.2));
     // Выезд — своей ценой, без процента.
-    const far = P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-18", today: "2026-11-20", addons: ["prize", "far"] });
+    const far = P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-18", addons: ["prize", "far"] });
     expect(far.totals[0]!.price).toBe(35900 + 5000);
+    // Понедельник 21 декабря: +35%. 24 900 × 1,35 = 33 615 → 33 700.
+    expect(P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-21" }).totals[0]!.price).toBe(33700);
+    // 9 декабря (среда) — без надбавки, 10 декабря (четверг) — +20%.
+    expect(P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-09" }).totals[0]!.price).toBe(24900);
+    expect(P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-10" }).totals[0]!.price).toBe(29900);
   });
 
   it("31 декабря и 1 января — не меньше 50 000 ₽ у всех трёх ведущих, выезд сверху", () => {
     for (const date of ["2026-12-31", "2027-01-01", "2027-12-31", "2028-01-01"]) {
-      const small = P.calcPrice({ pkg: "game", tier: 0, date, today: "2026-01-10" });
+      const small = P.calcPrice({ pkg: "game", tier: 0, date });
       expect(small.totals.map((t) => t.price), date).toEqual([50000, 50000, 50000]);
-      const far = P.calcPrice({ pkg: "game", tier: 0, date, today: "2026-01-10", addons: ["far"] });
+      const far = P.calcPrice({ pkg: "game", tier: 0, date, addons: ["far"] });
       expect(far.totals.map((t) => t.price), date).toEqual([57000, 57000, 57000]);
-      // Большой вечер дороже минимума — просто +40%.
-      const big = P.calcPrice({ pkg: "show", tier: 4, date, today: "2026-01-10" });
-      expect(big.totals[0]!.price).toBe(big.totals[0]!.base + up(big.totals[0]!.base * 0.4));
+      // Большой вечер дороже минимума — просто +35%.
+      const big = P.calcPrice({ pkg: "show", tier: 4, date });
+      expect(big.totals[0]!.price).toBe(big.totals[0]!.base + up(big.totals[0]!.base * 0.35));
       expect(big.totals[0]!.price).toBeGreaterThan(50000);
     }
   });
 
-  it("ранняя бронь дешевле поздней на 5–28 декабря и не действует 29 декабря — 1 января", () => {
+  it("ранней брони больше нет: ни в расчёте, ни в данных, ни в текстах", () => {
+    const api = P as unknown as Record<string, unknown>;
+    expect(api.EARLY_UNTIL).toBeUndefined();
+    expect(api.earlyUntilLabel).toBeUndefined();
     for (let t = utc("2026-12-01"); t <= utc("2027-01-02"); t += DAY) {
       const date = isoOf(t);
-      const early = P.calcPrice({ pkg: "quiz", tier: 2, date, today: "2026-11-15" }).totals[0]!.price;
-      const late = P.calcPrice({ pkg: "quiz", tier: 2, date, today: "2026-11-16" }).totals[0]!.price;
-      const d = Number(date.slice(8)), m = Number(date.slice(5, 7));
-      if (m === 12 && d >= 5 && d <= 28) expect(early, date).toBeLessThan(late);
-      else expect(early, date).toBe(late);
+      const m = P.calcMessage({ pkg: "quiz", tier: 2, date, today: "2026-11-01" }, "standard");
+      expect(m, date).not.toMatch(/ранн|вместо/i);
+      expect(P.calcSummary({ pkg: "quiz", tier: 2, date }).text, date).not.toMatch(/ранн|вместо/i);
     }
   });
 
-  it("без даты, с кривой или несуществующей датой — как раньше: без праздничной цены, день — из кнопок", () => {
+  it("без даты, с кривой или несуществующей датой — как раньше: без надбавки, день — из кнопок", () => {
     for (const date of ["", "abc", "2026-02-30", "2026-13-01", "2026-1-5", "10.12.2026"]) {
-      const r = P.calcPrice({ pkg: "quiz", tier: 1, weekend: true, date, today: "2026-10-22", addons: ["far"] });
+      const r = P.calcPrice({ pkg: "quiz", tier: 1, weekend: true, date, addons: ["far"] });
       expect(r.date, date).toBeNull();
       expect(r.season, date).toBeNull();
       expect(r.weekend).toBe(true);
@@ -477,15 +483,15 @@ describe("калькулятор сайта: праздничная цена", (
     }
     expect(P.parseDate("2028-02-29")).not.toBeNull();
     expect(P.parseDate("2027-02-29")).toBeNull();
-    // Пока год набирают с клавиатуры, браузер отдаёт «0002-12-15» — это ещё не дата, праздничная цена не падает.
+    // Пока год набирают с клавиатуры, браузер отдаёт «0002-12-15» — это ещё не дата, надбавка не падает.
     for (const date of ["0002-12-15", "0020-12-15", "0202-12-15", "1999-12-31", "3000-01-01"]) {
       expect(P.parseDate(date), date).toBeNull();
-      expect(P.calcPrice({ pkg: "quiz", tier: 1, weekend: true, date, today: "2026-10-24" }).date, date).toBeNull();
+      expect(P.calcPrice({ pkg: "quiz", tier: 1, weekend: true, date }).date, date).toBeNull();
     }
   });
 
   it("Telegram: в тексте ссылки нет «%», «+» и «&» — иначе Telegram обрезает расчёт", () => {
-    const opts = { pkg: "quiz", tier: 2, weekend: true, date: "2026-12-20", time: "19:00", today: "2026-10-24", ext: 2, addons: ["prizes", "far", "logo"] };
+    const opts = { pkg: "quiz", tier: 2, weekend: true, date: "2026-12-20", time: "19:00", ext: 2, addons: ["prizes", "far", "logo"] };
     const text = P.calcMessage(opts, "new");
     expect(text).toMatch(/[%+]/);
     const tg = P.telegramText(text);
@@ -497,7 +503,7 @@ describe("калькулятор сайта: праздничная цена", (
   });
 
   it("почта: письмо на joyrest@mail.ru в Gmail, Яндексе, Mail.ru и почтовой программе — с полным расчётом", () => {
-    const text = P.calcMessage({ pkg: "quiz", tier: 2, weekend: true, date: "2026-12-20", time: "19:00", today: "2026-10-24" }, "new");
+    const text = P.calcMessage({ pkg: "quiz", tier: 2, weekend: true, date: "2026-12-20", time: "19:00" }, "new");
     const m = P.mailLinks(text);
     const gm = new URL(m.gmail);
     expect(gm.origin).toBe("https://mail.google.com");
@@ -516,13 +522,13 @@ describe("калькулятор сайта: праздничная цена", (
 
   it("«Под ключ» и больше 90 гостей на праздничную дату — без цены, но с причиной", () => {
     for (const o of [{ pkg: "turnkey", tier: 1 }, { pkg: "quiz", tier: 5 }, { pkg: "quiz", tier: 0, extras: ["game", "show", "music"] }]) {
-      const r = P.calcPrice({ ...o, date: "2026-12-25", today: "2026-11-20" });
+      const r = P.calcPrice({ ...o, date: "2026-12-25" });
       expect(r.individual).toBe(true);
       expect(r.totals).toEqual([]);
-      expect(r.season?.pct).toBe(40);
-      const m = P.calcMessage({ ...o, date: "2026-12-25", today: "2026-11-20" }, "standard");
+      expect(r.season?.pct).toBe(35);
+      const m = P.calcMessage({ ...o, date: "2026-12-25" }, "standard");
       expect(m).toContain("Стоимость: обсудим индивидуально");
-      expect(m).toContain("Праздничная цена: +40% — Пик новогодних корпоративов");
+      expect(m).toContain("Новогодняя надбавка: +35% — Пик новогодних праздников");
     }
   });
 
@@ -532,15 +538,16 @@ describe("калькулятор сайта: праздничная цена", (
     expect(P.moscowToday(Date.UTC(2026, 11, 31, 21, 0))).toBe("2027-01-01");
   });
 
-  it("подсказка «до 4 декабря — без новогодней праздничной цены»: с 14 ноября по 4 декабря", () => {
-    expect(P.seasonHint("2026-11-13")).toBe("");
-    for (let t = utc("2026-11-14"); t <= utc("2026-12-04"); t += DAY) expect(P.seasonHint(isoOf(t)), isoOf(t)).toContain("до 4 декабря");
-    expect(P.seasonHint("2026-12-05")).toBe("");
-    expect(P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-11-20", today: "2026-10-22" }).hint).toContain("4 декабря");
+  it("подсказка «до 9 декабря — без новогодней надбавки»: с 1 ноября по 9 декабря", () => {
+    expect(P.seasonHint("2026-10-31")).toBe("");
+    for (let t = utc("2026-11-01"); t <= utc("2026-12-09"); t += DAY) expect(P.seasonHint(isoOf(t)), isoOf(t)).toContain("до 9 декабря");
+    expect(P.seasonHint("2026-12-10")).toBe("");
+    expect(P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-11-20" }).hint).toContain("9 декабря");
+    expect(P.calcPrice({ pkg: "quiz", tier: 1, date: "2026-12-07" }).hint).toContain("С 10 декабря");
   });
 
-  it("сообщение менеджеру: дата, причина, ранняя бронь, из чего цена, выезд с такси", () => {
-    const m = P.calcMessage({ pkg: "quiz", tier: 1, date: "2026-12-10", today: "2026-10-22", addons: ["prize", "far"] }, "new");
+  it("сообщение менеджеру: дата, причина, из чего цена, выезд с такси", () => {
+    const m = P.calcMessage({ pkg: "quiz", tier: 1, date: "2026-12-10", addons: ["prize", "far"] }, "new");
     expect(m.split("\n")).toEqual([
       "🧮 Расчёт JoyRest",
       "────────────",
@@ -552,37 +559,37 @@ describe("калькулятор сайта: праздничная цена", (
       "Допы: Призы и медали, Выезд за город",
       "Выезд за город: 5 000 ₽ + такси ведущему",
       "Длительность: ≈ 1,5–2 часа",
-      "Праздничная цена: +10% вместо +20% — Новогодний сезон",
-      "Ранняя бронь: до 15 ноября 2026 — посчитано 22 октября 2026",
+      "Новогодняя надбавка: +20% — Новогодний сезон",
       "────────────",
-      "Стоимость по формату ведущего (праздничная цена уже в итоге):",
-      "▫️ Опытный: 35 200 ₽ (27 400 ₽ + 2 800 ₽ праздничная цена + 5 000 ₽ выезд)",
-      "✅ Новые лица (−20%): 29 800 ₽ (22 500 ₽ + 2 300 ₽ праздничная цена + 5 000 ₽ выезд) — выбран",
-      "▫️ Первый старт (−35%): 25 600 ₽ (18 700 ₽ + 1 900 ₽ праздничная цена + 5 000 ₽ выезд)",
+      "Стоимость по формату ведущего (новогодняя надбавка уже в итоге):",
+      "▫️ Опытный: 37 900 ₽ (27 400 ₽ + 5 500 ₽ новогодняя надбавка + 5 000 ₽ выезд)",
+      "✅ Новые лица (−20%): 32 000 ₽ (22 500 ₽ + 4 500 ₽ новогодняя надбавка + 5 000 ₽ выезд) — выбран",
+      "▫️ Первый старт (−35%): 27 500 ₽ (18 700 ₽ + 3 800 ₽ новогодняя надбавка + 5 000 ₽ выезд)",
     ]);
-    const night = P.calcMessage({ pkg: "game", tier: 0, date: "2026-12-31", today: "2026-11-20" }, "");
-    expect(night).toContain("Праздничная цена: +40%, от 50 000 ₽ — Новогодняя ночь");
+    const night = P.calcMessage({ pkg: "game", tier: 0, date: "2026-12-31" }, "");
+    expect(night).toContain("Новогодняя надбавка: +35%, от 50 000 ₽ — Новогодняя ночь");
     expect(night).toContain("▫️ Опытный: 50 000 ₽ (14 900 ₽ → минимум 50 000 ₽)");
-    expect(night).not.toContain("Ранняя бронь");
-    const holiday = P.calcMessage({ pkg: "quiz", tier: 1, date: "2027-03-08", today: "2027-01-10" }, "standard");
+    const holiday = P.calcMessage({ pkg: "quiz", tier: 1, date: "2027-03-08" }, "standard");
     expect(holiday).toContain("Праздничная цена: +25% — Праздничный день: 8 марта");
+    expect(holiday).toContain("Стоимость по формату ведущего (праздничная цена уже в итоге):");
     expect(holiday).toContain("✅ Опытный: 31 200 ₽ (24 900 ₽ + 6 300 ₽ праздничная цена) — выбран");
     // Цены сообщения — те же, что у калькулятора.
-    const r = P.calcPrice({ pkg: "quiz", tier: 1, date: "2027-03-08", today: "2027-01-10" });
+    const r = P.calcPrice({ pkg: "quiz", tier: 1, date: "2027-03-08" });
     expect(r.totals[0]!.price).toBe(31200);
   });
 
-  it("строка заявки (поле calc, Telegram владельцу): дата и праздничная цена, не длиннее 1000 знаков на любых выборах", () => {
-    const s = P.calcSummary({ pkg: "quiz", tier: 1, date: "2026-12-19", today: "2026-10-22", addons: ["far"] });
-    expect(s.date).toBe("19 декабря 2026, сб");
-    expect(s.parts).toContain("дата 19 декабря 2026, сб");
-    expect(s.parts).toContain("праздничная цена +20% вместо +40% — Пик новогодних корпоративов (ранняя бронь до 15 ноября 2026)");
+  it("строка заявки (поле calc, Telegram владельцу): дата и надбавка, не длиннее 1000 знаков на любых выборах", () => {
+    const s = P.calcSummary({ pkg: "quiz", tier: 1, date: "2026-12-22", addons: ["far"] });
+    expect(s.date).toBe("22 декабря 2026, вт");
+    expect(s.parts).toContain("дата 22 декабря 2026, вт");
+    expect(s.parts).toContain("новогодняя надбавка +35% — Пик новогодних праздников");
     expect(s.parts).toContain("выезд за город 7 000 ₽ + такси ведущему");
-    expect(s.text).toContain("Итого (праздничная цена уже в итоге): Опытный —");
+    expect(s.text).toContain("Итого (новогодняя надбавка уже в итоге): Опытный —");
+    expect(P.calcSummary({ pkg: "quiz", tier: 1, date: "2027-03-08" }).text).toContain("Итого (праздничная цена уже в итоге)");
     let longest = 0;
-    for (const [date, today] of KEY_DATES) {
+    for (const [date] of KEY_DATES) {
       for (const pkg of [...PACKS, "turnkey"]) {
-        const all = P.calcSummary({ pkg, tier: 4, date, today, extras: PACKS.filter((p) => p !== pkg).slice(0, 2), ext: 4, addons: Object.keys(ADDONS) });
+        const all = P.calcSummary({ pkg, tier: 4, date, extras: PACKS.filter((p) => p !== pkg).slice(0, 2), ext: 4, addons: Object.keys(ADDONS) });
         longest = Math.max(longest, all.text.length);
       }
     }
@@ -591,7 +598,7 @@ describe("калькулятор сайта: праздничная цена", (
 
   it("дальше по цепочке: менеджер вставляет расчёт в планировщик — дата, гости и программа разбираются, цены не берутся", () => {
     for (const [date, today] of KEY_DATES) {
-      const msg = P.calcMessage({ pkg: "quiz", tier: 2, date, today, extras: ["music"], ext: 2, addons: ["logo", "prize", "far"] }, "standard");
+      const msg = P.calcMessage({ pkg: "quiz", tier: 2, date, extras: ["music"], ext: 2, addons: ["logo", "prize", "far"] }, "standard");
       expect(msg).toMatch(/Расч[её]т\s+JoyRest/); // так его узнаёт бот в Telegram для бизнеса
       const fill = parseLeadText(msg, today);
       expect(fill.day, date).toBe(date);
@@ -600,12 +607,16 @@ describe("калькулятор сайта: праздничная цена", (
       expect(program?.formats).toEqual(["Квиз", "Музыкальный"]);
       expect(program?.extension).toBe("1 ч");
       expect(program?.addons).toEqual(["Логотип на экранах", "Призы и медали", "Выезд за город"]);
-      const line = P.calcSummary({ pkg: "quiz", tier: 2, date, today, extras: ["music"], ext: 2, addons: ["far"] }).text;
+      const line = P.calcSummary({ pkg: "quiz", tier: 2, date, extras: ["music"], ext: 2, addons: ["far"] }).text;
       expect(parseLeadText(line, today).day, date).toBe(date);
       expect(programFromCalc(line)?.addons).toEqual(["Выезд за город"]);
     }
     // Старые программы с «Выездом за Московскую область» читаются как «Выезд за город».
     expect(programFromCalc("Пакет: Квиз\nДопы: Выезд за Московскую область")?.addons).toEqual(["Выезд за город"]);
+    // Старый расчёт с ранней бронью (присланный до 11 ноября 2026) по-прежнему даёт дату праздника, а не «15 ноября».
+    const old = "🧮 Расчёт JoyRest\n────────────\nПакет: Квиз\nГостей: до 25\nДата: 10 декабря 2026, чт\nДень: будни\nПраздничная цена: +10% вместо +20% — Новогодний сезон\nРанняя бронь: до 15 ноября 2026 — посчитано 22 октября 2026";
+    expect(parseLeadText(old, "2026-11-11").day).toBe("2026-12-10");
+    expect(programFromCalc(old)?.formats).toEqual(["Квиз"]);
   });
 });
 
@@ -660,7 +671,7 @@ describe("готовые пакеты (решение владельца 7–8 �
     expect(html.indexOf('id="packages"')).toBeLessThan(html.indexOf('id="calcPacks"'));
     for (const b of B.BUNDLES) expect(html).toContain(`<option>Готовый пакет «${b.name}»</option>`);
     expect(nb(html)).toContain("Цены — с опытным ведущим, в будни, до 25 гостей.");
-    expect(nb(html)).toContain("с 5 декабря и перед праздниками — праздничная цена");
+    expect(nb(html)).toContain("с 10 декабря — новогодняя надбавка, перед 14 февраля, 23 февраля и 8 марта — праздничная цена");
     // Скрытая подпись «в калькуляторе» не должна растягивать страницу: карточки и лента — точка отсчёта.
     const css = readFileSync(join(root, "site/css/style.css"), "utf8");
     expect(css).toMatch(/\.bundles\{ position: relative;/);
@@ -676,7 +687,7 @@ describe("готовые пакеты (решение владельца 7–8 �
     expect(text).toContain("Гостей: до 25");
     expect(text).toContain("Цена: 24 900 ₽ — опытный ведущий, будни");
     expect(text).toContain("Программа: Музыкальный\nДопы: Танцевальная пауза\nДлительность: ≈ 1,5–2 часа");
-    expect(text).toContain("выходные и праздничные дни — по правилам калькулятора");
+    expect(text).toContain("выходные, новогодняя надбавка и праздничные дни — по правилам калькулятора");
     // Студия разбирает сообщение пакета («Заполнить из сообщения», «Вставить расчёт», бот): даты клиент не называл — её нет.
     for (const b of B.BUNDLES) {
       for (const today of ["2026-11-08", "2027-01-10", "2027-06-01"]) {

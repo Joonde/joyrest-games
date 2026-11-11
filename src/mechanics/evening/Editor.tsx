@@ -3,46 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Fold } from "../../components/Fold";
 import { PROGRAM_LIMITS, type ProgramBlockRef } from "../../core/program";
 import { gamesRepo, useAuth, type Game } from "../../data";
-import { categoryOf, groupByCategory, type CategoryId } from "../categories";
+import { groupByCategory } from "../categories";
 import { mechanicTitle } from "../registry";
 import type { EditorProps } from "../types";
 import { NOT_IN_EVENING, type EveningContent } from "./content";
-import { parseDance } from "../dance/content";
-import { mainStyle, styleById } from "../dance/styles";
-
-interface Template {
-  id: string;
-  title: string;
-  hint: string;
-  /** Какие игры по порядку: механика или раздел («music» — музыкальный квиз). */
-  slots: Array<{ mechanic: string; category?: CategoryId; style?: string; variant?: string }>;
-}
-
-/** Слот программы подходит игре: механика, раздел, стиль танца (у батла), вариант («Танцуй как звезда» или «Караоке на поле»). */
-function fits(game: Game, slot: Template["slots"][number]): boolean {
-  if (game.mechanic !== slot.mechanic) return false;
-  if (slot.category && categoryOf(game) !== slot.category) return false;
-  if (slot.style && mainStyle(parseDance(game.content).cards) !== slot.style) return false;
-  if (slot.variant) {
-    const raw = game.content as { variant?: unknown } | null;
-    if ((raw?.variant ?? "dance") !== slot.variant) return false;
-  }
-  return true;
-}
-
-const TEMPLATES: Template[] = [
-  { id: "corp", title: "Корпоратив", hint: "Квиз → «Ставка на знания» → «Миллион на кону»", slots: [{ mechanic: "quiz", category: "quiz" }, { mechanic: "board" }, { mechanic: "millionaire" }] },
-  { id: "birthday", title: "День рождения", hint: "«Давайте знакомиться» → квиз → «Правда или действие»", slots: [{ mechanic: "story" }, { mechanic: "quiz", category: "quiz" }, { mechanic: "truth" }] },
-  { id: "music", title: "Музыкальный вечер", hint: "«Узнай по нотам» → музыкальное лото → танцевальный батл", slots: [{ mechanic: "quiz", category: "music" }, { mechanic: "lotto" }, { mechanic: "dance" }] },
-  { id: "table", title: "Вечер настолок", hint: "«Кости лжеца» → «Мафия»", slots: [{ mechanic: "perudo" }, { mechanic: "mafia" }] },
-  {
-    id: "dance",
-    title: "Танцевальный вечер",
-    hint: "Джаз-фанк → диско → латина → Танцуй как звезда",
-    slots: [{ mechanic: "dance", style: "jazz" }, { mechanic: "dance", style: "disco" }, { mechanic: "dance", style: "latin" }, { mechanic: "stage", variant: "dance" }],
-  },
-  { id: "show", title: "Телешоу", hint: "«Ставка на знания» → «Гонка на выживание» → «Миллион на кону»", slots: [{ mechanic: "board" }, { mechanic: "survival" }, { mechanic: "millionaire" }] },
-];
+import { fits, slotLabel, TEMPLATES, type Template } from "./templates";
 
 function refOf(game: Game): ProgramBlockRef {
   return { gameId: game.id, title: game.title, mechanic: game.mechanic };
@@ -97,7 +62,7 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
       const sorted = [...games].sort((a, b) => Number(mineIds.has(b.id)) - Number(mineIds.has(a.id)));
       const game = sorted.find((g) => fits(g, slot) && !picked.some((p) => p.gameId === g.id));
       if (game) picked.push(refOf(game));
-      else missing.push(slot.style ? `${mechanicTitle(slot.mechanic)} (${styleById(slot.style)?.title ?? slot.style})` : mechanicTitle(slot.mechanic));
+      else missing.push(slotLabel(slot));
     }
     set(picked);
     setNote(missing.length > 0 ? `Не нашлось игр: ${missing.join(", ")}. Добавьте их ниже или скопируйте из библиотеки.` : `Программа «${t.title}» собрана — поменяйте игры и порядок, как нужно.`);

@@ -42,7 +42,7 @@ jobs:
           npm ci --no-audit --no-fund
           # Playwright — только здесь: в зависимостях проекта его нет.
           npm i --no-save --no-audit --no-fund playwright@1.48.2
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium || npx playwright install chromium  # зеркало Ubuntu недоступно — у сборщика GitHub системные библиотеки уже есть
       - name: Сборка страницы робота
         run: |
           set +e

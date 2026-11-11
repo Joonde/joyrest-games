@@ -22356,7 +22356,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   max-width: 100%;
   font-size: 1.9cqh;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  /* Переносы по слогам (мягкие переносы в тексте): раньше «Франци-я», «Португа-ли» рвались на любой букве (снимки, 11 ноября 2026). */
+  hyphens: manual;
+  overflow-wrap: break-word;
 }
 
 .wine-cell__chips {

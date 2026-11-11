@@ -41,7 +41,7 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
             <label key={x.id} className="choice mf-styles__item">
               <input type="radio" name="mafia-card-style" checked={content.cardStyle === x.id} disabled={!editable} onChange={() => onChange({ ...content, cardStyle: x.id })} />
               <span className="choice__text">
-                <span className="mf-styles__preview">
+                <span className="mf-styles__preview" aria-hidden="true">
                   <MafiaCardStyleContext.Provider value={x.id}>
                     <span className="mf-styles__card"><RoleArt role="mafia" /></span>
                     <span className="mf-styles__card"><RoleArt role="commissar" /></span>

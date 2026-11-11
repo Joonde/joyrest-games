@@ -587,6 +587,8 @@ input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--bt
 /* Ссылка внутри предложения: строку не раздвигаем, а пальцу даём зону касания 44 px по высоте. */
 .privacy-link::after{ content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
 .footer .privacy-link{ color: inherit; }
+/* На главной снизу — место под плавающие «Спросить Джой» и «Задать вопрос», иначе они закрывали ссылку на политику. */
+body:has(#joyFab) .footer{ padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
 .form-note{ display: none; margin: 0; font-size: 14px; color: var(--green-text); }
 .form-note.show{ display: block; }
 /* Ошибка отправки и скрытое поле-ловушка для ботов (люди его не видят). */
@@ -612,7 +614,7 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
 .modal__box strong{ color: var(--ink); }
 .modal__close{ position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg-alt); font-size: 16px; }
 
-.footer{ padding: 36px 0 calc(100px + env(safe-area-inset-bottom)); /* снизу — место под плавающие «Спросить Джой» и «Задать вопрос» */ border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 14px; }
+.footer{ padding: 36px 0 calc(36px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 14px; }
 .footer__row{ display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
 /* Страницы услуг (для поисковиков и гостей): строка ссылок над подписью. */
 .footer__links{ display: flex; flex-wrap: wrap; gap: 4px 18px; margin-bottom: 18px; }

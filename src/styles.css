@@ -3399,20 +3399,20 @@ kbd {
 
 /* 7–8 строк на невысоком экране (ноутбук 16:10, проектор) не помещались над строкой «Вход: … · код» —
    с 7 строк таблица плотнее, как листаемая (Ревизор, 11 ноября 2026). */
-.board-view:has(.board-view__row:nth-child(7)) {
+.board-view:where(:has(.board-view__row:nth-child(7))) {
   gap: 1.4cqh;
   font-size: 3.4cqh;
 }
 
-.board-view:has(.board-view__row:nth-child(7)) .board-view__title {
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__title {
   font-size: 5.6cqh;
 }
 
-.board-view:has(.board-view__row:nth-child(7)) .board-view__list {
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__list {
   gap: 0.9cqh;
 }
 
-.board-view:has(.board-view__row:nth-child(7)) .board-view__row {
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__row {
   padding: 0.8cqh 2cqw;
 }
 
@@ -26074,6 +26074,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .mf-card__noir-text {
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: 1cqi;

@@ -1420,10 +1420,11 @@
 }
 
 /* Нарисованный фон игры (`Mechanic.art`: танцпол, караоке) — под полем: свой непрозрачный фон его закрывал, картина не была видна.
-   Над картиной — полупрозрачная тень, плитки и надписи читаются как раньше (11 ноября 2026). */
-.hall-art .stage-screen {
+   Над картиной — полупрозрачная тень, плитки и надписи читаются как раньше (11 ноября 2026). Видео на весь экран и батл — без
+   изменений (чёрный фон и своя заливка): `:where` не даёт правилу перебить их (независимая проверка). */
+:where(.hall-art) .stage-screen:not(.stage-screen--full):not(.stage-screen--battle) {
   background: radial-gradient(ellipse at 50% 40%, rgba(22, 14, 32, 0.55) 0%, rgba(12, 8, 18, 0.78) 100%);
 }
-.hall-art .stage-screen.is-karaoke {
+:where(.hall-art) .stage-screen.is-karaoke:not(.stage-screen--full):not(.stage-screen--battle) {
   background: radial-gradient(ellipse at 50% 60%, rgba(22, 14, 10, 0.5) 0%, rgba(12, 8, 18, 0.78) 100%);
 }

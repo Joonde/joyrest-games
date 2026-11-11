@@ -28,6 +28,6 @@ export const stage: Mechanic<StageContent, StageAnswerValue> = {
   validate: validateStage,
   preview: { driver: stagePreview, teams: 3, limit: 40 },
   firstTurn: (session, _content, pid) => stageFirstTurn(session, pid),
-  // «Караоке на поле» — сцена с микрофоном; «Танцуй как звезда» — пока без фона (картинка ещё не скачана из Figma).
+  // «Караоке на поле» — сцена с микрофоном (karaoke); «Танцуй как звезда» — светящийся танцпол (dancefloor).
   art: (content) => (content.variant === "karaoke" ? "karaoke" : "dancefloor"),
 };

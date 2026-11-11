@@ -455,7 +455,7 @@ def page(p: dict) -> str:
   </nav>
   <div class="wrap footer__row">
     <span>© 2026 JoyRest — ведущие и игры для праздников · Радость без хлопот</span>
-    <span><a href="/" class="link">На главную</a> · <a href="{TG_CHANNEL}" target="_blank" rel="noopener" class="link">Telegram-канал</a> · <a href="{VK_GROUP}" target="_blank" rel="noopener" class="link">ВКонтакте</a></span>
+    <span><a href="/" class="link">На главную</a> · <a href="{TG_CHANNEL}" target="_blank" rel="noopener" class="link">Telegram-канал</a> · <a href="{VK_GROUP}" target="_blank" rel="noopener" class="link">ВКонтакте</a> · <a href="https://games.joy-rest.ru/privacy.html" target="_blank" rel="noopener" class="link">Политика конфиденциальности</a></span>
   </div>
 </footer>
 </body>

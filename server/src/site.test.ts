@@ -743,7 +743,18 @@ describe("поисковики: главная, страницы услуг, sit
       // Ведут в калькулятор и к связи; форм и сбора данных нет — работают и в витрине.
       expect(page, slug).toContain('href="/calc/"');
       expect(page, slug).not.toMatch(/<form\b|fetch\(|<input/);
+      // Политика — внизу каждой страницы (решение владельца 11 ноября 2026).
+      expect(page, slug).toContain('href="https://games.joy-rest.ru/privacy.html"');
     }
+  });
+
+  it("политика: ссылка на калькуляторе, актуальные сервер и копии, без устаревшего хостинга", () => {
+    expect(readFileSync(join(root, "site/calc/index.html"), "utf8")).toContain('href="https://games.joy-rest.ru/privacy.html"');
+    const policy = readFileSync(join(root, "public/privacy.html"), "utf8");
+    expect(policy).not.toMatch(/Бегет|Beget/);
+    expect(policy).toContain("VDSina, г. Москва");
+    expect(policy).toContain("Selectel, г. Санкт-Петербург");
+    expect(policy).toContain('href="https://joy-rest.ru/"');
   });
 
   it("на страницах услуг — только то, что есть на главной: без площадок, диджеев, штрафов и чужих названий", () => {

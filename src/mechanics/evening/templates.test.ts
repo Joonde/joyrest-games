@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { AgeRating } from "../../data/types";
+import { BUNKER_LIMITS } from "../bunker/content";
+import { maxSeats } from "../durak/content";
+import { MAFIA_LIMITS } from "../mafia/content";
+import { PERUDO_LIMITS } from "../perudo/content";
 import { getMechanic } from "../registry";
+import { SPY_LIMITS } from "../spy/content";
 import { NOT_IN_EVENING } from "./content";
 import { fits, slotLabel, TEMPLATE_MAX_BLOCKS, TEMPLATES } from "./templates";
 
@@ -36,6 +41,32 @@ describe("готовые программы вечера", () => {
       if (supports.some((s) => !s.solo)) expect(t.setup, t.title).toMatch(/^Только команды/);
       if (supports.some((s) => !s.noScreen)) expect(t.setup + t.hint, t.title).toMatch(/экран/);
     }
+  });
+
+  it("число гостей в подсказке «каждый сам» помещается во все игры программы", () => {
+    // Сколько игроков принимает игра «каждый сам за себя»: [меньше нельзя, больше нельзя].
+    const limits: Record<string, [number, number]> = {
+      mafia: [MAFIA_LIMITS.minPlayers, MAFIA_LIMITS.maxPlayers],
+      bunker: [BUNKER_LIMITS.minPlayers, BUNKER_LIMITS.maxPlayers],
+      spy: [SPY_LIMITS.minPlayers, SPY_LIMITS.maxPlayers],
+      perudo: [1, PERUDO_LIMITS.maxCups],
+      durak: [2, maxSeats({ deck: 52 })],
+    };
+    let checked = 0;
+    for (const t of TEMPLATES) {
+      if (!t.setup.startsWith("Только каждый сам")) continue;
+      const m = /(\d+)–(\d+) гостей/.exec(t.setup);
+      expect(m, t.title).not.toBeNull();
+      const [from, to] = [Number(m![1]), Number(m![2])];
+      for (const s of t.slots) {
+        const lim = limits[s.mechanic];
+        expect(lim, `${t.title}: нет лимита для ${s.mechanic}`).toBeDefined();
+        expect(from, `${t.title}: ${s.mechanic}`).toBeGreaterThanOrEqual(lim![0]);
+        expect(to, `${t.title}: ${s.mechanic}`).toBeLessThanOrEqual(lim![1]);
+      }
+      checked++;
+    }
+    expect(checked).toBe(3); // «Вечер настолок», «Вечер интриг», «Карточный вечер»
   });
 
   it("нет двух одинаковых программ", () => {

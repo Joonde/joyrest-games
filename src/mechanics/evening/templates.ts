@@ -56,7 +56,8 @@ export function slotLabel(slot: TemplateSlot): string {
   return mechanicTitle(slot.mechanic);
 }
 
-const ADULT_LOOKS = ["classic", "party"];
+/** Поле «Классика» или «Вечеринка»: не детское и не 18+. */
+const GENERAL_LOOKS = ["classic", "party"];
 
 export const TEMPLATES: Template[] = [
   {
@@ -65,7 +66,7 @@ export const TEMPLATES: Template[] = [
     hint: "«Бой с драконом» → «Активная настолка» → квиз", setup: "Лучше командами: 3–6 команд по 3–8 человек — в настолке ходят по очереди. Каждый сам за себя — только до 10 гостей.",
     slots: [
       { mechanic: "dragon", look: ["classic"], label: "Бой с драконом" },
-      { mechanic: "quest", look: ADULT_LOOKS, label: "Активная настолка (Классика или Вечеринка)" },
+      { mechanic: "quest", look: GENERAL_LOOKS, label: "Активная настолка (Классика или Вечеринка)" },
       { mechanic: "quiz", category: "quiz" },
     ],
   },
@@ -98,12 +99,12 @@ export const TEMPLATES: Template[] = [
   {
     id: "team-battle",
     title: "Командный батл",
-    hint: "«Давайте знакомиться» → «Бой с драконом» → «Гонка на выживание» → «Активная настолка»", setup: "Только команды: 3–6 команд по 4–8 человек. Команды собираются при входе и играют весь вечер одним составом.",
+    hint: "«Давайте знакомиться» → «Бой с драконом» → «Гонка на выживание» → «Активная настолка»", setup: "Задуман командами: 3–6 команд по 4–8 человек (при запуске выберите «Команды»). Команды собираются при входе и играют весь вечер одним составом.",
     slots: [
       { mechanic: "story" },
       { mechanic: "dragon", look: ["classic"], label: "Бой с драконом" },
       { mechanic: "survival" },
-      { mechanic: "quest", look: ADULT_LOOKS, label: "Активная настолка (Классика или Вечеринка)" },
+      { mechanic: "quest", look: GENERAL_LOOKS, label: "Активная настолка (Классика или Вечеринка)" },
     ],
   },
   {
@@ -125,7 +126,7 @@ export const TEMPLATES: Template[] = [
   {
     id: "intrigue",
     title: "Вечер интриг",
-    hint: "«Шпион» → «Убежище» → «Мафия» · каждый сам за себя", setup: "Только каждый сам за себя, 5–20 гостей: «Мафии» нужно от 5, «Шпион» — до 20.",
+    hint: "«Шпион» → «Убежище» → «Мафия» · каждый сам за себя", setup: "Только каждый сам за себя, 5–16 гостей: «Мафии» нужно от 5, в «Убежище» — до 16 игроков. Гостей больше — берите команды и другую программу.",
     slots: [{ mechanic: "spy" }, { mechanic: "bunker" }, { mechanic: "mafia" }],
   },
   {

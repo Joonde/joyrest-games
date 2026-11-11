@@ -889,6 +889,7 @@ a.send-sheet__close{ display: flex; align-items: center; justify-content: center
 
 /* ---------- «Как проходят наши вечера» (в разделе «Ведущие»): фото целиком — стопка распечаток ---------- */
 .moments{ display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 48px; align-items: center; margin-top: 64px; padding-top: 48px; border-top: 1px solid var(--line); scroll-margin-top: 90px; }
+#look .moments{ margin-top: 48px; padding-top: 0; border-top: 0; }
 .moments__kicker{ margin: 0 0 8px; font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-text); }
 .moments__title{ font-size: clamp(34px, 4vw, 48px); line-height: 1.05; }
 .moments__lead{ margin: 14px 0 0; color: var(--ink-soft); font-size: 15.5px; }

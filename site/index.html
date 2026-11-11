@@ -192,7 +192,7 @@
       </span></span>
     </a>
     <nav class="nav-links" aria-label="Разделы сайта">
-      <a href="#calculator">Пакеты и цены</a>
+      <a href="#prices">Пакеты и цены</a>
       <a href="#games">Игры</a>
       <a href="#platform">Платформа</a>
       <a href="#terms">Условия</a>
@@ -211,10 +211,12 @@
     </div>
   </div>
   <div class="mobile-panel" id="mobilePanel">
-    <a href="#calculator">Пакеты и калькулятор</a>
-    <a href="#hosts">Ведущие</a>
+    <a href="#prices">Пакеты и цены</a>
+    <a href="#look">Как это выглядит</a>
     <a href="#games">Игры</a>
     <a href="#platform">Игры с телефонов</a>
+    <a href="#calculator">Калькулятор</a>
+    <a href="#hosts">Ведущие</a>
     <a href="#terms">Условия работы</a>
     <a href="#process">Как это работает</a>
     <a href="#faq">Частые вопросы</a>
@@ -280,15 +282,17 @@
         <nav class="route" aria-label="Что на этой странице">
           <p class="route__title">Что на странице — листайте вниз по порядку</p>
           <ol class="route__list">
-            <li><a href="#calculator"><b>1</b>Пакеты и цены</a></li>
-            <li><a href="#hosts"><b>2</b>Ведущие</a></li>
+            <li><a href="#prices"><b>1</b>Пакеты и цены</a></li>
+            <li><a href="#look"><b>2</b>Как это выглядит</a></li>
             <li><a href="#games"><b>3</b>Игры</a></li>
             <li><a href="#platform"><b>4</b>Как играют гости</a></li>
-            <li><a href="#terms"><b>5</b>Условия</a></li>
-            <li><a href="#process"><b>6</b>Как заказать</a></li>
-            <li><a href="#faq"><b>7</b>Вопросы</a></li>
-            <li><a href="#reviews"><b>8</b>Отзывы и Telegram</a></li>
-            <li><a href="#contact"><b>9</b>Связаться</a></li>
+            <li><a href="#calculator"><b>5</b>Свой вечер</a></li>
+            <li><a href="#hosts"><b>6</b>Ведущие</a></li>
+            <li><a href="#terms"><b>7</b>Условия</a></li>
+            <li><a href="#process"><b>8</b>Как заказать</a></li>
+            <li><a href="#faq"><b>9</b>Вопросы</a></li>
+            <li><a href="#reviews"><b>10</b>Отзывы и Telegram</a></li>
+            <li><a href="#contact"><b>11</b>Связаться</a></li>
           </ol>
         </nav>
       </div>
@@ -318,9 +322,7 @@
     </div>
   </div>
 
-  <!-- Калькулятор: пакеты на 1,5–2 часа, гости, день, ещё игра, продление, допы — три цены сразу
-       (опытный, «Новые лица», «Первый старт»). Расчёт — js/pricing.js, вывод — js/script.js. -->
-  <section id="calculator" class="section">
+  <section id="prices" class="section">
     <div class="wrap">
       <p class="eyebrow"><span class="eyebrow__n">1</span><span class="eyebrow__t">Пакеты и цены</span></p>
       <!-- Готовые пакеты (решение владельца 7–8 ноября 2026): одна цена за весь пакет, дешевле той же сборки в калькуляторе.
@@ -410,144 +412,21 @@
         </article>
       </div>
       <p class="bundles__note">Цены — с опытным ведущим, в будни, до 25 гостей. В каждом пакете — ведущий, сценарий, игровая платформа JoyRest, реквизит и выезд по Москве. Пятница–воскресенье +10%, с 10 декабря — новогодняя надбавка, перед 14 февраля, 23 февраля и 8 марта — праздничная цена, как в калькуляторе.</p>
-      <div class="calc-head">
-        <p class="calc-head__or">Хотите по-своему?</p>
-        <h2>Соберите свой вечер</h2>
-        <p class="sub">Выберите пакет, гостей и дату — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
-      </div>
-      <!-- Новогодняя надбавка (решение владельца 11 ноября 2026): видна с 1 октября по 1 января по Москве, показывает js/script.js. -->
-      <aside class="nynote" id="nyNote" hidden aria-labelledby="nyNoteTitle">
-        <h3 class="nynote__title" id="nyNoteTitle"><span aria-hidden="true">🎄 </span>Новогодняя надбавка</h3>
-        <p class="nynote__text">В праздничные даты ведущих бронируют за месяцы вперёд, поэтому к итоговой цене прибавляется надбавка. Калькулятор посчитает её сам — укажите дату праздника.</p>
-        <ul class="nynote__rows">
-          <li><span>10–20 декабря</span><b>+20%</b></li>
-          <li><span>21 декабря —&nbsp;1&nbsp;января</span><b>+35%</b></li>
-          <li><span>31 декабря и 1 января</span><b>от 50&nbsp;000&nbsp;₽</b></li>
-        </ul>
-        <button type="button" class="chip nynote__go" id="nyCalc">Указать дату праздника</button>
-      </aside>
-      <div class="calc">
-        <div class="calc__steps">
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">1</span>Пакет на 1,5–2 часа</p>
-            <div class="packs" id="calcPacks" role="group" aria-label="Пакет"></div>
-            <p class="hint">Диджей и другие услуги — обсуждаем индивидуально. Напишите о пожеланиях в комментарии к заявке.</p>
-          </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">2</span>Сколько гостей</p>
-            <div class="chips chips--6" id="calcTiers" role="group" aria-label="Сколько гостей"></div>
-            <p class="hint">90+ — больше 90 гостей: подберём нескольких ведущих, цену назовём индивидуально.</p>
-          </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">3</span><label for="calcDate">Дата праздника</label></p>
-            <div class="datebox"><input type="date" id="calcDate" class="datebox__input" aria-describedby="calcDateInfo"><button type="button" class="chip" id="calcDateClear" hidden>Убрать дату</button></div>
-            <div class="timebox"><label class="timebox__label" for="calcTime">Время начала <span>— по желанию</span></label><input type="time" id="calcTime" class="datebox__input timebox__input" step="900"><button type="button" class="chip" id="calcTimeClear" hidden>Убрать время</button></div>
-            <p class="hint datebox__info" id="calcDateInfo">Укажите дату — день недели и надбавку в праздничные даты посчитаем сами. Дата ещё не известна — выберите день ниже.</p>
-            <div class="chips" id="calcDays" role="group" aria-label="День"></div>
-            <p class="hint">В пятницу, субботу и воскресенье стоимость на 10% выше: это самые востребованные дни. С 10 декабря по 1 января — новогодняя надбавка, перед 14 февраля, 23 февраля и 8 марта и в сами праздники — праздничная цена.</p>
-            <p class="hint">Время начала на цену не влияет. Менеджер проверит, какие ведущие свободны в этот день и час, и подтвердит время в переписке.</p>
-          </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">4</span>Ещё игра в этот вечер</p>
-            <div class="extras" id="calcExtras" role="group" aria-label="Ещё игра в этот вечер"></div>
-            <p class="hint">Каждая добавленная игра — за полцены своего пакета и около часа. Например, квиз, а после — Мафия. <b class="hint__hl">Больше двух дополнительных игр — индивидуальный заказ:</b> цену и программу обсудим с вами.</p>
-          </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">5</span>Продление</p>
-            <div class="chips chips--5" id="calcExt" role="group" aria-label="Продление"></div>
-            <p class="hint">Каждые следующие 30 минут — 3 900 ₽. Если вечер затянется на месте, ведущий заранее спросит, продлеваем ли, — без согласия ничего не добавится.</p>
-          </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">6</span>Добавить к вечеру</p>
-            <div class="addons" id="calcAddons"></div>
-          </div>
-        </div>
-        <aside class="summary" id="calcSummary" aria-live="polite">
-          <div class="summary__head"><p class="summary__label">Итого за вечер — коснитесь, чтобы выбрать ведущего</p><button type="button" class="qhelp" id="levelsHelp" aria-haspopup="dialog" aria-label="Чем отличаются ведущие" title="Чем отличаются ведущие">?</button></div>
-          <div class="summary__indiv" id="calcIndiv" hidden>
-            <p class="summary__indiv-title">Обсудим индивидуально</p>
-            <p class="summary__note">Оставьте заявку — предложим программу и цену в течение дня.</p>
-          </div>
-          <div class="season" id="calcSeason" hidden>
-            <p class="season__title"><span id="calcSeasonTitle"></span><span class="season__badge" id="calcSeasonBadge"></span></p>
-            <p class="season__text" id="calcSeasonText"></p>
-            <p class="season__note" id="calcSeasonNote">Надбавка зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.</p>
-          </div>
-          <p class="season-hint" id="calcSeasonHint" hidden></p>
-          <div class="levels" id="calcLevels"></div>
-          <p class="summary__nodate" id="calcNoDate" hidden>Укажите дату праздника — с 10 декабря по 1 января действует новогодняя надбавка, перед праздниками и в сами праздники — праздничная цена.</p>
-          <p class="summary__text" id="calcText"></p>
-          <div class="duration" id="calcDuration">
-            <span class="duration__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
-            <div>
-              <p class="duration__label">Вечер длится примерно</p>
-              <p class="duration__value" id="calcDurValue"></p>
-              <div class="duration__parts" id="calcDurParts"></div>
-            </div>
-          </div>
-          <ul class="summary__lines" id="calcLines"></ul>
-          <div class="included"><span>Ведущий</span><span>Сценарий</span><span>Платформа и QR</span><span>Реквизит</span><span>Выезд по Москве</span></div>
-          <button type="button" class="btn btn--primary btn--block" id="calcSubmit">Отправить расчёт в заявку</button>
-          <p class="summary__linked" id="calcLinked" hidden>✓ Расчёт в заявке и обновляется сам, когда вы меняете выбор</p>
-          <p class="summary__foot">Это итог за весь вечер — без скрытых доплат. Отдельно только такси ведущему — за город и туда, где рядом нет метро. Бронь даты — предоплата 2 000 ₽ в счёт стоимости.</p>
-        </aside>
-      </div>
-      <div class="mbar" id="calcBar"><a href="#calcSummary" class="mbar__sum" id="calcBarSum" aria-label="Итог расчёта"></a><button type="button" class="mbar__send" id="calcBarSend">В заявку</button></div>
-      <noscript><p class="hint">Калькулятор работает с включённым JavaScript. Цены пакетов — в бегущей строке выше, остальное подскажем в заявке.</p></noscript>
-      <a class="next" href="#hosts"><span class="next__k">Дальше · 2</span><span class="next__t">Кто проведёт ваш вечер</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#look"><span class="next__k">Дальше · 2</span><span class="next__t">Как это выглядит</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
-  <!-- Формат ведущего. Тексты «Новые лица» и «Первый старт» согласованы с владельцем — правка только с ним.
-       Скидка — на весь вечер (калькулятор показывает три цены), поле «Формат ведущего» в заявке, hostLevel в /api/lead. -->
-  <section id="hosts" class="section band">
+  <!-- «Как это выглядит» (решение владельца 11 ноября 2026): сразу после пакетов — ролик и живые кадры, потом игры и калькулятор. -->
+  <section id="look" class="section band">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">2</span><span class="eyebrow__t">Ведущие</span></p>
-      <h2>Кто проведёт ваш вечер</h2>
-      <p class="sub">Три формата — три цены в калькуляторе. Программа, игры и реквизит одинаковые, разница — в опыте ведущего.</p>
-      <div class="hosts">
-        <article class="host host--main">
-          <span class="host__badge">Основной формат</span>
-          <h3>Опытный ведущий</h3>
-          <p>Ведущие JoyRest с опытом праздников: держат темп вечера, подстраиваются под гостей и спокойно справляются с неожиданностями.</p>
-          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="standard">Выбрать этот формат</a>
-        </article>
-        <article class="host">
-          <span class="host__badge">−20%</span>
-          <h3>Новые лица <span class="host__sub">— для тех, кто любит пробовать новое</span></h3>
-          <p>Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.</p>
-          <p>Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 20% — мы честно делим с вами возможные шероховатости.</p>
-          <p class="host__how">Как это устроено:</p>
-          <ul class="host__list">
-            <li>сценарий и программу готовим вместе с опытным ведущим JoyRest;</li>
-            <li>игры, реквизит и оборудование — как в обычном формате;</li>
-            <li>на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.</li>
-          </ul>
-          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="new">Выбрать этот формат</a>
-        </article>
-        <article class="host">
-          <span class="host__badge">−35%</span>
-          <h3>Первый старт <span class="host__sub">— для самых смелых</span></h3>
-          <p>Ведущие, для которых ваш праздник станет одним из первых. Волнение, искренность и стремление выложиться на все сто — такого вы больше нигде не увидите.</p>
-          <p>Это максимальный эксперимент, поэтому и скидка максимальная — 35%.</p>
-          <p class="host__how">Как это устроено:</p>
-          <ul class="host__list">
-            <li>сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;</li>
-            <li>игры, реквизит и оборудование — как в обычном формате;</li>
-            <li>на празднике ведущий работает самостоятельно — для него это настоящий первый выход.</li>
-          </ul>
-          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="first">Выбрать этот формат</a>
-        </article>
-      </div>
-      <p class="hosts__note">Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.</p>
-      <!-- Занятость ведущих (решение владельца 23 октября 2026): ведущих ограниченное число, формат может быть занят на дату. -->
-      <aside class="busy" aria-labelledby="busyTitle">
-        <span class="busy__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M9.5 14.5l2 2 3.5-4"/></svg></span>
-        <div>
-          <h3 class="busy__title" id="busyTitle">Ведущий может быть уже занят — это нормально</h3>
-          <p class="busy__text">Ведущих у нас ограниченное число, и на популярные даты разбирают их быстро. Поэтому на ваш день один или даже несколько форматов могут быть уже заняты. Менеджер сразу скажет, кто свободен, и предложит варианты: другой формат, другое время или соседнюю дату. Чтобы выбор был шире — пишите заранее.</p>
-        </div>
-      </aside>
+      <p class="eyebrow"><span class="eyebrow__n">2</span><span class="eyebrow__t">Как это выглядит</span></p>
+      <h2>Как проходят вечера JoyRest</h2>
+      <p class="sub">Ролик — все форматы за 30 секунд. Ниже — живые кадры с наших праздников.</p>
+      <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
+      <button type="button" class="promo" id="promoOpen" aria-haspopup="dialog">
+        <span class="promo__thumb"><img src="img/promo-poster.webp" width="540" height="960" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
+        <span class="promo__text"><b>Все форматы за 30 секунд</b><span>Квизы, телешоу, танцы, карточные игры и настолки — смотрите со звуком</span><span class="promo__go">Смотреть ролик →</span></span>
+      </button>
       <!-- «Как проходят наши вечера» (решение владельца 8 ноября 2026): фото с мероприятий целиком, без обрезки — стопка
            распечаток; не список ведущих (в кадре могут быть не все). Новое фото: img/moment-*.webp и строка в .moments__strip. -->
       <div class="moments" id="moments" role="region" aria-labelledby="momentsTitle">
@@ -592,11 +471,6 @@
       <p class="eyebrow"><span class="eyebrow__n">3</span><span class="eyebrow__t">Игры</span></p>
       <h2>Выберите, во что играть</h2>
       <p class="sub">37 игр JoyRest — настоящие экраны платформы и карточки. Выберите раздел — покажем подходящие игры и в каком они пакете.</p>
-      <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
-      <button type="button" class="promo" id="promoOpen" aria-haspopup="dialog">
-        <span class="promo__thumb"><img src="img/promo-poster.webp" width="540" height="960" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
-        <span class="promo__text"><b>Все форматы за 30 секунд</b><span>Квизы, телешоу, танцы, карточные игры и настолки — смотрите со звуком</span><span class="promo__go">Смотреть ролик →</span></span>
-      </button>
       <div class="filters" role="group" aria-label="Фильтр игр">
         <button type="button" class="filter is-on" data-filter="all" aria-pressed="true">Все игры<span class="filter__n">37</span></button>
         <button type="button" class="filter" data-filter="phone" aria-pressed="false">С телефонов<span class="filter__n">22</span></button>
@@ -970,7 +844,154 @@
           <figcaption><strong>Телефон гостя</strong> — вход по QR-коду. Нет экрана — вопросы появятся прямо на телефонах.</figcaption>
         </figure>
       </div>
-      <a class="next" href="#terms"><span class="next__k">Дальше · 5</span><span class="next__t">Условия работы</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#calculator"><span class="next__k">Дальше · 5</span><span class="next__t">Соберите свой вечер</span><span class="next__a" aria-hidden="true">↓</span></a>
+    </div>
+  </section>
+
+  <!-- Калькулятор: пакеты на 1,5–2 часа, гости, день, ещё игра, продление, допы — три цены сразу
+       (опытный, «Новые лица», «Первый старт»). Расчёт — js/pricing.js, вывод — js/script.js. -->
+  <section id="calculator" class="section">
+    <div class="wrap">
+      <p class="eyebrow"><span class="eyebrow__n">5</span><span class="eyebrow__t">Свой вечер</span></p>
+      <div class="calc-head">
+        <p class="calc-head__or">Хотите по-своему?</p>
+        <h2>Соберите свой вечер</h2>
+        <p class="sub">Выберите пакет, гостей и дату — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
+      </div>
+      <!-- Новогодняя надбавка (решение владельца 11 ноября 2026): видна с 1 октября по 1 января по Москве, показывает js/script.js. -->
+      <aside class="nynote" id="nyNote" hidden aria-labelledby="nyNoteTitle">
+        <h3 class="nynote__title" id="nyNoteTitle"><span aria-hidden="true">🎄 </span>Новогодняя надбавка</h3>
+        <p class="nynote__text">В праздничные даты ведущих бронируют за месяцы вперёд, поэтому к итоговой цене прибавляется надбавка. Калькулятор посчитает её сам — укажите дату праздника.</p>
+        <ul class="nynote__rows">
+          <li><span>10–20 декабря</span><b>+20%</b></li>
+          <li><span>21 декабря —&nbsp;1&nbsp;января</span><b>+35%</b></li>
+          <li><span>31 декабря и 1 января</span><b>от 50&nbsp;000&nbsp;₽</b></li>
+        </ul>
+        <button type="button" class="chip nynote__go" id="nyCalc">Указать дату праздника</button>
+      </aside>
+      <div class="calc">
+        <div class="calc__steps">
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">1</span>Пакет на 1,5–2 часа</p>
+            <div class="packs" id="calcPacks" role="group" aria-label="Пакет"></div>
+            <p class="hint">Диджей и другие услуги — обсуждаем индивидуально. Напишите о пожеланиях в комментарии к заявке.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">2</span>Сколько гостей</p>
+            <div class="chips chips--6" id="calcTiers" role="group" aria-label="Сколько гостей"></div>
+            <p class="hint">90+ — больше 90 гостей: подберём нескольких ведущих, цену назовём индивидуально.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">3</span><label for="calcDate">Дата праздника</label></p>
+            <div class="datebox"><input type="date" id="calcDate" class="datebox__input" aria-describedby="calcDateInfo"><button type="button" class="chip" id="calcDateClear" hidden>Убрать дату</button></div>
+            <div class="timebox"><label class="timebox__label" for="calcTime">Время начала <span>— по желанию</span></label><input type="time" id="calcTime" class="datebox__input timebox__input" step="900"><button type="button" class="chip" id="calcTimeClear" hidden>Убрать время</button></div>
+            <p class="hint datebox__info" id="calcDateInfo">Укажите дату — день недели и надбавку в праздничные даты посчитаем сами. Дата ещё не известна — выберите день ниже.</p>
+            <div class="chips" id="calcDays" role="group" aria-label="День"></div>
+            <p class="hint">В пятницу, субботу и воскресенье стоимость на 10% выше: это самые востребованные дни. С 10 декабря по 1 января — новогодняя надбавка, перед 14 февраля, 23 февраля и 8 марта и в сами праздники — праздничная цена.</p>
+            <p class="hint">Время начала на цену не влияет. Менеджер проверит, какие ведущие свободны в этот день и час, и подтвердит время в переписке.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">4</span>Ещё игра в этот вечер</p>
+            <div class="extras" id="calcExtras" role="group" aria-label="Ещё игра в этот вечер"></div>
+            <p class="hint">Каждая добавленная игра — за полцены своего пакета и около часа. Например, квиз, а после — Мафия. <b class="hint__hl">Больше двух дополнительных игр — индивидуальный заказ:</b> цену и программу обсудим с вами.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">5</span>Продление</p>
+            <div class="chips chips--5" id="calcExt" role="group" aria-label="Продление"></div>
+            <p class="hint">Каждые следующие 30 минут — 3 900 ₽. Если вечер затянется на месте, ведущий заранее спросит, продлеваем ли, — без согласия ничего не добавится.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">6</span>Добавить к вечеру</p>
+            <div class="addons" id="calcAddons"></div>
+          </div>
+        </div>
+        <aside class="summary" id="calcSummary" aria-live="polite">
+          <div class="summary__head"><p class="summary__label">Итого за вечер — коснитесь, чтобы выбрать ведущего</p><button type="button" class="qhelp" id="levelsHelp" aria-haspopup="dialog" aria-label="Чем отличаются ведущие" title="Чем отличаются ведущие">?</button></div>
+          <div class="summary__indiv" id="calcIndiv" hidden>
+            <p class="summary__indiv-title">Обсудим индивидуально</p>
+            <p class="summary__note">Оставьте заявку — предложим программу и цену в течение дня.</p>
+          </div>
+          <div class="season" id="calcSeason" hidden>
+            <p class="season__title"><span id="calcSeasonTitle"></span><span class="season__badge" id="calcSeasonBadge"></span></p>
+            <p class="season__text" id="calcSeasonText"></p>
+            <p class="season__note" id="calcSeasonNote">Надбавка зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.</p>
+          </div>
+          <p class="season-hint" id="calcSeasonHint" hidden></p>
+          <div class="levels" id="calcLevels"></div>
+          <p class="summary__nodate" id="calcNoDate" hidden>Укажите дату праздника — с 10 декабря по 1 января действует новогодняя надбавка, перед праздниками и в сами праздники — праздничная цена.</p>
+          <p class="summary__text" id="calcText"></p>
+          <div class="duration" id="calcDuration">
+            <span class="duration__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+            <div>
+              <p class="duration__label">Вечер длится примерно</p>
+              <p class="duration__value" id="calcDurValue"></p>
+              <div class="duration__parts" id="calcDurParts"></div>
+            </div>
+          </div>
+          <ul class="summary__lines" id="calcLines"></ul>
+          <div class="included"><span>Ведущий</span><span>Сценарий</span><span>Платформа и QR</span><span>Реквизит</span><span>Выезд по Москве</span></div>
+          <button type="button" class="btn btn--primary btn--block" id="calcSubmit">Отправить расчёт в заявку</button>
+          <p class="summary__linked" id="calcLinked" hidden>✓ Расчёт в заявке и обновляется сам, когда вы меняете выбор</p>
+          <p class="summary__foot">Это итог за весь вечер — без скрытых доплат. Отдельно только такси ведущему — за город и туда, где рядом нет метро. Бронь даты — предоплата 2 000 ₽ в счёт стоимости.</p>
+        </aside>
+      </div>
+      <div class="mbar" id="calcBar"><a href="#calcSummary" class="mbar__sum" id="calcBarSum" aria-label="Итог расчёта"></a><button type="button" class="mbar__send" id="calcBarSend">В заявку</button></div>
+      <noscript><p class="hint">Калькулятор работает с включённым JavaScript. Цены пакетов — в бегущей строке выше, остальное подскажем в заявке.</p></noscript>
+      <a class="next" href="#hosts"><span class="next__k">Дальше · 6</span><span class="next__t">Кто проведёт ваш вечер</span><span class="next__a" aria-hidden="true">↓</span></a>
+    </div>
+  </section>
+
+  <!-- Формат ведущего. Тексты «Новые лица» и «Первый старт» согласованы с владельцем — правка только с ним.
+       Скидка — на весь вечер (калькулятор показывает три цены), поле «Формат ведущего» в заявке, hostLevel в /api/lead. -->
+  <section id="hosts" class="section band">
+    <div class="wrap">
+      <p class="eyebrow"><span class="eyebrow__n">6</span><span class="eyebrow__t">Ведущие</span></p>
+      <h2>Кто проведёт ваш вечер</h2>
+      <p class="sub">Три формата — три цены в калькуляторе. Программа, игры и реквизит одинаковые, разница — в опыте ведущего.</p>
+      <div class="hosts">
+        <article class="host host--main">
+          <span class="host__badge">Основной формат</span>
+          <h3>Опытный ведущий</h3>
+          <p>Ведущие JoyRest с опытом праздников: держат темп вечера, подстраиваются под гостей и спокойно справляются с неожиданностями.</p>
+          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="standard">Выбрать этот формат</a>
+        </article>
+        <article class="host">
+          <span class="host__badge">−20%</span>
+          <h3>Новые лица <span class="host__sub">— для тех, кто любит пробовать новое</span></h3>
+          <p>Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.</p>
+          <p>Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 20% — мы честно делим с вами возможные шероховатости.</p>
+          <p class="host__how">Как это устроено:</p>
+          <ul class="host__list">
+            <li>сценарий и программу готовим вместе с опытным ведущим JoyRest;</li>
+            <li>игры, реквизит и оборудование — как в обычном формате;</li>
+            <li>на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.</li>
+          </ul>
+          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="new">Выбрать этот формат</a>
+        </article>
+        <article class="host">
+          <span class="host__badge">−35%</span>
+          <h3>Первый старт <span class="host__sub">— для самых смелых</span></h3>
+          <p>Ведущие, для которых ваш праздник станет одним из первых. Волнение, искренность и стремление выложиться на все сто — такого вы больше нигде не увидите.</p>
+          <p>Это максимальный эксперимент, поэтому и скидка максимальная — 35%.</p>
+          <p class="host__how">Как это устроено:</p>
+          <ul class="host__list">
+            <li>сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;</li>
+            <li>игры, реквизит и оборудование — как в обычном формате;</li>
+            <li>на празднике ведущий работает самостоятельно — для него это настоящий первый выход.</li>
+          </ul>
+          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="first">Выбрать этот формат</a>
+        </article>
+      </div>
+      <p class="hosts__note">Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.</p>
+      <!-- Занятость ведущих (решение владельца 23 октября 2026): ведущих ограниченное число, формат может быть занят на дату. -->
+      <aside class="busy" aria-labelledby="busyTitle">
+        <span class="busy__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M9.5 14.5l2 2 3.5-4"/></svg></span>
+        <div>
+          <h3 class="busy__title" id="busyTitle">Ведущий может быть уже занят — это нормально</h3>
+          <p class="busy__text">Ведущих у нас ограниченное число, и на популярные даты разбирают их быстро. Поэтому на ваш день один или даже несколько форматов могут быть уже заняты. Менеджер сразу скажет, кто свободен, и предложит варианты: другой формат, другое время или соседнюю дату. Чтобы выбор был шире — пишите заранее.</p>
+        </div>
+      </aside>
+      <a class="next" href="#terms"><span class="next__k">Дальше · 7</span><span class="next__t">Условия работы</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -978,7 +999,7 @@
        бронь даты — предоплата 2 000 ₽. Подробности — в договоре. Галочки в заявке — deposit и terms в /api/lead. -->
   <section id="terms" class="section">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">5</span><span class="eyebrow__t">Условия</span></p>
+      <p class="eyebrow"><span class="eyebrow__n">7</span><span class="eyebrow__t">Условия</span></p>
       <h2>Условия работы</h2>
       <p class="sub">Коротко и честно — чтобы праздник прошёл спокойно для всех.</p>
       <div class="terms">
@@ -1000,13 +1021,13 @@
         </div>
       </div>
       <p class="terms__more">Подробные условия — в договоре.</p>
-      <a class="next" href="#process"><span class="next__k">Дальше · 6</span><span class="next__t">Как заказать праздник</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#process"><span class="next__k">Дальше · 8</span><span class="next__t">Как заказать праздник</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
   <section id="process" class="section band">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">6</span><span class="eyebrow__t">Как заказать</span></p>
+      <p class="eyebrow"><span class="eyebrow__n">8</span><span class="eyebrow__t">Как заказать</span></p>
       <h2>Четыре шага до праздника</h2>
       <ol class="steps">
         <li class="steps__item"><span class="steps__n">01</span><h3>Расскажите о мероприятии</h3><p>Дата, число гостей и формат — через калькулятор, заявку или сообщение.</p></li>
@@ -1015,13 +1036,13 @@
         <li class="steps__item"><span class="steps__n">04</span><h3>Проводим праздник</h3><p>Ведущий приезжает с реквизитом и платформой — вы гость на своём празднике.</p></li>
       </ol>
       <p class="callout">⏱ <strong>Про сроки:</strong> на мероприятия под заказ (<span data-needs="venue">особенно с большой площадкой или форматом «под ключ»</span><span data-unless="venue">особенно по индивидуальному сценарию и с квизом под компанию</span>) пишите минимум за 2 недели, а лучше за месяц.</p>
-      <a class="next" href="#faq"><span class="next__k">Дальше · 7</span><span class="next__t">Частые вопросы</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#faq"><span class="next__k">Дальше · 9</span><span class="next__t">Частые вопросы</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
   <section id="faq" class="section">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">7</span><span class="eyebrow__t">Вопросы</span></p>
+      <p class="eyebrow"><span class="eyebrow__n">9</span><span class="eyebrow__t">Вопросы</span></p>
       <h2>Частые вопросы</h2>
       <p class="sub">Не нашли ответ — <span class="no-showcase">нажмите «Задать вопрос» внизу экрана или </span>напишите в Telegram.</p>
       <div class="faq">
@@ -1058,7 +1079,7 @@
           <p>Да, и детей мы ничем не ограничиваем. Для них есть настольная игра «Сладкие приключения», детский вариант «Боя с драконом» и квизы для детей. А любое наше телешоу — «Миллион на кону», «Ставка на знания», «Что скажет большинство» и другие — подберём специально для ребёнка с вопросами по возрасту или с теми, что попросите вы. Напишите возраст гостей — соберём программу.</p>
         </details>
       </div>
-      <a class="next" href="#reviews"><span class="next__k">Дальше · 8</span><span class="next__t">Отзывы и наш Telegram</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#reviews"><span class="next__k">Дальше · 10</span><span class="next__t">Отзывы и наш Telegram</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -1066,7 +1087,7 @@
        Вернуть — data-review-form="on". Тип review в /api/lead не трогаем. -->
   <section id="reviews" class="section band" data-review-form="on">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">8</span><span class="eyebrow__t" id="reviewsEyebrow">Telegram</span></p>
+      <p class="eyebrow"><span class="eyebrow__n">10</span><span class="eyebrow__t" id="reviewsEyebrow">Telegram</span></p>
       <h2 id="reviewsTitle">Следите за нами</h2>
       <p class="sub" id="reviewsSub">Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.</p>
 
@@ -1125,7 +1146,7 @@
           <p class="form-error" id="reviewError" role="alert"></p>
         </form>
       </div>
-      <a class="next" href="#contact"><span class="next__k">Дальше · 9</span><span class="next__t">Связаться с нами</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#contact"><span class="next__k">Дальше · 11</span><span class="next__t">Связаться с нами</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -1133,7 +1154,7 @@
     <div class="wrap">
       <div class="contact">
         <div class="contact__info">
-          <p class="eyebrow"><span class="eyebrow__n">9</span><span class="eyebrow__t">Связаться</span></p>
+          <p class="eyebrow"><span class="eyebrow__n">11</span><span class="eyebrow__t">Связаться</span></p>
           <h2>Обсудим ваш праздник</h2>
           <p class="no-showcase">Оставьте контакты — свяжемся в течение дня и предложим программу под ваш формат и бюджет.</p>
           <p class="showcase-only">Напишите нам в Telegram, WhatsApp, на почту или на Авито — предложим программу под ваш формат и бюджет.</p>

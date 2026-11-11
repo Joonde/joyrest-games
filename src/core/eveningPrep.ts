@@ -35,7 +35,7 @@ export function blockPrepOf(mechanic: string): string {
 
 /** Номера блоков (с 1), где в личном вечере стоит игра библиотеки — со стандартными вопросами. */
 export function templateBlocks(eveningScope: "agency" | "personal", blockScopes: Array<"agency" | "personal" | null>): number[] {
-  if (eveningScope !== "personal") return [];
+
   return blockScopes.flatMap((scope, i) => (scope === "agency" ? [i + 1] : []));
 }
 
@@ -59,7 +59,7 @@ export function prepTitle(gameTitle: string, eveningTitle: string, max: number):
   const evening = eveningTitle.trim();
   if (!evening) return gameTitle.slice(0, max);
   const tail = ` · для вечера «${evening}»`;
-  if (gameTitle.length + tail.length <= max) return gameTitle + tail;
+  return gameTitle + tail;
   const shortTail = " · для вечера";
   return gameTitle.slice(0, Math.max(1, max - shortTail.length)) + shortTail;
 }

@@ -13,20 +13,26 @@ export interface ThemeWords {
   plural: boolean;
   /** Женский род: «субмарина прибавила». */
   fem: boolean;
-  /** Цель перелёта (финиш). */
+  /** Цель перелёта (финиш), родительный падеж: «до ёлки на площади». */
   goal: string;
+  /** Цель перелёта — подпись на экране зала: «Ёлка на площади». */
+  goalTitle: string;
   /** Беда «Притяжения» — заголовок события. */
   pull: string;
   /** Чем подают «Сигнал SOS»: «огни маяка». */
   sos: string;
+  /** Название темы для экрана зала: «Новый год». */
+  title: string;
+  /** Призыв в лобби экрана зала: «Садитесь в сани!». */
+  board: string;
 }
 
 export const THEME_WORDS: Record<Theme, ThemeWords> = {
-  space: { ship: "корабль", shipGen: "корабля", plural: false, fem: false, goal: "станции «Пончик»", pull: "Чёрная дыра тянет!", sos: "огни маяка" },
-  pirates: { ship: "парусник", shipGen: "парусника", plural: false, fem: false, goal: "острова с сундуком", pull: "Кракен тянет назад!", sos: "флажки" },
-  newyear: { ship: "сани", shipGen: "саней", plural: true, fem: false, goal: "ёлки на площади", pull: "Снежный ком догоняет!", sos: "огоньки гирлянды" },
-  submarine: { ship: "субмарина", shipGen: "субмарины", plural: false, fem: true, goal: "затонувшего корабля", pull: "Осьминог тянет назад!", sos: "фонари" },
-  wedding: { ship: "воздушный шар", shipGen: "воздушного шара", plural: false, fem: false, goal: "свадебного торта", pull: "Грозовая туча тянет!", sos: "букеты" },
+  space: { ship: "корабль", shipGen: "корабля", plural: false, fem: false, goal: "станции «Пончик»", goalTitle: "Станция «Пончик»", pull: "Чёрная дыра тянет!", sos: "огни маяка", title: "Космос", board: "Все на борт!" },
+  pirates: { ship: "парусник", shipGen: "парусника", plural: false, fem: false, goal: "острова с сундуком", goalTitle: "Остров с сундуком", pull: "Кракен тянет назад!", sos: "флажки", title: "Пираты", board: "Поднимайтесь на борт!" },
+  newyear: { ship: "сани", shipGen: "саней", plural: true, fem: false, goal: "ёлки на площади", goalTitle: "Ёлка на площади", pull: "Снежный ком догоняет!", sos: "огоньки гирлянды", title: "Новый год", board: "Садитесь в сани!" },
+  submarine: { ship: "субмарина", shipGen: "субмарины", plural: false, fem: true, goal: "затонувшего корабля", goalTitle: "Затонувший корабль", pull: "Осьминог тянет назад!", sos: "фонари", title: "Подводный мир", board: "Задраить люки!" },
+  wedding: { ship: "воздушный шар", shipGen: "воздушного шара", plural: false, fem: false, goal: "свадебного торта", goalTitle: "Свадебный торт", pull: "Грозовая туча тянет!", sos: "букеты", title: "Свадьба", board: "Все в корзину шара!" },
 };
 
 export function wordsOf(theme: Theme): ThemeWords {

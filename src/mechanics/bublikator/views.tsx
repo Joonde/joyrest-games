@@ -1,5 +1,5 @@
 /**
- * «Бубликатор» на платформе: телефон гостя — настоящий (Блок 2b), экран зала, пульт и конструктор — заглушки до 2c–2d
+ * «Бубликатор» на платформе: телефон гостя (Блок 2b) и экран зала (Блок 2c) — настоящие, пульт и конструктор — заглушки до 2d
  * (механика скрыта, `HIDDEN_MECHANICS`: ведущие её не видят).
  */
 import { Component, lazy, Suspense, useState, type ComponentType, type ReactNode } from "react";
@@ -9,6 +9,7 @@ import { importWithRetry } from "./phone/chunk";
 import type { BubContent } from "./rules/types";
 
 type PhoneComponent = ComponentType<PlayerViewProps<BubContent, never>>;
+type ScreenComponent = ComponentType<ViewProps<BubContent>>;
 
 /**
  * Телефон гостя — отдельный чанк (аудит 2b, №17): его код и стили качает только гость «Бубликатора». Чанк не скачался
@@ -29,6 +30,20 @@ function phoneChunk() {
 }
 
 let firstPhone: ReturnType<typeof phoneChunk> | null = null;
+
+/** Экран зала — тоже отдельный чанк (телефону гостя его код не нужен), с теми же повторами. */
+type ScreenModule = typeof import("./screen/ScreenView");
+const screenState: { url: string | null; n: number } = { url: null, n: 0 };
+const screenLoad = {
+  load: () => import("./screen/ScreenView"),
+  again: (url: string, n: number) => import(/* @vite-ignore */ `${url}?retry=${n}`) as Promise<ScreenModule>,
+};
+
+function screenChunk() {
+  return lazy(() => importWithRetry(screenLoad, screenState).then((m) => ({ default: m.BublikatorHallView as ScreenComponent })));
+}
+
+let firstScreen: ReturnType<typeof screenChunk> | null = null;
 
 class ChunkGuard extends Component<{ onRetry: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -86,9 +101,28 @@ function Soon({ what }: { what: string }) {
   );
 }
 
-export function BublikatorScreenView(_: ViewProps<BubContent>) {
-  void _;
-  return <Soon what="Экран зала" />;
+/** Экран зала: поток экрана игровой комнаты (без тайн), все этапы рисует сам (`standalone`). */
+export function BublikatorScreenView(props: ViewProps<BubContent>) {
+  const [attempt, setAttempt] = useState(0);
+  const [Screen, setScreen] = useState(() => (firstScreen ??= screenChunk()));
+  return (
+    <ChunkGuard
+      key={attempt}
+      onRetry={() => {
+        if (screenState.url === null) {
+          window.location.reload();
+          return;
+        }
+        firstScreen = screenChunk();
+        setScreen(() => firstScreen ?? screenChunk());
+        setAttempt((a) => a + 1);
+      }}
+    >
+      <Suspense fallback={<ListSkeleton count={3} />}>
+        <Screen {...props} />
+      </Suspense>
+    </ChunkGuard>
+  );
 }
 
 export function BublikatorHostControls(_: HostControlsProps<BubContent>) {

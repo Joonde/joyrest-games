@@ -64,12 +64,17 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 /** Новый замер часов: сервер прислал `at` (его часы при отправке), мы получили в `local`. */
 export function withClock(m: PhoneModel, at: number, local: number): PhoneModel {
-  if (!Number.isFinite(at)) return m;
+  const offset = nextOffset(m.offset, at, local);
+  return offset === m.offset ? m : { ...m, offset };
+}
+
+/** Сдвиг «сервер − местные часы» после нового замера (общий для телефона и экрана зала). */
+export function nextOffset(offset: number | null, at: number, local: number): number | null {
+  if (!Number.isFinite(at)) return offset;
   const sample = at - local;
   // Событие приходит позже, чем отправлено: замер всегда не больше настоящего сдвига — берём больший. Если местные
   // часы прыгнули назад (сдвиг вырос сильно) — тоже больший; прыгнули вперёд на минуты — сбрасываем.
-  const offset = m.offset === null || sample > m.offset || m.offset - sample > 60_000 ? sample : m.offset;
-  return offset === m.offset ? m : { ...m, offset };
+  return offset === null || sample > offset || offset - sample > 60_000 ? sample : offset;
 }
 
 function setPaused(m: PhoneModel, paused: boolean, at: number): PhoneModel {

@@ -10,6 +10,7 @@ import { personalSnapshot, personalView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
 import { cap, THEME_WORDS, verb, wordsOf } from "../lexicon";
 import { BUZZ_GAP_MS, BUZZ_MS, buzz, vibrationFor } from "./haptics";
+import { chunkUrlOf, importWithRetry } from "./chunk";
 import { MoveGate, PHONE_MOVES_PER_SECOND } from "./moves";
 import { TapBatch } from "./taps";
 import { ShakeMeter, shakeMode, shakeReport, type ShakeSent } from "./shake";
@@ -620,6 +621,46 @@ describe("телефон «Бубликатора»: модель", () => {
     b.tap("salute", 1850);
     expect(b.flush(2000)).toEqual({ event: { t: "salute", n: 2 }, beforeMs: 200 });
     // Телефон отдаёт отправителю именно это: `push(event, true, beforeMs)` (`Phone.tsx`), отправитель ставит `ago`.
+  });
+
+  it("чанк телефона (аудит 2b, круг 2, №2): обрыв — повтор по адресу с меткой (браузер помнит неудачу), три раза — ошибка", async () => {
+    const url = "https://games.joy-rest.ru/assets/PlayerView-1a2b.js";
+    expect(chunkUrlOf(new TypeError(`Failed to fetch dynamically imported module: ${url}`))).toBe(url);
+    expect(chunkUrlOf(new TypeError(`error loading dynamically imported module: ${url}?retry=1`))).toBe(url);
+    expect(chunkUrlOf(new TypeError("Importing a module script failed."))).toBeNull();
+    const calls: string[] = [];
+    const sleeps: number[] = [];
+    const sleep = async (ms: number) => void sleeps.push(ms);
+    // Первый import() оборвался, повтор по адресу с меткой удался.
+    let state = { url: null as string | null, n: 0 };
+    const ok = await importWithRetry(
+      {
+        load: async () => {
+          calls.push("load");
+          throw new TypeError(`Failed to fetch dynamically imported module: ${url}`);
+        },
+        again: async (u, n) => {
+          calls.push(`${u}?retry=${n}`);
+          return "телефон";
+        },
+      },
+      state,
+      3,
+      1500,
+      sleep,
+    );
+    expect([ok, calls, sleeps]).toEqual(["телефон", ["load", `${url}?retry=1`], [1500]]);
+    // Сеть не вернулась — три попытки с растущей паузой, потом ошибка (её ловит «Не загрузилось — Повторить»).
+    state = { url: null, n: 0 };
+    calls.length = 0;
+    sleeps.length = 0;
+    const fail = (where: string) => async () => {
+      calls.push(where);
+      throw new TypeError(`Failed to fetch dynamically imported module: ${url}`);
+    };
+    const err = await importWithRetry({ load: fail("load"), again: (u, n) => fail(`${u}?retry=${n}`)() }, state, 3, 1500, sleep).catch((e: unknown) => e);
+    expect(err instanceof Error).toBe(true);
+    expect([calls.length, sleeps, state.url]).toEqual([3, [1500, 3000], url]);
   });
 
   it("часы на экране: «0:07», ноль и пусто", () => {

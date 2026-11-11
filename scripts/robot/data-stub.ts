@@ -9,6 +9,12 @@ export const clock = { offset: () => 0, sync: async () => 0 };
 export const connection = { subscribe: () => () => undefined, online: () => true };
 export const dataBackend = () => "server";
 export const tracksRepo = null;
+/** Комнаты быстрого канала: телефон «Бубликатора» на стенде lazy-чанка ничего не шлёт и ничего не получает. */
+export const roomsRepo = {
+  sender: () => ({ push: () => undefined, flush: () => undefined, stop: () => undefined }),
+  subscribe: () => () => undefined,
+  command: async () => null,
+};
 export const videosRepo = null;
 export const finaleRepo = null;
 export const photosRepo = null;

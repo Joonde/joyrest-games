@@ -11,7 +11,8 @@ const dataIndex = path.join(root, "src/data/index.ts");
 const result = await build({
   entryPoints: [process.env.ROBOT_ENTRY ? path.resolve(process.env.ROBOT_ENTRY) : path.join(import.meta.dirname, "entry.tsx")],
   bundle: true,
-  outfile: path.join(out, "robot.js"),
+  // ROBOT_SPLIT=1 — отдельные чанки для динамических import() (проверка lazy-чанка телефона «Бубликатора»).
+  ...(process.env.ROBOT_SPLIT ? { outdir: out, splitting: true, entryNames: "robot", chunkNames: "chunk-[name]-[hash]" } : { outfile: path.join(out, "robot.js") }),
   format: "esm",
   jsx: "automatic",
   logLevel: "warning",

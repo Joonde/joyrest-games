@@ -365,6 +365,13 @@ export interface ScreenView {
   vote: { endsAt: number; voted: Record<string, number>; voters: Record<string, number> } | null;
   reveal: VoteResult[] | null;
   podium: Array<{ crew: number; name: string; place: number; total: number }> | null;
+  /**
+   * На паузе — момент, на котором встало время, по часам сервера (аудит 2c, №5): экран, открытый посреди паузы, считает
+   * остатки от него, а не от «сейчас». Не на паузе — null.
+   */
+  pausedAt: number | null;
+  /** В этом перелёте есть диверсанты (будет голосование «Кто диверсант?») — подпись «Дальше» на привале (аудит 2c, №4). */
+  voteAhead: boolean;
 }
 
 export interface PanelControlView {

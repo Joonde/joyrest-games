@@ -2,7 +2,7 @@
  * Экраны зала «Бубликатора» по согласованным макетам (`scr-*`): только вид, без связи. Кадр — в единицах `--u` (1% ширины
  * сцены 16:9), мелкие подписи — не меньше 1,7% высоты экрана (`--fs-*` в `screen.css`), длинные имена — с многоточием.
  */
-import type { CSSProperties, ReactNode } from "react";
+import { memo, type CSSProperties, type ReactNode } from "react";
 import { HallTimer } from "../../../components/live/HallTimer";
 import { QrCode } from "../../../components/QrCode";
 import { joinHint, playUrl } from "../../../components/links";
@@ -13,6 +13,7 @@ import { CAPTAIN_STAR, CAPTAIN_STARS_MAX, DRILL_MS, EVENT_MS, LAUNCH_MS, PULL_HO
 import type { ScreenCrewView, ScreenView, Theme } from "../rules/types";
 import { CrewBadge, CrewShip, crewVars, Goal, Mask, Mono, Puller, SOS_NAMES, SOS_SHAPES } from "./art";
 import {
+  captainLayout,
   cardColumns,
   chipsShown,
   clock,
@@ -24,12 +25,15 @@ import {
   num,
   plural,
   progressOf,
+  placesText,
   pullOf,
   revealedCount,
   secondsLeft,
+  shieldLook,
   sosCycleMs,
   sosLit,
   speedText,
+  type Bumps,
   type ScreenModel,
 } from "./model";
 
@@ -39,10 +43,10 @@ export interface BoardProps {
   /** Местные часы (`performance`-время экрана) — для отсчётов через модель. */
   local: number;
   code: string;
-  /** В игре включён «Диверсант на борту» (подпись «Дальше» на привале). */
-  saboteurs: boolean;
   /** Когда экран увидел раскрытие диверсантов (местные мс); null — открыли экран позже, показываем всё сразу. */
   revealSeen: number | null;
+  /** Рывки кораблей, наступившие при открытом экране (`nextBumps`). */
+  bumps: Bumps;
 }
 
 const q = (name: string) => `«${name}»`;
@@ -87,6 +91,14 @@ function Badge({ crew }: { crew: { color: number; icon: number | null } }) {
     </span>
   );
 }
+
+/**
+ * QR-код входа — только при смене кода (аудит 2c, №13): доска перерисовывается от сводок и отсчётов, а QR-код (SVG на сотни
+ * модулей) остаётся тем же узлом.
+ */
+const JoinQr = memo(function JoinQr({ code, small }: { code: string; small?: boolean }) {
+  return <QrCode value={playUrl(code)} label={`QR-код для входа: ${formatSessionCode(code)}`} className={small ? "bks-qr bks-qr--small" : "bks-qr"} />;
+});
 
 function Code({ code }: { code: string }) {
   return <b className="bks-code">{formatSessionCode(code)}</b>;
@@ -133,7 +145,7 @@ export function LobbyBoard({ v, m, code }: BoardProps) {
         <section className="bks-panel bks-lobby__qr">
           <h2 className="bks-lobby__call">{w.board}</h2>
           <p className="bks-lobby__hint">Наведите камеру на код</p>
-          <QrCode value={playUrl(code)} label={`QR-код для входа: ${formatSessionCode(code)}`} className="bks-qr" />
+          <JoinQr code={code} />
           <p className="bks-lobby__code">
             <span>{joinHint()} · код</span> <Code code={code} />
           </p>
@@ -149,24 +161,27 @@ export function LobbyBoard({ v, m, code }: BoardProps) {
           ) : (
             <ul className={many ? "bks-lobby__list is-two" : "bks-lobby__list"} style={{ "--bks-rows": many ? Math.ceil(crews.length / 2) : crews.length } as CSSProperties}>
               {crews.map((c) => {
-                const shown = chipsShown(c.names.length, crews.length);
+                const shown = chipsShown(c.names, crews.length);
                 return (
-                  <li key={c.id} className="bks-panel bks-lobby__crew" style={crewVars(c.color)}>
+                  <li key={c.id} className={shown > 0 ? "bks-panel bks-lobby__crew" : "bks-panel bks-lobby__crew is-bare"} style={crewVars(c.color)}>
                     <Craft crew={c} theme={v.theme} className="bks-lobby__ship" />
+                    {/* Аудит 2c, №2: название — на всю ширину первой строкой, «N из M мест» — одной строкой рядом, имена — ниже. */}
                     <div className="bks-lobby__title">
                       <b className="bks-name">{q(c.name)}</b>
-                      <span className="bks-muted">
+                      <span className="bks-muted bks-nowrap">
                         {c.count} из {max} мест
                       </span>
                     </div>
-                    <span className="bks-chips" hidden={shown === 0}>
-                      {c.names.slice(0, shown).map((n, i) => (
-                        <span key={`${n}-${i}`} className="bks-person">
-                          {n}
-                        </span>
-                      ))}
-                      {shown > 0 && c.names.length > shown && <span className="bks-person bks-person--more">+{c.names.length - shown}</span>}
-                    </span>
+                    {shown > 0 && (
+                      <span className="bks-chips">
+                        {c.names.slice(0, shown).map((n, i) => (
+                          <span key={`${n}-${i}`} className="bks-person">
+                            {n}
+                          </span>
+                        ))}
+                        {c.names.length > shown && <span className="bks-person bks-person--more">+{c.names.length - shown}</span>}
+                      </span>
+                    )}
                   </li>
                 );
               })}
@@ -246,7 +261,7 @@ export function CrewsBoard({ v, m, code }: BoardProps) {
       </ul>
       <div className="bks-foot2">
         <div className="bks-panel bks-join">
-          <QrCode value={playUrl(code)} label={`QR-код для входа: ${formatSessionCode(code)}`} className="bks-qr bks-qr--small" />
+          <JoinQr code={code} small />
           <div>
             <span className="bks-muted">Вход по коду · {joinHint()}</span>
             <Code code={code} />
@@ -369,10 +384,15 @@ function FlightClock({ m, local }: { m: ScreenModel; local: number }) {
 
 const EVENT_NAMES = { meteor: "Метеоритный дождь", pull: "Притяжение", sos: "Сигнал SOS", captain: "Все на палубу!" } as const;
 
-function Lane({ c, theme, compact, event }: { c: ScreenCrewView; theme: Theme; compact: boolean; event: ScreenView["event"] }) {
+function Lane({ c, theme, compact, event, kids, bump }: { c: ScreenCrewView; theme: Theme; compact: boolean; event: ScreenView["event"]; kids: boolean; bump: { ok: number; fail: number } | undefined }) {
   const p = progressOf(c.dist);
   const shield = event?.kind === "meteor" && !event.warn ? c.shield : null;
-  const cls = ["bks-lane", c.fire ? "is-fire" : "", c.repair ? "is-repair" : "", c.finished ? "is-finished" : "", p > 0.55 ? "is-late" : ""].filter(Boolean).join(" ");
+  const sh = shield === null ? null : shieldLook(shield, kids);
+  const late = p > 0.55;
+  const cls = ["bks-lane", c.fire ? "is-fire" : "", c.repair ? "is-repair" : "", c.finished ? "is-finished" : "", late ? "is-late" : ""].filter(Boolean).join(" ");
+  // Рывок — только когда счётчик вырос при открытом экране (аудит 2c, №7): ключ меняется лишь тогда, класс есть лишь после первого.
+  const ok = bump?.ok ?? 0;
+  const fail = bump?.fail ?? 0;
   return (
     <li className={cls} style={{ ...crewVars(c.color), "--bks-p": p } as CSSProperties}>
       <div className={compact ? "bks-panel bks-lane__card is-compact" : "bks-panel bks-lane__card"}>
@@ -387,14 +407,17 @@ function Lane({ c, theme, compact, event }: { c: ScreenCrewView; theme: Theme; c
         <span className="bks-lane__trail" />
         <span className="bks-lane__mover">
           <span className="bks-lane__ship">
-            <span className="bks-lane__bump" key={`ok${c.okSeq}`}>
-              <span className="bks-lane__jolt" key={`f${c.failSeq}`}>
+            <span className={ok > 0 ? "bks-lane__bump is-on" : "bks-lane__bump"} key={`ok${ok}`}>
+              <span className={fail > 0 ? "bks-lane__jolt is-on" : "bks-lane__jolt"} key={`f${fail}`}>
                 <Craft crew={c} theme={theme} />
               </span>
             </span>
-            {shield !== null && (
-              <span className={shield < 50 ? "bks-shield is-weak" : "bks-shield"}>
-                <span className="bks-shield__text">щит {shield}</span>
+            {sh && shield !== null && (
+              // Щит — вокруг корабля, поверх (полупрозрачный); растёт от силы, но корабль — не выше дорожки, и щит соседей не
+              // задевает (аудит 2c, №1).
+              <span className={sh.weak ? "bks-shield is-weak" : "bks-shield"} style={{ "--bks-sh": sh.scale } as CSSProperties}>
+                {/* Подпись щита — когда у корабля нет своей плашки («Ремонт», «У цели!»): иначе они легли бы друг на друга. */}
+                {!c.repair && !c.finished && <span className="bks-shield__text">щит {shield}</span>}
               </span>
             )}
             {c.repair && <span className="bks-tag bks-tag--alert">Ремонт · жмите «Чиним!»</span>}
@@ -406,7 +429,7 @@ function Lane({ c, theme, compact, event }: { c: ScreenCrewView; theme: Theme; c
   );
 }
 
-export function FlightBoard({ v, m, local, code }: BoardProps) {
+export function FlightBoard({ v, m, local, code, bumps }: BoardProps) {
   const w = wordsOf(v.theme);
   const { lanes, rest } = lanesOf(v.crews);
   const compact = lanes.length > 5;
@@ -451,7 +474,7 @@ export function FlightBoard({ v, m, local, code }: BoardProps) {
       <div className="bks-flight__field">
         <ul className="bks-lanes" style={{ "--bks-n": lanes.length } as CSSProperties}>
           {lanes.map((c) => (
-            <Lane key={c.id} c={c} theme={v.theme} compact={compact} event={ev} />
+            <Lane key={c.id} c={c} theme={v.theme} compact={compact} event={ev} kids={v.difficulty === "kids"} bump={bumps[c.id]} />
           ))}
         </ul>
         <span className="bks-finish" aria-hidden="true" />
@@ -474,7 +497,7 @@ export function FlightBoard({ v, m, local, code }: BoardProps) {
         <section className="bks-panel bks-rest">
           <p className="bks-rest__head">
             <span>
-              Ещё {crewsText(rest.length)} · места {rest[0]?.place}–{rest[rest.length - 1]?.place}
+              Ещё {crewsText(rest.length)} · {placesText(rest[0]?.place, rest[rest.length - 1]?.place)}
             </span>
             <span>
               Вход по коду <Code code={code} />
@@ -547,7 +570,7 @@ export function PullBoard({ v, m, local }: BoardProps) {
       <EventHead kicker="Событие · Притяжение" title={w.pull} sub="Весь экипаж держит «Тягу» 3 секунды — отпустил один, отсчёт заново" left={left} total={EVENT_MS.pull / 1000} />
       <div className="bks-pull__body">
         <span className="bks-pull__puller">
-          <Puller />
+          <Puller theme={v.theme} />
         </span>
         <ul className={two ? "bks-pull__list is-two" : "bks-pull__list"} style={{ "--bks-rows": two ? Math.ceil(crews.length / 2) : crews.length } as CSSProperties}>
           {crews.map((c) => {
@@ -592,7 +615,7 @@ export function SosBoard({ v, m, local }: BoardProps) {
   const cols = cardColumns(crews.length);
   const cycle = Math.round(sosCycleMs(seq.length) / 1000);
   return (
-    <div className="bks-board bks-event bks-sos">
+    <div className={crews.length > 10 ? "bks-board bks-event bks-sos is-dense" : "bks-board bks-event bks-sos"}>
       <EventHead kicker="Событие · Сигнал SOS" title={`Запомните ${w.sos}!`} sub="Капитан повторяет на телефоне, экипаж подсказывает вслух" left={left} total={EVENT_MS.sos / 1000} />
       <div className="bks-garland" role="img" aria-label={`Сигнал: ${seq.map((c) => SOS_NAMES[c] ?? "").join(", ")}`}>
         <span className="bks-garland__wire" aria-hidden="true" />
@@ -636,20 +659,22 @@ export function CaptainBoard({ v, m, local }: BoardProps) {
   const left = secondsLeft(leftUntil(m, ev?.endsAt, local));
   const crews = eventCrews(v);
   const cols = cardColumns(crews.length);
+  const task = ev?.task ?? "Задание ведущего";
+  const look = captainLayout(task, crews.length);
   return (
-    <div className="bks-board bks-event bks-captain">
+    <div className={`bks-board bks-event bks-captain is-${look.size}`}>
       <div className="bks-event__head">
         <Kicker>Событие · Все на палубу!</Kicker>
-        <h2 className="bks-title bks-captain__task">{ev?.task ?? "Задание ведущего"}</h2>
+        <h2 className="bks-title bks-captain__task">{task}</h2>
         <p className="bks-sub">Весь экипаж вместе, со звуком · приказы на паузе</p>
       </div>
       <div className="bks-captain__timer">
-        <HallTimer left={left} total={EVENT_MS.captain / 1000} size="26cqh" />
+        <HallTimer left={left} total={EVENT_MS.captain / 1000} size={look.timer} />
       </div>
-      <ul className={crews.length > 5 ? "bks-cards is-small" : "bks-cards"} style={{ "--bks-cols": cols } as CSSProperties}>
+      <ul className={crews.length > 5 || !look.ships ? "bks-cards is-small" : "bks-cards"} style={{ "--bks-cols": cols } as CSSProperties}>
         {crews.map((c) => (
           <li key={c.id} className="bks-panel bks-card" style={crewVars(c.color)}>
-            {crews.length <= 10 && <Craft crew={c} theme={v.theme} className="bks-card__ship" />}
+            {look.ships && <Craft crew={c} theme={v.theme} className="bks-card__ship" />}
             <b className="bks-card__name bks-name">{q(c.name)}</b>
             <span className="bks-muted">
               {c.members} {plural(c.members, "человек", "человека", "человек")}
@@ -666,7 +691,7 @@ export function CaptainBoard({ v, m, local }: BoardProps) {
 
 // ------------------------------------------------------------------ привал
 
-export function DockBoard({ v, saboteurs }: BoardProps) {
+export function DockBoard({ v }: BoardProps) {
   const w = wordsOf(v.theme);
   const rows = v.dock?.rows ?? [];
   const dense = rows.length > 8;
@@ -675,7 +700,7 @@ export function DockBoard({ v, saboteurs }: BoardProps) {
   const nameOf = (id: number) => v.crews.find((c) => c.id === id);
   const streak = v.dock?.bestStreak ? nameOf(v.dock.bestStreak.crew) : undefined;
   const shield = v.dock?.bestShield ? nameOf(v.dock.bestShield.crew) : undefined;
-  const next = last ? "Награждение — лучший экипаж ночи" : `Перелёт ${v.leg + 2} из ${v.legs}`;
+  const next = last ? "Награждение — лучший экипаж вечера" : `Перелёт ${v.leg + 2} из ${v.legs}`;
   return (
     <div className="bks-board bks-dock">
       <Head title={`Привал · ${w.goalTitle}`} sub={`Итоги перелёта ${v.leg + 1} из ${v.legs}`}>
@@ -707,7 +732,7 @@ export function DockBoard({ v, saboteurs }: BoardProps) {
                 <span role="cell" className="bks-table__crew">
                   {!dense && crew && <Craft crew={crew} theme={v.theme} className="bks-table__ship" />}
                   {dense && crew && <Badge crew={crew} />}
-                  <b className="bks-name">{q(r.name)}</b>
+                  <b className={dense ? "bks-name" : "bks-name bks-name2"}>{q(r.name)}</b>
                 </span>
                 <span role="cell">{num(r.orders)}</span>
                 <span role="cell" className="bks-table__two">
@@ -747,7 +772,7 @@ export function DockBoard({ v, saboteurs }: BoardProps) {
         </div>
         <div className="bks-panel bks-fact bks-fact--next">
           <Kicker>Дальше</Kicker>
-          <b className="bks-ellipsis2">{saboteurs ? `Голосование «Кто диверсант?», затем ${last ? "награждение" : `перелёт ${v.leg + 2}`}` : next}</b>
+          <b className="bks-ellipsis2">{v.voteAhead === true && v.stage === "dock" ? `Голосование «Кто диверсант?», затем ${last ? "награждение" : `перелёт ${v.leg + 2}`}` : next}</b>
         </div>
       </div>
     </div>
@@ -865,7 +890,7 @@ export function PodiumBoard({ v, m }: BoardProps) {
           <b className="bks-step__place">{place}</b>
           {people.slice(0, people.length > 2 ? 1 : 2).map((p) => (
             <span key={p.crew} className="bks-step__who">
-              <b className="bks-name">{q(p.name)}</b>
+              <b className="bks-name bks-name2">{q(p.name)}</b>
               <span>{num(p.total)}</span>
             </span>
           ))}

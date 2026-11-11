@@ -253,6 +253,8 @@ export function screenView(s: BubState, env: ViewEnv): ScreenView {
     // Диверсанты раскрываются только после голосования.
     reveal: s.phase === "leg" && leg?.stage === "voted" ? (leg.vote ?? []) : null,
     podium: podiumView(s),
+    pausedAt: env.paused ? toServer(s, now) : null,
+    voteAhead: s.phase === "leg" && leg?.saboteurs === true,
   };
 }
 

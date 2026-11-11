@@ -26,7 +26,7 @@ import {
   type BoardProps,
 } from "./boards";
 import type { ScreenLink } from "./link";
-import { applyScreen, boardOf, emptyScreen, lanesOf, momentsOf, type Board, type ScreenModel } from "./model";
+import { applyScreen, boardOf, emptyScreen, lanesOf, momentsFor, nextBumps, revealedCount, soundsOf, sosLit, sosToneOf, tickOf, type Board, type Bumps, type ScreenModel } from "./model";
 import "./screen.css";
 
 export interface ScreenProps {
@@ -34,7 +34,6 @@ export interface ScreenProps {
   code: string;
   /** Сессия уже завершена (комната ответит «finished»): без вида — «Игра окончена». */
   sessionFinished?: boolean;
-  saboteurs?: boolean;
   /** Итоги платформы — если комнаты уже нет (перезагрузили экран после завершения). */
   fallbackBoard?: ReadonlyArray<{ id: string; name: string; score: number }>;
   fallbackTheme?: Theme;
@@ -46,9 +45,11 @@ export interface ScreenProps {
 
 const reduceMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
-function useTick(ms: number): void {
+/** Перерисовка по часам — только у досок с отсчётом (аудит 2c, №13); null — без тика (лобби, привал, пьедестал…). */
+function useTick(ms: number | null): void {
   const [, set] = useState(0);
   useEffect(() => {
+    if (ms === null) return;
     const h = setInterval(() => set((n) => n + 1), ms);
     return () => clearInterval(h);
   }, [ms]);
@@ -78,18 +79,31 @@ function burstPlace(v: ScreenView, crew: number, n: number): { x: number; y: num
   return { x: 20 + ((crew * 37 + n * 13) % 60), y: 18 + ((crew * 11 + n * 7) % 30) };
 }
 
-export function BublikatorScreen({ link, code, sessionFinished = false, saboteurs = false, fallbackBoard = [], fallbackTheme = "space", now = localNow, reduced }: ScreenProps) {
+export function BublikatorScreen({ link, code, sessionFinished = false, fallbackBoard = [], fallbackTheme = "space", now = localNow, reduced }: ScreenProps) {
   const [m, setM] = useState<ScreenModel>(() => emptyScreen(now()));
   const [take, setTake] = useState(false);
   const [gen, setGen] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [bursts, setBursts] = useState<Burst[]>([]);
   const [revealSeen, setRevealSeen] = useState<number | null>(null);
+  const [bumps, setBumps] = useState<Bumps>({});
   const prevView = useRef<ScreenView | null>(null);
   const burstSeq = useRef(0);
   const lastPop = useRef(0);
+  const lastBeep = useRef(-Infinity);
+  const lastLit = useRef<number | null>(null);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const board: Board = sessionFinished && !m.view ? "over" : boardOf(m);
-  useTick(board === "sos" ? 100 : 250);
+  const revealing = board === "reveal" && revealSeen !== null && revealedCount(m.view?.reveal?.length ?? 0, now() - revealSeen) < (m.view?.reveal?.length ?? 0);
+  useTick(tickOf(board, revealing, m.paused));
+  // Таймеры салюта снимаются вместе с экраном (аудит 2c, №19).
+  useEffect(() => {
+    const set = timers.current;
+    return () => {
+      for (const h of set) clearTimeout(h);
+      set.clear();
+    };
+  }, []);
 
   useEffect(() => {
     setError(null);
@@ -107,19 +121,18 @@ export function BublikatorScreen({ link, code, sessionFinished = false, saboteur
 
   // Моменты: звук и салют — только то, что наступило при открытом экране.
   useEffect(() => {
-    const prev = prevView.current;
+    // Снимок (первая сводка, переподключение, опрос, после «закрыто») — без моментов: ни запоздалых аплодисментов, ни фанфар,
+    // ни салюта (аудит 2c, №6).
+    const prev = m.fresh ? null : prevView.current;
     const next = m.view;
     prevView.current = next;
     if (!next) return;
-    const mo = momentsOf(prev, next);
-    const sounds: SoundName[] = [];
-    if (mo.launch) sounds.push("whoosh");
-    if (mo.event) sounds.push("gong");
-    if (mo.dock) sounds.push("applause");
-    if (mo.reveal) sounds.push("drumroll");
-    if (mo.podium) sounds.push("fanfare");
-    if (prev && next.glitchUntil !== null && prev.glitchUntil === null) sounds.push("sparkle");
-    if (mo.finish.length > 0) sounds.push("ding");
+    const mo = momentsFor(prev, m);
+    setBumps((b) => nextBumps(prev, next, m.fresh, b));
+    const glitch = prev !== null && next.glitchUntil !== null && prev.glitchUntil === null;
+    const picked = soundsOf(mo, glitch, now(), lastBeep.current);
+    lastBeep.current = picked.beepAt;
+    const sounds: SoundName[] = picked.sounds.filter((x) => x !== "pop");
     if (mo.reveal) setRevealSeen(now());
     if (next.stage !== "voted") setRevealSeen(null);
     const fresh: Burst[] = [];
@@ -134,7 +147,7 @@ export function BublikatorScreen({ link, code, sessionFinished = false, saboteur
         for (let k = 0; k < Math.min(3, s.n); k += 1) fresh.push({ id: ++burstSeq.current, ...burstPlace(next, s.crew, burstSeq.current), color: c?.color ?? 0, big: false });
       }
     }
-    if (mo.salutes.length > 0 && now() - lastPop.current > 300) {
+    if (picked.sounds.includes("pop") && now() - lastPop.current > 300) {
       lastPop.current = now();
       sounds.push("pop");
     }
@@ -142,14 +155,29 @@ export function BublikatorScreen({ link, code, sessionFinished = false, saboteur
     if (fresh.length > 0) {
       setBursts((b) => [...b, ...fresh].slice(-BURSTS_MAX));
       const ids = new Set(fresh.map((f) => f.id));
-      setTimeout(() => setBursts((b) => b.filter((x) => !ids.has(x.id))), BURST_MS);
+      const h = setTimeout(() => {
+        timers.current.delete(h);
+        setBursts((b) => b.filter((x) => !ids.has(x.id)));
+      }, BURST_MS);
+      timers.current.add(h);
     }
   }, [m.view, now, reduced]);
+
+  // Тон на каждый огонёк SOS — свой на цвет (решение владельца 11 ноября 2026), только пока экран открыт и игра идёт.
+  const sosEv = board === "sos" && !m.paused ? m.view?.event ?? null : null;
+  const sosSeq = sosEv?.seq ?? [];
+  const lit = sosEv ? sosLit(sosSeq.length, sosEv.startsAt, now() + (m.offset ?? 0)) : null;
+  useEffect(() => {
+    const tone = sosToneOf(sosSeq, lit, lastLit.current);
+    lastLit.current = lit;
+    if (tone) playSound(tone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lit, sosEv?.id]);
 
   const local = now();
   const theme: Theme = m.view?.theme ?? fallbackTheme;
   const v = m.view;
-  const props: BoardProps | null = v ? { m, v, local, code, saboteurs, revealSeen } : null;
+  const props: BoardProps | null = v ? { m, v, local, code, revealSeen, bumps } : null;
 
   let content: ReactNode;
   switch (board) {
@@ -187,7 +215,7 @@ export function BublikatorScreen({ link, code, sessionFinished = false, saboteur
   }
 
   return (
-    <div className={`bks bks--${theme}${(reduced ?? false) ? " is-still" : ""}`} data-board={board}>
+    <div className={`bks bks--${theme}${(reduced ?? false) ? " is-still" : ""}${m.paused ? " is-paused" : ""}${v?.event?.warn && v.phase === "leg" ? " is-alarm" : ""}`} data-board={board}>
       <div className="bks__bg" aria-hidden="true" />
       <div className="bks__stage">{content}</div>
       {bursts.length > 0 && (

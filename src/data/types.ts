@@ -503,7 +503,11 @@ export type RoomStreamEvent =
   | { type: "snapshot"; at: number; paused: boolean; every: number; offlineMs: number; data: unknown }
   | { type: "event"; at: number; data: unknown }
   | { type: "room"; at: number; paused: boolean }
-  | { type: "screen"; at: number; version: number; paused: boolean; players: number; online: number; data: unknown }
+  /**
+   * `fresh` — первая сводка нового потока (подписка, переподключение браузера) или ответ опроса: это снимок, а не перемена —
+   * экран не проигрывает по нему моменты (аплодисменты, фанфары, салют), случившиеся, пока его не было (аудит 2c, №6).
+   */
+  | { type: "screen"; at: number; version: number; paused: boolean; players: number; online: number; data: unknown; fresh?: boolean }
   | {
       type: "host";
       at: number;

@@ -11,7 +11,38 @@ export function setSoundSet(name: SoundSetName): void {
   soundSet = name;
 }
 
-export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame" | "dice" | "step" | "bonus" | "trap" | "sparkle" | "treasure" | "pop" | "ding";
+export type SoundName =
+  | "tick"
+  | "correct"
+  | "fanfare"
+  | "gong"
+  | "drumroll"
+  | "applause"
+  | "wrong"
+  | "whoosh"
+  | "timeUp"
+  | "roar"
+  | "flame"
+  | "dice"
+  | "step"
+  | "bonus"
+  | "trap"
+  | "sparkle"
+  | "treasure"
+  | "pop"
+  | "ding"
+  // «Бубликатор» (решение владельца 11 ноября 2026, звуки ТЗ): сирена предупреждения, бип приказа, удар просрочки, лязг
+  // ремонта, свист метеоров, гул притяжения, тон огонька SOS (свой на цвет).
+  | "siren"
+  | "beep"
+  | "thud"
+  | "clank"
+  | "whistle"
+  | "hum"
+  | "sos0"
+  | "sos1"
+  | "sos2"
+  | "sos3";
 
 /** Раньше «без звука» запоминалось на устройстве — из-за этого экран молчал на следующих вечерах. */
 const OLD_MUTE_KEY = "joyrest.soundOff";
@@ -520,7 +551,77 @@ export function drumRattle(seconds: number, profile: (t: number) => number): voi
   }
 }
 
-const DUCK_SECONDS: Partial<Record<SoundName, number>> = { treasure: 3, dice: 0.9, bonus: 1, trap: 1.1, roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
+/** Тон, скользящий по высоте: сирена, свист. */
+function glide(from: number, to: number, start: number, duration: number, volume: number, type: OscillatorType = "sine"): void {
+  const dest = out();
+  if (!ctx || !dest) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  const t = ctx.currentTime + start;
+  osc.frequency.setValueAtTime(from, t);
+  osc.frequency.exponentialRampToValueAtTime(to, t + duration);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(volume, t + 0.05);
+  gain.gain.setValueAtTime(volume, t + duration * 0.8);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+  osc.connect(gain).connect(dest);
+  osc.start(t);
+  osc.stop(t + duration + 0.05);
+}
+
+/** Сирена предупреждения: два «ву-у» вверх и вниз. */
+function siren(): void {
+  glide(520, 880, 0, 0.55, 0.05, "sawtooth");
+  glide(880, 520, 0.55, 0.55, 0.05, "sawtooth");
+  glide(520, 880, 1.1, 0.55, 0.05, "sawtooth");
+  glide(880, 520, 1.65, 0.55, 0.05, "sawtooth");
+}
+
+/** Бип нового приказа: короткий и тихий (экран склеивает частые). */
+function beep(): void {
+  tone(1320, 0, 0.08, 0.045, "square");
+}
+
+/** Удар просрочки: глухой низкий удар. */
+function thud(): void {
+  burst(0, 0.22, 0.35, { type: "lowpass", freq: 220 }, 0.004);
+  tone(72, 0, 0.3, 0.16, "sine");
+}
+
+/** Лязг ремонта: металлические удары ключом. */
+function clank(): void {
+  [0, 0.18, 0.36].forEach((t, i) => {
+    burst(t, 0.12, 0.22, { type: "bandpass", freq: 2600 + i * 300, q: 9 }, 0.002);
+    tone(523 + i * 40, t, 0.25, 0.05, "triangle");
+    tone(1390 + i * 60, t, 0.18, 0.03, "sine");
+  });
+}
+
+/** Свист метеоров: падающий тон и шелест. */
+function whistle(): void {
+  glide(2600, 520, 0, 1.1, 0.05, "sine");
+  glide(2100, 380, 0.35, 1.0, 0.035, "sine");
+  burst(0.1, 1.2, 0.08, { type: "highpass", freq: 3000, toFreq: 900 }, 0.3);
+}
+
+/** Гул притяжения: низкий дрожащий гул. */
+function hum(): void {
+  tone(55, 0, 2.6, 0.12, "sawtooth");
+  tone(58, 0, 2.6, 0.1, "sawtooth");
+  burst(0, 2.4, 0.08, { type: "lowpass", freq: 160 }, 0.4);
+}
+
+/** Тон огонька SOS: у каждого цвета своя нота (красный — до, жёлтый — ми, зелёный — соль, синий — до октавой выше). */
+export const SOS_TONES = [523, 659, 784, 1047] as const;
+
+function sosTone(color: number): void {
+  const f = SOS_TONES[color] ?? 523;
+  tone(f, 0, 0.5, 0.08, "triangle");
+  tone(f * 2, 0, 0.25, 0.025, "sine");
+}
+
+const DUCK_SECONDS: Partial<Record<SoundName, number>> = { siren: 2.3, whistle: 1.3, hum: 2.6, clank: 0.7, treasure: 3, dice: 0.9, bonus: 1, trap: 1.1, roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
 
 export function playSound(name: SoundName): void {
   if (muted || !soundReady()) return;
@@ -551,6 +652,13 @@ export function playSound(name: SoundName): void {
   if (name === "roar") roar();
   if (name === "flame") flame();
   if (name === "whoosh") burst(0, 0.7, 0.3, { type: "bandpass", freq: 300, q: 2, toFreq: 4000 }, 0.25);
+  if (name === "siren") siren();
+  if (name === "beep") beep();
+  if (name === "thud") thud();
+  if (name === "clank") clank();
+  if (name === "whistle") whistle();
+  if (name === "hum") hum();
+  if (name === "sos0" || name === "sos1" || name === "sos2" || name === "sos3") sosTone(Number(name.slice(3)));
   if (name === "timeUp") {
     tone(784, 0, 0.3, 0.16, "triangle");
     tone(523, 0.25, 0.6, 0.16, "triangle");
@@ -637,10 +745,12 @@ export const BUILTIN_MUSIC = {
   treeMusic: [SAMPLES.treeChristmas, SAMPLES.treeLullaby, SAMPLES.treeFireplace].filter((u): u is string => Boolean(u)),
   // «Ставка на знания»: тихий фон, пока на экране поле (решение владельца 22 октября 2026, ~20%).
   boardBed: [SAMPLES.lobbyLofi, SAMPLES.lobbyFocus, SAMPLES.lobbyTokyo].filter((u): u is string => Boolean(u)),
+  // «Бубликатор»: тихая музыка всей игры (решение владельца 11 ноября 2026) — под ползунком «🎵 Фон», эффекты её приглушают.
+  bubFlight: [SAMPLES.lobbyFocus, SAMPLES.lobbyTokyo, SAMPLES.lobbyLofi].filter((u): u is string => Boolean(u)),
 } as const;
 
 /** Громкость встроенной музыки момента (1 — как обычно); фон за столом и фон боя — тихо. */
-export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6, boardBed: 0.2 };
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6, boardBed: 0.2, bubFlight: 0.3 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();

@@ -321,6 +321,36 @@ const SCENARIOS: Record<string, () => Scene> = {
     w.pause();
     return { w };
   },
+  // Аудит 2c, №3: задание капитана в 120 знаков.
+  "captain-long": () => {
+    const w = world();
+    toLeg(w, 0);
+    event(w, "captain");
+    const ev = w.s.leg?.event;
+    if (ev) ev.task = "Изобразите всем экипажем, как ваш корабль чинит двигатель на ходу, поёт гимн и при этом машет залу руками";
+    w.advance(5000);
+    return { w };
+  },
+  // Аудит 2c, №20: дети — щит без «беды».
+  "meteor-kids": () => {
+    const w = world({ difficulty: "kids" });
+    toLeg(w, 0);
+    event(w, "meteor");
+    w.advance(1500, 200, () => {
+      for (const m of Object.values(w.s.members)) if (m.crew !== null && m.crew % 2 === 0) w.send(m.pid, [{ t: "shake", p: 30 }]);
+    });
+    return { w };
+  },
+  // Аудит 2c, №5: дождь, пауза 60 с, экран открыли на паузе — отсчёт дождя тот, что был в момент паузы.
+  "pause-rain": () => {
+    const w = world();
+    toLeg(w, 0);
+    event(w, "meteor");
+    w.advance(4000);
+    w.pause();
+    w.advance(60_000);
+    return { w };
+  },
 };
 
 /** Комната в памяти: экран подписан, сводка приходит после каждого шага. */
@@ -340,16 +370,18 @@ class StandLink implements ScreenLink {
       if (fail) return onError(Object.assign(new Error(fail), { reason: fail }));
       if (this.silent) return;
       if (this.closed) onEvent({ type: "closed", at: this.w.env.now, reason: this.closed });
-      else onEvent(this.event());
+      // Первая сводка подписки — снимок (`fresh`), как у сервера: по ней моментов нет (аудит 2c, №6).
+      else onEvent(this.event(true));
       const first = this.onFirst;
       this.onFirst = null;
       first?.();
     });
     return () => this.listeners.delete(onEvent);
   }
-  event(): RoomStreamEvent {
+  event(fresh = false): RoomStreamEvent {
     const online = Object.values(this.w.s.members).filter((m) => this.w.env.online(m.pid)).length;
-    return { type: "screen", at: this.w.env.now, version: this.w.env.changes, paused: this.w.env.paused, players: Object.keys(this.w.s.members).length, online, data: screenView(this.w.s, this.w.env) };
+    const e: RoomStreamEvent = { type: "screen", at: this.w.env.now, version: this.w.env.changes, paused: this.w.env.paused, players: Object.keys(this.w.s.members).length, online, data: screenView(this.w.s, this.w.env) };
+    return fresh ? { ...e, fresh: true } : e;
   }
   push(): void {
     for (const l of this.listeners) l(this.event());
@@ -375,7 +407,7 @@ const board =
     : [];
 createRoot(rootEl).render(
   <div style={{ position: "fixed", inset: 0 }}>
-    <BublikatorScreen link={link} code="515042" sessionFinished={scenario === "over"} saboteurs fallbackBoard={board} fallbackTheme={w.s.content.theme} now={now} reduced={reduce} />
+    <BublikatorScreen link={link} code="515042" sessionFinished={scenario === "over"} fallbackBoard={board} fallbackTheme={w.s.content.theme} now={now} reduced={reduce} />
   </div>,
 );
 
@@ -391,4 +423,10 @@ else link.onFirst = go;
   scenarios: Object.keys(SCENARIOS),
   board: () => document.querySelector<HTMLElement>(".bks")?.dataset.board ?? null,
   crews: () => w.s.crews.length,
+  /** Сколько секунд дождя осталось по правилам (для проверки «открыли на паузе»). */
+  eventLeft: () => {
+    const ev = screenView(w.s, w.env).event;
+    const at = screenView(w.s, w.env).pausedAt ?? w.env.now;
+    return ev ? Math.ceil((ev.endsAt - at) / 1000) : null;
+  },
 };

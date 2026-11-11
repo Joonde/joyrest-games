@@ -5,7 +5,7 @@
  */
 import type { RoomClosedReason, RoomStreamEvent } from "../../../data/types";
 import { nextOffset } from "../phone/model";
-import type { ScreenCrewView, ScreenView } from "../rules/types";
+import type { EventKind, ScreenCrewView, ScreenView } from "../rules/types";
 
 export interface ScreenModel {
   view: ScreenView | null;
@@ -19,31 +19,49 @@ export interface ScreenModel {
   heardAt: number;
   /** Время сервера, к которому относится вид (`at` последнего события с видом): отсчёт полёта между событиями. */
   viewAt: number | null;
+  /**
+   * Вид — снимок, а не перемена (первая сводка потока, переподключение, опрос, сводка после «закрыто»): моменты по нему не
+   * играются — ни аплодисментов, ни фанфар, ни салюта за то, что случилось без экрана (аудит 2c, №6).
+   */
+  fresh: boolean;
 }
 
 export function emptyScreen(now: number): ScreenModel {
-  return { view: null, paused: false, pausedAt: null, offset: null, closed: null, players: 0, online: 0, heardAt: now, viewAt: null };
+  return { view: null, paused: false, pausedAt: null, offset: null, closed: null, players: 0, online: 0, heardAt: now, viewAt: null, fresh: true };
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * Пауза из события: момент паузы по часам сервера берём из вида (`pausedAt` — сервер знает, когда встало время; экран, открытый
+ * посреди паузы, иначе считал бы остатки от «сейчас», аудит 2c, №5), без него — время события (прежний сервер).
+ */
+function withPause(m: ScreenModel, paused: boolean, at: number, view: ScreenView | null): ScreenModel {
+  if (!paused) return m.paused ? { ...m, paused: false, pausedAt: null } : m;
+  const fromView = view && typeof view.pausedAt === "number" && Number.isFinite(view.pausedAt) ? view.pausedAt : null;
+  return { ...m, paused: true, pausedAt: fromView ?? (m.paused ? m.pausedAt : at) };
+}
+
 /** Событие потока экрана → новая модель. */
 export function applyScreen(m0: ScreenModel, e: RoomStreamEvent, local: number): ScreenModel {
-  let m: ScreenModel = { ...m0, offset: nextOffset(m0.offset, e.at, local), heardAt: local };
-  const pause = (paused: boolean, at: number): ScreenModel => (paused === m.paused ? m : { ...m, paused, pausedAt: paused ? at : null });
+  const m: ScreenModel = { ...m0, offset: nextOffset(m0.offset, e.at, local), heardAt: local };
   switch (e.type) {
     case "screen": {
-      m = pause(e.paused, e.at);
-      return isRecord(e.data) ? { ...m, view: e.data as unknown as ScreenView, viewAt: e.at, players: e.players, online: e.online, closed: null } : { ...m, players: e.players, online: e.online };
+      if (!isRecord(e.data)) return { ...withPause(m, e.paused, e.at, m.view), players: e.players, online: e.online };
+      const view = e.data as unknown as ScreenView;
+      // Снимок: сервер так пометил (подписка, переподключение, опрос), вида ещё не было или поток был закрыт.
+      const fresh = e.fresh === true || m0.view === null || m0.closed !== null;
+      return { ...withPause(m, e.paused, e.at, view), view, viewAt: e.at, players: e.players, online: e.online, closed: null, fresh };
     }
     case "snapshot": {
-      m = pause(e.paused, e.at);
-      return isRecord(e.data) ? { ...m, view: e.data as unknown as ScreenView, viewAt: e.at, closed: null } : m;
+      if (!isRecord(e.data)) return withPause(m, e.paused, e.at, m.view);
+      const view = e.data as unknown as ScreenView;
+      return { ...withPause(m, e.paused, e.at, view), view, viewAt: e.at, closed: null, fresh: true };
     }
     case "room":
-      return pause(e.paused, e.at);
+      return withPause(m, e.paused, e.at, null);
     case "closed":
       return { ...m, closed: e.reason };
     default:
@@ -149,6 +167,16 @@ export function hullCells(hull: number, cells = 5): number[] {
 export interface ScreenMoments {
   launch: boolean;
   event: boolean;
+  /** Какое событие началось сейчас (для своего звука). */
+  eventKind: EventKind | null;
+  /** Началось предупреждение о событии (сирена, красная рамка). */
+  warn: boolean;
+  /** Сколько приказов выполнено с прошлого вида (каждый — новый приказ: «бип»). */
+  orders: number;
+  /** У кого-то просрочка (удар). */
+  fail: boolean;
+  /** Кто-то встал на ремонт (лязг). */
+  repair: boolean;
   finish: number[];
   salutes: Array<{ crew: number; n: number }>;
   dock: boolean;
@@ -156,14 +184,26 @@ export interface ScreenMoments {
   podium: boolean;
 }
 
+/** Моменты для звука и салюта по новой модели: снимок (`fresh`) ничего не «наступает». */
+export function momentsFor(prev: ScreenView | null, m: ScreenModel): ScreenMoments {
+  return momentsOf(m.fresh ? null : prev, m.view);
+}
+
 export function momentsOf(prev: ScreenView | null, next: ScreenView | null): ScreenMoments {
-  const none: ScreenMoments = { launch: false, event: false, finish: [], salutes: [], dock: false, reveal: false, podium: false };
+  const none: ScreenMoments = { launch: false, event: false, eventKind: null, warn: false, orders: 0, fail: false, repair: false, finish: [], salutes: [], dock: false, reveal: false, podium: false };
   if (!prev || !next) return none;
   const was = new Map(prev.crews.map((c) => [c.id, c]));
   const stage = (v: ScreenView) => `${v.phase}/${v.stage ?? ""}/${v.leg}`;
+  const ev = next.event;
+  const started = ev !== null && !ev.warn && (prev.event?.id !== ev.id || prev.event.warn);
   return {
     launch: next.stage === "launch" && stage(prev) !== stage(next),
-    event: next.event !== null && !next.event.warn && (prev.event?.id !== next.event.id || prev.event.warn),
+    event: started,
+    eventKind: started && ev ? ev.kind : null,
+    warn: ev !== null && ev.warn && prev.event?.id !== ev.id,
+    orders: next.phase === "leg" && prev.phase === "leg" && next.leg === prev.leg ? Math.max(0, next.ordersDone - prev.ordersDone) : 0,
+    fail: next.crews.some((c) => c.failSeq > (was.get(c.id)?.failSeq ?? c.failSeq)),
+    repair: next.crews.some((c) => c.repair !== null && was.get(c.id)?.repair === null),
     finish: next.crews.filter((c) => c.finished && was.get(c.id)?.finished === false).map((c) => c.id),
     salutes: next.crews.map((c) => ({ crew: c.id, n: c.salutes - (was.get(c.id)?.salutes ?? c.salutes) })).filter((x) => x.n > 0),
     dock: next.stage === "dock" && prev.stage !== "dock",
@@ -262,9 +302,131 @@ export function cardColumns(n: number): number {
   return Math.ceil(n / 3);
 }
 
-/** Сколько имён показать фишками в строке экипажа лобби (остальные — «+N»); больше 10 экипажей — без имён (только «N из M мест»). */
-export function chipsShown(count: number, crews: number): number {
+/**
+ * Сколько имён показать фишками в строке экипажа лобби (остальные — «+N»). Больше 10 экипажей — без имён (только «N из M мест»);
+ * 7–10 — два столбца, под названием одна строка: два имени или одно и «+N» (аудит 2c, №2 — третье имя вытесняло название);
+ * до 6 — столько, сколько помещается в две строки фишек шириной 16,5 `u` (замер стенда: 16,8–18,6 `u` × 5,5–7 `u`, фишка 1,65–2 `u`):
+ * ширина фишки — по длине имени (не шире 10 `u`), с местом под «+N» (иначе длинные имена уходили строкой под рамку).
+ */
+export function chipsShown(names: readonly string[], crews: number): number {
   if (crews > 10) return 0;
-  const cap = crews <= 5 ? 6 : 3;
-  return count <= cap ? count : cap - 1;
+  if (crews > 6) return names.length <= 2 ? names.length : 1;
+  const width = 16.5;
+  const rows = 2;
+  const gap = 0.45;
+  const chip = (text: string) => Math.min(10, 1.5 + 0.75 * [...text].length);
+  const rowsOf = (items: number[]) => {
+    let n = 1;
+    let x = 0;
+    for (const w of items) {
+      if (x > 0 && x + gap + w > width) {
+        n += 1;
+        x = w;
+      } else x += (x > 0 ? gap : 0) + w;
+    }
+    return n;
+  };
+  for (let k = Math.min(names.length, 6); k > 0; k -= 1) {
+    const items = names.slice(0, k).map(chip);
+    if (k < names.length) items.push(chip(`+${names.length - k}`));
+    if (rowsOf(items) <= rows) return k;
+  }
+  return 0;
+}
+
+/**
+ * «Все на палубу!»: раскладка по длине задания (аудит 2c, №3). Короткое — крупно, с кораблями; длинное (до 120 знаков) —
+ * мельче, отсчёт меньше, карточки без кораблей (иначе названия экипажей уходили под край).
+ */
+export function captainLayout(task: string, crews: number): { size: "short" | "mid" | "long"; ships: boolean; timer: string } {
+  const n = task.trim().length;
+  const size = n <= 40 ? "short" : n <= 80 ? "mid" : "long";
+  return { size, ships: size !== "long" && crews <= (size === "short" ? 10 : 5), timer: size === "long" ? "17cqh" : size === "mid" ? "21cqh" : "26cqh" };
+}
+
+/** «места 9–12», а если место одно (все вне дорожек на одном месте) — «место 9» (аудит 2c, №16). */
+export function placesText(first: number | undefined, last: number | undefined): string {
+  if (first === undefined || last === undefined) return "";
+  return first === last ? `место ${first}` : `места ${first}–${last}`;
+}
+
+/** Сколько рывков показано у экипажа: выполнено (`ok`) и просрочено (`fail`). Ключ анимации растёт только при росте счётчика. */
+export type Bumps = Record<number, { ok: number; fail: number }>;
+
+/**
+ * Рывки кораблей (аудит 2c, №7): только когда `okSeq` / `failSeq` выросли относительно прошлого вида и вид — не снимок. Открыли
+ * экран или переподключились — счётчики те же, ничего не дёргается.
+ */
+export function nextBumps(prev: ScreenView | null, next: ScreenView | null, fresh: boolean, bumps: Bumps): Bumps {
+  if (!next || !prev || fresh) return bumps;
+  const was = new Map(prev.crews.map((c) => [c.id, c]));
+  let out = bumps;
+  for (const c of next.crews) {
+    const p = was.get(c.id);
+    if (!p) continue;
+    const ok = c.okSeq > p.okSeq;
+    const fail = c.failSeq > p.failSeq;
+    if (!ok && !fail) continue;
+    const cur = out[c.id] ?? { ok: 0, fail: 0 };
+    out = { ...out, [c.id]: { ok: cur.ok + (ok ? 1 : 0), fail: cur.fail + (fail ? 1 : 0) } };
+  }
+  return out;
+}
+
+/**
+ * Щит «Метеоритного дождя» (аудит 2c, №1): доля высоты дорожки 0,55–1 по силе щита — растёт от силы, но не выходит за свою
+ * дорожку (соседние корабли и плашку дождя не задевает). Слабый (< 50) — пунктиром; у детей урона нет — без «беды».
+ */
+export function shieldLook(shield: number, kids: boolean): { scale: number; weak: boolean } {
+  const s = Math.max(0, Math.min(100, shield)) / 100;
+  return { scale: Math.round((0.55 + 0.45 * s) * 100) / 100, weak: !kids && shield < 50 };
+}
+
+/** Звуки экрана (решение владельца 11 ноября 2026, звуки ТЗ) — имена синтеза платформы (`sound.ts`). */
+export type ScreenSound = "whoosh" | "siren" | "whistle" | "hum" | "gong" | "beep" | "thud" | "clank" | "fanfare" | "applause" | "drumroll" | "sparkle" | "pop";
+
+/** «Бип» нового приказа на весь зал — не чаще (склеиваем). */
+export const BEEP_EVERY_MS = 500;
+
+const EVENT_SOUND: Record<EventKind, ScreenSound> = { meteor: "whistle", pull: "hum", sos: "gong", captain: "gong" };
+
+/**
+ * Какие звуки дать на моменты (только моменты при открытом экране — `momentsFor`): сирена на предупреждение, у события — свой
+ * звук (свист метеоров, гул притяжения, гонг), «бип» нового приказа (не чаще `BEEP_EVERY_MS`, `beepAt` — когда был прошлый),
+ * удар просрочки, лязг ремонта, фанфары финиша, аплодисменты привала, дробь раскрытия, фанфары пьедестала, хлопок салюта.
+ */
+export function soundsOf(mo: ScreenMoments, glitch: boolean, now: number, beepAt: number): { sounds: ScreenSound[]; beepAt: number } {
+  const out: ScreenSound[] = [];
+  if (mo.launch) out.push("whoosh");
+  if (mo.warn) out.push("siren");
+  if (mo.eventKind) out.push(EVENT_SOUND[mo.eventKind]);
+  if (glitch) out.push("sparkle");
+  if (mo.repair) out.push("clank");
+  if (mo.fail) out.push("thud");
+  if (mo.finish.length > 0 || mo.podium) out.push("fanfare");
+  if (mo.dock) out.push("applause");
+  if (mo.reveal) out.push("drumroll");
+  if (mo.salutes.length > 0) out.push("pop");
+  let at = beepAt;
+  // Бип — только когда ничего громкого не звучит, и не чаще раза в полсекунды на весь зал.
+  if (mo.orders > 0 && out.length === 0 && now - beepAt >= BEEP_EVERY_MS) {
+    out.push("beep");
+    at = now;
+  }
+  return { sounds: [...new Set(out)], beepAt: at };
+}
+
+/** Тон огонька SOS: новый огонёк загорелся — его цвет (`sos0`…`sos3`), иначе ничего. */
+export function sosToneOf(seq: readonly number[], lit: number | null, lastLit: number | null): `sos${0 | 1 | 2 | 3}` | null {
+  if (lit === null || lit === lastLit) return null;
+  const c = seq[lit];
+  return c === 0 || c === 1 || c === 2 || c === 3 ? (`sos${c}` as const) : null;
+}
+
+/** Как часто перерисовывать доску: SOS — 10 раз в секунду (огоньки), раскрытие по одному — 4, отсчёты — 2, остальное — никогда. */
+export function tickOf(board: Board, revealing: boolean, paused: boolean): number | null {
+  if (paused) return null;
+  if (board === "sos") return 100;
+  if (board === "reveal") return revealing ? 250 : null;
+  return ["launch", "drill", "flight", "pull", "captain", "vote"].includes(board) ? 500 : null;
 }

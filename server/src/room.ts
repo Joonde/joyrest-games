@@ -1003,7 +1003,8 @@ export function registerRooms(app: FastifyInstance, options: RoomsOptions): Room
 
     function snapshotOf(kind: RoomStreamKind, room: Room, uid: string): RoomStreamEvent {
       const at = now();
-      return kind === "me" ? room.meEvent(uid, at) : kind === "screen" ? room.screenEvent(at) : room.hostEvent(at);
+      // Опрос — тоже снимок: у сводки экрана `fresh` (без пропущенных моментов, аудит 2c, №6).
+      return kind === "me" ? room.meEvent(uid, at) : kind === "screen" ? { ...room.screenEvent(at), fresh: true } : room.hostEvent(at);
     }
 
     for (const kind of ["me", "screen", "host"] as const) {

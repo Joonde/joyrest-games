@@ -855,7 +855,8 @@ export class Room {
     }
     const target = kind === "screen" ? this.screens : this.hosts;
     target.add(listener);
-    listener.send(kind === "screen" ? this.screenEvent(now) : this.hostEvent(now));
+    // Первая сводка экрана — снимок (`fresh`): по нему экран не играет пропущенные моменты (аудит 2c, №6).
+    listener.send(kind === "screen" ? { ...this.screenEvent(now), fresh: true } : this.hostEvent(now));
     return () => target.delete(listener);
   }
 

@@ -2,7 +2,7 @@
  * Рисунки экрана зала «Бубликатора»: значки экипажей (линейные, как в макетах), корабль темы с шлейфом, гирлянда SOS,
  * снежный ком, маска диверсанта. Цвет экипажа — переменная `--bk-crew` (как у телефона), всё — SVG без фильтров.
  */
-import type { CSSProperties } from "react";
+import { useId, type CSSProperties } from "react";
 import { Ship } from "../phone/art";
 import type { Theme } from "../rules/types";
 
@@ -61,17 +61,121 @@ export function Mask() {
   );
 }
 
-/** Снежный ком / чёрная дыра / кракен… — что тянет назад в «Притяжении» (одна сердитая фигура на все темы). */
-export function Puller() {
+/** Глаза и рот «беды» — общие: сердитые брови, глаза с бликом, недовольный рот (как в макете scr-pull). */
+function AngryFace({ cx, cy, scale = 1, ink = "#2C3550" }: { cx: number; cy: number; scale?: number; ink?: string }) {
   return (
-    <svg viewBox="0 0 200 200" className="bks-puller" aria-hidden="true">
-      <circle cx="100" cy="100" r="96" fill="#e8eef7" />
-      <circle cx="100" cy="100" r="96" fill="none" stroke="#c3cee0" strokeWidth="6" />
-      <path d="M58 82 L 88 92" stroke="#221e1b" strokeWidth="8" strokeLinecap="round" />
-      <path d="M142 82 L 112 92" stroke="#221e1b" strokeWidth="8" strokeLinecap="round" />
-      <circle cx="74" cy="102" r="9" fill="#221e1b" />
-      <circle cx="126" cy="102" r="9" fill="#221e1b" />
-      <path d="M70 140 C 86 128 114 128 130 140" fill="none" stroke="#221e1b" strokeWidth="8" strokeLinecap="round" />
+    <g transform={`translate(${cx} ${cy}) scale(${scale})`}>
+      <path d="M-62 -26 L -18 -14 M 62 -26 L 18 -14" stroke={ink} strokeWidth="9" strokeLinecap="round" />
+      <circle cx="-34" cy="2" r="14" fill={ink} />
+      <circle cx="34" cy="2" r="14" fill={ink} />
+      <circle cx="-30" cy="-3" r="4" fill="#FFFFFF" />
+      <circle cx="38" cy="-3" r="4" fill="#FFFFFF" />
+      <path d="M-42 54 Q 0 32 42 54" fill="none" stroke={ink} strokeWidth="8" strokeLinecap="round" />
+    </g>
+  );
+}
+
+/**
+ * Что тянет назад в «Притяжении» — своё у темы (аудит 2c, №9; слова — `lexicon.ts`): снежный ком, чёрная дыра, кракен,
+ * осьминог, грозовая туча. SVG в стиле макетов (`kit.py`): объём градиентом, сердитое лицо.
+ */
+export function Puller({ theme }: { theme: Theme }) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const g = (name: string) => `bks-${name}-${id}`;
+  if (theme === "space") {
+    return (
+      <svg viewBox="0 0 400 400" className="bks-puller" role="img" aria-label="Чёрная дыра">
+        <defs>
+          <radialGradient id={g("disk")} cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0.38" stopColor="#B49BE0" stopOpacity="0" />
+            <stop offset="0.5" stopColor="#F0AE72" />
+            <stop offset="0.72" stopColor="#B49BE0" stopOpacity="0.85" />
+            <stop offset="1" stopColor="#B49BE0" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <ellipse cx="200" cy="210" rx="196" ry="120" fill={`url(#${g("disk")})`} />
+        <circle cx="200" cy="200" r="118" fill="#07051A" />
+        <circle cx="200" cy="200" r="118" fill="none" stroke="#F3DFAE" strokeOpacity="0.7" strokeWidth="5" />
+        <path d="M60 220 Q 200 290 340 220" fill="none" stroke="#F0AE72" strokeOpacity="0.8" strokeWidth="8" strokeLinecap="round" />
+        <AngryFace cx={200} cy={190} scale={0.9} ink="#F3DFAE" />
+      </svg>
+    );
+  }
+  if (theme === "pirates") {
+    return (
+      <svg viewBox="0 0 400 400" className="bks-puller" role="img" aria-label="Кракен">
+        <defs>
+          <radialGradient id={g("k")} cx="0.35" cy="0.3" r="0.8">
+            <stop offset="0" stopColor="#D88AA8" />
+            <stop offset="1" stopColor="#6E2F55" />
+          </radialGradient>
+        </defs>
+        <g fill="none" stroke={`url(#${g("k")})`} strokeWidth="30" strokeLinecap="round">
+          <path d="M120 250 C 60 300 40 360 90 380" />
+          <path d="M170 280 C 150 340 170 380 210 386" />
+          <path d="M240 280 C 260 340 240 376 200 392" />
+          <path d="M290 250 C 350 300 360 356 316 380" />
+        </g>
+        <path d="M70 230 C 60 90 140 26 205 26 C 270 26 350 90 330 230 C 320 290 80 290 70 230 Z" fill={`url(#${g("k")})`} />
+        <circle cx="120" cy="120" r="10" fill="#F3DFAE" fillOpacity="0.5" />
+        <circle cx="290" cy="110" r="8" fill="#F3DFAE" fillOpacity="0.5" />
+        <AngryFace cx={200} cy={160} scale={0.95} ink="#2A1030" />
+      </svg>
+    );
+  }
+  if (theme === "submarine") {
+    return (
+      <svg viewBox="0 0 400 400" className="bks-puller" role="img" aria-label="Осьминог">
+        <defs>
+          <radialGradient id={g("o")} cx="0.35" cy="0.3" r="0.8">
+            <stop offset="0" stopColor="#F0AE72" />
+            <stop offset="1" stopColor="#B4573A" />
+          </radialGradient>
+        </defs>
+        <g fill="none" stroke={`url(#${g("o")})`} strokeWidth="24" strokeLinecap="round">
+          <path d="M110 250 C 70 290 90 340 50 360" />
+          <path d="M160 270 C 150 320 180 350 150 384" />
+          <path d="M240 270 C 250 320 220 350 250 384" />
+          <path d="M290 250 C 330 290 310 340 350 360" />
+        </g>
+        <ellipse cx="200" cy="170" rx="140" ry="128" fill={`url(#${g("o")})`} />
+        <circle cx="120" cy="100" r="9" fill="#FBF6F1" fillOpacity="0.45" />
+        <circle cx="270" cy="90" r="12" fill="#FBF6F1" fillOpacity="0.45" />
+        <AngryFace cx={200} cy={170} scale={0.95} ink="#3A1A10" />
+      </svg>
+    );
+  }
+  if (theme === "wedding") {
+    return (
+      <svg viewBox="0 0 400 400" className="bks-puller" role="img" aria-label="Грозовая туча">
+        <defs>
+          <linearGradient id={g("c")} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#9C95B8" />
+            <stop offset="1" stopColor="#4C456A" />
+          </linearGradient>
+        </defs>
+        <path d="M80 270 C 20 270 20 190 80 180 C 70 110 160 80 200 120 C 230 60 330 70 330 150 C 390 150 400 270 320 270 Z" fill={`url(#${g("c")})`} />
+        <path d="M190 280 L 160 340 L 196 336 L 172 396 L 246 316 L 208 320 L 230 280 Z" fill="#F0CF5F" />
+        <AngryFace cx={200} cy={200} scale={0.85} ink="#FBF6F1" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 400 400" className="bks-puller" role="img" aria-label="Снежный ком">
+      <defs>
+        <radialGradient id={g("s")} cx="0.35" cy="0.3" r="0.75">
+          <stop offset="0" stopColor="#FFFFFF" />
+          <stop offset="0.7" stopColor="#DDE6F4" />
+          <stop offset="1" stopColor="#9FB0CF" />
+        </radialGradient>
+      </defs>
+      <circle cx="200" cy="210" r="186" fill={`url(#${g("s")})`} />
+      <g fill="none" stroke="#B8C6DE" strokeWidth="9" strokeLinecap="round">
+        <path d="M70 130 Q 120 90 170 130" />
+        <path d="M240 340 Q 290 310 330 350" />
+        <path d="M90 320 Q 120 360 170 350" />
+      </g>
+      <AngryFace cx={200} cy={210} scale={1.1} />
     </svg>
   );
 }

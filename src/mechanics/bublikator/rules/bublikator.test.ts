@@ -1226,6 +1226,19 @@ describe("режим «Диверсант на борту»", () => {
     expect(small.s.leg?.saboteurs).toBe(false);
     expect(sabWorld(10, { difficulty: "kids" }).s.crews.every((c) => c.saboteur === null)).toBe(true);
   });
+  it("экран: «Дальше: голосование» — только в перелёте с диверсантами; на паузе — момент паузы по часам сервера (аудит 2c, №4, №5)", () => {
+    const w = sabWorld(10);
+    expect(screenView(w.s, w.env).voteAhead).toBe(true);
+    expect(screenView(sabWorld(8).s, sabWorld(8).env).voteAhead).toBe(false);
+    expect(screenView(w.s, w.env).pausedAt).toBeNull();
+    const at = w.env.now;
+    w.pause();
+    w.advance(60_000);
+    // Экран, открытый через минуту паузы, получает момент паузы — отсчёты стоят там, где встали.
+    expect(screenView(w.s, w.env).pausedAt).toBe(at);
+    w.resume();
+    expect(screenView(w.s, w.env).pausedAt).toBeNull();
+  });
   it("окно роли одного вида у всех экипажа; экран и пульт диверсантов не знают", () => {
     const w = sabWorld(10);
     const crew = w.s.crews[0];

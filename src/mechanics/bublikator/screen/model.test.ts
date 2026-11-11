@@ -6,7 +6,9 @@ import { screenView } from "../rules/views";
 import { World } from "../rules/world.test-kit";
 import {
   applyScreen,
+  BEEP_EVERY_MS,
   boardOf,
+  captainLayout,
   cardColumns,
   chipsShown,
   clock,
@@ -16,15 +18,22 @@ import {
   hullCells,
   lanesOf,
   leftUntil,
+  momentsFor,
   momentsOf,
+  nextBumps,
   num,
+  placesText,
   plural,
   pullOf,
   revealedCount,
   REVEAL_STEP_MS,
   sosCycleMs,
+  shieldLook,
   sosLit,
+  sosToneOf,
+  soundsOf,
   speedText,
+  tickOf,
   type ScreenModel,
 } from "./model";
 
@@ -78,6 +87,8 @@ function view(over: Partial<ScreenView> = {}): ScreenView {
     vote: null,
     reveal: null,
     podium: null,
+    pausedAt: null,
+    voteAhead: false,
     ...over,
   };
 }
@@ -198,10 +209,18 @@ describe("экран зала «Бубликатора»: модель пото�
     expect(num(1344)).toBe("1 344");
     expect(clock(18_000)).toBe("0:18");
     expect(clock(61_500)).toBe("1:02");
-    expect(chipsShown(4, 5)).toBe(4);
-    expect(chipsShown(10, 5)).toBe(5);
-    expect(chipsShown(10, 8)).toBe(2);
-    expect(chipsShown(3, 12)).toBe(0);
+    const short = (n: number) => Array.from({ length: n }, (_, i) => ["Аня", "Костя", "Оля", "Дима", "Маша", "Катя", "Вова", "Лена", "Миша", "Юля"][i] ?? "Аня");
+    const long = (n: number) => Array.from({ length: n }, (_, i) => `Константинопольская Александра ${i}`);
+    expect(chipsShown(short(4), 5)).toBe(4);
+    expect(chipsShown(short(10), 5)).toBe(5);
+    // Длинные имена — по одному в строке, «+N» — рядом с последним (аудит 2c, №2).
+    expect(chipsShown(long(10), 5)).toBe(2);
+    expect(chipsShown(long(3), 5)).toBe(2);
+    expect(chipsShown(long(2), 5)).toBe(2);
+    expect(chipsShown([...long(1), ...short(8)], 5)).toBe(4);
+    expect(chipsShown(short(10), 8)).toBe(1);
+    expect(chipsShown(short(2), 8)).toBe(2);
+    expect(chipsShown(short(3), 12)).toBe(0);
     expect(cardColumns(3)).toBe(3);
     expect(cardColumns(12)).toBe(7);
     expect(cardColumns(20)).toBe(7);
@@ -209,7 +228,7 @@ describe("экран зала «Бубликатора»: модель пото�
 
   it("моменты: только то, что наступило при открытом экране", () => {
     const fly = view();
-    expect(momentsOf(null, fly)).toEqual({ launch: false, event: false, finish: [], salutes: [], dock: false, reveal: false, podium: false });
+    expect(momentsOf(null, fly)).toEqual({ launch: false, event: false, eventKind: null, warn: false, orders: 0, fail: false, repair: false, finish: [], salutes: [], dock: false, reveal: false, podium: false });
     expect(momentsOf(view({ phase: "crews", stage: null }), view({ stage: "launch" })).launch).toBe(true);
     const warn = view({ event: { id: "e1", kind: "meteor", warn: true, startsAt: 0, endsAt: 1, seq: null, task: null, crews: [] } });
     const on = view({ event: { id: "e1", kind: "meteor", warn: false, startsAt: 0, endsAt: 1, seq: null, task: null, crews: [] } });
@@ -260,5 +279,117 @@ describe("экран зала «Бубликатора»: настоящая с�
     }
     w.ok("podium");
     expect(board()).toBe("podium");
+  });
+});
+
+describe("экран зала «Бубликатора»: аудит 2c", () => {
+  const meteor = (warn: boolean, id = "e1") => ({ id, kind: "meteor" as const, warn, startsAt: 0, endsAt: 1, seq: null, task: null, crews: [] });
+
+  it("№5: экран открыли на паузе — остаток по моменту паузы с сервера (дождь, пауза 60 с)", () => {
+    // Дождь до 1 030 000; ведущий остановил игру в 1 010 000 (осталось 20 с); экран открыли через 60 с паузы.
+    const v = view({ endsAt: 1_030_000, event: { ...meteor(false), endsAt: 1_030_000 }, pausedAt: 1_010_000 });
+    const opened = applyScreen(emptyScreen(1_070_000), screenEvent(v, 1_070_000, true), 1_070_000);
+    expect(opened.paused).toBe(true);
+    expect(leftUntil(opened, 1_030_000, 1_070_000)).toBe(20_000);
+    expect(leftUntil(opened, 1_030_000, 1_200_000)).toBe(20_000);
+    // Обратная замена: без момента паузы в виде экран считал бы паузу «с сейчас» — осталось бы 0.
+    const old = applyScreen(emptyScreen(1_070_000), screenEvent({ ...v, pausedAt: null }, 1_070_000, true), 1_070_000);
+    expect(leftUntil(old, 1_030_000, 1_070_000)).toBe(0);
+    // Продолжили — время снова идёт.
+    const go = applyScreen(opened, screenEvent({ ...v, pausedAt: null, endsAt: 1_090_000 }, 1_071_000), 1_071_000);
+    expect(go.paused).toBe(false);
+    expect(leftUntil(go, 1_090_000, 1_071_000)).toBe(19_000);
+  });
+
+  it("№6: снимок (подписка, «Открыть здесь», переподключение, после «закрыто») — без моментов и рывков", () => {
+    const before = view({ stage: "fly", crews: [crew(0, { salutes: 0, okSeq: 1 }), crew(1)] });
+    const after = view({ stage: "dock", crews: [crew(0, { finished: true, salutes: 3, okSeq: 4 }), crew(1)] });
+    const live = applyScreen(emptyScreen(0), screenEvent(before, 1000), 1000);
+    expect(live.fresh).toBe(true);
+    const step = applyScreen(live, screenEvent(after, 2000), 2000);
+    expect(step.fresh).toBe(false);
+    expect(momentsFor(before, step)).toMatchObject({ dock: true, finish: [0], salutes: [{ crew: 0, n: 3 }] });
+    // Сервер пометил сводку снимком — ни аплодисментов, ни фанфар, ни салюта.
+    const snap = applyScreen(live, { ...(screenEvent(after, 2000) as Extract<RoomStreamEvent, { type: "screen" }>), fresh: true }, 2000);
+    expect(momentsFor(before, snap)).toMatchObject({ dock: false, finish: [], salutes: [] });
+    expect(nextBumps(before, after, snap.fresh, {})).toEqual({});
+    // После «закрыто» (вкладку вытеснили и вернули) — первая сводка тоже снимок.
+    const closed = applyScreen(live, { type: "closed", at: 1500, reason: "replaced" }, 1500);
+    expect(applyScreen(closed, screenEvent(after, 2000), 2000).fresh).toBe(true);
+  });
+
+  it("№7: рывки — только при росте okSeq / failSeq", () => {
+    const a = view({ crews: [crew(0, { okSeq: 2, failSeq: 1 }), crew(1, { okSeq: 0 })] });
+    const b = view({ crews: [crew(0, { okSeq: 3, failSeq: 1 }), crew(1, { okSeq: 0 })] });
+    expect(nextBumps(a, b, false, {})).toEqual({ 0: { ok: 1, fail: 0 } });
+    expect(nextBumps(b, b, false, { 0: { ok: 1, fail: 0 } })).toEqual({ 0: { ok: 1, fail: 0 } });
+    const c = view({ crews: [crew(0, { okSeq: 3, failSeq: 2 }), crew(1, { okSeq: 0 })] });
+    expect(nextBumps(b, c, false, { 0: { ok: 1, fail: 0 } })).toEqual({ 0: { ok: 1, fail: 1 } });
+    expect(nextBumps(null, c, false, {})).toEqual({});
+  });
+
+  it("№1, №20: щит растёт от силы и не выходит за дорожку; у детей слабый щит без «беды»", () => {
+    expect(shieldLook(0, false)).toEqual({ scale: 0.55, weak: true });
+    expect(shieldLook(100, false)).toEqual({ scale: 1, weak: false });
+    expect(shieldLook(150, false).scale).toBe(1);
+    expect(shieldLook(49, false).weak).toBe(true);
+    expect(shieldLook(49, true).weak).toBe(false);
+    expect(shieldLook(30, false).scale).toBeLessThan(shieldLook(80, false).scale);
+  });
+
+  it("№3: длинное задание капитана — мельче, без кораблей; №16: одно место — одним числом", () => {
+    expect(captainLayout("Найдите синий предмет", 5)).toEqual({ size: "short", ships: true, timer: "26cqh" });
+    expect(captainLayout("а".repeat(70), 5)).toMatchObject({ size: "mid", ships: true });
+    expect(captainLayout("а".repeat(70), 8).ships).toBe(false);
+    expect(captainLayout("а".repeat(120), 3)).toEqual({ size: "long", ships: false, timer: "17cqh" });
+    expect(placesText(9, 12)).toBe("места 9–12");
+    expect(placesText(9, 9)).toBe("место 9");
+    expect(placesText(undefined, 3)).toBe("");
+  });
+
+  it("№13: перерисовка — только на досках с отсчётом, на паузе — никогда", () => {
+    expect(tickOf("sos", false, false)).toBe(100);
+    expect(tickOf("flight", false, false)).toBe(500);
+    expect(tickOf("reveal", true, false)).toBe(250);
+    expect(tickOf("reveal", false, false)).toBeNull();
+    for (const b of ["lobby", "crews", "dock", "podium", "over"] as const) expect(tickOf(b, false, false)).toBeNull();
+    expect(tickOf("flight", false, true)).toBeNull();
+  });
+
+  it("№11: звуки по моментам — сирена, свист, гул, бип (склеенный), удар, лязг, фанфары финиша", () => {
+    const fly = view({ ordersDone: 10 });
+    const pick = (prev: ScreenView, next: ScreenView, at = 10_000, beepAt = -Infinity) => soundsOf(momentsOf(prev, next), false, at, beepAt).sounds;
+    expect(pick(fly, view({ ordersDone: 10, event: meteor(true) }))).toEqual(["siren"]);
+    expect(pick(view({ event: meteor(true) }), view({ event: meteor(false) }))).toEqual(["whistle"]);
+    expect(pick(fly, view({ event: { ...meteor(false, "e2"), kind: "pull" } }))).toEqual(["hum"]);
+    expect(pick(fly, view({ event: { ...meteor(false, "e3"), kind: "sos" } }))).toEqual(["gong"]);
+    expect(pick(fly, fly)).toEqual([]);
+    // Приказ: «бип», но не чаще раза в полсекунды на весь зал.
+    expect(soundsOf(momentsOf(fly, view({ ordersDone: 12 })), false, 10_000, -Infinity)).toEqual({ sounds: ["beep"], beepAt: 10_000 });
+    expect(soundsOf(momentsOf(fly, view({ ordersDone: 12 })), false, 10_000 + BEEP_EVERY_MS - 1, 10_000)).toEqual({ sounds: [], beepAt: 10_000 });
+    expect(soundsOf(momentsOf(fly, view({ ordersDone: 12 })), false, 10_000 + BEEP_EVERY_MS, 10_000).sounds).toEqual(["beep"]);
+    // Под громкий звук бип не добавляется.
+    expect(pick(fly, view({ ordersDone: 12, event: meteor(true) }))).toEqual(["siren"]);
+    // Новый перелёт (ordersDone с нуля) — не приказ.
+    expect(pick(view({ ordersDone: 30, leg: 0 }), view({ ordersDone: 2, leg: 1 }))).toEqual([]);
+    // Просрочка — удар, ремонт — лязг.
+    expect(pick(view({ crews: [crew(0, { failSeq: 1 }), crew(1)] }), view({ crews: [crew(0, { failSeq: 2 }), crew(1)] }))).toEqual(["thud"]);
+    expect(pick(view(), view({ crews: [crew(0, { repair: { until: 5, taps: 0, target: 10 } }), crew(1)] }))).toEqual(["clank"]);
+    // Финиш — фанфары, не «динь».
+    expect(pick(view(), view({ crews: [crew(0, { finished: true }), crew(1)] }))).toEqual(["fanfare"]);
+    expect(pick(view({ stage: "fly" }), view({ stage: "dock" }))).toEqual(["applause"]);
+    expect(pick(view({ crews: [crew(0), crew(1)] }), view({ crews: [crew(0, { salutes: 2 }), crew(1)] }))).toEqual(["pop"]);
+    // Снимок — ни одного звука.
+    expect(soundsOf(momentsOf(null, view({ event: meteor(true) })), false, 0, -Infinity).sounds).toEqual([]);
+  });
+
+  it("№11: тон огонька SOS — свой на цвет, только когда загорелся новый", () => {
+    const seq = [2, 0, 3, 1];
+    expect(sosToneOf(seq, 0, null)).toBe("sos2");
+    expect(sosToneOf(seq, 0, 0)).toBeNull();
+    expect(sosToneOf(seq, null, 0)).toBeNull();
+    expect(sosToneOf(seq, 1, null)).toBe("sos0");
+    expect(sosToneOf(seq, 2, 1)).toBe("sos3");
+    expect(sosToneOf([9], 0, null)).toBeNull();
   });
 });

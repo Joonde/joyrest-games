@@ -23,7 +23,6 @@ export function BublikatorHallView({ session, content }: ViewProps<BubContent>) 
       link={link}
       code={session.code}
       sessionFinished={session.state.phase === "finished"}
-      saboteurs={content.saboteur && content.difficulty !== "kids"}
       fallbackBoard={board}
       fallbackTheme={content.theme}
     />

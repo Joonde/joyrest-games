@@ -898,7 +898,7 @@
 
 .bks-lane {
   display: grid;
-  grid-template-columns: calc(var(--u) * 20) minmax(0, 1fr);
+  grid-template-columns: calc(var(--u) * 22) minmax(0, 1fr);
   gap: calc(var(--u) * 1.4);
   align-items: center;
   min-height: 0;

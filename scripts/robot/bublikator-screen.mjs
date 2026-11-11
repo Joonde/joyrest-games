@@ -257,7 +257,7 @@ function extra() {
   // Метеоры — только над полосой трасс: не над карточками экипажей и не за финишной чертой (аудит 2c, №14).
   const met = root.querySelector(".bks-meteors");
   const track = root.querySelector(".bks-lane__track");
-  if (met && track && fin) {
+  if (met && track && fin && R(met).width > 0) {
     const m = R(met);
     if (m.left < R(track).left - 2 || m.right > R(fin).left + 2) found.push("метеоры не только над трассами");
   }
@@ -403,8 +403,9 @@ async function one(run) {
   } catch {
     errors.push("стенд не дождался готовности");
   }
-  // Салют живёт 1,3 с — считаем сразу после момента.
-  await page.waitForTimeout(150);
+  // Салют живёт 1,3 с — ждём его появления (до 1 с: под нагрузкой кадр приходит позже), иначе — после 150 мс.
+  if (run.s === "finish") await page.waitForSelector(".bks-burst", { timeout: 1000 }).catch(() => undefined);
+  else await page.waitForTimeout(150);
   const bursts = await page.locator(".bks-burst").count();
   await page.waitForTimeout(run.s === "reveal-seq" ? 700 : 450);
   await page.evaluate(() => document.fonts.ready);

@@ -776,7 +776,7 @@ export class Room {
 
   // -------------------------------------------------------------- потоки
 
-  screenEvent(now: number): RoomStreamEvent {
+  screenEvent(now: number): Extract<RoomStreamEvent, { type: "screen" }> {
     return {
       type: "screen",
       at: now,

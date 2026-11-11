@@ -172,6 +172,8 @@ export function bookingNote(e: Pick<EventInput, "title" | "guests">): string {
 
 /** id записи календаря «занят» для мероприятия. */
 export const bookingId = (eventId: string) => `ev-${eventId}`;
+/** Обратно: запись календаря `ev-<id>` — какое это мероприятие (у «Закрепить за …» без мероприятия — null). */
+export const eventOfBooking = (entryId: string): string | null => (entryId.startsWith("ev-") && entryId.length > 3 ? entryId.slice(3) : null);
 
 /** Мероприятия, видимые в этом дне: свои за день и прошлого дня, идущие за полночь. Отменённые — нет. */
 export function eventsOfDay(events: AgencyEvent[], day: string, withCancelled = false): AgencyEvent[] {
@@ -490,12 +492,20 @@ export function reminderDue(startsAt: number, now: number): "day" | "hours" | nu
 }
 
 /**
+ * Ссылка в студию на одно мероприятие: «Мои мероприятия» открываются на его дне, карточка раскрыта — с «✅ Принял, готовлюсь»
+ * (решение владельца 7 ноября 2026: из колокольчика и Telegram ведущий попадал в календарь и не находил, где подтвердить).
+ */
+export function eventLink(platformUrl: string, id?: string | null): string {
+  return `${platformUrl}/studio/calendar?tab=events${id ? `&event=${encodeURIComponent(id)}` : ""}`;
+}
+
+/**
  * Текст уведомления ведущему. Без имени и телефона клиента и без адреса: Telegram — не в России, а это
  * персональные данные; подробности — в студии по ссылке.
  */
 export function noticeText(
   kind: NoticeKind,
-  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end"> & Pick<Partial<AgencyEvent>, "program">,
+  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end"> & Pick<Partial<AgencyEvent>, "program" | "id">,
   platformUrl: string,
   now = Date.now(),
   /** Время начала из базы (по нему срабатывают напоминания); нет — по дате и времени мероприятия. */
@@ -510,7 +520,7 @@ export function noticeText(
       ? ""
       : kind === "after"
         ? `\n\nОдно касание в студии — «Проведено» или «Не состоялось»:\n${platformUrl}/studio`
-        : `\n\nКлиент, телефон и подробности — в студии:\n${platformUrl}/studio/calendar?tab=events`;
+        : `\n\nКлиент, телефон и подробности — в студии:\n${eventLink(platformUrl, e.id)}`;
   // Программа — ведущему при назначении, изменении и в напоминаниях (без цены и без клиента).
   const lines = kind === "removed" || kind === "cancelled" || kind === "after" ? [] : programLines(e.program);
   const program = lines.length ? `\n\n🎯 Программа: ${lines.join("\n")}` : "";

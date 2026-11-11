@@ -17,6 +17,7 @@
 import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import type { Sql } from "postgres";
+import { telegramBotUrl } from "./telegramApi";
 
 export const PREVIEW_BEFORE_MS = 3 * 3_600_000;
 export const STALE_AFTER_MS = 6 * 3_600_000;
@@ -141,7 +142,7 @@ export function startChannel(options: ChannelOptions): Channel {
   const { sql, token, chat, log } = options;
   const f = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
-  const base = `https://api.telegram.org/bot${token}`;
+  const base = telegramBotUrl(token);
   const videoDir = options.mediaDir ? join(options.mediaDir, "channel") : options.dir ? join(options.dir, "video") : null;
   let busy = false;
 

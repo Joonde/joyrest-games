@@ -640,6 +640,61 @@ try {
   await shot(hp, "ведущий-мои-мероприятия");
   await noSideScroll(hp, "Ведущий, мои мероприятия");
 
+  // ---------- Путь ведущего: колокольчик → карточка мероприятия → «✅ Принял, готовлюсь» (решение владельца 7 ноября 2026) ----------
+  // Ведущий стоит в «Моём календаре» (так было у владельца на проверке) и касается уведомления в колокольчике.
+  const bellId = `e2ebell${Date.now() % 1_000_000}`;
+  const bellTitle = "Бал, проверка колокольчика";
+  const made = await api("POST", "/api/events", admin.cookie, {
+    id: bellId, hostId: host.profile.uid, day: D3, start: 1140, end: 1320, title: bellTitle, guests: 30, clientName: "", clientPhone: "", place: "", note: "",
+    program: { formats: ["Квиз"], extension: "", addons: [], duration: "" },
+  });
+  check(made.status === 200, "Колокольчик: владелец записал мероприятие ведущему", `Колокольчик: запись мероприятия — ${made.status}`);
+  await hp.goto(`${BASE}/studio/calendar?tab=mine`);
+  await hp.locator(".notice-bell__button").waitFor({ timeout: WAIT });
+  await hp.locator(".notice-bell__button").click();
+  const bellItem = hp.locator(".notice-item", { hasText: bellTitle });
+  await until(async () => (await bellItem.count()) > 0, WAIT, "уведомление в колокольчике");
+  check(((await bellItem.first().textContent()) ?? "").includes("Вам назначено мероприятие"), "Колокольчик: у ведущего «📅 Вам назначено мероприятие»");
+  await shot(hp, "колокольчик-ведущего");
+  await bellItem.first().click();
+  const bellCard = hp.locator(`[data-event-card="${bellId}"]`);
+  await until(async () => (await bellCard.count()) === 1, WAIT, "карточка мероприятия после касания уведомления");
+  check(await bellCard.evaluate((el) => el.classList.contains("is-open")), "Колокольчик: касание открывает карточку этого мероприятия, она раскрыта");
+  const acceptBtn = bellCard.getByRole("button", { name: "✅ Принял, готовлюсь" });
+  await until(async () => (await acceptBtn.count()) === 1, WAIT, "кнопка «Принял, готовлюсь»");
+  await hp.waitForTimeout(800); // плавная прокрутка
+  const inView = await acceptBtn.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return r.top >= 0 && r.top < window.innerHeight;
+  });
+  const cardTop = await bellCard.evaluate((el) => el.getBoundingClientRect().top);
+  check(inView || (cardTop >= 0 && cardTop < 400), "Колокольчик: карточка прокручена к экрану — «Принял, готовлюсь» видно сразу", `Колокольчик: карточка не на экране (верх ${Math.round(cardTop)})`);
+  check(!hp.url().includes("event="), "Колокольчик: адрес очищается после открытия (повтор не прыгает)", `адрес остался ${hp.url()}`);
+  await shot(hp, "колокольчик-карточка-принял");
+  await acceptBtn.click();
+  await until(
+    async () => ((await api("GET", `/api/events?from=${D3}&to=${D3}`, admin.cookie)).data?.events ?? []).some((e) => e.id === bellId && e.acceptedAt),
+    WAIT,
+    "отметка «Принял» на сервере",
+  );
+  ok("Колокольчик: «Принял, готовлюсь» из карточки — владелец видит, что ведущий принял");
+  check(((await bellCard.textContent()) ?? "").includes("Ведущий принял") || (await acceptBtn.count()) === 0, "Колокольчик: после касания кнопка сменилась на «принял»");
+  // «Мой календарь» → запись мероприятия → «Открыть мероприятие →» — та же карточка.
+  await hp.goto(`${BASE}/studio/calendar?tab=mine`);
+  await openDay(hp, D3);
+  const openLink = hp.locator(".cal-entry", { hasText: "Бал" }).getByRole("link", { name: "Открыть мероприятие →" });
+  await until(async () => (await openLink.count()) === 1, WAIT, "«Открыть мероприятие →» в «Моём календаре»");
+  await openLink.click();
+  await until(async () => (await bellCard.count()) === 1 && (await bellCard.evaluate((el) => el.classList.contains("is-open"))), WAIT, "карточка из «Моего календаря»");
+  ok("Мой календарь: «Открыть мероприятие →» ведёт к раскрытой карточке мероприятия");
+  // Ссылка на мероприятие, которого нет, — понятное сообщение, а не пустой экран.
+  await hp.goto(`${BASE}/studio/calendar?tab=events&event=e2e-nope`);
+  await until(async () => ((await hp.locator("body").textContent()) ?? "").includes("Этого мероприятия уже нет"), WAIT, "сообщение о пропавшем мероприятии");
+  ok("Ссылка на удалённое мероприятие: «Этого мероприятия уже нет»");
+  await noSideScroll(hp, "Ведущий, карточка из колокольчика");
+  await api("POST", `/api/events/${bellId}/cancel`, admin.cookie, {});
+  await api("DELETE", `/api/events/${bellId}`, admin.cookie);
+
   // Убираем «банкеты», чтобы «Кто может» проверял одно мероприятие.
   for (const e of (await api("GET", `/api/events?from=${D1}&to=${D1}`, admin.cookie)).data?.events ?? []) {
     if (/^Банкет/.test(e.title)) {

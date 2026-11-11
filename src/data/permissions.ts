@@ -5,7 +5,7 @@
  * (permissions.test.ts и tests/rules/firestore.test.ts).
  */
 import { ADMIN_UID } from "./config";
-import type { Answer, Game, GameScope, Participant, Session, SessionState, UserProfile } from "./types";
+import type { Answer, Game, GameScope, Participant, Session, SessionPhase, SessionState, UserProfile } from "./types";
 
 /** Кто действует: профиль ведущего или null (гость, не вошёл). */
 export type Actor = (Pick<UserProfile, "uid" | "role" | "active"> & { venueAccess?: boolean; profession?: string | null; accessRole?: string | null }) | null;
@@ -293,6 +293,14 @@ export function canAcceptEvent(actor: Actor, event: { hostId: string }): boolean
   return isActiveHost(actor) && actor?.uid === event.hostId;
 }
 
+/**
+ * Колокольчик в студии — каждому активному человеку команды (решение владельца 6 ноября 2026): свои мероприятия
+ * (назначено, изменено, снято, отменено); обращения клиентов в нём — только у `canManageClients`.
+ */
+export function canSeeNotices(actor: Actor): boolean {
+  return isActiveHost(actor);
+}
+
 /** База клиентов (заявки, телефоны, статусы, заметки, архив) — владелец и менеджер по продажам. */
 export function canManageClients(actor: Actor): boolean {
   return isAdmin(actor) || isSalesManager(actor);
@@ -416,6 +424,35 @@ export function canAudienceVote(state: SessionState, step: number, serverNow: nu
   const result = state.result;
   const open = typeof result === "object" && result !== null && !Array.isArray(result) && (result as Record<string, unknown>).audienceVote === true;
   return open && canSubmitAnswer(state, step, serverNow);
+}
+
+// ------------------------------------------------------------------ быстрый канал (комнаты)
+// Только свой сервер (CLAUDE.md, «Быстрый канал (комнаты)»): у Firebase-версии комнат нет, в firestore.rules этих прав
+// нет и не нужно — комнату проверяет сервер по этим функциям.
+
+/** Пачки в комнату шлёт телефон игрока этой сессии (сам игрок или член команды), пока сессия не завершена. */
+export function canSendRoomInput(uid: string | null, session: { phase: SessionPhase }, member: Pick<Participant, "kind"> | null): boolean {
+  return uid !== null && session.phase !== "finished" && member?.kind === "player";
+}
+
+/** Личный поток комнаты — только свой: телефон игрока этой сессии. */
+export function canWatchRoomMe(uid: string | null, member: Pick<Participant, "kind"> | null): boolean {
+  return uid !== null && member?.kind === "player";
+}
+
+/** Сводку экрана (без тайн) видит любое вошедшее устройство с кодом — экран зала, как документ сессии. */
+export function canWatchRoomScreen(uid: string | null): boolean {
+  return uid !== null;
+}
+
+/** Сводку пульта видит только ведущий сессии. */
+export function canWatchRoomHost(uid: string | null, session: Pick<Session, "hostId">): boolean {
+  return canControlSession(uid, session);
+}
+
+/** Команды комнате («старт», «пауза», «событие») — только ведущий сессии и только у незавершённой. */
+export function canCommandRoom(uid: string | null, session: Pick<Session, "hostId"> & { phase: SessionPhase }): boolean {
+  return canControlSession(uid, session) && session.phase !== "finished";
 }
 
 /**

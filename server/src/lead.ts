@@ -6,6 +6,7 @@
  * В журнал пишем только тип заявки, итог и код ответа — без имён, телефонов и текста.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest, RouteShorthandOptions } from "fastify";
+import { telegramBotUrl } from "./telegramApi";
 
 export interface TelegramTarget {
   token: string;
@@ -298,7 +299,7 @@ export class WindowLimiter {
 // ------------------------------------------------------------------ Telegram
 
 export async function sendTelegram(target: TelegramTarget, text: string): Promise<void> {
-  const res = await fetch(`https://api.telegram.org/bot${target.token}/sendMessage`, {
+  const res = await fetch(`${telegramBotUrl(target.token)}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ chat_id: target.chatId, text, link_preview_options: { is_disabled: true } }),

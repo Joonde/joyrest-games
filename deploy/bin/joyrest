@@ -78,6 +78,10 @@ usage() {
                               на сервере хранится только хэш)
   joyrest lead-bot [force]    бот для заявок с сайта: спросит токен (скрыто) и чат,
                               проверит, сохранит в secrets.env и перезапустит приложение
+  joyrest tg-relay [off] [force]
+                              посредник Telegram за границей: спросит его адрес (скрыто,
+                              в нём секрет), проверит и перезапустит приложение;
+                              off — снова напрямую; без аргумента — спросит адрес
   joyrest site-indexing [on|off] [force]
                               открыть (on) или закрыть (off) сайт для поисковиков —
                               только при включённом сайте; без аргумента — текущее значение
@@ -685,13 +689,31 @@ recreate_apps() {
   done
 }
 
+# Адрес Bot API: посредник за границей (TELEGRAM_API_BASE в secrets.env, sudo joyrest tg-relay) или
+# прямой api.telegram.org. Из российских дата-центров прямой адрес недоступен (6 ноября 2026).
+telegram_base() {
+  local base
+  base=$(clean_value "$(env_value "$ROOT_DIR/secrets.env" TELEGRAM_API_BASE)")
+  base=${base%/}
+  if [[ "$base" =~ ^https://[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]{1,5})?(/[A-Za-z0-9_-]+)*$ ]]; then
+    printf '%s' "$base"
+  else
+    printf 'https://api.telegram.org'
+  fi
+}
+
 # Вызов Bot API. Адрес с токеном передаётся curl через stdin (-K -), а не аргументом:
 # аргументы видны в списке процессов. Тело ответа на экран не выводим — только описание ошибки.
 telegram_call() {
-  local token=$1 method=$2 body=$3 out
-  if ! out=$(printf 'url = "https://api.telegram.org/bot%s/%s"\n' "$token" "$method" \
+  local token=$1 method=$2 body=$3 out base
+  base=$(telegram_base)
+  if ! out=$(printf 'url = "%s/bot%s/%s"\n' "$base" "$token" "$method" \
       | curl -sS --max-time 15 -K - -H 'Content-Type: application/json' -d "$body" 2>&1); then
-    echo "Нет связи с api.telegram.org: ${out##*curl: }"
+    if [ "$base" = https://api.telegram.org ]; then
+      echo "Нет связи с api.telegram.org: ${out##*curl: } (из России Telegram недоступен — нужен посредник: sudo joyrest tg-relay)"
+    else
+      echo "Нет связи с посредником Telegram: ${out##*curl: }"
+    fi
     return 1
   fi
   [[ "$out" == *'"ok":true'* ]] && return 0
@@ -965,6 +987,7 @@ cmd_status() {
     "бот заявок $(grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest lead-bot)')," \
     "пароль test.joy-rest.ru $([ -s "$SITE_AUTH_DIR/test-site-owner.caddy" ] && echo задан || echo 'НЕ задан (sudo joyrest site-password)')"
   echo "Данные games.joy-rest.ru: $(data_backend) (sudo joyrest data server|firebase)"
+  echo "Telegram: $([ "$(telegram_base)" = https://api.telegram.org ] && echo 'напрямую — из России не работает (sudo joyrest tg-relay)' || echo 'через посредника')"
   echo "Ночная копия: таймер $(systemctl is-active --quiet joyrest-backup.timer 2>/dev/null && echo включён || echo 'ВЫКЛЮЧЕН (sudo systemctl enable --now joyrest-backup.timer)')"
   echo "Резервная копия: $(backup_summary)," \
     "служебный бот $(grep -q '^NOTIFY_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest notify-bot)')"
@@ -1006,6 +1029,13 @@ cmd_up() {
   dc up -d postgres
   wait_postgres || die "PostgreSQL не запустилась за 90 секунд."
   ensure_test_db || die "Не удалось создать базу joyrest_test."
+  # Основная база на новом сервере пустая: без миграций нет таблиц (admin-password падал с
+  # «relation "users" does not exist», 5 ноября 2026). Миграции только добавляющие — повтор безопасен.
+  local prod_image
+  prod_image=$(release_value prod APP_IMAGE)
+  if [ -n "$prod_image" ]; then
+    run_migrations prod "$prod_image" || die "Ошибка миграции основной базы (joyrest_prod)."
+  fi
   migrate_lite "$(release_value test APP_IMAGE)"
   if install_system; then dc up -d --remove-orphans; reload_caddy; else dc up -d --remove-orphans; fi
 }
@@ -1172,6 +1202,54 @@ cmd_deploy_key() {
 }
 
 # Бот для заявок с сайта: токен вводится скрыто и хранится только в secrets.env.
+# Посредник Telegram за границей (deploy/relay/install.sh): адрес с секретным путём, например
+# https://tg.joy-rest.ru/<секрет>. Вводится скрыто — в нём секрет; на экран и в журнал не выводится.
+cmd_tg_relay() {
+  need_root tg-relay
+  local arg=${1:-} force=${2:-} base code
+  if [ "$arg" = force ]; then force=force; arg=""; fi
+  [ -z "$force" ] || [ "$force" = force ] || die "Аргументы: [off] [force]."
+  case "$arg" in
+    off)
+      ensure_no_game "$force" "tg-relay off"
+      set_env_value "$ROOT_DIR/secrets.env" TELEGRAM_API_BASE "" || die "Не удалось записать secrets.env."
+      log "Telegram: посредник выключен (напрямую)"
+      recreate_apps app-prod app-test
+      echo "✅ Telegram — снова напрямую (из России не работает)."
+      return 0 ;;
+    "") ;;
+    *) die "Адрес не пишите в команде (он попадёт в историю). Запустите: sudo joyrest tg-relay — адрес спросят скрыто." ;;
+  esac
+  [ -t 0 ] || die "Команда спрашивает адрес: запустите её в Терминале — sudo joyrest tg-relay"
+  ensure_no_game "$force" tg-relay
+
+  echo "Адрес посредника — его показал скрипт на сервере-посреднике (https://tg.joy-rest.ru/…)."
+  echo "При вставке символы не видны — это нормально."
+  read -rsp "Адрес посредника: " base
+  echo
+  base=$(clean_value "$base")
+  base=${base%/}
+  [[ "$base" =~ ^https://[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]{1,5})?(/[A-Za-z0-9_-]+)+$ ]] \
+    || die "Не похоже на адрес посредника (нужен вид https://tg.joy-rest.ru/секрет). Ничего не изменено."
+
+  echo "Проверяю посредника…"
+  # Неизвестный бот: Telegram отвечает 401/404 — значит, посредник пересылает запросы.
+  code=$(printf 'url = "%s/bot0:check/getMe"\n' "$base" | curl -s -o /dev/null -w '%{http_code}' --max-time 15 -K - 2>/dev/null || true)
+  case "$code" in
+    401|404) echo "✅ Посредник отвечает и пересылает запросы в Telegram." ;;
+    *) die "Посредник не ответил как надо (код ${code:-нет связи}). Проверьте адрес и DNS (tg.joy-rest.ru → адрес посредника). Ничего не изменено." ;;
+  esac
+
+  set_env_value "$ROOT_DIR/secrets.env" TELEGRAM_API_BASE "$base" || die "Не удалось записать secrets.env."
+  base=""
+  log "Telegram: адрес посредника обновлён (secrets.env)"
+  echo "Перезапускаю приложение…"
+  recreate_apps app-prod app-test
+  echo "✅ Готово. Telegram теперь работает через посредника."
+  grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null || echo "Дальше: sudo joyrest lead-bot — бот заявок и уведомлений."
+  grep -q '^NOTIFY_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null || echo "И: sudo joyrest notify-bot — служебный бот сервера."
+}
+
 cmd_lead_bot() {
   need_root lead-bot
   local force=${1:-} token chat answer
@@ -1403,12 +1481,12 @@ cmd_backup_setup() {
     [ "$(clean_value "$answer")" = да ] || die "Ничего не изменено."
   fi
 
-  echo "Данные бакета — в панели Beget: Облако → S3-хранилище → ваш бакет (RUNBOOK, «Резервные копии»)."
-  read -rp "Адрес хранилища (Enter — https://s3.ru1.storage.beget.cloud): " endpoint
+  echo "Данные бакета — в панели хранилища (не у того же провайдера, что сервер): адрес, имя бакета, ключи"
+  echo "(RUNBOOK, «Резервные копии»)."
+  read -rp "Адрес хранилища (например https://s3.ru-1.storage.selcloud.ru): " endpoint
   endpoint=$(clean_value "$endpoint")
-  endpoint=${endpoint:-https://s3.ru1.storage.beget.cloud}
   endpoint=${endpoint%/}
-  [[ "$endpoint" =~ ^https://[a-z0-9.-]+(:[0-9]+)?$ ]] || die "Адрес — вида https://s3.ru1.storage.beget.cloud. Ничего не изменено."
+  [[ "$endpoint" =~ ^https://[a-z0-9.-]+(:[0-9]+)?$ ]] || die "Адрес — вида https://s3.ru-1.storage.selcloud.ru. Ничего не изменено."
   read -rp "Имя бакета: " bucket
   bucket=$(clean_value "$bucket")
   [[ "$bucket" =~ ^[a-z0-9][a-z0-9.-]{1,62}$ ]] || die "Имя бакета — строчные латинские буквы, цифры, точка, дефис. Ничего не изменено."
@@ -1439,7 +1517,7 @@ cmd_backup_setup() {
     out=$(BACKUP_ENV=$tmp restic_run cat config 2>&1 >/dev/null) || die "Пароль не подошёл: $(short_reason "$out"). Ничего не изменено."
     echo "✅ Пароль подошёл, копии доступны."
   elif [[ "$out" == *"bucket does not exist"* ]]; then
-    die "Бакет $bucket не найден — проверьте имя в панели Beget. Ничего не изменено."
+    die "Бакет $bucket не найден — проверьте имя в панели хранилища. Ничего не изменено."
   elif [[ "$out" == *"does not exist"* || "$out" == *"no such file or directory"* ]]; then
     # Хранилища ещё нет (S3: «The specified key does not exist», локально — «no such file») —
     # создаём с новым паролем.
@@ -1740,6 +1818,7 @@ case "${1:-}" in
   site)          shift; cmd_site "$@" ;;
   site-password) cmd_site_password ;;
   lead-bot)      shift; cmd_lead_bot "$@" ;;
+  tg-relay)      shift; cmd_tg_relay "$@" ;;
   site-indexing) shift; cmd_site_indexing "$@" ;;
   venues)        shift; cmd_venues "$@" ;;
   backup)        cmd_backup ;;

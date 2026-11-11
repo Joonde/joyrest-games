@@ -4,8 +4,18 @@
 set -u
 export LC_NUMERIC=C
 
-SERVER_IP="217.114.13.92"
-DOMAINS="games.joy-rest.ru joy-rest.ru www.joy-rest.ru test.games.joy-rest.ru"
+# Публичный адрес сервера: можно задать заранее (SERVER_IP=1.2.3.4 bash …), иначе — спросим у
+# внешней службы, а без связи — адрес исходящего интерфейса (у облачных серверов он обычно публичный).
+detect_ip() {
+  local ip
+  ip=$(curl -4 -s --max-time 5 https://api.ipify.org 2>/dev/null || true)
+  if ! [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+    ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}')
+  fi
+  echo "$ip"
+}
+SERVER_IP="${SERVER_IP:-$(detect_ip)}"
+DOMAINS="games.joy-rest.ru joy-rest.ru www.joy-rest.ru test.games.joy-rest.ru test.joy-rest.ru lite-test.joy-rest.ru"
 critical_failed=0
 
 ok()   { printf '  ✅ %s — %s\n' "$1" "$2"; }
@@ -44,11 +54,13 @@ printf '  Диск /: свободно %s из %s\n' "$(df -h / | awk 'NR==2{pri
 [ "${VERSION_ID:-}" = "24.04" ] || warn "Версия Ubuntu" "ожидалась 24.04"
 
 echo
-echo "DNS (должны указывать на $SERVER_IP):"
+echo "Адрес этого сервера: ${SERVER_IP:-не определился}"
+echo "DNS (должны указывать на ${SERVER_IP:-адрес сервера}):"
 for domain in $DOMAINS; do
   addresses=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | sort -u | tr '\n' ' ')
   if echo " $addresses" | grep -q " $SERVER_IP "; then ok "$domain" "$SERVER_IP"
-  elif [ "$domain" = "test.games.joy-rest.ru" ]; then warn "$domain" "${addresses:-нет записи} (нужна для тестового окружения)"
+  elif [ "$domain" = "test.games.joy-rest.ru" ] || [ "$domain" = "test.joy-rest.ru" ] || [ "$domain" = "lite-test.joy-rest.ru" ]; then
+    warn "$domain" "${addresses:-нет записи} (нужна для тестового окружения)"
   else bad "$domain" "${addresses:-нет записи} (КРИТИЧНО)"; critical_failed=1
   fi
 done

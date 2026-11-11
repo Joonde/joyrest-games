@@ -41,7 +41,7 @@ interface Pricing {
   parseDate(iso: string): { y: number; m: number; d: number; t: number; wd: number } | null;
   telegramText(text: string): string;
   cleanName(n: unknown): string;
-  mailLinks(text: string): { gmail: string; yandex: string; mailru: string; app: string };
+  mailLinks(text: string, subject?: string): { gmail: string; yandex: string; mailru: string; app: string };
   ADDONS: { id: string; label: string; price: number; fixed: boolean }[];
   TIERS: number[];
   LEVELS: { id: string; discount: number }[];
@@ -606,5 +606,100 @@ describe("калькулятор сайта: праздничная цена", (
     }
     // Старые программы с «Выездом за Московскую область» читаются как «Выезд за город».
     expect(programFromCalc("Пакет: Квиз\nДопы: Выезд за Московскую область")?.addons).toEqual(["Выезд за город"]);
+  });
+});
+
+describe("готовые пакеты (решение владельца 7–8 ноября 2026)", () => {
+  interface Bundle { id: string; name: string; tag: string; time: string; price: number; sub: string; includes: string[]; calc: { pkg: string; extras: string[]; addons: string[] } }
+  const B = P as unknown as Pricing & {
+    BUNDLES: Bundle[];
+    BUNDLE_TIER: number;
+    bundleById(id: string): Bundle | null;
+    bundleCalcPrice(b: Bundle): number;
+    bundleMessage(id: string, name?: string): string;
+  };
+  const html = readFileSync(join(root, "site/index.html"), "utf8");
+  const nb = (s: string) => s.replace(/ /g, " ");
+  const rub = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₽";
+
+  it("пять пакетов; каждый дешевле той же сборки в калькуляторе (опытный, будни, до 25 гостей), цена кратна 100", () => {
+    expect(B.BUNDLES.map((b) => b.id)).toEqual(["joyrest", "nyshow", "nyquiz", "mix", "mafia"]);
+    expect(B.TIERS[B.BUNDLE_TIER]).toBe(25);
+    for (const b of B.BUNDLES) {
+      const calc = B.bundleCalcPrice(b);
+      // Независимо: пакет + добавленные игры по 50% + обычные допы → вверх до 100 → + призы.
+      const flex = PRICES[b.calc.pkg]![1]! + b.calc.extras.reduce((s, id) => s + Math.ceil(PRICES[id]![1]! * 0.5 / 100) * 100, 0)
+        + b.calc.addons.filter((a) => !FIXED.has(a)).reduce((s, a) => s + ADDONS[a]!, 0);
+      const fixed = b.calc.addons.filter((a) => FIXED.has(a)).reduce((s, a) => s + ADDONS[a]!, 0);
+      expect(calc, b.name).toBe(up(flex) + fixed);
+      expect(b.price % 100, b.name).toBe(0);
+      expect(calc - b.price, b.name).toBeGreaterThanOrEqual(1000);
+      expect(calc - b.price, b.name).toBeLessThanOrEqual(4500);
+      expect(b.includes.length, b.name).toBeGreaterThanOrEqual(3);
+    }
+    expect(B.bundleById("joyrest")?.price).toBe(29900);
+    expect(Math.max(...B.BUNDLES.map((b) => b.price))).toBeLessThan(30000);
+  });
+
+  it("карточки на странице — те же названия, цены, зачёркнутая цена калькулятора и выгода; кнопка «Выбрать пакет» у каждой", () => {
+    const cards = [...html.matchAll(/<article class="bundle[^"]*" data-bundle-card="(\w+)">([\s\S]*?)<\/article>/g)];
+    expect(cards.map((c) => c[1])).toEqual(B.BUNDLES.map((b) => b.id));
+    for (const [, id, body] of cards) {
+      const b = B.bundleById(id ?? "")!;
+      const text = nb(body ?? "");
+      const calc = B.bundleCalcPrice(b);
+      expect(text, b.name).toContain(`<h3 class="bundle__name">${b.name}</h3>`);
+      expect(text, b.name).toContain(`<b data-bundle-price>${rub(b.price)}</b>`);
+      expect(text, b.name).toContain(`<span class="vh">в калькуляторе </span>${rub(calc)}</s>`);
+      expect(text, b.name).toContain(`Выгода ${rub(calc - b.price)}`);
+      expect(text, b.name).toContain(`data-bundle="${b.id}">Выбрать пакет</a>`);
+      for (const line of b.includes) expect(text, line).toContain(`<span>${line}</span>`);
+    }
+    // Пакеты — в начале раздела «Пакеты и цены», над калькулятором; в заявке — свой вариант «Тип мероприятия».
+    expect(html.indexOf('id="packages"')).toBeGreaterThan(html.indexOf('<section id="calculator"'));
+    expect(html.indexOf('id="packages"')).toBeLessThan(html.indexOf('id="calcPacks"'));
+    for (const b of B.BUNDLES) expect(html).toContain(`<option>Готовый пакет «${b.name}»</option>`);
+    expect(nb(html)).toContain("Цены — с опытным ведущим, в будни, до 25 гостей.");
+    expect(nb(html)).toContain("с 5 декабря и перед праздниками — праздничная цена");
+    // Скрытая подпись «в калькуляторе» не должна растягивать страницу: карточки и лента — точка отсчёта.
+    const css = readFileSync(join(root, "site/css/style.css"), "utf8");
+    expect(css).toMatch(/\.bundles\{ position: relative;/);
+    expect(css).toMatch(/\.bundle\{ position: relative;/);
+  });
+
+  it("сообщение менеджеру о пакете: состав, цена, условия; имя — только очищенное", () => {
+    const text = nb(B.bundleMessage("mix", "Анна<script>"));
+    expect(text.split("\n")[0]).toBe("🎁 Готовый пакет JoyRest");
+    expect(text).toContain("Имя: Анна");
+    expect(text).not.toContain("<");
+    expect(text).toContain("Пакет: Всего понемногу");
+    expect(text).toContain("Гостей: до 25");
+    expect(text).toContain("Цена: 24 900 ₽ — опытный ведущий, будни");
+    expect(text).toContain("Программа: Музыкальный\nДопы: Танцевальная пауза\nДлительность: ≈ 1,5–2 часа");
+    expect(text).toContain("выходные и праздничные дни — по правилам калькулятора");
+    // Студия разбирает сообщение пакета («Заполнить из сообщения», «Вставить расчёт», бот): даты клиент не называл — её нет.
+    for (const b of B.BUNDLES) {
+      for (const today of ["2026-11-08", "2027-01-10", "2027-06-01"]) {
+        const fill = parseLeadText(B.bundleMessage(b.id, "Анна"), today);
+        expect(fill.day, `${b.name} ${today}`).toBeUndefined();
+        expect(fill.clientName, b.name).toBe("Анна");
+      }
+    }
+    expect(nb(B.bundleMessage("joyrest"))).toContain("Программа: Квиз → Игровой вечер\nДопы: нет\nДлительность: ≈ 2,5–3 часа");
+    // Тема письма у пакета — своя, у расчёта — прежняя.
+    expect(decodeURIComponent(P.mailLinks("x", "Готовый пакет JoyRest").gmail)).toContain("su=Готовый пакет JoyRest");
+    expect(decodeURIComponent(P.mailLinks("x").gmail)).toContain("su=Расчёт JoyRest");
+    expect(text).toContain("праздничные дни — по правилам калькулятора");
+    expect(B.bundleMessage("mix")).not.toContain("Имя:");
+    expect(B.bundleMessage("nope")).toBe("");
+  });
+
+  it("«Как проходят наши вечера»: 6 фото целиком (img/moment-*.webp), подписи и формат у каждого", () => {
+    const thumbs = [...html.matchAll(/<button type="button" class="moments__thumb[^"]*" data-moment="(\d)" data-tag="([^"]+)" data-cap="([^"]+)" data-alt="([^"]+)"[^>]*><img src="(img\/moment-[a-z]+\.webp)" alt=""/g)];
+    expect(thumbs).toHaveLength(6);
+    for (const t of thumbs) expect(readFileSync(join(root, "site", t[5] ?? "")).length).toBeGreaterThan(1000);
+    expect(html).toContain('id="momentImg" src="img/moment-mafia.webp"');
+    // Свадьбы на сайте — «скоро / на заказ»: подпись фото это не нарушает.
+    expect(html).toContain('data-tag="Свадьбы — на заказ"');
   });
 });

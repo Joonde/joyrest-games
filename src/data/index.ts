@@ -33,6 +33,7 @@ export {
   teamRepo,
   screenRepo,
   resultsRepo,
+  roomsRepo,
   sessionsRepo,
   usersRepo,
   venuesRepo,

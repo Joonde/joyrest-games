@@ -33,6 +33,7 @@ import type { AgencyEvent, TelegramStatus } from "../../src/data/types";
 import { actorOf, apiGuard, sessionUser } from "./auth";
 import { upsertClient } from "./clients";
 import { dropBusinessOf } from "./telegramAccess";
+import { telegramBotUrl } from "./telegramApi";
 
 const CODE_TTL_MS = 30 * 60_000;
 const POLL_TIMEOUT_S = 25;
@@ -153,9 +154,9 @@ interface TgBusinessConnection {
   is_enabled: boolean;
 }
 
-/** Сообщение — расчёт с сайта JoyRest (калькулятор, витрина, /calc/). */
+/** Сообщение — расчёт с сайта JoyRest (калькулятор, витрина, /calc/) или готовый пакет с сайта («🎁 Готовый пакет JoyRest»). */
 export function isCalcMessage(text: string): boolean {
-  return /Расч[её]т\s+JoyRest/i.test(text);
+  return /Расч[её]т\s+JoyRest|Готовый\s+пакет\s+JoyRest/i.test(text);
 }
 
 /** Откуда новая заявка: с сайта, вопрос с сайта, запрос по QR-анкете. */
@@ -180,7 +181,7 @@ export function startBot(options: BotOptions): Bot {
   const { sql, token, log, platformUrl } = options;
   const f = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
-  const base = `https://api.telegram.org/bot${token}`;
+  const base = telegramBotUrl(token);
   let stopped = false;
   let me: string | null = null;
   let lastPollAt: number | null = null;

@@ -8,6 +8,7 @@ import { startBot, telegramPolling, type BotLog } from "./telegram";
 import { isOn, siteMode } from "./site";
 import { venueFormsOpen } from "./venues";
 import { parseEdition } from "./edition";
+import { roomCheckEnabled } from "./rooms/registry";
 
 const port = Number(process.env.PORT ?? 8080);
 const databaseUrl = process.env.DATABASE_URL;
@@ -83,6 +84,8 @@ const app = buildApp({
   mediaDir,
   // Анкеты площадок и заявки клиентов без входа — только явным VENUE_FORMS=on (sudo joyrest venues on).
   venues: { formsOpen: venueFormsOpen(process.env.VENUE_FORMS, siteHosts) },
+  // Проверочная игра быстрого канала (тесты и нагрузка) — только на тестовой версии (ROOM_CHECK=on или адреса test.*).
+  rooms: { check: roomCheckEnabled(process.env.ROOM_CHECK, siteHosts) },
   checkDatabase: async () => {
     if (!sql) return false;
     await sql`select 1`;

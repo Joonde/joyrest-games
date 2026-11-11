@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { cleanProgram, programFromCalc, programLines, PROGRAM_ADDONS, PROGRAM_FORMATS, sameProgram } from "../../src/core/eventProgram";
 import { noticeText, overtimeNoticeText } from "../../src/core/events";
 import { EXTENSION_PRICES, overtimeOf } from "../../src/core/overtime";
+import { isCalcMessage } from "./telegram";
 
 /**
  * Программа мероприятия (решение владельца 22 октября 2026): расчёт клиента с сайта — в форматы, продление и допы
@@ -17,6 +18,8 @@ interface Pricing {
   EXTENSIONS: { price: number }[];
   calcMessage(opts: object, level: string): string;
   calcSummary(opts: object): { text: string };
+  BUNDLES: { id: string; name: string }[];
+  bundleMessage(id: string, name?: string): string;
 }
 const root = resolve(import.meta.dirname, "../..");
 const sandbox: { JoyPricing?: Pricing } = {};
@@ -57,6 +60,25 @@ describe("программа мероприятия из расчёта клие
       }
     }
     expect(programFromCalc("Привет, хотим праздник")).toBeNull();
+  });
+
+  it("готовый пакет с сайта: программа — из строк «Программа», «Допы», «Длительность», не из «Что входит»", () => {
+    const want: Record<string, { formats: string[]; addons: string[]; duration: string }> = {
+      joyrest: { formats: ["Квиз", "Игровой вечер"], addons: [], duration: "≈ 2,5–3 часа" },
+      nyshow: { formats: ["Шоу-вечер"], addons: ["Призы и медали"], duration: "≈ 1,5–2 часа" },
+      nyquiz: { formats: ["Квиз"], addons: ["Призы и медали"], duration: "≈ 1,5–2 часа" },
+      mix: { formats: ["Музыкальный"], addons: ["Танцевальная пауза"], duration: "≈ 1,5–2 часа" },
+      mafia: { formats: ["Игровой вечер"], addons: ["Призы и медали"], duration: "≈ 1,5–2 часа" },
+    };
+    expect(P.BUNDLES.map((b) => b.id)).toEqual(Object.keys(want));
+    for (const b of P.BUNDLES) {
+      const text = P.bundleMessage(b.id, "Анна");
+      expect(programFromCalc(text), b.name).toMatchObject(want[b.id] ?? {});
+      // В Telegram для бизнеса такое сообщение — тоже заявка с сайта: клиент попадает в «Клиенты».
+      expect(isCalcMessage(text), b.name).toBe(true);
+    }
+    expect(isCalcMessage("🧮 Расчёт JoyRest\nПакет: Квиз")).toBe(true);
+    expect(isCalcMessage("Здравствуйте, сколько стоит квиз?")).toBe(false);
   });
 
   it("сервер принимает только известное; пустое — null", () => {

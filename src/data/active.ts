@@ -29,6 +29,7 @@ import type {
   PollsRepository,
   StaffRepository,
   ResultsRepository,
+  RoomsRepository,
   SessionsRepository,
   UsersRepository,
   VenuesRepository,
@@ -42,6 +43,7 @@ import { gamesRepository } from "./games";
 import { mediaRepository } from "./media";
 import { participantsRepository } from "./participants";
 import { resultsRepository } from "./results";
+import { firebaseRoomsRepository } from "./rooms";
 import { serverAuthService } from "./server/auth";
 import { serverCalendarRepository } from "./server/calendar";
 import { serverEventsRepository } from "./server/events";
@@ -67,6 +69,7 @@ import { serverDecksRepository } from "./server/decks";
 import { serverDrawingsRepository } from "./server/drawings";
 import { serverPollsRepository } from "./server/polls";
 import { serverResultsRepository } from "./server/results";
+import { serverRoomsRepository } from "./server/rooms";
 import { serverSessionsRepository } from "./server/sessions";
 import { serverUsersRepository } from "./server/users";
 import { serverVenuesRepository } from "./server/venues";
@@ -90,6 +93,8 @@ export const participantsRepo: ParticipantsRepository = server ? serverParticipa
 export const answersRepo: AnswersRepository = server ? serverAnswersRepository : answersRepository;
 export const resultsRepo: ResultsRepository = server ? serverResultsRepository : resultsRepository;
 export const clock: ClockService = server ? serverClock : firestoreClock;
+/** Быстрый канал (игровые комнаты) — только свой сервер; у Firebase — `unimplemented`. */
+export const roomsRepo: RoomsRepository = server ? serverRoomsRepository : firebaseRoomsRepository;
 
 /** Предложения в библиотеку — только на своём сервере. */
 export const proposalsRepo: ProposalsRepository | null = agency ? serverProposalsRepository : null;

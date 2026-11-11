@@ -1,81 +1,39 @@
 {
  "runs": [
   {
-   "name": "stage-0-teams-laptop",
-   "views": 46,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-0-teams-projector",
+   "name": "hundred-0-solo-tv",
    "views": 58,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-1-teams-tv",
-   "views": 58,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-0-teams-tv",
-   "views": 58,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-1-teams-projector",
-   "views": 58,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "stage-1-teams-laptop",
-   "views": 46,
    "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-0-teams-projector",
    "views": 80,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-0-teams-tv",
    "views": 80,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-0-solo-tv",
-   "views": 58,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-0-solo-projector",
-   "views": 58,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-0-teams-laptop",
    "views": 72,
-   "findings": 1,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-solo-projector",
+   "views": 58,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-0-solo-laptop",
    "views": 60,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-teams-tv",
-   "views": 80,
-   "findings": 2,
+   "findings": 0,
    "finished": true
   },
   {
@@ -85,63 +43,69 @@
    "finished": true
   },
   {
+   "name": "hundred-1-teams-tv",
+   "views": 80,
+   "findings": 1,
+   "finished": true
+  },
+  {
    "name": "hundred-1-solo-tv",
    "views": 58,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-1-teams-laptop",
    "views": 72,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-1-solo-projector",
    "views": 58,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-1-solo-laptop",
    "views": 60,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-2-teams-tv",
-   "views": 80,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-2-teams-projector",
    "views": 80,
-   "findings": 1,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-teams-tv",
+   "views": 80,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-2-solo-tv",
    "views": 58,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-2-teams-laptop",
    "views": 72,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-2-solo-projector",
    "views": 58,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-2-solo-laptop",
    "views": 60,
-   "findings": 1,
+   "findings": 0,
    "finished": true
   },
   {
@@ -163,119 +127,73 @@
    "finished": true
   },
   {
-   "name": "hundred-3-teams-laptop",
-   "views": 40,
-   "findings": 1,
-   "finished": true
-  },
-  {
    "name": "hundred-3-solo-projector",
    "views": 40,
    "findings": 0,
    "finished": true
   },
   {
-   "name": "dragon-0-teams-projector",
-   "views": 26,
+   "name": "hundred-3-teams-laptop",
+   "views": 40,
    "findings": 0,
    "finished": true
   },
   {
-   "name": "dragon-0-teams-tv",
-   "views": 26,
+   "name": "wine-0-solo-tv",
+   "views": 16,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-solo-projector",
+   "views": 16,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-solo-laptop",
+   "views": 10,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-teams-projector",
+   "views": 14,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-teams-tv",
+   "views": 14,
    "findings": 0,
    "finished": true
   },
   {
    "name": "hundred-3-solo-laptop",
    "views": 32,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "dragon-1-teams-projector",
-   "views": 32,
    "findings": 0,
    "finished": true
   },
   {
-   "name": "dragon-1-teams-tv",
-   "views": 34,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-0-teams-laptop",
-   "views": 35,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-1-teams-laptop",
-   "views": 42,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "mafia-0-solo-tv",
-   "views": 92,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "mafia-0-solo-projector",
-   "views": 95,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "mafia-0-solo-laptop",
-   "views": 88,
+   "name": "wine-0-teams-laptop",
+   "views": 20,
    "findings": 0,
    "finished": true
   }
  ],
  "findings": [
   {
-   "key": "экран зала|обрезан текст|div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text|",
+   "key": "экран зала|надписи наезжают|div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text|",
    "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 4 px (span.hd-row__text)",
+   "kind": "надписи наезжают",
+   "message": "«За пунктуальность» и «За инициативу» друг на друге",
    "path": "div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text",
-   "text": "Букет невесты",
-   "at": "playing/3/reveal/play",
-   "count": 180,
-   "shot": "shots/hundred-0-teams-tv-hall-1.jpg",
+   "text": "За пунктуальность | За инициативу",
+   "at": "playing/5/reveal/done",
+   "count": 1,
+   "shot": "shots/hundred-1-teams-projector-hall-1.jpg",
    "where": [
-    "hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 1-й шаблон, команды ×4, телевизор full hd",
-    "hundred 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, команды ×4, телевизор full hd",
-    "hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×4, телевизор full hd",
-    "hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "hundred"
-   ]
-  },
-  {
-   "key": "пульт|бледный текст|li > button.hd-host__row > span.hd-host__text > strong|",
-   "area": "пульт",
-   "kind": "бледный текст",
-   "message": "контраст 1.07 (нужно от 4.5)",
-   "path": "li > button.hd-host__row > span.hd-host__text > strong",
-   "text": "Начальник",
-   "at": "playing/3/reveal/play",
-   "count": 3,
-   "shot": "shots/hundred-1-teams-tv-phones-1.jpg",
-   "where": [
-    "hundred 2-й шаблон, команды ×4, телевизор full hd"
+    "hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
     "hundred"
@@ -293,6 +211,23 @@
    "shot": "shots/hundred-1-teams-projector-phones-1.jpg",
    "where": [
     "hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|li > button.hd-host__row > span.hd-host__text > strong|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 1.07 (нужно от 4.5)",
+   "path": "li > button.hd-host__row > span.hd-host__text > strong",
+   "text": "Начальник",
+   "at": "playing/3/reveal/play",
+   "count": 3,
+   "shot": "shots/hundred-1-teams-tv-phones-1.jpg",
+   "where": [
+    "hundred 2-й шаблон, команды ×4, телевизор full hd"
    ],
    "games": [
     "hundred"

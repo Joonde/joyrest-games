@@ -407,9 +407,9 @@ export function startBot(options: BotOptions): Bot {
       }
       // Ведущий не принял за сутки после записи, а до начала ещё больше суток (12 ноября 2026): тому, кто ведёт заявку,
       // — колокольчик, ведущему — повтор в Telegram с кнопкой. Один раз на версию программы.
-      const quiet = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null; host_id: string; created_by: string | null; program: unknown }[]>`
+      const quiet = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null; host_id: string; created_by: string | null; program: unknown; price: number | null; prepaid_at: Date | null }[]>`
         select e.id, e.accept_rev, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name,
-          e.host_id, e.created_by, e.program
+          e.host_id, e.created_by, e.program, e.price, e.prepaid_at
         from events e left join users u on u.id = e.host_id
         where e.cancelled_at is null and e.accepted_at is null and e.declined_at is null and e.accept_rev > 0
           and e.starts_at > now() + interval '24 hours' and e.updated_at < now() - interval '24 hours'`;
@@ -418,7 +418,7 @@ export function startBot(options: BotOptions): Bot {
           on conflict do nothing returning 1`;
         if (fresh.length === 0) continue;
         await bellAll([r.created_by], "unaccepted", r, r.host_id, r.host_name);
-        const e: NoticeEvent = { id: r.id, title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min, program: cleanProgram(r.program), acceptRev: r.accept_rev };
+        const e: NoticeEvent = { id: r.id, title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min, program: cleanProgram(r.program), acceptRev: r.accept_rev, ...(r.price != null ? { price: r.price } : {}), ...(r.prepaid_at ? { prepaidAt: r.prepaid_at.getTime() } : {}) };
         const text = `⏳ Вы ещё не подтвердили мероприятие\n\n${noticeText("changed", e, platformUrl, now(), r.starts_at.getTime()).split("\n\n").slice(1).join("\n\n")}`;
         await sendAsk(r.host_id, text, e);
       }
@@ -426,7 +426,8 @@ export function startBot(options: BotOptions): Bot {
       const soon = await sql<{ id: string; title: string; day: string; start_min: number; end_min: number; starts_at: Date; created_by: string | null; place: string; called: boolean }[]>`
         select e.id, e.title, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, e.created_by, e.place, (e.called_at is not null) as called
         from events e join users o on o.id = e.created_by and o.active
-        where e.cancelled_at is null and e.starts_at > now() and e.starts_at <= now() + interval '72 hours'`;
+        where e.cancelled_at is null and e.starts_at > now() and e.starts_at <= now() + interval '72 hours'
+          and e.created_at < now() - interval '1 hour'`;
       for (const r of soon) {
         // Уже созвонились («Созвонились с клиентом») — напоминать о созвоне не нужно.
         const kinds: Array<"call" | "noplace"> = [...(r.called ? [] : (["call"] as const)), ...(r.place.trim() === "" || r.place === PLACE_TBD ? (["noplace"] as const) : [])];

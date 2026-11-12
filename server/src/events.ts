@@ -651,7 +651,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const before = await one(id);
       if (!before) return fail(reply, 404, "not-found");
       if (before.ownerId !== user.id) {
-        await sql`update events set created_by = ${user.id}, updated_at = now() where id = ${id}`;
+        const moved = await sql`update events set created_by = ${user.id}, updated_at = now() where id = ${id} and created_by is distinct from ${user.id} returning 1`;
+        if (moved.length === 0) return (await one(id)) ?? before;
         request.log.info({ events: "take" }, "events");
         await logEvent(sql, id, user.name, `Забрал(а) себе${before.ownerName ? ` у ${before.ownerName}` : ""}`);
         const event = (await one(id)) ?? before;
@@ -676,7 +677,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (before.cancelled || !span || span.to <= now()) return fail(reply, 409, "failed-precondition");
       const raw = (request.body as Record<string, unknown> | null)?.reason;
       const reason = typeof raw === "string" ? raw.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300) : "";
-      const marked = await sql`update events set declined_at = ${new Date(now())}, declined_reason = ${reason}, accepted_at = null, updated_at = now()
+      const marked = await sql`update events set declined_at = ${new Date(now())}, declined_reason = ${reason}, accepted_at = null, accept_rev = accept_rev + 1, updated_at = now()
         where id = ${id} and declined_at is null and cancelled_at is null returning 1`;
       const event = (await one(id)) ?? before;
       request.log.info({ events: "decline" }, "events");
@@ -818,7 +819,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!permissions.canMarkEventHeld(actorOf(user), { hostId: row.host_id })) return fail(reply, 403, "permission-denied");
       if (!row.started || row.cancelled) return fail(reply, 409, "failed-precondition");
       await sql`update events set held = ${held}, held_at = ${held === null ? null : new Date(now())}, held_by = ${held === null ? null : user.id}, updated_at = now()
-        ${held === true ? sql`` : sql`, rest_paid = '', rest_amount = null`}
+        ${held === true ? sql`` : sql`, rest_paid = '', rest_amount = null, review = '', overtime_paid = null`}
         where id = ${id}`;
       request.log.info({ events: "held", held }, "events");
       if (row.held !== held) await logEvent(sql, id, user.name, held === true ? "Проведено" : held === false ? "Не состоялось" : "Снял(а) отметку «Проведено»");

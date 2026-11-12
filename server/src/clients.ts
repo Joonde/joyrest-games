@@ -294,10 +294,11 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     await t`insert into client_contacts (id, client_id, source, summary, ref)
       values (${newId("c")}, ${id}, ${input.source}, ${summary}, ${input.ref ?? null})
       on conflict do nothing`;
+    // Мероприятие записано — клиент за тем, кто записал, если его никто не ведёт (и у только что созданного).
+    if (input.promote && by.id) await claimClient(t, id, by.id);
     if (created) return id;
     const [now] = await t<{ status: string }[]>`select status from clients where id = ${id}`;
     const current: ClientStatus = now && isClientStatus(now.status) ? now.status : "new";
-    if (input.promote && by.id) await claimClient(t, id, by.id);
     if (input.promote) {
       // Мероприятие записано — «Клиент». Новое мероприятие — и из «Провели» (снова праздник); правка уже учтённого —
       // статус, который поставили люди («Провели», «Отказ»), не трогаем.
@@ -693,8 +694,9 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       if (!ID.test(id)) return fail(reply, 404, "not-found");
       const result = await sql.begin(async (tx) => {
         const t = tx as unknown as Sql;
-        const [row] = await t<{ owner_id: string | null }[]>`select owner_id from clients where id = ${id} for update`;
+        const [row] = await t<{ owner_id: string | null; archived: boolean }[]>`select owner_id, (archived_at is not null) as archived from clients where id = ${id} for update`;
         if (!row) return null;
+        if (row.archived) return "archived" as const;
         if (row.owner_id === user.id) return { prev: null, events: 0 };
         await t`update clients set owner_id = ${user.id}, updated_at = now() where id = ${id}`;
         const moved = await t`update events set created_by = ${user.id}, updated_at = now()
@@ -708,6 +710,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         return { prev: row.owner_id, events: moved.length };
       });
       if (!result) return fail(reply, 404, "not-found");
+      if (result === "archived") return reply.code(409).send({ error: "failed-precondition", reason: "archived" });
       if (result.prev) {
         await recordStaffNotice(sql, {
           userId: result.prev,

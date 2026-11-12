@@ -2,7 +2,6 @@
  * «Бубликатор» в игровой комнате быстрого канала (docs/bublikator.md). Правила — чистые функции
  * `src/mechanics/bublikator/rules/` (их же возьмут экраны); здесь только переходник к `RoomGame`: контекст комнаты — это
  * `Env` правил (время сервера, кто на связи, случайность из зерна, личные события, контрольные точки).
- * Пока экранов нет, игра есть только на тестовой версии (как `room-check`, `registry.ts`).
  */
 import { BATCH_MS, BUBLIKATOR, MOVES_PER_SECOND, OFFLINE_MS, TAPS_PER_SECOND } from "../../../src/mechanics/bublikator/rules/constants";
 import { command, createState, input, join, moment, pause, restore, resume, snapshot, tick, type InEvent } from "../../../src/mechanics/bublikator/rules/game";

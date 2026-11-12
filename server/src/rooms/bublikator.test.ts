@@ -116,9 +116,11 @@ describe("«Бубликатор» в игровой комнате", () => {
     for (let i = 1; i < busy.length; i += 1) expect((busy[i] ?? 0) - (busy[i - 1] ?? 0)).toBeGreaterThanOrEqual(200);
     expect(Math.max(...busy.slice(1).map((a, i) => a - (busy[i] ?? 0)))).toBeLessThanOrEqual(1000);
   });
-  it("пока экранов нет — только на тестовой версии: на основной комнаты нет", () => {
-    expect(roomGames().has("bublikator")).toBe(false);
+  it("экраны и пульт готовы (Блок 2d) — игра есть и на основной версии, и на тестовой", () => {
+    expect(roomGames().has("bublikator")).toBe(true);
     expect(roomGames({ check: true }).has("bublikator")).toBe(true);
+    // Проверочная игра — по-прежнему только на тестовой.
+    expect(roomGames().has("room-check")).toBe(false);
     expect(bublikator.offlineMs).toBe(4000);
     expect(bublikator.batchMs(10)).toBe(2000);
     expect(bublikator.batchMs(300)).toBe(2000);

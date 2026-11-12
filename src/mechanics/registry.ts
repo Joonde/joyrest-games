@@ -232,7 +232,8 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   { mechanic: story.id, title: "Давайте знакомиться", hint: "5 разделов на знакомство: истории гостей, смешные предложения со словами с бумажек, «что было дальше», две правды и ложь, 8 вопросов «кто это сказал».", content: createStory(), playMode: "teams" },
   { mechanic: aquarium.id, title: "Аквариум", hint: "Перерыв с раскраской: гости раскрашивают рыбок на телефонах — те приплывают в 3D-аквариум на экране. Крабы, ракушки, корм.", content: aquarium.create(), playMode: "solo" },
   { mechanic: aquarium.id, title: "Ёлка", hint: "Перерыв с раскраской: гости раскрашивают ёлочные игрушки — те повисают на ёлке. Куранты с отсчётом до Нового года, Дед Мороз на санях.", content: { ...aquarium.create(), scene: "tree" }, playMode: "solo" },
-  { mechanic: bublikator.id, title: "Бубликатор", hint: "Экипажи кораблей кричат друг другу приказы: 3 перелёта по 4 минуты, события, тайный диверсант по желанию. Только команды и экран зала.", content: { ...bublikator.create(), saboteur: true }, playMode: "teams", ageRating: "12+" },
+  { mechanic: bublikator.id, title: bublikator.title, hint: "Экипажи кораблей кричат друг другу приказы: 3 перелёта по 4 минуты, события, тайный диверсант. Только команды и экран зала.", content: { ...bublikator.create(), saboteur: true }, playMode: "teams", ageRating: "12+" },
+  { mechanic: bublikator.id, title: `${bublikator.title}: для детей`, hint: "Детская сложность: приборы — картинки (лягушка, банан, ракета), всегда 3 прибора, без диверсанта, 2 перелёта по 3 минуты.", content: { ...bublikator.create(), difficulty: "kids", legs: 2, legMinutes: 3 }, playMode: "teams", ageRating: "0+" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
 

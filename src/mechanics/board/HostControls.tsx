@@ -137,19 +137,20 @@ export function BoardHostControls({ session, content, answers, participants, con
   }, [drawSlideNow?.id]);
 
   // «Кот в мешке»: выбор того, кто выбирал клетку, сразу на экран (ведущий может поправить).
-  // Выбор телефона пишется один раз: ведущий, поправивший отвечающего, не перезаписывается тем же выбором
-  // телефона (паспорт, С-Н-2). Новый выбор телефона — снова на экран.
+  // Выбор телефона пишется один раз (`catGiven` в итогах шага — видят все пульты, переживает перезагрузку): ведущий,
+  // поправивший отвечающего, не перезаписывается тем же выбором телефона (паспорт, С-Н-2). Запись не прошла — повтор при
+  // следующем `busy`. Новый выбор телефона — снова на экран.
   const catGive = stage === "question" && result.mode === "bet" ? catGiveOf(session, answers) : null;
-  const catApplied = useRef("");
   useEffect(() => {
-    const key = catGive ? `${step}:${session.state.startedAt ?? 0}:${catGive}` : "";
-    if (!catGive || busy || key === catApplied.current) return;
-    catApplied.current = key;
-    if (catGive === result.catTo) return;
-    const price = result.catPrice > 0 ? result.catPrice : (cell?.points ?? 0);
-    void quiet((cur) => setCat(cur, catGive, price));
+    if (!catGive || busy || catGive === result.catGiven) return;
+    void quiet((cur) => {
+      const r = parseBoardResult(cur.state.result);
+      if (r.catGiven === catGive) return null;
+      const price = r.catPrice > 0 ? r.catPrice : (cell?.points ?? 0);
+      return setCat(cur, catGive, price, catGive);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- новый выбор игрока
-  }, [catGive, busy]);
+  }, [catGive, busy, result.catGiven]);
 
   // «Аукцион»: экран показывает, сколько ставок сделано, — пульт пишет счётчик не чаще раза в 2 секунды.
   const betCount = stage === "question" && result.mode === "auction" ? Object.keys(collectBets(answers, step)).length : -1;
@@ -295,7 +296,7 @@ export function BoardHostControls({ session, content, answers, participants, con
     return (
       <div className="stack host-quiz board-host">
         {header}
-        <p className="muted small">Аукцион: гости ставят очки на телефонах. Больше всех — отвечает один; у нескольких одинаково больше всех — жребий монеткой на экране. Верно — плюс ставка, неверно — минус. Ставок нет — отвечает выбиравший клетку.</p>
+        <p className="muted small">Аукцион: гости ставят очки на телефонах. Больше всех — отвечает один; у нескольких одинаково больше всех — жребий монеткой на экране. Верно — плюс ставка, неверно — минус. Ставок нет — отвечает выбиравший клетку; клетку никто не выбирал — вопрос всем кнопкой «кто первый» за её стоимость.</p>
         <div className="host-quiz__live" aria-live="polite">
           <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
             {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}

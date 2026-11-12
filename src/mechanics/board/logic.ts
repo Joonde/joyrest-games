@@ -66,6 +66,8 @@ export interface BoardResult {
   /** «Кот в мешке»: кому ведущий отдал вопрос (отвечает только он, увернуться нельзя) и его цена. */
   catTo: string | null;
   catPrice: number;
+  /** «Кот в мешке»: выбор телефона выбиравшего, уже записанный на экран (ведущий мог поправить `catTo`; С-Н-2). */
+  catGiven: string | null;
   /** Текущий раунд (1–3). */
   round: number;
   /**
@@ -122,7 +124,7 @@ function parsePrev(value: unknown): PrevPlay | null {
     pickerBefore: typeof d.pickerBefore === "string" && ID.test(d.pickerBefore) ? d.pickerBefore : null,
     openStep: typeof d.openStep === "number" && Number.isInteger(d.openStep) && d.openStep >= 0 ? d.openStep : null,
     catTo: typeof d.catTo === "string" && ID.test(d.catTo) ? d.catTo : null,
-    catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(CAT_MAX, Math.max(0, Math.round(d.catPrice))) : 0,
+    catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(MAX_SCORE_DELTA, Math.max(0, Math.round(d.catPrice))) : 0,
     auctionTie: strings(d.auctionTie),
     imageShown: d.imageShown === true,
   };
@@ -146,7 +148,9 @@ export function parseBoardResult(raw: unknown): BoardResult {
     armed: d.armed === true,
     openStep: typeof d.openStep === "number" && Number.isInteger(d.openStep) && d.openStep >= 0 ? d.openStep : null,
     catTo: typeof d.catTo === "string" && ID.test(d.catTo) ? d.catTo : null,
-    catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(CAT_MAX, Math.max(1, Math.round(d.catPrice))) : 0,
+    // Цена — до лимита прибавки: у аукциона это ставка, она может быть больше цены кота (`setCat` режет до `CAT_MAX`).
+    catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(MAX_SCORE_DELTA, Math.max(1, Math.round(d.catPrice))) : 0,
+    catGiven: typeof d.catGiven === "string" && ID.test(d.catGiven) ? d.catGiven : null,
     round: typeof d.round === "number" && Number.isInteger(d.round) && d.round >= 1 && d.round <= 3 ? d.round : 1,
     pausedAt: typeof d.pausedAt === "number" && Number.isFinite(d.pausedAt) && d.pausedAt > 0 ? d.pausedAt : null,
     speakSince: typeof d.speakSince === "number" && Number.isFinite(d.speakSince) && d.speakSince > 0 ? d.speakSince : null,
@@ -254,7 +258,7 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
   const auction = found.cell.kind === "auction";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] };
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catGiven: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] };
   return {
     state: {
       stage: "question",
@@ -294,11 +298,11 @@ export function catGiveOf(session: Session, answers: Answer[]): string | null {
   return null;
 }
 
-/** «Кот в мешке»: кому отдан вопрос и его цена (ведущий может поправить выбор игрока). */
-export function setCat(session: Session, to: string | null, price: number): SessionChange {
+/** «Кот в мешке»: кому отдан вопрос и его цена (ведущий может поправить выбор игрока); `given` — записан выбор телефона. */
+export function setCat(session: Session, to: string | null, price: number, given?: string): SessionChange {
   const result = parseBoardResult(session.state.result);
   const catPrice = Math.min(CAT_MAX, Math.max(1, Math.round(Number.isFinite(price) ? price : 1)));
-  return { state: { result: write({ ...result, catTo: to, catPrice }) } };
+  return { state: { result: write({ ...result, catTo: to, catPrice, ...(given !== undefined ? { catGiven: given } : {}) }) } };
 }
 
 /**
@@ -528,7 +532,7 @@ export function boardWrong(session: Session, content: BoardContent, now?: number
   const fine = content.penalty && found && found.cell.kind !== "cat" ? found.cell.points : 0;
   const buzz = buzzWrong(result.buzz);
   // Слово следующему из очереди — у него свой отсчёт на ответ с этой минуты.
-  const next: BoardResult = { ...result, buzz, fines: fine > 0 ? { ...result.fines, [who]: fine } : result.fines, speakSince: buzz.current && !result.catStep && now !== undefined ? now : null };
+  const next: BoardResult = { ...result, buzz, fines: fine > 0 ? { ...result.fines, [who]: fine } : result.fines, speakSince: buzz.current && !result.catStep && !result.noAuto && now !== undefined ? now : null };
   const state: SessionChange["state"] = {};
   const { startedAt, timeLimit } = session.state;
   if (!buzz.current && now !== undefined && typeof startedAt === "number" && timeLimit !== null) {
@@ -595,7 +599,7 @@ export function toBoard(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }),
+      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catGiven: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }),
     },
   };
 }
@@ -642,7 +646,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     // Все шаги клетки (ставки, вопрос, отсчёт) убираются — назад к полю на шаг, где клетку открыли.
     const back = result.openStep !== null && result.openStep <= step ? result.openStep : result.catStep ? step - 1 : step;
     const change: SessionChange = {
-      state: { ...(session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? { slide: null } : {}), step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }) },
+      state: { ...(session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? { slide: null } : {}), step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catGiven: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }) },
     };
     if (Object.keys(refund).length > 0) change.addScore = refund;
     return { change, clear: Array.from({ length: step - back + 1 }, (_, i) => back + i) };

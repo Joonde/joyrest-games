@@ -367,6 +367,21 @@ describe("Ставка на знания: ход", () => {
     expect(parseBoardResult(s.state.result)).toMatchObject({ catTo: "p2", catPrice: 300 });
     expect(s.leaderboard.p2?.score).toBe(0);
   });
+
+  it("выбор кота телефоном отмечен в итогах (видят все пульты); правка ведущего остаётся (С-Н-2); ставка аукциона больше 5000 видна целиком", () => {
+    const c = content();
+    let s = session();
+    s = apply(s, openCell(s, c, "b1"));
+    s = apply(s, setCat(s, "p2", 100, "p2"));
+    s = apply(s, setCat(s, "p3", 100));
+    expect(parseBoardResult(s.state.result)).toMatchObject({ catTo: "p3", catGiven: "p2" });
+    const base = content();
+    const a: BoardContent = { ...base, categories: base.categories.map((cat) => ({ ...cat, cells: cat.cells.map((cell) => (cell.id === "a1" ? { ...cell, kind: "auction" as const } : cell)) })) };
+    let t: Session = { ...session(), leaderboard: { ...session().leaderboard, p1: { ...(session().leaderboard.p1 as Session["leaderboard"][string]), score: 8000 } } };
+    t = apply(t, openCell(t, a, "a1"));
+    t = apply(t, startAuction(t, a, [{ id: "0_p1", step: 0, pid: "p1", uid: "p1", value: { bet: 8000 }, submittedAt: after(5) }]));
+    expect(parseBoardResult(t.state.result).catPrice).toBe(8000);
+  });
 });
 
 describe("оформление экрана зала «Ставки на знания»", () => {

@@ -178,7 +178,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
       <span className="quiz-screen__badge">{category?.title || "Ставка на знания"}</span>
       <span className="board-screen__points">
         {cell.kind === "cat" || cell.kind === "auction"
-          ? `${cell.kind === "cat" ? "Кот в мешке" : "Аукцион"}${result.catStep && result.catTo ? ` · ${result.catPrice} очков` : ""}`
+          ? `${cell.kind === "cat" ? "Кот в мешке" : "Аукцион"}${result.catStep && result.catTo ? ` · ${result.catPrice} очков` : result.mode === "buzz" && !result.catStep ? ` · ${cell.points} очков` : ""}`
           : `${cell.points} очков`}
       </span>
     </div>

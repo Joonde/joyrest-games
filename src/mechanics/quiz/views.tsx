@@ -9,7 +9,7 @@ import { buzzPhone, EMPTY_BUZZ, isBuzz } from "../../core/buzz";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
 import { MediaImage, preloadMedia } from "../../components/media/MediaImage";
-import { preloadTrack, useFragment } from "../../components/music/useFragment";
+import { preloadTrack, useFragment, useTrackFailed } from "../../components/music/useFragment";
 import { placeOf } from "../../core/leaderboard";
 import { bestInRound, moveLabel, roundLeaderboard, roundScore } from "../../core/rounds";
 import { pointsLabel } from "../../core/results";
@@ -23,7 +23,7 @@ import { boardView, isSuperCoin, levelVoteOf, startsRound, superCoinSpinning, su
 import { isCorrect, parseGuess, parseOrder, parseResult, picturesRight } from "./logic";
 import { SuperPhone, SuperScreen } from "../../components/live/SuperGame";
 import { NumberPhone, NumberScreen, OrderNumberVerdict, OrderPhone, OrderScreenCards, orderNumberText } from "./orderNumber";
-import { parseLevelVoteAnswer, parsePenalty, parsePickMode, parseStyle, parseSuperAnswer, parseVoteAnswer, superTrackIds, type SuperAnswer } from "../../core/supergame";
+import { activeLevels, LEVEL_NAMES, levelAnswerText, parseLevelVoteAnswer, parsePenalty, parsePickMode, parseStyle, parseSuperAnswer, parseVoteAnswer, superTrackIds, type SuperAnswer } from "../../core/supergame";
 
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -45,7 +45,8 @@ function currentQuestion(session: Session, content: QuizContent): QuizQuestion |
 export function correctText(q: QuizQuestion): string {
   if (q.kind === "order" || q.kind === "number") return orderNumberText(q);
   if (q.kind === "open" || q.kind === "buzz" || (q.kind === "auction" && usesAnswers(q))) return q.answers.filter((a) => a.trim()).join(" / ");
-  if (q.kind === "super") return (q.levels ?? []).map((l, i) => `${["Бронза", "Серебро", "Золото", "Бриллиант"][i]}: ${l.answers.find((a) => a.trim()) ?? "—"}`).join(" · ");
+  // Только включённые уровни и ответ уровня любого вида — варианты, порядок, число (К-Н-13).
+  if (q.kind === "super") return activeLevels(q.levels).map((i) => `${LEVEL_NAMES[i] ?? `Уровень ${i + 1}`}: ${levelAnswerText(q.levels?.[i])}`).join(" · ");
   if (q.kind === "pictures") return (q.pictures ?? []).map((p, i) => `${i + 1}. ${p.answers.find((a) => a.trim()) ?? "—"}`).join(" · ");
   return correctSet(q)
     .map((i) => q.options[i] ?? "")
@@ -82,7 +83,26 @@ const isTick = (v: string) => {
  * с распределением, таблица. Размеры — в единицах контейнера (cqw/cqh), поэтому в
  * предпросмотре студии вопрос выглядит так же, как на телевизоре, только мельче.
  */
-export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
+export function QuizScreenView(props: ViewProps<QuizContent>) {
+  const { session, content } = props;
+  const q = content.questions[session.state.step];
+  const { stage } = session.state;
+  const music = stage === "reveal" && q?.answerMusic?.trackId ? q.answerMusic.trackId : (q?.trackId ?? null);
+  const failed = useTrackFailed(stage === "question" || stage === "reveal" ? music : null);
+  return (
+    <>
+      <QuizScreenBody {...props} />
+      {failed && (
+        // Трек не скачался — зал не ждёт музыку молча: ведущий видит причину и включает песню сам (К-Н-10).
+        <p className="quiz-track-fail" role="status">
+          ♪ Трек не загрузился — включите песню сами
+        </p>
+      )}
+    </>
+  );
+}
+
+function QuizScreenBody({ session, content }: ViewProps<QuizContent>) {
   const q = currentQuestion(session, content);
   const next = content.questions[session.state.step + 1];
   const left = useSecondsLeft(session);
@@ -113,13 +133,16 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
   const clip = q ? clipOf(q) : null;
   // «Музыка на ответ» (решение владельца 23 октября 2026): у вопроса есть свой отрывок на ответ — на показе ответа играет он,
   // вместо припева трека вопроса.
-  const answerMusic = stage === "reveal" ? (q?.answerMusic ?? null) : null;
+  // Суперигру пропустили — «Музыка на ответ» на экране «не играем» не звучит (К-Н-2).
+  const answerMusic = stage === "reveal" && !superSkipped(session) ? (q?.answerMusic ?? null) : null;
+  // Аукцион: пока идут ставки, вопрос скрыт — трек вопроса не играет, иначе зал слышит вопрос до ставок (К-Н-2).
+  const betting = q?.kind === "auction" && stage === "question" && (parsed.auction?.phase ?? "bets") === "bets";
   const chorus = !answerMusic && stage === "reveal" && clip?.chorusStart !== null && clip?.chorusStart !== undefined;
   const fragmentKey = answerMusic
     ? `a:${step}:${replay}`
     : !clip?.trackId
       ? null
-      : stage === "question"
+      : stage === "question" && !betting
         ? `q:${step}:${session.state.startedAt ?? 0}:${replay}`
         : stage === "reveal"
           ? `r:${step}:${replay}`
@@ -220,6 +243,10 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
         <p className="quiz-screen__hint">
           {count} {plural(count, "вопрос", "вопроса", "вопросов")} · первый — {KIND_TITLES[q.kind].toLowerCase()}
         </p>
+        {q.kind === "auction" && (
+          // Раунд начинается с аукциона — тема видна залу уже на заставке раунда, как на телефонах (К-Н-14).
+          <p className="quiz-screen__hint">{q.topic?.trim() ? `Тема аукциона: ${q.topic.trim()}` : "Тема аукциона скрыта"}</p>
+        )}
       </div>
     );
   }
@@ -532,7 +559,8 @@ export function QuizPlayerView({
           q={q}
           pid={pid}
           role={role}
-          mine={parseBet(myAnswer?.value)}
+          // После «Назад» к ставкам прежняя ставка лежит в итогах шага и сыграет — телефон показывает её (К-Н-17).
+          mine={parseBet(myAnswer?.value) ?? auction?.bets?.[pid] ?? null}
           open={open}
           left={left}
           sending={sending}

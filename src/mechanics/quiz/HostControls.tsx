@@ -312,7 +312,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
       now: Date.now() + clock.offset(),
       effect: drawEffect,
       name: (pid) => cur.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок",
-    });
+    }, (pid) => pid in cur.leaderboard || participants.some((p) => p.id === pid));
     return change ? marked({ ...change, expect: { result: resultKey(cur.state.result) } }, mark) : null;
   }
 
@@ -362,14 +362,30 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const speaking = q.kind === "buzz" && stage === "question" && buzz?.current ? buzz.current : null;
 
   /** «Верно» по свежим ответам: победитель получает очки и деления. */
-  async function rightChange(): Promise<SessionChange> {
+  /**
+   * «Засчитать» / «Снять»: по свежей сессии и с отпечатком итогов шага — одновременный зачёт с второго пульта не
+   * затирается; при отказе пульт берёт свежие итоги и повторяет то же решение ведущего (К-Н-15).
+   */
+  function accept(key: string) {
+    const on = !parseResult(session.state.result).accepted.includes(key);
+    return run(async () => {
+      const cur = latest.current;
+      return { ...toggleAccepted(cur, key, on), expect: { result: resultKey(cur.state.result) } };
+    }, undefined, true);
+  }
+
+  async function rightChange(): Promise<SessionChange | null> {
+    // Как «Неверно»: очки — только тому, кто отвечал, когда ведущий нажал (второй пульт мог передать слово, К-Н-9).
+    if (parseResult(latest.current.state.result).buzz?.current !== speaking) return null;
     let all: Answer[] = own;
     try {
       all = await control.freshAnswers(step);
     } catch {
       // Нет связи — по тому, что уже пришло.
     }
-    return buzzRightAnswer(latest.current, content, all, participants);
+    const cur = latest.current;
+    if (parseResult(cur.state.result).buzz?.current !== speaking) return null;
+    return buzzRightAnswer(cur, content, all, participants);
   }
 
   /**
@@ -414,7 +430,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
           {/* Пока на экране крутится жребий суперигры, кнопка не выдаёт итог и не обрывает его. */}
           {coinSpinning ? "🪙 Жребий крутится на экране…" : q.kind === "buzz" && action === "reveal" ? "Никто не угадал — показать ответ" : actionLabel(session, content, action)}
         </button>
-        {q.trackId && session.screenMode !== "none" && (stage === "question" || stage === "reveal") && (
+        {/* Во время ставок аукциона трек вопроса не звучит — и повторять нечего (К-Н-2). */}
+        {q.trackId && session.screenMode !== "none" && (stage === "question" || stage === "reveal") && !(q.kind === "auction" && stage === "question" && (parseResult(session.state.result).auction?.phase ?? "bets") === "bets") && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replayTrack(session))}>
             ♪ Повторить фрагмент
           </button>
@@ -620,7 +637,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
                     className={g.status === "accepted" ? "btn btn--secondary open-answers__btn" : "btn btn--quiet open-answers__btn"}
                     aria-pressed={g.status === "accepted"}
                     disabled={busy}
-                    onClick={() => void run(toggleAccepted(session, g.key))}
+                    onClick={() => void accept(g.key)}
                   >
                     {g.status === "accepted" ? "Засчитано ✓" : "Засчитать"}
                   </button>
@@ -641,7 +658,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
           only={allowed}
           editable={stage === "question"}
           busy={busy}
-          onToggle={(key) => void run(toggleAccepted(session, key))}
+          onToggle={(key) => void accept(key)}
         />
       )}
 
@@ -697,7 +714,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
                           className={g.status === "accepted" ? "btn btn--secondary open-answers__btn" : "btn btn--quiet open-answers__btn"}
                           aria-pressed={g.status === "accepted"}
                           disabled={busy}
-                          onClick={() => void run(toggleAccepted(session, g.key))}
+                          onClick={() => void accept(g.key)}
                         >
                           {g.status === "accepted" ? "Засчитано ✓" : "Засчитать"}
                         </button>

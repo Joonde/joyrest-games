@@ -194,7 +194,8 @@ export function numberDeltas(q: QuizQuestion, answers: Answer[]): Array<{ pid: s
   if (target === null || target === undefined) return [];
   const guesses = answers.flatMap((a) => {
     const g = parseGuess(a.value);
-    return g === null ? [] : [{ pid: a.pid, guess: g, diff: Math.abs(g - target) }];
+    // До тысячных (точность верного числа): иначе 0,2 и 0,4 при верном 0,3 оказались бы «на волосок» разными (К-Н-4).
+    return g === null ? [] : [{ pid: a.pid, guess: g, diff: Math.round(Math.abs(g - target) * 1000) / 1000 }];
   });
   const distinct = [...new Set(guesses.map((g) => g.diff))].sort((a, b) => a - b);
   const shares = q.scoring === "closest" ? [1] : [...NUMBER_SHARES];

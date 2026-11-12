@@ -141,7 +141,8 @@ export function actionLabel(session: Session, content: QuizContent, action: Quiz
   if (action === "next" && content.questions[session.state.step + 1]?.kind === "super") return "Суперигра";
   if (action === "next" && content.questions[session.state.step + 1]?.kind === "auction") return "Аукцион";
   if (action === "board" && endsRound(content, session.state.step)) return "Итоги раунда";
-  if (action === "show" && startsRound(content, session.state.step)) return "Начать раунд";
+  // Первый раунд игры тоже начинается с заставки раунда — кнопка называется так же (паспорт квиза, К-Н-11).
+  if (action === "show" && (startsRound(content, session.state.step) || (session.state.step === 0 && roundAt(content, 0)?.from === 0))) return "Начать раунд";
   return ACTION_LABELS[action];
 }
 
@@ -486,9 +487,11 @@ export function buzzRightAnswer(session: Session, content: QuizContent, answers:
 }
 
 /** Засчитать или снять открытый ответ гостя (до показа ответа). */
-export function toggleAccepted(session: Session, key: string): SessionChange {
+export function toggleAccepted(session: Session, key: string, on?: boolean): SessionChange {
   const result = parseResult(session.state.result);
-  const accepted = result.accepted.includes(key) ? result.accepted.filter((k) => k !== key) : [...result.accepted, key];
+  // `on` — что увидел и выбрал ведущий: повтор после отказа (второй пульт успел записать) не перевернёт зачёт обратно.
+  const want = on ?? !result.accepted.includes(key);
+  const accepted = want ? (result.accepted.includes(key) ? result.accepted : [...result.accepted, key]) : result.accepted.filter((k) => k !== key);
   // Счётчик «Повторить фрагмент» сохраняем: иначе экран сыграет музыку ещё раз.
   const replay = asRecord(session.state.result).replay;
   return { state: { result: { ...result, accepted, ...carry(session), ...(typeof replay === "number" ? { replay } : {}) } } };
@@ -639,6 +642,8 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
     const leaderboard: Record<string, LeaderboardEntry> = {};
     for (const [pid, entry] of Object.entries(session.leaderboard)) {
       if (entry.last) leaderboard[pid] = { ...entry, score: entry.score - entry.last, last: 0, move: 0 };
+      // Стрелка места — тоже от этого показа ответа: снимаем и у тех, кто очков не получил (К-Н-16).
+      else if (entry.move) leaderboard[pid] = { ...entry, move: 0 };
     }
     const result = parseResult(session.state.result);
     // Гонка: снимаем и деления победителя; слово снова у него — ведущий решит ещё раз.

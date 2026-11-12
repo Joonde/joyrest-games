@@ -3615,6 +3615,24 @@ kbd {
 }
 
 /* Экран зала: браузер не дал включить музыку без касания. */
+/* Квиз: трек вопроса не скачался на экран зала (паспорт квиза, К-Н-10). Вне потока, не двигает вопрос. */
+.quiz-track-fail {
+  position: fixed;
+  top: max(1.5cqh, var(--safe-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  margin: 0;
+  padding: 0.6em 1.2em;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-highlight);
+  font-size: max(16px, 2.4cqh);
+  max-width: 90vw;
+  text-align: center;
+}
+
 .screen-tap {
   position: fixed;
   right: max(2cqh, var(--safe-right));

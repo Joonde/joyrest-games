@@ -1338,3 +1338,63 @@ describe("музыка на ответ", () => {
   });
 });
 
+
+describe("точечные правки по паспорту логики квиза (12 ноября 2026)", () => {
+  const session = (patch: Partial<Session> = {}): Session => ({
+    id: "s",
+    code: "123456",
+    hostId: "h",
+    gameId: "g",
+    gameTitle: "",
+    mechanic: "quiz",
+    gameSnapshot: null,
+    themeId: "joyrest",
+    playMode: "solo",
+    screenMode: "laptop",
+    state: startState(),
+    leaderboard: {},
+    createdAt: 0,
+    ...patch,
+  });
+
+  it("К-Н-4: одинаково близкие дробные ответы делят место", () => {
+    const q: QuizQuestion = { ...newQuestion("number"), text: "Сколько?", number: 0.3, points: 100 };
+    const ans = (pid: string, guess: number) => ({ id: pid, step: 0, pid, uid: pid, value: { guess }, submittedAt: 2_000 });
+    const by = Object.fromEntries(numberDeltas(q, [ans("a", 0.2), ans("b", 0.4), ans("c", 0.5)]).map((d) => [d.pid, d]));
+    expect(by.a).toMatchObject({ place: 1, delta: 100 });
+    expect(by.b).toMatchObject({ place: 1, delta: 100 });
+    expect(by.c).toMatchObject({ place: 2, delta: 60 });
+  });
+
+  it("К-Н-11: первый раунд игры начинается кнопкой «Начать раунд», без раундов — «Показать вопрос»", () => {
+    const rounds: QuizContent = { questions: [choice({ round: "Кино" }), choice()], settings: DEFAULT_SETTINGS };
+    expect(actionLabel(session(), rounds, "show")).toBe("Начать раунд");
+    const plain: QuizContent = { questions: [choice(), choice()], settings: DEFAULT_SETTINGS };
+    expect(actionLabel(session(), plain, "show")).toBe("Показать вопрос");
+  });
+
+  it("К-Н-15: «Засчитать» с решением ведущего не переворачивается при повторе", () => {
+    const s = session({ state: { ...startState(), stage: "question", startedAt: 1, timeLimit: 30, result: { accepted: [] } } });
+    const once = applyChange(s, toggleAccepted(s, "k", true), 2);
+    const twice = applyChange(once, toggleAccepted(once, "k", true), 3);
+    expect(parseResult(twice.state.result).accepted).toEqual(["k"]);
+    const off = applyChange(twice, toggleAccepted(twice, "k", false), 4);
+    expect(parseResult(off.state.result).accepted).toEqual([]);
+    // Без решения — как раньше, переключатель.
+    expect(parseResult(applyChange(off, toggleAccepted(off, "k"), 5).state.result).accepted).toEqual(["k"]);
+  });
+
+  it("К-Н-16: «Назад» с ответа снимает стрелку места и у тех, кто очков не получил", () => {
+    const content: QuizContent = { questions: [choice()], settings: DEFAULT_SETTINGS };
+    const s = session({
+      state: { ...startState(), stage: "reveal", revealed: true, startedAt: 1, timeLimit: 30, result: { accepted: [] } },
+      leaderboard: {
+        a: { name: "Аня", kind: "player", score: 100, last: 100, move: 1 },
+        b: { name: "Боря", kind: "player", score: 50, last: 0, move: -1 },
+      },
+    });
+    const change = back(s, content)?.change;
+    expect(change?.leaderboard?.a).toMatchObject({ score: 0, last: 0, move: 0 });
+    expect(change?.leaderboard?.b).toMatchObject({ score: 50, move: 0 });
+  });
+});

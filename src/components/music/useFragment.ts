@@ -1,8 +1,29 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { tracksRepo } from "../../data";
 import { pauseFragment, playChorus, playFragment, resumeFragment, stopFragment, type FragmentOptions } from "../live/sound";
 
 const cache = new Map<string, Promise<string | null>>();
+
+/** Треки, которые не удалось скачать (экран зала говорит об этом, а не молчит — паспорт квиза, К-Н-10). */
+const failed = new Set<string>();
+const listeners = new Set<() => void>();
+function markFailed(trackId: string, value: boolean): void {
+  if (failed.has(trackId) === value) return;
+  if (value) failed.add(trackId);
+  else failed.delete(trackId);
+  for (const l of listeners) l();
+}
+
+/** Трек не скачался на это устройство (удалён, нет связи). Следующая попытка проигрывания попробует снова. */
+export function useTrackFailed(trackId: string | null | undefined): boolean {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => Boolean(trackId && failed.has(trackId)),
+  );
+}
 
 /** Адрес трека в памяти; одна загрузка на трек, даже если его просят сразу несколько мест. */
 function trackUrl(trackId: string): Promise<string | null> {
@@ -13,8 +34,10 @@ function trackUrl(trackId: string): Promise<string | null> {
     if (!blob) {
       // Не получилось — в следующий раз попробуем снова.
       cache.delete(trackId);
+      markFailed(trackId, true);
       return null;
     }
+    markFailed(trackId, false);
     return URL.createObjectURL(blob);
   })();
   cache.set(trackId, loading);

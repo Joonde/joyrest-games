@@ -28,6 +28,7 @@ export function parseEvent(value: unknown): AgencyEvent {
     acceptedAt: typeof d.acceptedAt === "number" ? d.acceptedAt : null,
     acceptRev: typeof d.acceptRev === "number" ? d.acceptRev : 0,
     live: d.live === true,
+    ...(d.hostOff === true ? { hostOff: true } : {}),
     ...(d.clientNotSaved === true ? { clientNotSaved: true } : {}),
     ...(d.clientIncomplete === true ? { clientIncomplete: true } : {}),
   };

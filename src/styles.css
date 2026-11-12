@@ -25618,6 +25618,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .plan-accepted {
   margin: 0;
 }
+/* Ведущий мероприятия отключён владельцем: мероприятие надо передать другому (12 ноября 2026). */
+.plan-card__host-off {
+  color: var(--color-danger);
+  font-weight: 600;
+}
 .btn.plan-inline {
   display: inline-flex;
   min-height: 32px;

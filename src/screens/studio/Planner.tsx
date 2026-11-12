@@ -1107,6 +1107,9 @@ function EventCard({
           Ведёт: <b>{event.hostName || "—"}</b>
           {owner && event.clientName ? ` · клиент ${event.clientName}` : ""}
         </span>
+        {event.hostOff && !event.cancelled && status !== "past" && (
+          <span className="plan-card__host-off">⚠ Ведущий отключён — передайте мероприятие другому («Изменить» → «Кто ведёт»)</span>
+        )}
         <span className="plan-card__more" aria-hidden="true">
           {open ? "Свернуть ▲" : "Подробнее ▼"}
         </span>

@@ -40,6 +40,8 @@ interface Row {
   id: string;
   host_id: string;
   host_name: string | null;
+  /** Ведущий отключён владельцем (false) — мероприятие надо передать другому. В запросах без этого поля — нет. */
+  host_active?: boolean | null;
   day: string;
   start_min: number;
   end_min: number;
@@ -90,6 +92,7 @@ export function eventOf(row: Row): AgencyEvent {
     acceptedAt: row.accepted_at ? row.accepted_at.getTime() : null,
     acceptRev: row.accept_rev ?? 0,
     live: row.live === true,
+    ...(row.host_active === false ? { hostOff: true } : {}),
   };
 }
 
@@ -140,7 +143,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
     }
 
     const select = sql`
-      select e.id, e.host_id, u.name as host_name, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
+      select e.id, e.host_id, u.name as host_name, u.active as host_active, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
         e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held, e.updated_at,
         e.program, e.accepted_at, e.accept_rev, e.client_contact,
         -- Игра этого вечера открыта у ведущего (как в «Мероприятие идёт дольше плана»): кружок «Идёт» / «Сверх плана».
@@ -409,13 +412,27 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       request.log.info({ events: "held", held }, "events");
       // «Проведено» — клиент мероприятия сам становится «Провели» (менеджер просит отзыв и предлагает следующий праздник);
       // отметку сняли или «Не состоялось» — обратно «Клиент». Сразу видно в «Клиентах» (обновляются раз в 30 с).
+      // Клиент ищется так же, как при записи мероприятия: по телефону, без телефона — по нику Telegram из «Связи»
+      // (диагностика 12 ноября 2026: клиент, записанный только по нику, оставался «Клиентом» — отзыв у него не просили),
+      // а если в мероприятии потом сменили и телефон, и ник — по записи истории этого мероприятия.
       const ev = await one(id);
       const key = ev ? phoneKey(ev.clientPhone) : "";
-      if (ev && key) {
+      const links = ev ? contactLinks(ev.clientContact ?? "") : [];
+      if (ev && (key || links.length > 0)) {
         await sql.begin(async (tx) => {
           const t = tx as unknown as Sql;
-          const [client] = await t<{ id: string; status: string }[]>`select id, status from clients where phone_key in ${t(phoneKeyVariants(key))}
-            order by (phone_key = ${key}) desc limit 1 for update`;
+          type Found = { id: string; status: string };
+          let [client] = key
+            ? await t<Found[]>`select id, status from clients where phone_key in ${t(phoneKeyVariants(key))}
+                order by (phone_key = ${key}) desc limit 1 for update`
+            : [];
+          if (!client && links.length > 0) {
+            [client] = await t<Found[]>`select id, status from clients where links ?| ${t.array(links)} order by created_at limit 1 for update`;
+          }
+          if (!client) {
+            [client] = await t<Found[]>`select c.id, c.status from clients c
+              join client_contacts h on h.client_id = c.id and h.source = 'event' and h.ref = ${id} limit 1 for update of c`;
+          }
           if (!client) return;
           const what = `${ev.title || "Мероприятие"}, ${dayTitle(ev.day)}`;
           if (held === true && client.status !== "held") {

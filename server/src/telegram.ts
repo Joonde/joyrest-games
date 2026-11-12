@@ -360,13 +360,16 @@ export function startBot(options: BotOptions): Bot {
       }
     }
     // Ведущий не нажал «Принял, готовлюсь», а до начала меньше суток — владельцу и менеджерам один раз (днём).
-    // Мероприятие записали или поменяли меньше часа назад — ведущему сначала дать время.
+    // Мероприятие записали или поменяли меньше часа назад — ведущему сначала дать время. До начала три часа и меньше —
+    // ждём только 10 минут (диагностика 12 ноября 2026: запись меньше чем за час до начала не давала сообщения никогда —
+    // час ожидания кончался уже после начала).
     if (answerHoursOpen(now())) {
       const silent = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null }[]>`
         select e.id, e.accept_rev, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name
         from events e left join users u on u.id = e.host_id
         where e.cancelled_at is null and e.accepted_at is null and e.accept_rev > 0 and e.starts_at > now()
-          and e.starts_at <= now() + interval '24 hours' and e.updated_at < now() - interval '1 hour'`;
+          and e.starts_at <= now() + interval '24 hours'
+          and e.updated_at < now() - (case when e.starts_at <= now() + interval '3 hours' then interval '10 minutes' else interval '1 hour' end)`;
       if (silent.length > 0) {
         const staff = await sql<{ user_id: string }[]>`
           select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and (u.role = 'admin' or u.access_role = 'sales')`;

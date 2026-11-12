@@ -1,49 +1,14 @@
 /**
- * «Бубликатор» на платформе: телефон гостя (Блок 2b) и экран зала (Блок 2c) — настоящие, пульт и конструктор — заглушки до 2d
- * (механика скрыта, `HIDDEN_MECHANICS`: ведущие её не видят).
+ * «Бубликатор» на платформе: телефон гостя (Блок 2b), экран зала (2c), пульт, конструктор и предпросмотр (2d). Каждый — отдельный
+ * чанк: гостю не нужен код экрана и пульта, ведущему на пульте — код конструктора. Чанк не скачался (обрыв сети) — import()
+ * пробует ещё два раза с паузой, потом — «Не загрузилось — Повторить» (аудит 2b, круг 2, №2): не пустая страница, шапка
+ * платформы остаётся.
  */
 import { Component, lazy, Suspense, useState, type ComponentType, type ReactNode } from "react";
 import { ListSkeleton } from "../../components/Skeleton";
-import type { EditorProps, HostControlsProps, PlayerViewProps, ViewProps } from "../types";
-import { importWithRetry } from "./phone/chunk";
+import type { EditorProps, HostControlsProps, PlayerViewProps, RoomPreviewProps, ViewProps } from "../types";
+import { importWithRetry, type ChunkLoad } from "./phone/chunk";
 import type { BubContent } from "./rules/types";
-
-type PhoneComponent = ComponentType<PlayerViewProps<BubContent, never>>;
-type ScreenComponent = ComponentType<ViewProps<BubContent>>;
-
-/**
- * Телефон гостя — отдельный чанк (аудит 2b, №17): его код и стили качает только гость «Бубликатора». Чанк не скачался
- * (обрыв сети) — import() пробует ещё два раза с паузой, потом — «Не загрузилось — Повторить» (аудит 2b, круг 2, №2):
- * не пустая страница, шапка платформы остаётся.
- */
-type PhoneModule = typeof import("./phone/PlayerView");
-
-/** Чем повторять: адрес чанка (если браузер его назвал) и номер повтора — общий для автоповтора и «Повторить». */
-const chunkState: { url: string | null; n: number } = { url: null, n: 0 };
-const phoneLoad = {
-  load: () => import("./phone/PlayerView"),
-  again: (url: string, n: number) => import(/* @vite-ignore */ `${url}?retry=${n}`) as Promise<PhoneModule>,
-};
-
-function phoneChunk() {
-  return lazy(() => importWithRetry(phoneLoad, chunkState).then((m) => ({ default: m.BublikatorPhoneView as PhoneComponent })));
-}
-
-let firstPhone: ReturnType<typeof phoneChunk> | null = null;
-
-/** Экран зала — тоже отдельный чанк (телефону гостя его код не нужен), с теми же повторами. */
-type ScreenModule = typeof import("./screen/ScreenView");
-const screenState: { url: string | null; n: number } = { url: null, n: 0 };
-const screenLoad = {
-  load: () => import("./screen/ScreenView"),
-  again: (url: string, n: number) => import(/* @vite-ignore */ `${url}?retry=${n}`) as Promise<ScreenModule>,
-};
-
-function screenChunk() {
-  return lazy(() => importWithRetry(screenLoad, screenState).then((m) => ({ default: m.BublikatorHallView as ScreenComponent })));
-}
-
-let firstScreen: ReturnType<typeof screenChunk> | null = null;
 
 class ChunkGuard extends Component<{ onRetry: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -66,71 +31,70 @@ class ChunkGuard extends Component<{ onRetry: () => void; children: ReactNode },
   }
 }
 
-/** Телефон гостя: личный поток игровой комнаты и пачки нажатий (поток экрана телефон не слушает). */
-export function BublikatorPlayerView(props: PlayerViewProps<BubContent, never>) {
-  const [attempt, setAttempt] = useState(0);
-  // Новая попытка — новый lazy: React запоминает неудачную загрузку у прежнего.
-  const [Phone, setPhone] = useState(() => (firstPhone ??= phoneChunk()));
-  return (
-    <ChunkGuard
-      key={attempt}
-      onRetry={() => {
-        // Адреса чанка браузер не назвал (Safari) — тот же import() не повторится: перезагружаем страницу.
-        if (chunkState.url === null) {
-          window.location.reload();
-          return;
-        }
-        firstPhone = phoneChunk();
-        setPhone(() => firstPhone ?? phoneChunk());
-        setAttempt((a) => a + 1);
-      }}
-    >
-      <Suspense fallback={<ListSkeleton count={3} />}>
-        <Phone {...props} />
-      </Suspense>
-    </ChunkGuard>
-  );
+/**
+ * Вид из отдельного чанка с повторами. Новая попытка — новый lazy: React запоминает неудачную загрузку у прежнего; адреса чанка
+ * браузер не назвал (Safari) — тот же import() не повторится, «Повторить» перезагружает страницу.
+ */
+function chunkView<P extends object, M>(chunk: ChunkLoad<M>, pick: (m: M) => ComponentType<P>): ComponentType<P> {
+  const state: { url: string | null; n: number } = { url: null, n: 0 };
+  const make = () => lazy(() => importWithRetry(chunk, state).then((m) => ({ default: pick(m) })));
+  let first: ReturnType<typeof make> | null = null;
+  return function ChunkView(props: P) {
+    const [attempt, setAttempt] = useState(0);
+    const [View, setView] = useState(() => (first ??= make()));
+    return (
+      <ChunkGuard
+        key={attempt}
+        onRetry={() => {
+          if (state.url === null) {
+            window.location.reload();
+            return;
+          }
+          first = make();
+          const next = first;
+          setView(() => next);
+          setAttempt((a) => a + 1);
+        }}
+      >
+        <Suspense fallback={<ListSkeleton count={3} />}>
+          <View {...props} />
+        </Suspense>
+      </ChunkGuard>
+    );
+  };
 }
 
-function Soon({ what }: { what: string }) {
-  return (
-    <div className="card card--center">
-      <h2>«Бубликатор»</h2>
-      <p className="muted">{what} — в следующих блоках. Пока игра есть только на тестовой версии.</p>
-    </div>
-  );
-}
+/** Телефон гостя: личный поток игровой комнаты и пачки нажатий (поток экрана телефон не слушает). */
+type PhoneModule = typeof import("./phone/PlayerView");
+export const BublikatorPlayerView = chunkView<PlayerViewProps<BubContent, never>, PhoneModule>(
+  { load: () => import("./phone/PlayerView"), again: (url, n) => import(/* @vite-ignore */ `${url}?retry=${n}`) as Promise<PhoneModule> },
+  (m) => m.BublikatorPhoneView,
+);
 
 /** Экран зала: поток экрана игровой комнаты (без тайн), все этапы рисует сам (`standalone`). */
-export function BublikatorScreenView(props: ViewProps<BubContent>) {
-  const [attempt, setAttempt] = useState(0);
-  const [Screen, setScreen] = useState(() => (firstScreen ??= screenChunk()));
-  return (
-    <ChunkGuard
-      key={attempt}
-      onRetry={() => {
-        if (screenState.url === null) {
-          window.location.reload();
-          return;
-        }
-        firstScreen = screenChunk();
-        setScreen(() => firstScreen ?? screenChunk());
-        setAttempt((a) => a + 1);
-      }}
-    >
-      <Suspense fallback={<ListSkeleton count={3} />}>
-        <Screen {...props} />
-      </Suspense>
-    </ChunkGuard>
-  );
-}
+type ScreenModule = typeof import("./screen/ScreenView");
+export const BublikatorScreenView = chunkView<ViewProps<BubContent>, ScreenModule>(
+  { load: () => import("./screen/ScreenView"), again: (url, n) => import(/* @vite-ignore */ `${url}?retry=${n}`) as Promise<ScreenModule> },
+  (m) => m.BublikatorHallView,
+);
 
-export function BublikatorHostControls(_: HostControlsProps<BubContent>) {
-  void _;
-  return <Soon what="Пульт ведущего" />;
-}
+/** Пульт ведущего: поток `host` и команды комнаты (Блок 2d). */
+type HostModule = typeof import("./host/HostControls");
+export const BublikatorHostControls = chunkView<HostControlsProps<BubContent>, HostModule>(
+  { load: () => import("./host/HostControls"), again: (url, n) => import(/* @vite-ignore */ `${url}?retry=${n}`) as Promise<HostModule> },
+  (m) => m.BublikatorHostView,
+);
 
-export function BublikatorEditor(_: EditorProps<BubContent>) {
-  void _;
-  return <Soon what="Конструктор" />;
-}
+/** Конструктор (Блок 2d). */
+type EditorModule = typeof import("./editor/Editor");
+export const BublikatorEditor = chunkView<EditorProps<BubContent>, EditorModule>(
+  { load: () => import("./editor/Editor"), again: (url, n) => import(/* @vite-ignore */ `${url}?retry=${n}`) as Promise<EditorModule> },
+  (m) => m.BublikatorEditorView,
+);
+
+/** Предпросмотр и репетиция: игра идёт в комнате в памяти с тестовыми гостями (Блок 2d). */
+type PreviewModule = typeof import("./sim/Preview");
+export const BublikatorRoomPreview = chunkView<RoomPreviewProps<BubContent>, PreviewModule>(
+  { load: () => import("./sim/Preview"), again: (url, n) => import(/* @vite-ignore */ `${url}?retry=${n}`) as Promise<PreviewModule> },
+  (m) => m.BublikatorPreview,
+);

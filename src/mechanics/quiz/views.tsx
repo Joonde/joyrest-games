@@ -87,7 +87,11 @@ export function QuizScreenView(props: ViewProps<QuizContent>) {
   const { session, content } = props;
   const q = content.questions[session.state.step];
   const { stage } = session.state;
-  const music = stage === "reveal" && q?.answerMusic?.trackId ? q.answerMusic.trackId : (q?.trackId ?? null);
+  const auction = parseResult(session.state.result).auction;
+  const betting = q?.kind === "auction" && stage === "question" && (auction?.phase ?? "bets") === "bets";
+  const skipped = superSkipped(session);
+  // Тот же трек, что играет `useFragment`: на ставках аукциона и при пропущенной суперигре музыки нет — и надписи нет.
+  const music = betting || skipped ? null : stage === "reveal" && q?.answerMusic?.trackId ? q.answerMusic.trackId : (q?.trackId ?? null);
   const failed = useTrackFailed(stage === "question" || stage === "reveal" ? music : null);
   return (
     <>
@@ -156,6 +160,8 @@ function QuizScreenBody({ session, content }: ViewProps<QuizContent>) {
       options: answerMusic ? { fadeIn: answerMusic.fadeIn, fadeOut: answerMusic.fadeOut } : { fadeIn: clip?.fadeIn ?? 0, fadeOut: clip?.fadeOut ?? 0 },
       chorus: chorus ? clip?.join : undefined,
       paused: stage === "question" && Boolean(buzz?.current),
+      // Ставки равны: экран вопроса закрывал слайд жребия и появился уже после «Ставки сделаны» — трек играет сразу.
+      startOnMount: q?.kind === "auction" && stage === "question" && parsed.auction?.phase === "answer" && (parsed.auction?.tie?.length ?? 0) > 1,
     },
   );
   // Суперигра: трек уровня включает ведущий («▶ Трек: Золото»), пока открыты уровни.

@@ -1398,3 +1398,13 @@ describe("точечные правки по паспорту логики кв�
     expect(change?.leaderboard?.b).toMatchObject({ score: 50, move: 0 });
   });
 });
+
+describe("«Угадай число»: почти точный ответ — не «точно в цель» (паспорт квиза, К-Н-4)", () => {
+  it("2,0004 при верном 2 — первое место без бонуса, 2 — с бонусом", () => {
+    const q: QuizQuestion = { ...newQuestion("number"), text: "Сколько?", number: 2, points: 100 };
+    const ans = (pid: string, guess: number) => ({ id: pid, step: 0, pid, uid: pid, value: { guess }, submittedAt: 2_000 });
+    const by = Object.fromEntries(numberDeltas(q, [ans("a", 2.0004), ans("b", 2)]).map((d) => [d.pid, d]));
+    expect(by.a).toMatchObject({ place: 1, delta: 100 });
+    expect(by.b).toMatchObject({ place: 1, delta: 150 });
+  });
+});

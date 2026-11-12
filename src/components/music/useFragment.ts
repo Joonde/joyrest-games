@@ -4,6 +4,9 @@ import { pauseFragment, playChorus, playFragment, resumeFragment, stopFragment, 
 
 const cache = new Map<string, Promise<string | null>>();
 
+/** Ключи проигрывания, которые уже звучали на этом устройстве (для `startOnMount`). */
+const played = new Set<string>();
+
 /** Треки, которые не удалось скачать (экран зала говорит об этом, а не молчит — паспорт квиза, К-Н-10). */
 const failed = new Set<string>();
 const listeners = new Set<() => void>();
@@ -73,8 +76,16 @@ export interface FragmentPlay {
  * «Повторить», верный ответ — припев), и не играет при открытии экрана посреди вопроса.
  * `playKey = null` — тишина. `paused` — пауза, пока гость отвечает (кнопка «кто первый»).
  */
-export function useFragment(trackId: string | null, startSec: number, lengthSec: number, playKey: string | null, extra?: { options?: FragmentOptions; chorus?: "cut" | "cross" | "sting"; paused?: boolean }): void {
-  const last = useRef<string | null>(playKey);
+export function useFragment(
+  trackId: string | null,
+  startSec: number,
+  lengthSec: number,
+  playKey: string | null,
+  extra?: { options?: FragmentOptions; chorus?: "cut" | "cross" | "sting"; paused?: boolean; startOnMount?: boolean },
+): void {
+  // `startOnMount` — экран вопроса появился заново, а ключ сменился, пока его не было (слайд жребия аукциона поверх игры):
+  // играть сразу, если этот ключ на этом устройстве ещё не звучал (паспорт квиза, К-Н-2).
+  const last = useRef<string | null>(extra?.startOnMount && playKey !== null && !played.has(playKey) ? null : playKey);
   const options = extra?.options;
   const chorus = extra?.chorus;
   const fadeIn = options?.fadeIn ?? 0;
@@ -86,6 +97,8 @@ export function useFragment(trackId: string | null, startSec: number, lengthSec:
       stopFragment();
       return;
     }
+    played.add(playKey);
+    if (played.size > 50) played.delete(played.values().next().value as string);
     let cancelled = false;
     void trackUrl(trackId).then((url) => {
       if (cancelled || !url) return;

@@ -361,7 +361,6 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок";
   const speaking = q.kind === "buzz" && stage === "question" && buzz?.current ? buzz.current : null;
 
-  /** «Верно» по свежим ответам: победитель получает очки и деления. */
   /**
    * «Засчитать» / «Снять»: по свежей сессии и с отпечатком итогов шага — одновременный зачёт с второго пульта не
    * затирается; при отказе пульт берёт свежие итоги и повторяет то же решение ведущего (К-Н-15).
@@ -374,6 +373,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
     }, undefined, true);
   }
 
+  /** «Верно» по свежим ответам: победитель получает очки и деления. */
   async function rightChange(): Promise<SessionChange | null> {
     // Как «Неверно»: очки — только тому, кто отвечал, когда ведущий нажал (второй пульт мог передать слово, К-Н-9).
     if (parseResult(latest.current.state.result).buzz?.current !== speaking) return null;

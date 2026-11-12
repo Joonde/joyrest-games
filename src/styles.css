@@ -3614,7 +3614,6 @@ kbd {
   color: var(--color-highlight);
 }
 
-/* Экран зала: браузер не дал включить музыку без касания. */
 /* Квиз: трек вопроса не скачался на экран зала (паспорт квиза, К-Н-10). Вне потока, не двигает вопрос. */
 .quiz-track-fail {
   position: fixed;
@@ -3633,6 +3632,13 @@ kbd {
   text-align: center;
 }
 
+/* В предпросмотре и репетиции надпись лежит поверх экрана вопроса, а не под ним. */
+.preview-screen > .quiz-track-fail {
+  position: absolute;
+  z-index: 25;
+}
+
+/* Экран зала: браузер не дал включить музыку без касания. */
 .screen-tap {
   position: fixed;
   right: max(2cqh, var(--safe-right));

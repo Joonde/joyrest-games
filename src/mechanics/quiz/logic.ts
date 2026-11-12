@@ -194,15 +194,17 @@ export function numberDeltas(q: QuizQuestion, answers: Answer[]): Array<{ pid: s
   if (target === null || target === undefined) return [];
   const guesses = answers.flatMap((a) => {
     const g = parseGuess(a.value);
-    // До тысячных (точность верного числа): иначе 0,2 и 0,4 при верном 0,3 оказались бы «на волосок» разными (К-Н-4).
-    return g === null ? [] : [{ pid: a.pid, guess: g, diff: Math.round(Math.abs(g - target) * 1000) / 1000 }];
+    // Места — по расстоянию до тысячных (точность верного числа): иначе 0,2 и 0,4 при верном 0,3 оказались бы «на волосок»
+    // разными (К-Н-4). «Точно в цель» — только по настоящему расстоянию (2,0004 при верном 2 — не точно).
+    const raw = g === null ? 0 : Math.abs(g - target);
+    return g === null ? [] : [{ pid: a.pid, guess: g, diff: Math.round(raw * 1000) / 1000, exact: raw < 1e-9 }];
   });
   const distinct = [...new Set(guesses.map((g) => g.diff))].sort((a, b) => a - b);
   const shares = q.scoring === "closest" ? [1] : [...NUMBER_SHARES];
   return guesses.map((g) => {
     const place = distinct.indexOf(g.diff);
     const share = shares[place] ?? 0;
-    const exact = g.diff === 0 ? 1.5 : 1;
+    const exact = g.exact ? 1.5 : 1;
     return { pid: g.pid, guess: g.guess, diff: g.diff, place: place + 1, delta: Math.round(q.points * share * exact) };
   });
 }

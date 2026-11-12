@@ -576,6 +576,11 @@
   max-width: calc(50% - var(--u) * 0.5);
 }
 
+/* Одно имя и «+N» — имени вся строка, кроме «+N» (повторный аудит 2c: на 4:3 широкое имя читалось на 4 знака). */
+.is-two .bks-chips.is-one .bks-person:not(.bks-person--more) {
+  max-width: calc(100% - var(--u) * 5);
+}
+
 .bks-nowrap {
   white-space: nowrap;
 }

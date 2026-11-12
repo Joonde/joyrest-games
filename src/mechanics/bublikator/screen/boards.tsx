@@ -177,7 +177,7 @@ export function LobbyBoard({ v, m, code }: BoardProps) {
                       </span>
                     </div>
                     {shown > 0 && (
-                      <span className="bks-chips">
+                      <span className={shown === 1 ? "bks-chips is-one" : "bks-chips"}>
                         {c.names.slice(0, shown).map((n, i) => (
                           <span key={`${n}-${i}`} className="bks-person">
                             {n}

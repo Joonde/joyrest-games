@@ -285,7 +285,7 @@ function extra() {
     if (st.textOverflow === "ellipsis" && !clamp && el.clientHeight + 1 < Math.min(lh, el.scrollHeight)) found.push(`строка обрезана по высоте: ${lab(el)}`);
     if (clamp && el.clientHeight + 1 < lh) found.push(`строки обрезаны по высоте: ${lab(el)}`);
   }
-  // Надпись с многоточием читается: видно не меньше 4 знаков; названия экипажей на карточках — не меньше 8 (или целиком), чтобы
+  // Надпись с многоточием читается: видно не меньше 5 знаков (как у сканера проверяющего; в задании — 4); названия экипажей на карточках — не меньше 8 (или целиком), чтобы
   // «Лисы 11» отличался от «Лисы» (повторный аудит 2c, №6, №10).
   for (const el of root.querySelectorAll("*")) {
     const st = getComputedStyle(el);
@@ -297,7 +297,7 @@ function extra() {
     if (!over) continue;
     const chars = [...text].length;
     const vis = Math.max(0, clamp ? Math.floor((chars * el.clientHeight) / el.scrollHeight) : Math.floor((chars * el.clientWidth) / el.scrollWidth) - 1);
-    const need = el.matches(".bks-card__name, .bks-sos__name .bks-name") ? Math.min(8, chars) : 4;
+    const need = el.matches(".bks-card__name, .bks-sos__name .bks-name") ? Math.min(8, chars) : Math.min(5, chars);
     if (vis < need) found.push(`видно ~${vis} из ${chars} знаков: ${lab(el)}`);
   }
   // Круглая кнопка звука платформы.

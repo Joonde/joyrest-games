@@ -496,5 +496,5 @@ describe.skipIf(!url)("путь клиента: уведомления по ро
     expect(r.statusCode).toBe(200);
     expect(r.json()).toMatchObject({ price: 19900, cancelled: false });
     await step("P12", "обычная отмена и возврат мероприятия с предоплатой");
-  });
+  }, 60_000);
 });

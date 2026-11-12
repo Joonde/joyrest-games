@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DRAW_EFFECTS, type DrawEffect } from "../../core/draw";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useHostRun } from "../../components/live/useHostRun";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
-import { secondsLeft } from "../../core/session";
+import { answersMark, secondsLeft } from "../../core/session";
 import { clock } from "../../data";
 import { MediaImage } from "../../components/media/MediaImage";
 import type { Session } from "../../data/types";
@@ -65,7 +65,12 @@ export function BoardHostControls({ session, content, answers, participants, con
   const everyoneOut = players.length > 0 && players.every((id) => result.buzz.out.includes(id));
   const nobodyLeft =
     stage === "question" && result.mode === "buzz" && result.armed && !result.catStep && !result.noAuto && !result.buzz.current && !result.buzz.winner && (left === 0 || everyoneOut);
-  const nobodyKey = nobodyLeft ? `${step}:${result.cell}:${result.buzz.out.length}:${everyoneOut ? "out" : "time"}` : "";
+  // Число ответов шага в ключе: сервер отказал (пришло нажатие, которого пульт ещё не видел) — проверяем снова по
+  // свежему списку (паспорт, С-Н-3).
+  const stepAnswers = answers.filter((a) => a.step === step).length;
+  const nobodyKey = nobodyLeft ? `${step}:${result.cell}:${result.buzz.out.length}:${everyoneOut ? "out" : "time"}:${stepAnswers}` : "";
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
   useEffect(() => {
     if (!nobodyKey || busy) return;
     const timer = window.setTimeout(
@@ -75,7 +80,9 @@ export function BoardHostControls({ session, content, answers, participants, con
           if (cur.state.stage !== "question" || cur.state.step !== step || r.noAuto || r.buzz.current || r.buzz.winner || r.mode !== "buzz") return null;
           const rest = secondsLeft(cur.state, Date.now() + clock.offset());
           const allOut = players.length > 0 && players.every((id) => r.buzz.out.includes(id));
-          return rest === 0 || allOut ? boardReveal(cur, content, participants, false) : null;
+          if (rest !== 0 && !allOut) return null;
+          // С отметкой списка нажатий: нажатие, принятое сервером в последнюю секунду, не пропадёт (С-Н-3).
+          return { ...boardReveal(cur, content, participants, false), expect: { answers: answersMark(cur.state.step, answersRef.current) } };
         }),
       everyoneOut ? 1200 : 3500,
     );
@@ -130,12 +137,18 @@ export function BoardHostControls({ session, content, answers, participants, con
   }, [drawSlideNow?.id]);
 
   // «Кот в мешке»: выбор того, кто выбирал клетку, сразу на экран (ведущий может поправить).
+  // Выбор телефона пишется один раз: ведущий, поправивший отвечающего, не перезаписывается тем же выбором
+  // телефона (паспорт, С-Н-2). Новый выбор телефона — снова на экран.
   const catGive = stage === "question" && result.mode === "bet" ? catGiveOf(session, answers) : null;
+  const catApplied = useRef("");
   useEffect(() => {
-    if (!catGive || busy || catGive === result.catTo) return;
+    const key = catGive ? `${step}:${session.state.startedAt ?? 0}:${catGive}` : "";
+    if (!catGive || busy || key === catApplied.current) return;
+    catApplied.current = key;
+    if (catGive === result.catTo) return;
     const price = result.catPrice > 0 ? result.catPrice : (cell?.points ?? 0);
     void quiet((cur) => setCat(cur, catGive, price));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- новый выбор игрока (и после записи ведущего)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- новый выбор игрока
   }, [catGive, busy]);
 
   // «Аукцион»: экран показывает, сколько ставок сделано, — пульт пишет счётчик не чаще раза в 2 секунды.
@@ -317,7 +330,16 @@ export function BoardHostControls({ session, content, answers, participants, con
         </div>
         {errorLine}
         <div className="actions">
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async (s) => startAuction(s, content, await control.freshAnswers(step).catch(() => answers), { id: `auc${Math.random().toString(36).slice(2, 12)}`, effect: drawEffect, now: Date.now() + clock.offset(), name: (pid) => s.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок" }))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() =>
+            void run(async (s) => {
+              const fresh = await control.freshAnswers(step).catch(() => answers);
+              // Убранного участника ставка не в счёт (С-Н-16); с отметкой списка ставок — ставка, пришедшая пока пульт
+              // считал, не потеряется: сервер откажет, запись соберётся заново (С-Н-3).
+              const present = (pid: string) => pid in s.leaderboard || participants.some((p) => p.id === pid);
+              const change = startAuction(s, content, fresh, { id: `auc${Math.random().toString(36).slice(2, 12)}`, effect: drawEffect, now: Date.now() + clock.offset(), name: (pid) => s.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок" }, present);
+              return change ? { ...change, expect: { answers: answersMark(step, fresh) } } : null;
+            })
+          }>
             Ставки сделаны — показать вопрос
           </button>
           {backButton}

@@ -67,6 +67,11 @@ export function errorCode(error: unknown): unknown {
   return typeof error === "object" && error !== null && "code" in error ? (error as { code: unknown }).code : null;
 }
 
+/** Отметка списка ответов из записи механики (`expect.answers`), если она есть. */
+function answersOf(change: SessionChange): Pick<NonNullable<SessionChange["expect"]>, "answers"> {
+  return change.expect?.answers ? { answers: change.expect.answers } : {};
+}
+
 /** В записи нечего менять — не отправляем. */
 export function isEmptyChange(change: SessionChange): boolean {
   return !change.state && !change.leaderboard && !change.addScore && !change.rename && !change.patch;
@@ -129,7 +134,10 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
       const applyFirst = clear.length > 0 && clear.every((s) => !answersOpen(after, s));
       try {
         if (!applyFirst) for (const s of clear) await deps.clearAnswers(s);
-        await deps.apply({ ...change, expect: { phase: at.phase, step: at.step, stage: at.stage, result: key } });
+        // Отметка списка ответов, по которому собрана запись (`expect.answers`), сохраняется: сервер откажет, если пришёл
+        // ещё ответ, — запись соберётся заново по свежему списку («Ставки сделаны», «Никто не угадал»; паспорт
+        // «Ставки на знания», С-Н-3).
+        await deps.apply({ ...change, expect: { ...answersOf(change), phase: at.phase, step: at.step, stage: at.stage, result: key } });
       } catch (e) {
         if (errorCode(e) !== "failed-precondition") return { error: e };
         conflict = true;
@@ -176,7 +184,7 @@ export async function chainQuiet(make: HostMake, prev: Promise<boolean> | null, 
     const change = typeof make === "function" ? await make(s) : make;
     if (!change || isEmptyChange(change) || deps.busy()) return false;
     const { phase, step, stage } = s.state;
-    await deps.apply({ ...change, expect: { phase, step, stage, result: resultKey(s.state.result) } });
+    await deps.apply({ ...change, expect: { ...answersOf(change), phase, step, stage, result: resultKey(s.state.result) } });
     deps.written(s);
     return true;
   } catch {

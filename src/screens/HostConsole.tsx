@@ -360,9 +360,12 @@ function Console({ session }: { session: Session }) {
     const slide = drawSlide(slideId(), pool.map(([, e]) => e.name), entry.name, Date.now() + clock.offset());
     const turn = mechanic?.firstTurn && content !== null ? mechanic.firstTurn(s, content, pid) : null;
     try {
-      await apply({ ...(turn ?? {}), state: { ...(turn?.state ?? {}), slide } });
-    } catch {
-      setError("Не получилось провести жеребьёвку. Проверьте интернет.");
+      // Право первого хода — только там, где его видел ведущий: второй пульт успел открыть клетку — жеребьёвка не
+      // перепишет выбирающего («Ставка на знания», паспорт, С-Н-12).
+      const expect = turn ? { expect: { phase: s.state.phase, step: s.state.step, stage: s.state.stage } } : {};
+      await apply({ ...(turn ?? {}), state: { ...(turn?.state ?? {}), slide }, ...expect });
+    } catch (e) {
+      setError(errorCodeOf(e) === "failed-precondition" ? "Игра изменилась — нажмите ещё раз." : "Не получилось провести жеребьёвку. Проверьте интернет.");
     }
   }
   const slide = session.state.slide ?? null;

@@ -323,6 +323,11 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
   const { result, cell, category } = playing(session, content);
   const now = useServerNow(500, stage === "question");
   const open = acceptsAnswers(session.state, now);
+  // Жребий «Аукциона» ещё крутится на экране зала — телефоны не выдают раньше времени, кто отвечает (паспорт, С-Н-9).
+  const drawSlide = session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? session.state.slide : null;
+  const spinEnds = typeof drawSlide?.endsAt === "number" ? drawSlide.endsAt : null;
+  const spinNow = useServerNow(250, spinEnds !== null);
+  const spinning = spinEnds !== null && spinNow < spinEnds;
   const me = session.leaderboard[pid];
   const noScreen = session.screenMode === "none";
   const place = placeOf(session.leaderboard, pid);
@@ -455,8 +460,8 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
       {noScreen && phoneImage && <MediaImage key={phoneImage} className="quiz-phone__image" gameId={session.gameId} mediaId={phoneImage} variant="small" alt="" />}
       {result.catStep && stage === "question" ? (
         <div className="buzz">
-          <div className={myBet ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
-            <strong>{myBet ? "Отвечаете вы — говорите ведущему!" : speaker ? <>Отвечает <NameText name={speaker} /></> : "Ведущий выбирает, кто отвечает"}</strong>
+          <div className={myBet && !spinning ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
+            <strong>{spinning ? "Ставки равны — смотрите на экран: жребий решает, кто отвечает" : myBet ? "Отвечаете вы — говорите ведущему!" : speaker ? <>Отвечает <NameText name={speaker} /></> : "Ведущий выбирает, кто отвечает"}</strong>
             <span>
               {cell.kind === "auction" ? "Аукцион" : "Кот в мешке"} · цена {result.catPrice || myBet || cell.points}
             </span>

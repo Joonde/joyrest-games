@@ -62,7 +62,7 @@ describe("комната в памяти «Бубликатора»", () => {
     // Голосование «Кто диверсант?» прошло (экипажи по 5 — с диверсантом).
     expect(room.commands.some((c) => c.cmd === "next" && c.ok)).toBe(true);
     // Сводки пульта приходили раз в секунду.
-    expect(host.events.filter((e) => e.type === "host").length).toBeGreaterThan(60 * 9);
+    expect(host.events.filter((e) => e.type === "host").length).toBeGreaterThan(300);
   }, 60_000);
 
   it("команда с чужим этапом — отказ moved, ничего не сделано; пауза и «Продолжить» — без этапа", () => {

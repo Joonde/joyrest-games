@@ -176,6 +176,8 @@ const AUDIENCE_VOTES_MAX = 3000;
 const SCREENS_MAX = 5000;
 /** Пульт молчит дольше — «Пульт не открыт» (паспорт общей части, Н-5). */
 const PULT_QUIET_MS = 30_000;
+/** Экран зала — только если пульт молчит дольше минуты и гости ждут внесения в таблицу. */
+const PULT_QUIET_HALL_MS = 60_000;
 /** Мероприятие из блоков: до пяти снимков игр в одном запросе (Caddy пускает тела до 2 МБ). */
 const PROGRAM_BODY = 1900 * 1024;
 /** Сколько старых сессий удаляется за один вход admin; остальные — в следующий раз. */
@@ -633,7 +635,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
   // предупреждают «Пульт не открыт» (паспорт общей части, Н-5). Только память; после перезапуска — отсчёт с запуска.
   const pults = new Map<string, number>();
   const pultsSince = now();
-  const pultQuiet = (sessionId: string, at: number) => (pults.get(sessionId) ?? pultsSince) < at - PULT_QUIET_MS;
+  const pultQuiet = (sessionId: string, at: number, quietMs = PULT_QUIET_MS) => (pults.get(sessionId) ?? pultsSince) < at - quietMs;
   /** Голоса зала по QR: сессия → шаг и голос каждого устройства (последний голос считается). */
   const audience = new Map<string, { step: number; votes: Map<string, number> }>();
   /**
@@ -1382,7 +1384,19 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         if (screens.size >= SCREENS_MAX) screens.delete(screens.keys().next().value ?? "");
       }
       screens.set(row.id, { ...report, seenAt: at });
-      return { ok: true, pultQuiet: pultQuiet(row.id, at) };
+      // Экран зала видят гости, поэтому «Пульт не открыт» — только когда есть что терять: пульт молчит дольше минуты, а
+      // вошедшие гости (команды) ждут, пока пульт внесёт их в таблицу (проверка 12 ноября 2026: заблокированный на
+      // полминуты телефон не должен пугать зал).
+      let quiet = false;
+      if (pultQuiet(row.id, at, PULT_QUIET_HALL_MS)) {
+        const kind = row.play_mode === "teams" ? "team" : "player";
+        const known = Object.keys(normalizeBoard(row.leaderboard));
+        const [waiting] = await sql<{ n: number }[]>`
+          select count(*)::int as n from participants
+          where session_id = ${row.id} and kind = ${kind} and not (id = any(${known}::text[]))`;
+        quiet = (waiting?.n ?? 0) > 0;
+      }
+      return { ok: true, pultQuiet: quiet };
     });
 
     api.get<{ Params: { id: string } }>("/api/sessions/:id/screen", async (request, reply) => {

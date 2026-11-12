@@ -645,6 +645,31 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/sessions/scr1/screen", host)).json()).toEqual({ screen: null });
   });
 
+  it("«Пульт не открыт» на экране зала — только если пульт молчит дольше минуты и гости ждут таблицы (Н-5)", async () => {
+    await newSession("pq1");
+    const screen = await device();
+    const report = { soundReady: true, muted: false, musicBlocked: false };
+    // Пульт только что спросил экран — тишины нет.
+    await call("GET", "/api/sessions/pq1/screen", host);
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(false);
+    clock += 61_000;
+    // Пульт молчит, но ждать некому — не пугаем зал.
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(false);
+    const guest = await device();
+    expect((await call("POST", `/api/sessions/pq1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня" })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(true);
+    // В студии у ведущего — тоже.
+    const row = ((await call("GET", "/api/sessions/overview", host)).json() as Array<{ id: string; pultQuiet: boolean }>).find((r) => r.id === "pq1");
+    expect(row?.pultQuiet).toBe(true);
+    // Пульт открыли — предупреждения нет.
+    await call("GET", "/api/sessions/pq1/screen", host);
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(false);
+    // Гость в таблице — тоже нет, даже если пульт снова молчит.
+    await call("POST", "/api/sessions/pq1/leaderboard", host, { entries: { [guest.uid]: { name: "Аня", kind: "player", score: 0 } } });
+    clock += 61_000;
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(false);
+  });
+
   it("помощь зала по QR: голос без участия в игре, один на устройство, только пока ведущий открыл голосование", async () => {
     await newSession("aud1");
     const a = await device();

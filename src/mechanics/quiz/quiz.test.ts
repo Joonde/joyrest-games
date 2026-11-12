@@ -154,6 +154,13 @@ describe("normalizeAnswer", () => {
     expect(matchesAnswer("12.04.1961", ["12 04 1961"])).toBe(true);
     expect(matchesAnswer("1 665", ["1665"])).toBe(true);
     expect(matchesAnswer("3,14 м", ["3.14м"])).toBe(true);
+    // Разряды тысяч и лишние нули — как раньше.
+    expect(matchesAnswer("1.000", ["1000"])).toBe(true);
+    expect(matchesAnswer("12,500", ["12 500"])).toBe(true);
+    expect(matchesAnswer("3.0", ["3"])).toBe(true);
+    expect(matchesAnswer("3,50", ["3.5"])).toBe(true);
+    expect(matchesAnswer("0,125", ["0.125"])).toBe(true);
+    expect(matchesAnswer("0,125", ["125"])).toBe(false);
   });
 
   it("ответ из одних знаков или смайликов не пропадает (К-Н-7)", () => {

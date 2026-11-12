@@ -372,7 +372,7 @@ function answerSlot(session: Session, personal = false): string {
  */
 function answerFailText(problem: unknown, permanent: string, network: string): string {
   const code = errorCodeOf(problem);
-  if (code === "unauthenticated" || code === "permission-denied") return "Ответ не принят: похоже, за вас вошли с другого телефона. Обновите страницу и войдите снова.";
+  if (code === "unauthenticated") return "Ответ не принят: похоже, за вас вошли с другого телефона. Обновите страницу и войдите снова.";
   return isPermanentError(problem) ? permanent : network;
 }
 
@@ -564,7 +564,7 @@ function InGame({
           forgetAnswer(session.id, slot);
           clearMyAnswer();
           setUnsure(slot);
-          setError("Не удалось проверить ответ — проверьте интернет и нажмите ещё раз.");
+          setError("Не удалось проверить ответ. Время ещё идёт — нажмите ещё раз; вышло — проверим, когда ведущий покажет ответ.");
           return;
         }
         // Запись с прошлого показа (ставка аукциона, ответ до «Назад») — не ответ на этот показ: не пишем «Ответ принят».

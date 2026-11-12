@@ -7,7 +7,7 @@ import { snapshotContent } from "../core/games";
 import { EVENING_MECHANIC } from "../core/program";
 import { captainChanges, leaderboardAdditions, rankedLeaderboard } from "../core/leaderboard";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
-import { startState } from "../core/session";
+import { olderThanShow, startState } from "../core/session";
 import { isOnline } from "../core/presence";
 import { awardNow, canAwardNow, hasPodium } from "../core/podium";
 import { presentationDone, teamOrder, teamsReveal } from "../core/teams";
@@ -216,7 +216,8 @@ function Console({ session }: { session: Session }) {
 
   // Счётчик «Ответили: N» для экрана зала — не чаще раза в 2 секунды. Механика со своим счётчиком
   // (`ownAnswered`: голоса, ставки, оценки) пишет его сама — не спорим с ней.
-  const ownCount = answers.filter((a) => a.step === session.state.step).length;
+  // Ответ, оставшийся с прошлого показа вопроса, не считаем — как и механика при подсчёте очков (паспорт квиза, К-Н-6).
+  const ownCount = answers.filter((a) => a.step === session.state.step && !olderThanShow(session.state, a.submittedAt)).length;
   const lastCountWrite = useRef(0);
   const countsItself = mechanic?.ownAnswered === true;
   useEffect(() => {

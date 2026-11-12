@@ -42,7 +42,9 @@ export type SoundName =
   | "sos0"
   | "sos1"
   | "sos2"
-  | "sos3";
+  | "sos3"
+  // Удар метеорита о щит или о корпус: тихий короткий «бум» с треском (повторный аудит 2c, №5).
+  | "hit";
 
 /** Раньше «без звука» запоминалось на устройстве — из-за этого экран молчал на следующих вечерах. */
 const OLD_MUTE_KEY = "joyrest.soundOff";
@@ -589,6 +591,14 @@ function thud(): void {
   tone(72, 0, 0.3, 0.16, "sine");
 }
 
+/** Удар метеорита о щит: тихий короткий «бум» и треск, чуть разная высота, чтобы частые удары не сливались. */
+function hit(): void {
+  const k = 0.85 + Math.random() * 0.3;
+  burst(0, 0.12, 0.12, { type: "lowpass", freq: 900 * k, toFreq: 300 }, 0.002);
+  tone(96 * k, 0, 0.18, 0.07, "sine");
+  burst(0.01, 0.08, 0.04, { type: "highpass", freq: 3200 }, 0.002);
+}
+
 /** Лязг ремонта: металлические удары ключом. */
 function clank(): void {
   [0, 0.18, 0.36].forEach((t, i) => {
@@ -655,6 +665,7 @@ export function playSound(name: SoundName): void {
   if (name === "siren") siren();
   if (name === "beep") beep();
   if (name === "thud") thud();
+  if (name === "hit") hit();
   if (name === "clank") clank();
   if (name === "whistle") whistle();
   if (name === "hum") hum();
@@ -745,12 +756,10 @@ export const BUILTIN_MUSIC = {
   treeMusic: [SAMPLES.treeChristmas, SAMPLES.treeLullaby, SAMPLES.treeFireplace].filter((u): u is string => Boolean(u)),
   // «Ставка на знания»: тихий фон, пока на экране поле (решение владельца 22 октября 2026, ~20%).
   boardBed: [SAMPLES.lobbyLofi, SAMPLES.lobbyFocus, SAMPLES.lobbyTokyo].filter((u): u is string => Boolean(u)),
-  // «Бубликатор»: тихая музыка всей игры (решение владельца 11 ноября 2026) — под ползунком «🎵 Фон», эффекты её приглушают.
-  bubFlight: [SAMPLES.lobbyFocus, SAMPLES.lobbyTokyo, SAMPLES.lobbyLofi].filter((u): u is string => Boolean(u)),
 } as const;
 
 /** Громкость встроенной музыки момента (1 — как обычно); фон за столом и фон боя — тихо. */
-export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6, boardBed: 0.2, bubFlight: 0.3 };
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6, boardBed: 0.2 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
@@ -996,6 +1005,16 @@ function bedOut(): GainNode | null {
     bedBus.connect(bus);
   }
   return bedBus;
+}
+
+/**
+ * Шина фоновой музыки экрана (под ползунком «🎵 Фон»): для своей музыки механики («Бубликатор» — музыка полёта, `loopMusic.ts`).
+ * null — звук ещё не разрешён.
+ */
+export function bedBuses(): { ctx: AudioContext; bed: GainNode } | null {
+  const bed = bedOut();
+  if (!ctx || !bed) return null;
+  return { ctx, bed };
 }
 
 /** Громкость фоновой музыки на этом экране, 0–100. */

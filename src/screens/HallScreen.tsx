@@ -204,7 +204,9 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   // Пока идёт таймер вопроса — раз в секунду пересчитать музыку момента («Миллион на кону» стихает за 10 секунд до конца).
   useServerNow(1000, session.state.stage === "question" && session.state.timeLimit !== null);
   const moment = mechanic?.music && content !== null ? mechanic.music(session, content) : null;
-  const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtinMusicOf(session, moment));
+  // Механика со своей музыкой (`ownMusic`) — без встроенной музыки платформы.
+  const builtin = mechanic?.ownMusic ? null : builtinMusicOf(session, moment);
+  const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtin);
   const soundReady = useSoundReady();
   const muted = useMuted();
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.
@@ -227,7 +229,7 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   // Занят и тогда, когда звук уже разрешён и что-то звучит или видно: музыка ведущего, встроенная музыка момента
   // (лобби, перерыв), слайд. Сам обновится только в тишине — или пока звук ещё не разрешали (терять нечего).
   const playingNow = phase === "playing" && session.mechanic !== EVENING_MECHANIC;
-  const builtinNow = builtinMusicOf(session, moment) !== null;
+  const builtinNow = builtin !== null;
   const soundingNow = Boolean(session.state.music?.playing) || builtinNow || Boolean(session.state.slide);
   const hallBusy = playingNow || (soundReady && soundingNow);
   useEffect(() => {

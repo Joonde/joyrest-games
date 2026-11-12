@@ -504,10 +504,10 @@ export type RoomStreamEvent =
   | { type: "event"; at: number; data: unknown }
   | { type: "room"; at: number; paused: boolean }
   /**
-   * `fresh` — первая сводка нового потока (подписка, переподключение браузера) или ответ опроса: это снимок, а не перемена —
-   * экран не проигрывает по нему моменты (аплодисменты, фанфары, салют), случившиеся, пока его не было (аудит 2c, №6).
+   * Сводка экрана: при переменах не чаще `screenHz`, без перемен — раз в секунду. Снимок это или перемена, экран решает сам по
+   * непрерывности (`at` подряд без разрыва больше 3 с и сводка не опоздала больше чем на 2,5 с; аудит 2c, второй круг).
    */
-  | { type: "screen"; at: number; version: number; paused: boolean; players: number; online: number; data: unknown; fresh?: boolean }
+  | { type: "screen"; at: number; version: number; paused: boolean; players: number; online: number; data: unknown }
   | {
       type: "host";
       at: number;

@@ -5,7 +5,7 @@
  */
 import type { RoomClosedReason, RoomStreamEvent } from "../../../data/types";
 import { nextOffset } from "../phone/model";
-import type { EventKind, ScreenCrewView, ScreenView } from "../rules/types";
+import type { EventKind, ScreenCrewView, ScreenView, Theme } from "../rules/types";
 
 export interface ScreenModel {
   view: ScreenView | null;
@@ -44,6 +44,22 @@ function withPause(m: ScreenModel, paused: boolean, at: number, view: ScreenView
   return { ...m, paused: true, pausedAt: fromView ?? (m.paused ? m.pausedAt : at) };
 }
 
+/** Разрыв между сводками больше этого — снимок, а не живой поток (сервер шлёт сводку экрана не реже раза в секунду, опрос — раз в 2 с). */
+export const SNAPSHOT_GAP_MS = 3000;
+/** Сводка опоздала больше этого (пачка застрявших после обрыва без переподключения) — тоже снимок. */
+export const STALE_MS = 2500;
+
+/**
+ * Снимок, а не перемена (по нему экран не играет моменты — аплодисменты, фанфары, салют, — случившиеся, пока его не было; аудит
+ * 2c): вида ещё не было, поток был закрыт («Открыть здесь», «закрыто»), между сводками разрыв больше 3 с (переподключение после
+ * обрыва) или сводка опоздала больше чем на 2,5 с (застрявшие сводки дошли пачкой). Опрос раз в 2 с — живой поток: моменты есть.
+ */
+export function isSnapshot(m0: ScreenModel, at: number, local: number): boolean {
+  if (m0.view === null || m0.closed !== null || m0.viewAt === null) return true;
+  if (at - m0.viewAt > SNAPSHOT_GAP_MS) return true;
+  return m0.offset !== null && local + m0.offset - at > STALE_MS;
+}
+
 /** Событие потока экрана → новая модель. */
 export function applyScreen(m0: ScreenModel, e: RoomStreamEvent, local: number): ScreenModel {
   const m: ScreenModel = { ...m0, offset: nextOffset(m0.offset, e.at, local), heardAt: local };
@@ -51,8 +67,7 @@ export function applyScreen(m0: ScreenModel, e: RoomStreamEvent, local: number):
     case "screen": {
       if (!isRecord(e.data)) return { ...withPause(m, e.paused, e.at, m.view), players: e.players, online: e.online };
       const view = e.data as unknown as ScreenView;
-      // Снимок: сервер так пометил (подписка, переподключение, опрос), вида ещё не было или поток был закрыт.
-      const fresh = e.fresh === true || m0.view === null || m0.closed !== null;
+      const fresh = isSnapshot(m0, e.at, local);
       return { ...withPause(m, e.paused, e.at, view), view, viewAt: e.at, players: e.players, online: e.online, closed: null, fresh };
     }
     case "snapshot": {
@@ -177,6 +192,8 @@ export interface ScreenMoments {
   fail: boolean;
   /** Кто-то встал на ремонт (лязг). */
   repair: boolean;
+  /** У кого-то убавилась прочность (удар о корпус). */
+  hull: boolean;
   finish: number[];
   salutes: Array<{ crew: number; n: number }>;
   dock: boolean;
@@ -190,7 +207,7 @@ export function momentsFor(prev: ScreenView | null, m: ScreenModel): ScreenMomen
 }
 
 export function momentsOf(prev: ScreenView | null, next: ScreenView | null): ScreenMoments {
-  const none: ScreenMoments = { launch: false, event: false, eventKind: null, warn: false, orders: 0, fail: false, repair: false, finish: [], salutes: [], dock: false, reveal: false, podium: false };
+  const none: ScreenMoments = { launch: false, event: false, eventKind: null, warn: false, orders: 0, fail: false, repair: false, hull: false, finish: [], salutes: [], dock: false, reveal: false, podium: false };
   if (!prev || !next) return none;
   const was = new Map(prev.crews.map((c) => [c.id, c]));
   const stage = (v: ScreenView) => `${v.phase}/${v.stage ?? ""}/${v.leg}`;
@@ -204,6 +221,7 @@ export function momentsOf(prev: ScreenView | null, next: ScreenView | null): Scr
     orders: next.phase === "leg" && prev.phase === "leg" && next.leg === prev.leg ? Math.max(0, next.ordersDone - prev.ordersDone) : 0,
     fail: next.crews.some((c) => c.failSeq > (was.get(c.id)?.failSeq ?? c.failSeq)),
     repair: next.crews.some((c) => c.repair !== null && was.get(c.id)?.repair === null),
+    hull: next.phase === "leg" && prev.phase === "leg" && next.leg === prev.leg && next.crews.some((c) => c.hull < (was.get(c.id)?.hull ?? c.hull)),
     finish: next.crews.filter((c) => c.finished && was.get(c.id)?.finished === false).map((c) => c.id),
     salutes: next.crews.map((c) => ({ crew: c.id, n: c.salutes - (was.get(c.id)?.salutes ?? c.salutes) })).filter((x) => x.n > 0),
     dock: next.stage === "dock" && prev.stage !== "dock",
@@ -298,6 +316,8 @@ export function guessedOf(r: { saboteur: string; votes: Record<string, number> }
 export function cardColumns(n: number): number {
   if (n <= 5) return Math.max(1, n);
   if (n <= 10) return 5;
+  // 11–12 — два ряда по 6: карточки шире, названия в две строки читаются и на проекторе 4:3 (повторный аудит 2c, №6).
+  if (n <= 12) return 6;
   if (n <= 14) return 7;
   return Math.ceil(n / 3);
 }
@@ -383,7 +403,21 @@ export function shieldLook(shield: number, kids: boolean): { scale: number; weak
 }
 
 /** Звуки экрана (решение владельца 11 ноября 2026, звуки ТЗ) — имена синтеза платформы (`sound.ts`). */
-export type ScreenSound = "whoosh" | "siren" | "whistle" | "hum" | "gong" | "beep" | "thud" | "clank" | "fanfare" | "applause" | "drumroll" | "sparkle" | "pop";
+export type ScreenSound = "whoosh" | "siren" | "whistle" | "hum" | "gong" | "beep" | "thud" | "clank" | "fanfare" | "applause" | "drumroll" | "sparkle" | "pop" | "hit";
+
+/**
+ * Сколько звучит громкий звук (мс, как `DUCK_SECONDS` в `sound.ts`): пока он звучит, «бип» приказа молчит (повторный аудит 2c,
+ * №4). Тихие (бип, хлопок салюта, удар о щит, тон огонька) бип не глушат.
+ */
+export const LOUD_MS: Partial<Record<ScreenSound, number>> = { whoosh: 1000, siren: 2300, whistle: 1300, hum: 2600, gong: 3000, sparkle: 800, clank: 700, thud: 500, fanfare: 2500, applause: 3500, drumroll: 3500 };
+
+/** Когда был прошлый бип и до какого момента звучит громкое (часы экрана, мс). */
+export interface SoundClock {
+  beepAt: number;
+  loudUntil: number;
+}
+
+export const SOUND_CLOCK: SoundClock = { beepAt: -Infinity, loudUntil: -Infinity };
 
 /** «Бип» нового приказа на весь зал — не чаще (склеиваем). */
 export const BEEP_EVERY_MS = 500;
@@ -395,7 +429,7 @@ const EVENT_SOUND: Record<EventKind, ScreenSound> = { meteor: "whistle", pull: "
  * звук (свист метеоров, гул притяжения, гонг), «бип» нового приказа (не чаще `BEEP_EVERY_MS`, `beepAt` — когда был прошлый),
  * удар просрочки, лязг ремонта, фанфары финиша, аплодисменты привала, дробь раскрытия, фанфары пьедестала, хлопок салюта.
  */
-export function soundsOf(mo: ScreenMoments, glitch: boolean, now: number, beepAt: number): { sounds: ScreenSound[]; beepAt: number } {
+export function soundsOf(mo: ScreenMoments, glitch: boolean, now: number, clock: SoundClock): { sounds: ScreenSound[]; clock: SoundClock } {
   const out: ScreenSound[] = [];
   if (mo.launch) out.push("whoosh");
   if (mo.warn) out.push("siren");
@@ -403,17 +437,30 @@ export function soundsOf(mo: ScreenMoments, glitch: boolean, now: number, beepAt
   if (glitch) out.push("sparkle");
   if (mo.repair) out.push("clank");
   if (mo.fail) out.push("thud");
+  // Удар о корпус (метеорит пробил слабый щит, «Притяжение» снесло) — тихий удар, если нет удара просрочки (повторный аудит 2c, №5).
+  else if (mo.hull) out.push("hit");
   if (mo.finish.length > 0 || mo.podium) out.push("fanfare");
   if (mo.dock) out.push("applause");
   if (mo.reveal) out.push("drumroll");
   if (mo.salutes.length > 0) out.push("pop");
-  let at = beepAt;
-  // Бип — только когда ничего громкого не звучит, и не чаще раза в полсекунды на весь зал.
-  if (mo.orders > 0 && out.length === 0 && now - beepAt >= BEEP_EVERY_MS) {
+  let loudUntil = clock.loudUntil;
+  for (const name of out) loudUntil = Math.max(loudUntil, now + (LOUD_MS[name] ?? 0));
+  let beepAt = clock.beepAt;
+  // Бип — только когда ничего громкого не звучит (ни сейчас, ни ещё не отзвучало), и не чаще раза в полсекунды на весь зал.
+  if (mo.orders > 0 && loudUntil <= now && now - beepAt >= BEEP_EVERY_MS) {
     out.push("beep");
-    at = now;
+    beepAt = now;
   }
-  return { sounds: [...new Set(out)], beepAt: at };
+  return { sounds: [...new Set(out)], clock: { beepAt, loudUntil } };
+}
+
+/** Как часто на экране «удар метеорита о щит» во время дождя (тихо; повторный аудит 2c, №5 — ТЗ: «свист и удары о щит»). */
+export const METEOR_HIT_MS = 800;
+
+/** Номер удара метеорита по часам сервера: идёт дождь (не предупреждение) — номер, иначе null. На паузе время стоит — ударов нет. */
+export function meteorHitIndex(ev: ScreenView["event"], at: number): number | null {
+  if (!ev || ev.kind !== "meteor" || ev.warn || at < ev.startsAt || at >= ev.endsAt) return null;
+  return Math.floor((at - ev.startsAt) / METEOR_HIT_MS);
 }
 
 /** Тон огонька SOS: новый огонёк загорелся — его цвет (`sos0`…`sos3`), иначе ничего. */
@@ -429,4 +476,35 @@ export function tickOf(board: Board, revealing: boolean, paused: boolean): numbe
   if (board === "sos") return 100;
   if (board === "reveal") return revealing ? 250 : null;
   return ["launch", "drill", "flight", "pull", "captain", "vote"].includes(board) ? 500 : null;
+}
+
+/**
+ * Смайлик в начале названия не отрывается от слова (неразрывный пробел): при переносе на две строки «🐻» не остаётся один
+ * (повторный аудит 2c, №7).
+ */
+export function tidyName(name: string): string {
+  return name.replace(/^(\p{Extended_Pictographic}[\p{Extended_Pictographic}\u{FE0F}\u{200D}]*) +/u, "$1\u00A0");
+}
+
+/**
+ * Музыка полёта (решение владельца 12 ноября 2026, как в ТЗ): ритмичная, своя у каждой темы (`scripts/sounds/bublikator-flight.py`,
+ * создана кодом), звучит **только в полёте** — не в лобби, на экипажах, тренировке, взлёте, привале, голосовании и пьедестале, на
+ * паузе комнаты встаёт; в последние 30 с перелёта — быстрее (`FLIGHT_MUSIC_FAST_RATE`). Громкость — под ползунком «🎵 Фон».
+ */
+export const FLIGHT_MUSIC: Record<Theme, string> = {
+  space: "/sounds/bub-flight-space-1.mp3",
+  pirates: "/sounds/bub-flight-pirates-1.mp3",
+  submarine: "/sounds/bub-flight-submarine-1.mp3",
+  wedding: "/sounds/bub-flight-wedding-1.mp3",
+  newyear: "/sounds/bub-flight-newyear-1.mp3",
+};
+export const FLIGHT_MUSIC_FAST_MS = 30_000;
+export const FLIGHT_MUSIC_FAST_RATE = 1.15;
+export const FLIGHT_MUSIC_VOLUME = 0.55;
+
+export function flightMusicOf(m: ScreenModel, local: number): { url: string; rate: number } | null {
+  const v = m.view;
+  if (!v || m.paused || m.closed !== null || v.phase !== "leg" || v.stage !== "fly") return null;
+  const left = flightLeft(m, local);
+  return { url: FLIGHT_MUSIC[v.theme] ?? FLIGHT_MUSIC.space, rate: left !== null && left <= FLIGHT_MUSIC_FAST_MS ? FLIGHT_MUSIC_FAST_RATE : 1 };
 }

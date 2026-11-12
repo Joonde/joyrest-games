@@ -26,6 +26,8 @@ export const STREAMS_PER_PLAYER = 3;
 export const REQUESTS_BURST = 20;
 export const REQUESTS_PER_SECOND = 10;
 /** Сколько последних команд пульта помним по id (повтор после обрыва не выполняется дважды). */
+/** Сводка экрана без перемен — раз в секунду (живой поток для экрана: см. `tick`). */
+export const SCREEN_KEEPALIVE_MS = 1000;
 const COMMAND_MEMORY = 20;
 /** Отключившихся в сводке пульта — не больше. */
 const OFFLINE_LIST_MAX = 100;
@@ -769,14 +771,17 @@ export class Room {
     }
     if (!this.paused && this.game.tick) this.safely("tick", () => this.game.tick?.(this.state, this.context(now)));
     const screenEvery = 1000 / (this.game.screenHz ?? 5);
-    if (this.screenDirty && this.screens.size > 0 && now - this.lastScreenAt >= screenEvery) this.flushScreen(now);
+    // Экрану — при переменах не чаще `screenHz`, а без перемен — раз в секунду: по непрерывности сводок экран отличает живой
+    // поток от снимка после обрыва (разрыв больше 3 с — снимок, без пропущенных моментов; аудит 2c, второй круг).
+    const screenDue = this.screenDirty ? screenEvery : SCREEN_KEEPALIVE_MS;
+    if (this.screens.size > 0 && now - this.lastScreenAt >= screenDue) this.flushScreen(now);
     // Пульт — раз в секунду всегда (задержка цикла и память меняются и без игры), чаще не надо.
     if (this.hosts.size > 0 && now - this.lastHostAt >= 1000) this.flushHost(now);
   }
 
   // -------------------------------------------------------------- потоки
 
-  screenEvent(now: number): Extract<RoomStreamEvent, { type: "screen" }> {
+  screenEvent(now: number): RoomStreamEvent {
     return {
       type: "screen",
       at: now,
@@ -855,8 +860,7 @@ export class Room {
     }
     const target = kind === "screen" ? this.screens : this.hosts;
     target.add(listener);
-    // Первая сводка экрана — снимок (`fresh`): по нему экран не играет пропущенные моменты (аудит 2c, №6).
-    listener.send(kind === "screen" ? { ...this.screenEvent(now), fresh: true } : this.hostEvent(now));
+    listener.send(kind === "screen" ? this.screenEvent(now) : this.hostEvent(now));
     return () => target.delete(listener);
   }
 

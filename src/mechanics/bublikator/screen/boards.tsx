@@ -32,6 +32,7 @@ import {
   shieldLook,
   sosCycleMs,
   sosLit,
+  tidyName,
   speedText,
   type Bumps,
   type ScreenModel,
@@ -49,7 +50,10 @@ export interface BoardProps {
   bumps: Bumps;
 }
 
-const q = (name: string) => `«${name}»`;
+const q = (name: string) => `«${tidyName(name)}»`;
+/** В плотной раскладке (больше 7 карточек) — без кавычек: каждая буква названия на счету (повторный аудит 2c, №6). */
+const cardName = (name: string, dense: boolean) => (dense ? tidyName(name) : q(name));
+const NB = "\u00A0";
 
 function Head({ title, sub, children }: { title: ReactNode; sub?: ReactNode; children?: ReactNode }) {
   return (
@@ -115,7 +119,7 @@ function shipCols(n: number): number {
 }
 
 function legText(v: ScreenView): string {
-  return `Перелёт ${v.leg + 1} из ${v.legs}`;
+  return `Перелёт ${v.leg + 1} из${NB}${v.legs}`;
 }
 
 function crewsText(n: number): string {
@@ -169,7 +173,7 @@ export function LobbyBoard({ v, m, code }: BoardProps) {
                     <div className="bks-lobby__title">
                       <b className="bks-name">{q(c.name)}</b>
                       <span className="bks-muted bks-nowrap">
-                        {c.count} из {max} мест
+                        {`${c.count} из${NB}${max}${NB}мест`}
                       </span>
                     </div>
                     {shown > 0 && (
@@ -242,7 +246,7 @@ export function CrewsBoard({ v, m, code }: BoardProps) {
           return (
             <li key={c.id} className="bks-panel bks-card" style={crewVars(c.color)}>
               {!tiny && <Craft crew={c} theme={v.theme} className="bks-card__ship" />}
-              <b className="bks-card__name bks-name">{q(c.name)}</b>
+              <b className="bks-card__name bks-name bks-name2">{cardName(c.name, crews.length > 5)}</b>
               <span className="bks-muted">
                 {c.members} {plural(c.members, "человек", "человека", "человек")}
               </span>
@@ -304,7 +308,7 @@ export function DrillBoard({ v, m, local, code }: BoardProps) {
             <Craft crew={c} theme={v.theme} />
             <span className="bks-name">{q(c.name)}</span>
             <span className="bks-muted">
-              на связи {c.online} из {c.members}
+              {`на связи ${c.online} из${NB}${c.members}`}
             </span>
           </li>
         ))}
@@ -482,7 +486,7 @@ export function FlightBoard({ v, m, local, code, bumps }: BoardProps) {
           <Goal theme={v.theme} />
           <b className="bks-goal__title">{w.goalTitle}</b>
           <span className="bks-muted">
-            цель {v.leg + 1}-го перелёта из {v.legs}
+            {`цель ${v.leg + 1}-го перелёта из${NB}${v.legs}`}
           </span>
         </div>
         {meteor && (
@@ -613,6 +617,8 @@ export function SosBoard({ v, m, local }: BoardProps) {
   const lit = ev ? sosLit(seq.length, ev.startsAt, now) : null;
   const crews = eventCrews(v);
   const cols = cardColumns(crews.length);
+  // Два ряда карточек и больше — плотно: без кавычек, капитан и итог одной строкой (повторный аудит 2c, №6).
+  const dense = crews.length > 5;
   const cycle = Math.round(sosCycleMs(seq.length) / 1000);
   return (
     <div className={crews.length > 10 ? "bks-board bks-event bks-sos is-dense" : "bks-board bks-event bks-sos"}>
@@ -626,25 +632,27 @@ export function SosBoard({ v, m, local }: BoardProps) {
         ))}
       </div>
       <p className="bks-pill">
-        {lit === null ? "Сейчас повтор" : `Огонёк ${lit + 1} из ${seq.length}`} · повтор каждые {cycle} {plural(cycle, "секунду", "секунды", "секунд")} · у каждого цвета своя фигура
+        {lit === null ? "Сейчас повтор" : `Огонёк ${lit + 1} из${NB}${seq.length}`} · повтор каждые {cycle} {plural(cycle, "секунду", "секунды", "секунд")} · у каждого цвета своя фигура
       </p>
-      <ul className={crews.length > 10 ? "bks-cards bks-sos__cards is-dense" : "bks-cards bks-sos__cards"} style={{ "--bks-cols": Math.max(1, cols) } as CSSProperties}>
+      <ul className={crews.length > 10 ? `bks-cards bks-sos__cards is-dense${crews.length > 14 ? " is-many" : ""}` : "bks-cards bks-sos__cards"} style={{ "--bks-cols": Math.max(1, cols) } as CSSProperties}>
         {crews.map((c) => {
           const s = c.sos;
           const progress = s?.progress ?? 0;
+          const captain = s?.captain ? `капитан ${s.captain}` : "капитана нет на связи";
           return (
             <li key={c.id} className={s?.done ? "bks-panel bks-sos__card is-done" : "bks-panel bks-sos__card"} style={crewVars(c.color)}>
               <span className="bks-sos__name">
                 <Badge crew={c} />
-                <b className="bks-name">{q(c.name)}</b>
+                <b className="bks-name bks-name2">{cardName(c.name, dense)}</b>
               </span>
-              <span className="bks-muted bks-ellipsis">{s?.captain ? `капитан ${s.captain}` : "капитана нет на связи"}</span>
+              {/* Плотно (больше 7 экипажей) — капитан и итог одной строкой: название в две строки помещается (повторный аудит 2c, №6). */}
+              {!dense && <span className="bks-muted bks-ellipsis">{captain}</span>}
               <span className="bks-boxes">
                 {seq.map((_, i) => (
                   <i key={i} className={i < progress || s?.done ? "is-on" : ""} />
                 ))}
               </span>
-              <span className="bks-sos__state">{s?.done ? `Принято! +${SOS_BONUS}` : "Набирают…"}</span>
+              <span className={dense ? "bks-sos__state bks-ellipsis" : "bks-sos__state"}>{s?.done ? `Принято! +${SOS_BONUS}` : dense ? captain : "Набирают…"}</span>
             </li>
           );
         })}
@@ -675,7 +683,7 @@ export function CaptainBoard({ v, m, local }: BoardProps) {
         {crews.map((c) => (
           <li key={c.id} className="bks-panel bks-card" style={crewVars(c.color)}>
             {look.ships && <Craft crew={c} theme={v.theme} className="bks-card__ship" />}
-            <b className="bks-card__name bks-name">{q(c.name)}</b>
+            <b className="bks-card__name bks-name bks-name2">{cardName(c.name, crews.length > 5)}</b>
             <span className="bks-muted">
               {c.members} {plural(c.members, "человек", "человека", "человек")}
             </span>
@@ -700,10 +708,10 @@ export function DockBoard({ v }: BoardProps) {
   const nameOf = (id: number) => v.crews.find((c) => c.id === id);
   const streak = v.dock?.bestStreak ? nameOf(v.dock.bestStreak.crew) : undefined;
   const shield = v.dock?.bestShield ? nameOf(v.dock.bestShield.crew) : undefined;
-  const next = last ? "Награждение — лучший экипаж вечера" : `Перелёт ${v.leg + 2} из ${v.legs}`;
+  const next = last ? "Награждение — лучший экипаж вечера" : `Перелёт ${v.leg + 2} из${NB}${v.legs}`;
   return (
     <div className="bks-board bks-dock">
-      <Head title={`Привал · ${w.goalTitle}`} sub={`Итоги перелёта ${v.leg + 1} из ${v.legs}`}>
+      <Head title={`Привал · ${w.goalTitle}`} sub={`Итоги перелёта ${v.leg + 1} из${NB}${v.legs}`}>
         {winner && (
           <Chip>
             Победитель перелёта — <b className="bks-coral">{q(winner.name)}</b>
@@ -802,12 +810,12 @@ export function VoteBoard({ v, m, local }: BoardProps) {
           return (
             <li key={c.id} className="bks-panel bks-card" style={crewVars(c.color)}>
               {crews.length <= 10 && <Craft crew={c} theme={v.theme} className="bks-card__ship" />}
-              <b className="bks-card__name bks-name">{q(c.name)}</b>
+              <b className="bks-card__name bks-name bks-name2">{cardName(c.name, crews.length > 5)}</b>
               <span className="bks-bar">
                 <span style={{ transform: `scaleX(${all > 0 ? done / all : 0})` }} />
               </span>
               <span className="bks-muted">
-                проголосовали {done} из {all}
+                {`проголосовали ${done} из${NB}${all}`}
               </span>
             </li>
           );
@@ -843,12 +851,12 @@ export function RevealBoard({ v, revealSeen, local }: BoardProps) {
               <span className="bks-spy__face">{shown ? <Mask /> : <span className="bks-spy__q">?</span>}</span>
               {shown ? (
                 <>
-                  <b className="bks-spy__name bks-name">{r.name}</b>
+                  <b className="bks-spy__name bks-name bks-name2">{r.name}</b>
                   <span className="bks-muted">
                     {r.fakes} {plural(r.fakes, "ложный приказ выполнен", "ложных приказа выполнено", "ложных приказов выполнено")}
                   </span>
                   <span className={r.guessed ? "bks-verdict is-good" : "bks-verdict is-bad"}>{r.guessed ? `Раскусили! Экипажу +${VOTE_BONUS}` : "Не раскусили — лента «Мастер обмана»"}</span>
-                  <span className="bks-muted">{g.all > 0 ? `угадали ${g.right} из ${g.all}` : "никто не голосовал"}</span>
+                  <span className="bks-muted">{g.all > 0 ? `угадали ${g.right} из${NB}${g.all}` : "никто не голосовал"}</span>
                 </>
               ) : (
                 <>

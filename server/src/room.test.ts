@@ -1067,7 +1067,7 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     expect((await call("POST", "/api/rooms/r3/command", host, { cmd: "pause", expect: 5 })).statusCode).toBe(400);
     expect((await call("GET", "/api/rooms/r3/host", anya.cookie)).statusCode).toBe(403);
     expect((await call("GET", "/api/rooms/r3/host", host)).json()).toMatchObject({ type: "host", players: 1, paused: false, moment: "r1" });
-    expect((await call("GET", "/api/rooms/r3/screen", anya.cookie)).json()).toMatchObject({ type: "screen", data: { total: 0 }, fresh: true });
+    expect((await call("GET", "/api/rooms/r3/screen", anya.cookie)).json()).toMatchObject({ type: "screen", data: { total: 0 } });
     expect((await call("GET", "/api/rooms/r3/me", anya.cookie)).json()).toMatchObject({ type: "snapshot", data: { taps: 0 } });
 
     await newSession("q1", "quiz");
@@ -1648,15 +1648,19 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     const me = await openReader(base, "/api/stream/room/r7/me", anya.cookie);
     expect(await me.next()).toMatchObject({ type: "snapshot", paused: false, data: { taps: 0 } });
     const screen = await openReader(base, "/api/stream/room/r7/screen", anya.cookie);
-    // Первая сводка потока — снимок (`fresh`): экран не играет по ней пропущенные моменты (аудит 2c, №6).
-    expect(await screen.next()).toMatchObject({ type: "screen", data: { total: 0 }, fresh: true });
+    expect(await screen.next()).toMatchObject({ type: "screen", data: { total: 0 } });
     await input("r7", anya.cookie, [{ t: "move", id: "m1" }, { t: "tap", n: 3 }]);
     expect(await me.next()).toMatchObject({ type: "event", data: { t: "pong", id: "m1" } });
     clock += 300;
     rooms().step(clock);
     const change = await screen.next();
     expect(change).toMatchObject({ type: "screen", data: { total: 3 } });
-    expect((change as { fresh?: boolean } | null)?.fresh).toBeUndefined();
+    // Без перемен — та же сводка раз в секунду: экран по непрерывности отличает живой поток от снимка после обрыва (аудит 2c).
+    clock += 1000;
+    rooms().step(clock);
+    const alive = await screen.next();
+    expect(alive).toMatchObject({ type: "screen", data: { total: 3 } });
+    expect((alive as { at: number }).at - (change as { at: number }).at).toBe(1000);
     me.controller.abort();
     screen.controller.abort();
   });

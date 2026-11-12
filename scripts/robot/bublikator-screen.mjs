@@ -285,6 +285,21 @@ function extra() {
     if (st.textOverflow === "ellipsis" && !clamp && el.clientHeight + 1 < Math.min(lh, el.scrollHeight)) found.push(`строка обрезана по высоте: ${lab(el)}`);
     if (clamp && el.clientHeight + 1 < lh) found.push(`строки обрезаны по высоте: ${lab(el)}`);
   }
+  // Надпись с многоточием читается: видно не меньше 4 знаков; названия экипажей на карточках — не меньше 8 (или целиком), чтобы
+  // «Лисы 11» отличался от «Лисы» (повторный аудит 2c, №6, №10).
+  for (const el of root.querySelectorAll("*")) {
+    const st = getComputedStyle(el);
+    const clamp = st.webkitLineClamp !== "none" && st.webkitLineClamp !== "";
+    if (st.textOverflow !== "ellipsis" && !clamp) continue;
+    const text = (el.innerText || "").trim();
+    if (!text || el.children.length > 2 || el.closest(".bks-fx, .bks-meteors")) continue;
+    const over = el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2;
+    if (!over) continue;
+    const chars = [...text].length;
+    const vis = Math.max(0, clamp ? Math.floor((chars * el.clientHeight) / el.scrollHeight) : Math.floor((chars * el.clientWidth) / el.scrollWidth) - 1);
+    const need = el.matches(".bks-card__name, .bks-sos__name .bks-name") ? Math.min(8, chars) : 4;
+    if (vis < need) found.push(`видно ~${vis} из ${chars} знаков: ${lab(el)}`);
+  }
   // Круглая кнопка звука платформы.
   const tap = document.querySelector(".screen-tap");
   if (tap) {
@@ -377,6 +392,10 @@ for (const s of ["lobby", "crews", "drill", "launch", "flight", "pull", "sos", "
 for (const s of ["dock", "podium"].filter((x) => scenarios.includes(x))) for (const crews of [3, 5, 8]) runs.push({ s, q: { crews, long: 1 }, view: VIEWS[0] });
 for (const s of ["flight", "meteor", "dock", "podium", "lobby"].filter((x) => scenarios.includes(x))) runs.push({ s, q: { crews: 8, long: 1 }, view: VIEWS[3] });
 for (const s of ["flight", "finish", "reveal-seq", "meteor"].filter((x) => scenarios.includes(x))) runs.push({ s, q: { crews: 5, reduce: 1 }, view: VIEWS[0] });
+// Самые широкие названия и имена (до 30 знаков без пробелов) на 5–20 экипажах (повторный аудит 2c, №6–№9).
+for (const s of ["lobby", "crews", "drill", "flight", "pull", "sos", "captain", "dock", "vote", "reveal", "podium"].filter((x) => scenarios.includes(x))) {
+  for (const view of [VIEWS[0], VIEWS[2]]) for (const crews of [5, 8, 10, 12, 20]) runs.push({ s, q: { crews, wide: 1 }, view });
+}
 // Лобби и экипажи с длинными названиями на 7–10 экипажей (аудит 2c, №2), все темы — на щитах, событиях и шапке (№1, №9, №10).
 for (const s of ["lobby", "lobby-wait", "crews"].filter((x) => scenarios.includes(x))) for (const view of [VIEWS[0], VIEWS[2]]) for (const crews of [7, 8, 10]) runs.push({ s, q: { crews, long: 1 }, view });
 for (const s of ["meteor", "warn", "captain", "captain-long", "vote", "reveal"].filter((x) => scenarios.includes(x))) {
@@ -396,6 +415,13 @@ async function one(run) {
     if (r.status() >= 400 && !r.url().includes("/fonts/")) errors.push(`файл ${r.status()}: ${r.url().replace(/^https?:\/\/[^/]+/, "")}`);
   });
   page.on("requestfailed", (r) => errors.push(`не загрузилось: ${r.url().replace(/^https?:\/\/[^/]+/, "")}`));
+  // Салют живёт 1,3 с: под нагрузкой кадр с ним может прийти позже снимка — считаем все вспышки с открытия страницы.
+  await page.addInitScript(() => {
+    window.__bursts = 0;
+    new MutationObserver(() => {
+      window.__bursts = Math.max(window.__bursts, document.querySelectorAll(".bks-burst").length);
+    }).observe(document, { subtree: true, childList: true });
+  });
   const qs = new URLSearchParams({ s: run.s, guests: "50", ...Object.fromEntries(Object.entries(run.q).map(([k, v]) => [k, String(v)])) });
   await page.goto(`http://localhost:${port}/?${qs}`);
   try {
@@ -403,10 +429,9 @@ async function one(run) {
   } catch {
     errors.push("стенд не дождался готовности");
   }
-  // Салют живёт 1,3 с — ждём его появления (до 1 с: под нагрузкой кадр приходит позже), иначе — после 150 мс.
-  if (run.s === "finish") await page.waitForSelector(".bks-burst", { timeout: 1000 }).catch(() => undefined);
+  if (run.s === "finish") await page.waitForFunction(() => window.__bursts > 0, null, { timeout: 2000 }).catch(() => undefined);
   else await page.waitForTimeout(150);
-  const bursts = await page.locator(".bks-burst").count();
+  const bursts = await page.evaluate(() => window.__bursts);
   await page.waitForTimeout(run.s === "reveal-seq" ? 700 : 450);
   await page.evaluate(() => document.fonts.ready);
   // Кнопка звука платформы, как в HallScreen до касания экрана.

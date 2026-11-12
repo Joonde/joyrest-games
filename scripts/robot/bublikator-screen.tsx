@@ -24,16 +24,20 @@ const scenario = params.get("s") ?? "lobby";
 const crewsN = Number(params.get("crews") ?? 5);
 const guests = Number(params.get("guests") ?? 50);
 const theme = params.get("theme") ?? "newyear";
-const long = params.get("long") === "1";
+// Самые широкие названия до NAME_MAX_LENGTH (30, со смайликом) и широкие имена (повторный аудит 2c).
+const wide = params.get("wide") === "1";
+const long = params.get("long") === "1" || wide;
+const WIDE_TEAMS = ["🐻 ШЖЩМЮШЖЩМЮШЖЩМЮШЖЩМЮШЖЩМЮШ", "🚀 ЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖЖ", "🦊 Мммммммммммммммммммммммммм", "🌟 ЩЩЩЩЩЩЩЩЩЩЩЩЩ ЩЩЩЩЩЩЩЩЩЩЩЩЩ"];
+const WIDE_NAMES = ["Шахмухаммедзаде-Мамедкулиева", "Ждановщиков-Шмаргуновский Ж", "Мамамамамамамамамамамамамамам", "ЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩЩ"];
 const reduce = params.get("reduce") === "1";
 
 function world(content: Record<string, unknown> = {}): World {
   return new World({
     players: guests,
     teams: crewsN,
-    teamNames: (i) => (long ? `${LONG_TEAMS[i % LONG_TEAMS.length]}${i >= LONG_TEAMS.length ? ` ${i + 1}` : ""}` : `${TEAMS[i % TEAMS.length]}${i >= TEAMS.length ? ` ${i + 1}` : ""}`),
-    names: (i) => (long ? `${LONG_NAMES[i % LONG_NAMES.length]} ${i}` : `${NAMES[i % NAMES.length]}${i >= NAMES.length ? ` ${Math.floor(i / NAMES.length) + 1}` : ""}`),
-    content: { theme, legMinutes: 3, saboteur: true, ...content },
+    teamNames: (i) => (wide ? (i < WIDE_TEAMS.length ? (WIDE_TEAMS[i] ?? "") : `${(WIDE_TEAMS[i % WIDE_TEAMS.length] ?? "").slice(0, 26)} ${i + 1}`) : long ? `${LONG_TEAMS[i % LONG_TEAMS.length]}${i >= LONG_TEAMS.length ? ` ${i + 1}` : ""}` : `${TEAMS[i % TEAMS.length]}${i >= TEAMS.length ? ` ${i + 1}` : ""}`),
+    names: (i) => (wide ? (WIDE_NAMES[i % WIDE_NAMES.length] ?? "").slice(0, 30) : long ? `${LONG_NAMES[i % LONG_NAMES.length]} ${i}` : `${NAMES[i % NAMES.length]}${i >= NAMES.length ? ` ${Math.floor(i / NAMES.length) + 1}` : ""}`),
+    content: { theme, legMinutes: 3, saboteur: true, ...(params.get("kids") === "1" ? { difficulty: "kids" } : {}), ...content },
   });
 }
 
@@ -370,18 +374,16 @@ class StandLink implements ScreenLink {
       if (fail) return onError(Object.assign(new Error(fail), { reason: fail }));
       if (this.silent) return;
       if (this.closed) onEvent({ type: "closed", at: this.w.env.now, reason: this.closed });
-      // Первая сводка подписки — снимок (`fresh`), как у сервера: по ней моментов нет (аудит 2c, №6).
-      else onEvent(this.event(true));
+      else onEvent(this.event());
       const first = this.onFirst;
       this.onFirst = null;
       first?.();
     });
     return () => this.listeners.delete(onEvent);
   }
-  event(fresh = false): RoomStreamEvent {
+  event(): RoomStreamEvent {
     const online = Object.values(this.w.s.members).filter((m) => this.w.env.online(m.pid)).length;
-    const e: RoomStreamEvent = { type: "screen", at: this.w.env.now, version: this.w.env.changes, paused: this.w.env.paused, players: Object.keys(this.w.s.members).length, online, data: screenView(this.w.s, this.w.env) };
-    return fresh ? { ...e, fresh: true } : e;
+    return { type: "screen", at: this.w.env.now, version: this.w.env.changes, paused: this.w.env.paused, players: Object.keys(this.w.s.members).length, online, data: screenView(this.w.s, this.w.env) };
   }
   push(): void {
     for (const l of this.listeners) l(this.event());
@@ -411,13 +413,24 @@ createRoot(rootEl).render(
   </div>,
 );
 
-// Сценарий продолжается, когда экран уже показал первую сводку (иначе момент придёт до подписки и «наступит» без экрана).
+// Сценарий продолжается, когда экран уже нарисовал первую сводку (иначе момент придёт раньше прошлого вида и «наступит» без
+// экрана, салют теряется): ждём, пока экран уйдёт с «Подключаемся…», и ещё два кадра.
+const painted = (then: () => void) => {
+  const el = document.querySelector<HTMLElement>(".bks");
+  if (!el || el.dataset.board === "connecting") return void requestAnimationFrame(() => painted(then));
+  requestAnimationFrame(() => requestAnimationFrame(then));
+};
 const go = () =>
+  painted(() =>
+    setTimeout(() => {
+      after?.(link);
+      (window as unknown as { standReady: boolean }).standReady = true;
+    }, 50),
+  );
+if (scenario === "over" || scenario === "connecting")
   setTimeout(() => {
-    after?.(link);
     (window as unknown as { standReady: boolean }).standReady = true;
   }, 200);
-if (scenario === "over" || scenario === "connecting") go();
 else link.onFirst = go;
 (window as unknown as { stand: unknown }).stand = {
   scenarios: Object.keys(SCENARIOS),

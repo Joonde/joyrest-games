@@ -76,7 +76,7 @@ export interface ScoreContext {
 
 /** Моменты игры со встроенной музыкой (файлы — `BUILTIN_MUSIC` в `sound.ts`). */
 /** `dragonLobby` и `dragonBattle` — один трек: громко в лобби, тихо фоном боя (громкость — `BUILTIN_VOLUME`). */
-export type MusicMoment = "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "dragonLobby" | "dragonBattle" | "milStart" | "milBed" | "milVote" | "lottoIntro" | "aquaMusic" | "treeMusic" | "boardBed" | "bubFlight";
+export type MusicMoment = "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "dragonLobby" | "dragonBattle" | "milStart" | "milBed" | "milVote" | "lottoIntro" | "aquaMusic" | "treeMusic" | "boardBed";
 
 /**
  * Действия пульта. На настоящей сессии пишут в базу, в «Репетиции» — меняют сессию в памяти.
@@ -131,6 +131,11 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
    * слайдов, «+10 секунд», «Наградить сейчас»), экран зала не показывает слайды и общий фон.
    */
   standalone?: { themeId: string };
+  /**
+   * Музыку экрана зала ведёт сама механика («Бубликатор»: своя музыка полёта по сводке комнаты): встроенная музыка платформы
+   * (лобби, перерыв, музыка момента) на её экране не играет. Музыка ведущего с пульта — как обычно.
+   */
+  ownMusic?: boolean;
   /**
    * Нарисованный фон экрана зала во время игры (Figma AI, `public/covers/art/web/<имя>.webp`), только в базовых
    * темах JoyRest — сезонные и праздничные темы остаются со своим живым фоном. null — без фона.

@@ -90,6 +90,32 @@ function collector() {
 }
 
 describe("«Бубликатор» в игровой комнате", () => {
+  it("экран: без перемен — сводка раз в секунду, с переменами — не чаще 5 раз в секунду (по непрерывности экран отличает поток от снимка)", () => {
+    let now = 1_000_000;
+    const r = room(6, {});
+    const screen = collector();
+    r.listen("screen", screen.listener, now);
+    screen.got.length = 0;
+    // Лобби, никто ничего не делает: сводка раз в секунду.
+    for (let t = 0; t < 5000; t += 100) {
+      now += 100;
+      r.tick(now);
+    }
+    const idle = screen.got.filter((e) => e.type === "screen").map((e) => e.at);
+    expect(idle.length).toBe(5);
+    for (let i = 1; i < idle.length; i += 1) expect((idle[i] ?? 0) - (idle[i - 1] ?? 0)).toBe(1000);
+    // Полёт: перемены каждые 100 мс — сводки не чаще раза в 200 мс.
+    r.command("gather", null, null, now);
+    r.command("start", null, null, now);
+    screen.got.length = 0;
+    for (let t = 0; t < 10_000; t += 100) {
+      now += 100;
+      r.tick(now);
+    }
+    const busy = screen.got.filter((e) => e.type === "screen").map((e) => e.at);
+    for (let i = 1; i < busy.length; i += 1) expect((busy[i] ?? 0) - (busy[i - 1] ?? 0)).toBeGreaterThanOrEqual(200);
+    expect(Math.max(...busy.slice(1).map((a, i) => a - (busy[i] ?? 0)))).toBeLessThanOrEqual(1000);
+  });
   it("пока экранов нет — только на тестовой версии: на основной комнаты нет", () => {
     expect(roomGames().has("bublikator")).toBe(false);
     expect(roomGames({ check: true }).has("bublikator")).toBe(true);

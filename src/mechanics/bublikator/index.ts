@@ -17,9 +17,9 @@ export const bublikator: Mechanic<BubContent, never> = {
   standalone: { themeId: "joyrest" },
   ownAward: true,
   ownAnswered: true,
-  // Тихая музыка всей игры (решение владельца 11 ноября 2026): встроенная музыка момента платформы — играет на экране зала,
-  // громкость под ползунком «🎵 Фон», эффекты (сирена, фанфары) её приглушают. В лобби — общая музыка лобби.
-  music: (session) => (session.state.phase === "playing" ? "bubFlight" : null),
+  // Музыка полёта — своя, по сводке комнаты (экран, `flightMusicOf`): только в полёте, на паузе встаёт (решение владельца
+  // 12 ноября 2026); встроенная музыка платформы (лобби, перерыв) на экране «Бубликатора» не играет.
+  ownMusic: true,
   create: () => parseContent(undefined),
   parse: parseContent,
   mediaIds: () => [],

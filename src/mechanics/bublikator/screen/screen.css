@@ -221,7 +221,8 @@
   line-clamp: 2;
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.1;
+  /* 1,35: смайлик выше строки (на 4K — на 8%) — при меньшей высоте строка «переполнена» и без переноса. */
+  line-height: 1.35;
 }
 
 .bks-ellipsis {
@@ -691,6 +692,10 @@
   overflow: hidden;
 }
 
+.bks-card > * {
+  flex: none;
+}
+
 .bks-card .bks-name {
   max-width: 100%;
 }
@@ -700,7 +705,13 @@
 }
 
 .is-small .bks-card__ship {
-  width: min(calc(var(--u) * 7.5), 100%);
+  width: min(calc(var(--u) * 6), 100%);
+}
+
+/* Два ряда карточек: отступы меньше — название в две строки и строка «на связи» помещаются (повторный аудит 2c, №6). */
+.is-small .bks-card {
+  gap: calc(var(--u) * 0.25);
+  padding: calc(var(--u) * 0.6) calc(var(--u) * 0.8);
 }
 
 .bks-card__name {
@@ -1548,8 +1559,12 @@
 
 /* Много экипажей — гирлянда меньше, а строки карточек целиком: «капитан …» не сжимается в ноль (аудит 2c, стенд «обрезка по высоте»). */
 .bks-sos.is-dense .bks-bulb {
-  width: calc(var(--u) * 4.2);
-  height: calc(var(--u) * 4.9);
+  width: calc(var(--u) * 3.6);
+  height: calc(var(--u) * 4.2);
+}
+
+.bks-sos.is-dense .bks-garland {
+  padding-top: calc(var(--u) * 0.8);
 }
 
 .bks-sos.is-dense .bks-bulb__glass {
@@ -1559,6 +1574,13 @@
 .bks-sos__card > *,
 .bks-spy > * {
   flex: none;
+}
+
+/* 15–20 экипажей на проекторе 4:3 — по 5 в ряд (4 ряда): по 7 названия не читались (повторный аудит 2c, №6). */
+@container (aspect-ratio < 1.5) {
+  .bks-sos__cards.is-many {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 .bks-sos__cards.is-dense .bks-sos__card {
@@ -1796,7 +1818,13 @@
 }
 
 .is-small .bks-spy__face {
-  width: min(calc(var(--u) * 5), 50%);
+  width: min(calc(var(--u) * 3.8), 40%);
+}
+
+/* Два ряда раскрытия: имя в две строки и вердикт помещаются (повторный аудит 2c, №9). */
+.is-small .bks-spy {
+  gap: calc(var(--u) * 0.25);
+  padding: calc(var(--u) * 0.6) calc(var(--u) * 0.8);
 }
 
 .bks-spy:not(.is-open) .bks-spy__face {

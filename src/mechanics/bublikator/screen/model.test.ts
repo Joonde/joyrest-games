@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { RoomStreamEvent } from "../../../data/types";
 import { LAUNCH_MS, PULL_HOLD_MS, WARN_MS } from "../rules/constants";
@@ -8,6 +9,14 @@ import {
   applyScreen,
   BEEP_EVERY_MS,
   boardOf,
+  FLIGHT_MUSIC,
+  FLIGHT_MUSIC_FAST_MS,
+  FLIGHT_MUSIC_FAST_RATE,
+  flightMusicOf,
+  LOUD_MS,
+  METEOR_HIT_MS,
+  meteorHitIndex,
+  SOUND_CLOCK,
   captainLayout,
   cardColumns,
   chipsShown,
@@ -30,6 +39,7 @@ import {
   sosCycleMs,
   shieldLook,
   sosLit,
+  SNAPSHOT_GAP_MS,
   sosToneOf,
   soundsOf,
   speedText,
@@ -222,13 +232,14 @@ describe("экран зала «Бубликатора»: модель пото�
     expect(chipsShown(short(2), 8)).toBe(2);
     expect(chipsShown(short(3), 12)).toBe(0);
     expect(cardColumns(3)).toBe(3);
-    expect(cardColumns(12)).toBe(7);
+    expect(cardColumns(12)).toBe(6);
+    expect(cardColumns(13)).toBe(7);
     expect(cardColumns(20)).toBe(7);
   });
 
   it("моменты: только то, что наступило при открытом экране", () => {
     const fly = view();
-    expect(momentsOf(null, fly)).toEqual({ launch: false, event: false, eventKind: null, warn: false, orders: 0, fail: false, repair: false, finish: [], salutes: [], dock: false, reveal: false, podium: false });
+    expect(momentsOf(null, fly)).toEqual({ launch: false, event: false, eventKind: null, warn: false, orders: 0, fail: false, repair: false, hull: false, finish: [], salutes: [], dock: false, reveal: false, podium: false });
     expect(momentsOf(view({ phase: "crews", stage: null }), view({ stage: "launch" })).launch).toBe(true);
     const warn = view({ event: { id: "e1", kind: "meteor", warn: true, startsAt: 0, endsAt: 1, seq: null, task: null, crews: [] } });
     const on = view({ event: { id: "e1", kind: "meteor", warn: false, startsAt: 0, endsAt: 1, seq: null, task: null, crews: [] } });
@@ -301,21 +312,35 @@ describe("экран зала «Бубликатора»: аудит 2c", () => 
     expect(leftUntil(go, 1_090_000, 1_071_000)).toBe(19_000);
   });
 
-  it("№6: снимок (подписка, «Открыть здесь», переподключение, после «закрыто») — без моментов и рывков", () => {
+  it("№6: снимок (подписка, «Открыть здесь», переподключение после обрыва, опоздавшие сводки) — без моментов и рывков; опрос — с моментами", () => {
     const before = view({ stage: "fly", crews: [crew(0, { salutes: 0, okSeq: 1 }), crew(1)] });
     const after = view({ stage: "dock", crews: [crew(0, { finished: true, salutes: 3, okSeq: 4 }), crew(1)] });
-    const live = applyScreen(emptyScreen(0), screenEvent(before, 1000), 1000);
+    // Первая сводка — снимок.
+    const live = applyScreen(emptyScreen(1000), screenEvent(before, 1000), 1000);
     expect(live.fresh).toBe(true);
-    const step = applyScreen(live, screenEvent(after, 2000), 2000);
+    // Живой поток (через 0,2 с) — моменты есть.
+    const step = applyScreen(live, screenEvent(after, 1200), 1200);
     expect(step.fresh).toBe(false);
     expect(momentsFor(before, step)).toMatchObject({ dock: true, finish: [0], salutes: [{ crew: 0, n: 3 }] });
-    // Сервер пометил сводку снимком — ни аплодисментов, ни фанфар, ни салюта.
-    const snap = applyScreen(live, { ...(screenEvent(after, 2000) as Extract<RoomStreamEvent, { type: "screen" }>), fresh: true }, 2000);
-    expect(momentsFor(before, snap)).toMatchObject({ dock: false, finish: [], salutes: [] });
-    expect(nextBumps(before, after, snap.fresh, {})).toEqual({});
+    expect(nextBumps(before, after, step.fresh, {})).toEqual({ 0: { ok: 1, fail: 0 } });
+    // Опрос раз в 2 с — тоже живой поток (второй круг аудита, №1: раньше каждая сводка опроса была снимком и экран молчал).
+    const polled = applyScreen(live, screenEvent(after, 3000), 3000);
+    expect(polled.fresh).toBe(false);
+    expect(momentsFor(before, polled).dock).toBe(true);
+    // Разрыв больше 3 с (переподключение после обрыва) — снимок: ни аплодисментов, ни фанфар, ни салюта.
+    const gap = applyScreen(live, screenEvent(after, 1000 + SNAPSHOT_GAP_MS + 1), 1000 + SNAPSHOT_GAP_MS + 1);
+    expect(gap.fresh).toBe(true);
+    expect(momentsFor(before, gap)).toMatchObject({ dock: false, finish: [], salutes: [] });
+    expect(nextBumps(before, after, gap.fresh, {})).toEqual({});
+    // Сводки застряли и дошли пачкой (второй круг, №2): сводка на 0,5 с новее прошлой, но опоздала на 20 с — снимок.
+    const stalled = applyScreen(live, screenEvent(after, 1500), 21_500);
+    expect(stalled.fresh).toBe(true);
+    expect(momentsFor(before, stalled)).toMatchObject({ dock: false, finish: [], salutes: [] });
+    // Опоздала на 2 с — ещё живой поток.
+    expect(applyScreen(live, screenEvent(after, 1500), 3500).fresh).toBe(false);
     // После «закрыто» (вкладку вытеснили и вернули) — первая сводка тоже снимок.
-    const closed = applyScreen(live, { type: "closed", at: 1500, reason: "replaced" }, 1500);
-    expect(applyScreen(closed, screenEvent(after, 2000), 2000).fresh).toBe(true);
+    const closed = applyScreen(live, { type: "closed", at: 1100, reason: "replaced" }, 1100);
+    expect(applyScreen(closed, screenEvent(after, 1200), 1200).fresh).toBe(true);
   });
 
   it("№7: рывки — только при росте okSeq / failSeq", () => {
@@ -358,16 +383,17 @@ describe("экран зала «Бубликатора»: аудит 2c", () => 
 
   it("№11: звуки по моментам — сирена, свист, гул, бип (склеенный), удар, лязг, фанфары финиша", () => {
     const fly = view({ ordersDone: 10 });
-    const pick = (prev: ScreenView, next: ScreenView, at = 10_000, beepAt = -Infinity) => soundsOf(momentsOf(prev, next), false, at, beepAt).sounds;
+    const pick = (prev: ScreenView, next: ScreenView, at = 10_000, clock = SOUND_CLOCK) => soundsOf(momentsOf(prev, next), false, at, clock).sounds;
     expect(pick(fly, view({ ordersDone: 10, event: meteor(true) }))).toEqual(["siren"]);
     expect(pick(view({ event: meteor(true) }), view({ event: meteor(false) }))).toEqual(["whistle"]);
     expect(pick(fly, view({ event: { ...meteor(false, "e2"), kind: "pull" } }))).toEqual(["hum"]);
     expect(pick(fly, view({ event: { ...meteor(false, "e3"), kind: "sos" } }))).toEqual(["gong"]);
     expect(pick(fly, fly)).toEqual([]);
     // Приказ: «бип», но не чаще раза в полсекунды на весь зал.
-    expect(soundsOf(momentsOf(fly, view({ ordersDone: 12 })), false, 10_000, -Infinity)).toEqual({ sounds: ["beep"], beepAt: 10_000 });
-    expect(soundsOf(momentsOf(fly, view({ ordersDone: 12 })), false, 10_000 + BEEP_EVERY_MS - 1, 10_000)).toEqual({ sounds: [], beepAt: 10_000 });
-    expect(soundsOf(momentsOf(fly, view({ ordersDone: 12 })), false, 10_000 + BEEP_EVERY_MS, 10_000).sounds).toEqual(["beep"]);
+    const orders = momentsOf(fly, view({ ordersDone: 12 }));
+    expect(soundsOf(orders, false, 10_000, SOUND_CLOCK)).toEqual({ sounds: ["beep"], clock: { beepAt: 10_000, loudUntil: -Infinity } });
+    expect(soundsOf(orders, false, 10_000 + BEEP_EVERY_MS - 1, { beepAt: 10_000, loudUntil: -Infinity }).sounds).toEqual([]);
+    expect(soundsOf(orders, false, 10_000 + BEEP_EVERY_MS, { beepAt: 10_000, loudUntil: -Infinity }).sounds).toEqual(["beep"]);
     // Под громкий звук бип не добавляется.
     expect(pick(fly, view({ ordersDone: 12, event: meteor(true) }))).toEqual(["siren"]);
     // Новый перелёт (ordersDone с нуля) — не приказ.
@@ -380,7 +406,38 @@ describe("экран зала «Бубликатора»: аудит 2c", () => 
     expect(pick(view({ stage: "fly" }), view({ stage: "dock" }))).toEqual(["applause"]);
     expect(pick(view({ crews: [crew(0), crew(1)] }), view({ crews: [crew(0, { salutes: 2 }), crew(1)] }))).toEqual(["pop"]);
     // Снимок — ни одного звука.
-    expect(soundsOf(momentsOf(null, view({ event: meteor(true) })), false, 0, -Infinity).sounds).toEqual([]);
+    expect(soundsOf(momentsOf(null, view({ event: meteor(true) })), false, 0, SOUND_CLOCK).sounds).toEqual([]);
+  });
+
+  it("№4 (второй круг): бип не звучит, пока не отзвучал громкий звук — по длительностям", () => {
+    const fly = view({ ordersDone: 10 });
+    const orders = momentsOf(fly, view({ ordersDone: 12 }));
+    // Сирена в 10 с — до 12,3 с громко: бипы в 10,5, 11, 12 молчат, в 12,3 — звучит.
+    const siren = soundsOf(momentsOf(fly, view({ ordersDone: 10, event: meteor(true) })), false, 10_000, SOUND_CLOCK);
+    expect(siren.clock.loudUntil).toBe(10_000 + (LOUD_MS.siren ?? 0));
+    for (const at of [10_500, 11_000, 12_000, 12_299]) expect(soundsOf(orders, false, at, siren.clock).sounds).toEqual([]);
+    expect(soundsOf(orders, false, 12_300, siren.clock).sounds).toEqual(["beep"]);
+    // Аплодисменты — 3,5 с; хлопок салюта — тихий, бип после него можно.
+    const clap = soundsOf(momentsOf(view({ stage: "fly" }), view({ stage: "dock" })), false, 0, SOUND_CLOCK).clock;
+    expect(clap.loudUntil).toBe(3500);
+    const pop = soundsOf(momentsOf(view({ crews: [crew(0), crew(1)] }), view({ crews: [crew(0, { salutes: 2 }), crew(1)] })), false, 0, SOUND_CLOCK).clock;
+    expect(soundsOf(orders, false, BEEP_EVERY_MS, pop).sounds).toEqual(["beep"]);
+  });
+
+  it("№5 (второй круг): удары метеорита о щит во время дождя и удар о корпус", () => {
+    const rain = { ...meteor(false), startsAt: 10_000, endsAt: 20_000 };
+    expect(meteorHitIndex(rain, 9_999)).toBeNull();
+    expect(meteorHitIndex(rain, 10_000)).toBe(0);
+    expect(meteorHitIndex(rain, 10_000 + METEOR_HIT_MS)).toBe(1);
+    expect(meteorHitIndex(rain, 20_000)).toBeNull();
+    expect(meteorHitIndex({ ...rain, warn: true }, 12_000)).toBeNull();
+    expect(meteorHitIndex({ ...rain, kind: "pull" }, 12_000)).toBeNull();
+    expect(meteorHitIndex(null, 12_000)).toBeNull();
+    // Прочность убавилась (метеорит пробил слабый щит) — тихий удар; вместе с просрочкой — только удар просрочки.
+    const pick = (prev: ScreenView, next: ScreenView) => soundsOf(momentsOf(prev, next), false, 0, SOUND_CLOCK).sounds;
+    expect(pick(view({ crews: [crew(0, { hull: 5 }), crew(1)] }), view({ crews: [crew(0, { hull: 4 }), crew(1)] }))).toEqual(["hit"]);
+    expect(pick(view({ crews: [crew(0, { hull: 5, failSeq: 1 }), crew(1)] }), view({ crews: [crew(0, { hull: 4, failSeq: 2 }), crew(1)] }))).toEqual(["thud"]);
+    expect(pick(view({ crews: [crew(0, { hull: 2 }), crew(1)] }), view({ crews: [crew(0, { hull: 5 }), crew(1)] }))).toEqual([]);
   });
 
   it("№11: тон огонька SOS — свой на цвет, только когда загорелся новый", () => {
@@ -391,5 +448,30 @@ describe("экран зала «Бубликатора»: аудит 2c", () => 
     expect(sosToneOf(seq, 1, null)).toBe("sos0");
     expect(sosToneOf(seq, 2, 1)).toBe("sos3");
     expect(sosToneOf([9], 0, null)).toBeNull();
+  });
+
+  it("№3 (второй круг): музыка полёта — только в полёте, на паузе нет, в последние 30 с быстрее, у каждой темы своя", () => {
+    const at = 1_000_000;
+    const fly = (over: Partial<ScreenView> = {}) => model(view({ stage: "fly", ...over }), at, at);
+    // Полёт — играет, 2 минуты до конца — обычный темп.
+    expect(flightMusicOf(fly(), at)).toEqual({ url: FLIGHT_MUSIC.newyear, rate: 1 });
+    // Последние 30 с — быстрее.
+    const late = fly({ flight: { elapsed: 180_000 - FLIGHT_MUSIC_FAST_MS, duration: 180_000, stopped: false } });
+    expect(flightMusicOf(late, at)?.rate).toBe(FLIGHT_MUSIC_FAST_RATE);
+    expect(flightMusicOf(fly({ flight: { elapsed: 180_000 - FLIGHT_MUSIC_FAST_MS - 1000, duration: 180_000, stopped: false } }), at)?.rate).toBe(1);
+    // Событие в полёте — музыка идёт.
+    expect(flightMusicOf(fly({ event: meteor(false) }), at)).not.toBeNull();
+    // Не в полёте — тишина.
+    for (const over of [{ phase: "lobby" as const, stage: null }, { phase: "crews" as const, stage: null }, { phase: "drill" as const, stage: null }, { stage: "launch" as const }, { stage: "dock" as const }, { stage: "vote" as const }, { stage: "voted" as const }, { phase: "podium" as const, stage: null }]) {
+      expect(flightMusicOf(model(view(over), at, at), at)).toBeNull();
+    }
+    // Пауза комнаты — встаёт.
+    expect(flightMusicOf(applyScreen(fly(), { type: "room", at, paused: true }, at), at)).toBeNull();
+    // Закрыто (другая вкладка) — тишина.
+    expect(flightMusicOf({ ...fly(), closed: "replaced" }, at)).toBeNull();
+    // Своя у каждой темы, файлы на месте.
+    const themes = ["space", "pirates", "submarine", "wedding", "newyear"] as const;
+    expect(new Set(themes.map((t) => flightMusicOf(fly({ theme: t }), at)?.url)).size).toBe(5);
+    for (const t of themes) expect(existsSync(new URL(`../../../../public${FLIGHT_MUSIC[t]}`, import.meta.url))).toBe(true);
   });
 });

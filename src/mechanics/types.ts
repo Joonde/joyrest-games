@@ -102,6 +102,13 @@ export interface HostControlsProps<Content> extends ViewProps<Content> {
   rehearsal: boolean;
 }
 
+/** Предпросмотр и репетиция игры, которая идёт в игровой комнате («Бубликатор»): своя комната в памяти с тестовыми гостями. */
+export interface RoomPreviewProps<Content> {
+  content: Content;
+  /** `preview` — в конструкторе (игра идёт сама); `rehearsal` — «Репетиция» (кнопки пульта нажимает ведущий). */
+  mode: "preview" | "rehearsal";
+}
+
 /** Единый интерфейс механики (CLAUDE.md, раздел 6). Ядро знает только его. */
 export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   id: string;
@@ -160,6 +167,11 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   firstTurn?: (session: Session, content: Content, pid: string) => SessionChange | null;
   /** Предпросмотр в конструкторе: игра проходит сама с тестовыми командами (`src/mechanics/preview.ts`). */
   preview?: { driver: PreviewDriver<Content>; teams?: number; limit?: number };
+  /**
+   * Игра в игровой комнате быстрого канала («Бубликатор»): шагов сессии нет, поэтому вместо водителя `preview` — свой
+   * предпросмотр и репетиция с комнатой в памяти (правила те же, что на сервере), экран зала, телефон и пульт — настоящие.
+   */
+  roomPreview?: ComponentType<RoomPreviewProps<Content>>;
 }
 
 /**

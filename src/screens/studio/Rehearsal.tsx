@@ -86,6 +86,25 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
     [],
   );
   if (!mechanic || content === null) return <Message title="Механика не поддерживается" />;
+  // Игра в игровой комнате («Бубликатор»): своя комната в памяти с тестовыми гостями-ботами, пульт ведёт ведущий.
+  const RoomPreview = mechanic.roomPreview;
+  if (RoomPreview) {
+    return (
+      <main className="page page--wide">
+        <TopBar title="Репетиция" actions={[{ label: "✍️ Редактировать игру", to: `/studio/games/${game.id}` }]} leaveWarning="Репетиция закончится, её можно начать заново." />
+        <Suspense fallback={null}>
+          <RoomPreview content={content} mode="rehearsal" />
+        </Suspense>
+        {launchable && (
+          <div className="actions">
+            <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
+              ▶ Запустить игру
+            </Link>
+          </div>
+        )}
+      </main>
+    );
+  }
   const { ScreenView, HostControls } = mechanic;
   const finished = session.state.phase === "finished";
 

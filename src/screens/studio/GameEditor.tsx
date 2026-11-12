@@ -390,7 +390,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
 
   const launchBlocked = errors.length > 0;
   const [previewOpen, setPreviewOpen] = useState(false);
-  const canPreview = Boolean(mechanic?.preview) && !launchBlocked;
+  const canPreview = Boolean(mechanic?.preview || mechanic?.roomPreview) && !launchBlocked;
 
   /** Замечания текстом, если на странице не нашлось, куда вести (чтобы не было тупика). */
   const [issuesList, setIssuesList] = useState(false);
@@ -598,14 +598,18 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       {canPreview && mechanic && (
         <section className="card stack stack--tight">
           <h2>Как игра пойдёт</h2>
-          <p className="muted small">Игра проходит сама с тестовыми командами: листайте моменты и смотрите экран зала и телефоны.</p>
+          <p className="muted small">
+            {mechanic.roomPreview
+              ? "Игра идёт сама с тестовыми гостями: смотрите экран зала, телефон и пульт, можно поиграть за гостя."
+              : "Игра проходит сама с тестовыми командами: листайте моменты и смотрите экран зала и телефоны."}
+          </p>
           <button type="button" className="btn btn--secondary btn--block" onClick={() => setPreviewOpen(true)}>
             Предпросмотр игры
           </button>
           <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} gameId={game.id} content={game.content} playMode={supportedPlayMode(game.mechanic, game.playMode)} themeId={game.themeId} />
         </section>
       )}
-      {mechanic?.preview && launchBlocked && (
+      {(mechanic?.preview || mechanic?.roomPreview) && launchBlocked && (
         <section className="card stack stack--tight">
           <h2>Как игра пойдёт</h2>
           <p className="muted small">

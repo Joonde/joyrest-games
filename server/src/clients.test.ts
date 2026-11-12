@@ -411,14 +411,14 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect(half.statusCode).toBe(200);
     expect(half.json()).toMatchObject({ id: "evhalf", clientNotSaved: true, clientIncomplete: true });
     // Разные дни: занятого ведущего второй раз в то же время не записать (12 ноября 2026).
-    const nameOnly = await post("/api/events", owner, { ...ev, id: "evname", clientPhone: "", day: day(46) });
+    const nameOnly = await post("/api/events", owner, { ...ev, id: "evname", clientPhone: "", day: day(91) });
     expect(nameOnly.json()).toMatchObject({ clientNotSaved: true, clientIncomplete: true });
     // «8 915 123 45 6» — 10 цифр без последней: не «7 891 512-34-56», а неполный номер.
-    const short = await post("/api/events", owner, { ...ev, id: "evshort", clientPhone: "8 915 123 45 6", day: day(47) });
+    const short = await post("/api/events", owner, { ...ev, id: "evshort", clientPhone: "8 915 123 45 6", day: day(92) });
     expect(short.json()).toMatchObject({ clientNotSaved: true, clientIncomplete: true });
     expect(await sql`select 1 from clients where phone_key = '78915123456'`).toHaveLength(0);
     // Без клиента вовсе — ничего не говорим.
-    const none = (await post("/api/events", owner, { ...ev, id: "evnone", clientName: "", clientPhone: "", day: day(48) })).json();
+    const none = (await post("/api/events", owner, { ...ev, id: "evnone", clientName: "", clientPhone: "", day: day(93) })).json();
     expect(none.clientNotSaved).toBeUndefined();
   });
 

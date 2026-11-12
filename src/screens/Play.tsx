@@ -457,7 +457,11 @@ function InGame({
   // Ответ не дошёл из-за сети (ревью 29 октября 2026): телефон его забыл и снова даёт ответить. Если запрос всё же
   // дошёл до сервера, а гость больше не нажал, — когда приём ответов закрыт, спрашиваем сервер, чтобы не показать
   // «Ответа не было» при начисленных очках.
-  const [unsure, setUnsure] = useState<string | null>(null);
+  // Телефон открыли посреди открытого вопроса, и ответа на нём не запомнено: запрос мог ещё быть в пути, когда
+  // страница перезагрузилась, — такой шаг тоже перепроверяем при закрытии приёма.
+  const [unsure, setUnsure] = useState<string | null>(() =>
+    phase === "playing" && stage === "question" && !rememberedAnswer(session.id, answerSlot(session)) ? answerSlot(session) : null,
+  );
   const slotNow = answerSlot(session);
   const closed = stage !== "question" && stage !== "ready";
   // Ключ перепроверки меняется ровно в момент закрытия приёма: на первом шаге после входа сервер уже спрашивали
@@ -513,6 +517,9 @@ function InGame({
     // На телефоне ответ запоминается только после подтверждения сервера (паспорт общей части, Н-2): раньше он
     // запоминался сразу, и если страница перезагружалась, пока запрос шёл, телефон показывал «Ответ принят» и
     // «Верно!» за ответ, которого на сервере нет. После перезагрузки посреди шага телефон спрашивает сервер сам.
+    // Прежний ответ этого шага (его меняют на шагах с изменяемым ответом) забываем сразу: пока новый в пути,
+    // перезагрузка не должна показать старый.
+    forgetAnswer(session.id, slot);
     setMyAnswer(value);
     try {
       const result = await retryBriefly(() => answersRepo.submit(session.id, step, pid, uid, value), undefined, undefined, () => slotRef.current === slot);
@@ -549,7 +556,8 @@ function InGame({
     const slot = answerSlot(session, true);
     setPersonalSending(true);
     setError(null);
-    // Как и ответ за команду: запоминаем на телефоне только подтверждённое сервером.
+    // Как и ответ за команду: запоминаем на телефоне только подтверждённое сервером, прежний — забываем сразу.
+    forgetAnswer(session.id, slot);
     setMyPersonal(value);
     try {
       const result = await retryBriefly(() => answersRepo.submit(session.id, step, me.id, uid, value), undefined, undefined, () => personalSlotRef.current === slot);

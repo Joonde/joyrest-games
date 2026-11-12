@@ -86,14 +86,16 @@ export const MAX_REOPEN_LIMIT = 12 * 60 * 60;
 /**
  * «+10 секунд» на пульте: продлить время открытого вопроса. Время ещё идёт — прибавляет `seconds`, но не дальше
  * `MAX_TIME_LIMIT`. Время уже вышло — ответы снова принимаются ещё `seconds` секунд с этой минуты (гости не успели),
- * сколько бы ни прошло с показа вопроса. null — продлевать нечего (вопрос не открыт, без таймера или таймер идёт и
- * упёрся в потолок).
+ * сколько бы ни прошло с показа вопроса, и дальше прибавляется без потолка. null — продлевать нечего (вопрос не открыт,
+ * без таймера, таймер идёт и упёрся в потолок, или с показа прошло больше `MAX_REOPEN_LIMIT`).
  */
 export function addTimeChange(state: SessionState, serverNow: number, seconds = 10): SessionChange | null {
   if (state.phase !== "playing" || state.stage !== "question" || state.revealed || state.startedAt === null || state.timeLimit === null) return null;
   const elapsed = Math.max(0, Math.ceil((serverNow - state.startedAt) / 1000));
   const expired = state.startedAt + state.timeLimit * 1000 <= serverNow;
-  const next = expired ? Math.min(MAX_REOPEN_LIMIT, elapsed + seconds) : Math.min(MAX_TIME_LIMIT, state.timeLimit + seconds);
+  // Таймер идёт: обычный потолок. Вопрос уже открывали заново после потолка (лимит больше него) — прибавляем дальше.
+  const cap = expired || state.timeLimit > MAX_TIME_LIMIT ? MAX_REOPEN_LIMIT : MAX_TIME_LIMIT;
+  const next = Math.min(cap, (expired ? elapsed : state.timeLimit) + seconds);
   // Продление должно дать время с этой минуты, иначе кнопка «сработает» впустую (потолок близко).
   if (next <= state.timeLimit || state.startedAt + next * 1000 <= serverNow) return null;
   return { state: { timeLimit: next }, expect: { phase: "playing", step: state.step, stage: "question" } };
@@ -105,6 +107,9 @@ export function acceptsAnswers(state: SessionState, serverNow: number): boolean 
   const deadline = answerDeadline(state);
   return deadline === null || serverNow <= deadline;
 }
+
+/** Модуль для суммы времён в отметке ответов (`AnswersMark.sum`): числа остаются небольшими при любом числе гостей. */
+export const ANSWERS_SUM_MOD = 1_000_000_000;
 
 /** Открыт ли приём ответов на шаге (без учёта таймера). */
 export function answersOpen(state: Pick<SessionState, "phase" | "step" | "stage" | "revealed">, step: number): boolean {
@@ -135,8 +140,13 @@ export function closesAnswers(state: SessionState, change: SessionChange, step: 
 export function answersMark(step: number, answers: readonly Pick<Answer, "step" | "submittedAt">[]): AnswersMark {
   const own = answers.filter((a) => a.step === step);
   let last: number | null = null;
-  for (const a of own) if (a.submittedAt !== null && (last === null || a.submittedAt > last)) last = a.submittedAt;
-  return { step, count: own.length, last };
+  let sum = 0;
+  for (const a of own) {
+    if (a.submittedAt === null) continue;
+    if (last === null || a.submittedAt > last) last = a.submittedAt;
+    sum += a.submittedAt % ANSWERS_SUM_MOD;
+  }
+  return { step, count: own.length, last, sum };
 }
 
 /** Применяет запись пульта к сессии в памяти: так работает «Репетиция» без сервера. */

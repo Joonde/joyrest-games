@@ -367,10 +367,11 @@ export function checkChange(value: unknown): CheckedChange | null {
     if (answers !== undefined) {
       // Отметка списка ответов, по которому пульт считал очки (`answersMark`): проверяется под блокировкой строки.
       if (!isRecord(answers)) return null;
-      const { step: at, count, last } = answers;
+      const { step: at, count, last, sum } = answers;
       if (!Number.isInteger(at) || (at as number) < 0 || !Number.isInteger(count) || (count as number) < 0) return null;
       if (last !== null && (typeof last !== "number" || !Number.isFinite(last))) return null;
-      expect.answers = { step: at as number, count: count as number, last: last as number | null };
+      if (!Number.isSafeInteger(sum) || (sum as number) < 0) return null;
+      expect.answers = { step: at as number, count: count as number, last: last as number | null, sum: sum as number };
     }
     if (slide !== undefined) {
       // id слайда на экране (или null — слайда нет): конец перерыва с двух пультов не уберёт чужой слайд.
@@ -691,10 +692,14 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         // принятые ответы, а новые ждут конца записи и попадут уже в закрытый вопрос.
         const mark = checked.expect?.answers;
         if (mark) {
-          const [seen] = await tx<{ count: number; last: Date | null }[]>`
-            select count(*)::int as count, max(submitted_at) as last from answers where session_id = ${sessionId} and step = ${mark.step}`;
+          // Сумма времён (по модулю `ANSWERS_SUM_MOD` = 1 000 000 000, как `answersMark`) ловит ответ, заменённый другим с более ранним временем:
+          // число ответов и последний при этом те же.
+          const [seen] = await tx<{ count: number; last: Date | null; sum: string }[]>`
+            select count(*)::int as count, max(submitted_at) as last,
+              coalesce(sum(round(extract(epoch from submitted_at) * 1000)::bigint % 1000000000), 0)::text as sum
+            from answers where session_id = ${sessionId} and step = ${mark.step}`;
           const last = seen?.last ? seen.last.getTime() : null;
-          if ((seen?.count ?? 0) !== mark.count || last !== mark.last) return "conflict" as const;
+          if ((seen?.count ?? 0) !== mark.count || last !== mark.last || (seen?.sum ?? "0") !== String(mark.sum)) return "conflict" as const;
         }
         const at = now();
         const next = applyChange(state, board, checked, at);

@@ -7,7 +7,7 @@
 import { leaderboardAdditions } from "../../core/leaderboard";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, parseBuzz, syncBuzz, type BuzzState } from "../../core/buzz";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
-import { MAX_TIME_LIMIT } from "../../core/session";
+import { MAX_REOPEN_LIMIT, MAX_TIME_LIMIT } from "../../core/session";
 import { drawSlide, drawWinner, type DrawEffect } from "../../core/draw";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
@@ -492,7 +492,10 @@ export function boardWrong(session: Session, content: BoardContent, now?: number
   if (!buzz.current && now !== undefined && typeof startedAt === "number" && timeLimit !== null) {
     const frozen = result.pausedAt !== null ? Math.max(0, Math.ceil((now - result.pausedAt) / 1000)) : 0;
     const least = Math.ceil((now + RESUME_MIN_SECONDS * 1000 - startedAt) / 1000);
-    const limit = Math.min(MAX_TIME_LIMIT, Math.max(timeLimit + frozen, least));
+    // Обычный потолок — только пока время ответа с этой минуты в него укладывается: вопрос, открытый заново после
+    // долгого перерыва («+10 секунд» за потолком), иначе закрылся бы сразу после «Неверно».
+    const wanted = Math.max(timeLimit + frozen, least);
+    const limit = least > MAX_TIME_LIMIT ? Math.min(MAX_REOPEN_LIMIT, wanted) : Math.min(MAX_TIME_LIMIT, wanted);
     if (limit !== timeLimit) state.timeLimit = limit;
     next.pausedAt = null;
   }

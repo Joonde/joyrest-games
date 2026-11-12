@@ -524,8 +524,39 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "reveal", revealed: true }, expect: { ...expect0, answers: fresh } })).statusCode).toBe(200);
     expect((await call("GET", "/api/sessions/ansg1", host)).json().state).toMatchObject({ stage: "reveal", revealed: true });
     // Неверная отметка — 400; без отметки запись работает как раньше.
-    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { answers: { step: 0, count: -1, last: null } } })).statusCode).toBe(400);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { answers: { step: 0, count: -1, last: null, sum: 0 } } })).statusCode).toBe(400);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { answers: { step: 0, count: 2, last: null } } })).statusCode).toBe(400);
     expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { step: 0, stage: "reveal" } })).statusCode).toBe(200);
+  });
+
+  it("сверка ответов ловит и ответ, заменённый другим с более ранним временем (шаг с изменяемым ответом)", async () => {
+    await newSession("ansg2");
+    const first = await device();
+    const second = await device();
+    await call("POST", `/api/sessions/ansg2/participants/${first.uid}/join`, first.cookie, { name: "Аня", teamId: null });
+    await call("POST", `/api/sessions/ansg2/participants/${second.uid}/join`, second.cookie, { name: "Боря", teamId: null });
+    await call("POST", "/api/sessions/ansg2/phase", host, { phase: "playing" });
+    const open = { state: { stage: "question", startedAt: "server", timeLimit: 60, result: { changeable: true } } };
+    expect((await call("POST", "/api/sessions/ansg2/apply", host, open)).statusCode).toBe(200);
+    const answer = (guest: { cookie: string; uid: string }, value: string) =>
+      call("POST", "/api/sessions/ansg2/answers", guest.cookie, { step: 0, pid: guest.uid, value });
+    const list = async () => (await call("GET", "/api/sessions/ansg2/answers/0", host)).json() as Array<{ step: number; submittedAt: number | null }>;
+    const started = clock;
+    clock = started + 1000;
+    expect((await answer(first, "a")).json()).toEqual({ result: "sent" });
+    clock = started + 5000;
+    expect((await answer(second, "a")).json()).toEqual({ result: "sent" });
+    const stale = answersMark(0, await list());
+    // Первый гость меняет ответ; время его записи раньше последнего ответа — число и «последний» прежние.
+    clock = started + 3000;
+    expect((await answer(first, "b")).json()).toEqual({ result: "sent" });
+    const fresh = answersMark(0, await list());
+    expect([fresh.count, fresh.last]).toEqual([stale.count, stale.last]);
+    expect(fresh.sum).not.toBe(stale.sum);
+    clock = started + 6000;
+    const close = { state: { stage: "reveal", revealed: true } };
+    expect((await call("POST", "/api/sessions/ansg2/apply", host, { ...close, expect: { answers: stale } })).statusCode).toBe(409);
+    expect((await call("POST", "/api/sessions/ansg2/apply", host, { ...close, expect: { answers: fresh } })).statusCode).toBe(200);
   });
 
   it("пульт: устаревшее изменение — 409; прибавка очков складывается; после финиша — только музыка и слайды", async () => {

@@ -340,6 +340,21 @@ describe("«Ставка на знания»: пока отвечают — вр
     expect((s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000 - (start + 43000)).toBe((c.buzzTime - 3) * 1000);
   });
 
+  it("вопрос открыли заново после долгого перерыва («+10 секунд» за потолком) — «Неверно» не закрывает его", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    const start = s.state.startedAt ?? 0;
+    // Перерыв 20 минут при открытом вопросе, ведущий дал ещё 10 секунд: лимит уже больше обычного потолка 900 с.
+    const now = start + 1_200_000;
+    s = apply(s, { state: { timeLimit: 1210 } });
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, now + 2000)], now + 2100));
+    s = apply(s, boardWrong(s, c, now + 7000));
+    // Раньше лимит резался до 900 — срок оказывался в прошлом, остальные ответить не могли.
+    const deadline = (s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000;
+    expect(deadline - (now + 7000)).toBeGreaterThanOrEqual(5000);
+    expect(parseBoardResult(s.state.result).pausedAt).toBeNull();
+  });
+
   it("нажал в последнюю секунду — остальным всё равно не меньше 5 секунд; очередь — время стоит дальше", () => {
     const c = content();
     let s = openArmed(session(), c, "a0");

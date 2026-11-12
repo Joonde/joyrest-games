@@ -237,7 +237,12 @@ export function QuizHostControls({ session, content, answers, participants, cont
           // общей части, Н-1) — берём свежий список и повторяем. Игра ушла дальше — как раньше, молча.
           const now = latest.current.state;
           const same = now.phase === phase && now.step === atStep && now.stage === atStage;
-          if (again && typeof make === "function" && attempt < 2 && same && isPrecondition(e)) continue;
+          if (again && typeof make === "function" && same && isPrecondition(e)) {
+            if (attempt < 2) continue;
+            // Три отказа подряд: гости всё ещё отвечают. Молчать нельзя — ведущий решил бы, что кнопка не работает.
+            setError("Ответы ещё приходят — нажмите ещё раз.");
+            return;
+          }
           throw e;
         }
         // Ответы убираем после закрытия вопроса: новые гости уже не успеют ответить.
@@ -268,20 +273,31 @@ export function QuizHostControls({ session, content, answers, participants, cont
     } catch {
       // Нет связи — считаем по тому, что уже пришло.
     }
-    const change = reveal(latest.current, content, all, participants);
-    // Вопрос закроется, только если на сервере те же ответы, что в подсчёте: ответ, пришедший между списком и этой
-    // записью, не останется принятым, но без очков — сервер откажет, `run` возьмёт список заново.
+    return marked(reveal(latest.current, content, all, participants), mark);
+  }
+
+  /**
+   * Запись пройдёт, только если на сервере те же ответы, что в подсчёте (`expect.answers`): ответ, ставка или голос,
+   * пришедшие между списком и записью, не останутся принятыми, но не посчитанными — сервер откажет, `run` с `again`
+   * возьмёт список заново (паспорт общей части, Н-1).
+   */
+  function marked(change: SessionChange, mark: AnswersMark | null): SessionChange {
     return mark ? { ...change, expect: { ...change.expect, answers: mark } } : change;
+  }
+
+  /** Свежие ответы шага с сервера и их отметка; нет связи — то, что уже пришло, без отметки. */
+  async function freshStepAnswers(): Promise<{ all: Answer[]; mark: AnswersMark | null }> {
+    try {
+      const all = await control.freshAnswers(step);
+      return { all, mark: answersMark(step, all) };
+    } catch {
+      return { all: stepAnswers, mark: null };
+    }
   }
 
   /** «Ставки сделаны» — по свежим ставкам с сервера и свежей сессии; второй пульт не повторит жребий. */
   async function closeChange(): Promise<SessionChange | null> {
-    let all: Answer[] = stepAnswers;
-    try {
-      all = await control.freshAnswers(step);
-    } catch {
-      // Нет связи — по тому, что уже пришло.
-    }
+    const { all, mark } = await freshStepAnswers();
     const cur = latest.current;
     const curQ = content.questions[cur.state.step];
     if (!curQ) return null;
@@ -291,44 +307,34 @@ export function QuizHostControls({ session, content, answers, participants, cont
       effect: drawEffect,
       name: (pid) => cur.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок",
     });
-    return change ? { ...change, expect: { result: resultKey(cur.state.result) } } : null;
+    return change ? marked({ ...change, expect: { result: resultKey(cur.state.result) } }, mark) : null;
   }
 
   /** «Подвести итог: какой уровень» — по свежим голосам с сервера; голоса шага стираются, поровну — жребий на экране. */
   async function levelVoteDoneChange(): Promise<SessionChange> {
-    let all: Answer[] = stepAnswers;
-    try {
-      all = await control.freshAnswers(step);
-    } catch {
-      // Нет связи — по тому, что уже пришло.
-    }
-    return closeLevelVote(latest.current, content, all, Date.now() + clock.offset());
+    const { all, mark } = await freshStepAnswers();
+    return marked(closeLevelVote(latest.current, content, all, Date.now() + clock.offset()), mark);
   }
 
   /** «Подвести итог голосования» — по свежим голосам с сервера; голоса шага стираются, дальше — уровни или пропуск. */
   async function voteDoneChange(): Promise<SessionChange> {
-    let all: Answer[] = stepAnswers;
-    try {
-      all = await control.freshAnswers(step);
-    } catch {
-      // Нет связи — по тому, что уже пришло.
-    }
-    return closeSuperVote(latest.current, all);
+    const { all, mark } = await freshStepAnswers();
+    return marked(closeSuperVote(latest.current, all), mark);
   }
 
   function perform(action: QuizAction) {
     if (action === "vote") void run(openSuperVote(session, content));
-    if (action === "voteDone") void run(voteDoneChange, step);
+    if (action === "voteDone") void run(voteDoneChange, step, true);
     if (action === "skip") void run(skipSuper(session));
     if (action === "levelVote") void run(openLevelVote(session, content));
-    if (action === "levelVoteDone") void run(levelVoteDoneChange, step);
+    if (action === "levelVoteDone") void run(levelVoteDoneChange, step, true);
     if (action === "coin") {
       const c = coinSuperVote(latest.current, Date.now() + clock.offset());
       if (c) void run({ ...c, expect: { result: resultKey(latest.current.state.result) } });
     }
     if (action === "show") void run(showQuestion(session, content));
     if (action === "reveal" && q?.kind === "auction" && result.auction?.phase === "bets") {
-      void run(closeChange);
+      void run(closeChange, undefined, true);
       return;
     }
     if (action === "reveal") void run(revealChange, undefined, true);

@@ -407,11 +407,15 @@ export interface ChangeExpect {
   answers?: AnswersMark;
 }
 
-/** Отметка списка ответов шага: сколько ответов и время последнего (мс, часы сервера; null — ответов нет). */
+/**
+ * Отметка списка ответов шага: сколько ответов, время последнего (мс, часы сервера; null — ответов нет) и сумма времён
+ * (каждое — по модулю `ANSWERS_SUM_MOD` из `core/session.ts`): ловит и ответ, заменённый другим с более ранним временем.
+ */
 export interface AnswersMark {
   step: number;
   count: number;
   last: number | null;
+  sum: number;
 }
 
 export type ParticipantKind = "player" | "team";

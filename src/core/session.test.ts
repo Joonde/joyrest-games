@@ -127,6 +127,9 @@ describe("+10 секунд", () => {
     expect(addTimeChange(open, 100_000 + 3_600_000)?.state?.timeLimit).toBe(3610);
     // Упёрся в потолок, время вышло — снова можно дать 10 секунд.
     expect(addTimeChange({ ...open, timeLimit: 900 }, 100_000 + 901_000)?.state?.timeLimit).toBe(911);
+    // Открыли заново после потолка, таймер идёт — ещё 10 секунд прибавляются (раньше кнопка гасла до конца отсчёта).
+    expect(addTimeChange({ ...open, timeLimit: 915 }, 100_000 + 906_000)?.state?.timeLimit).toBe(925);
+    expect(addTimeChange({ ...open, timeLimit: 3610 }, 100_000 + 3_601_000)?.state?.timeLimit).toBe(3620);
     // Разумный предел — 12 часов: дальше продлевать нечего.
     expect(addTimeChange(open, 100_000 + 13 * 3_600_000)).toBeNull();
   });
@@ -156,7 +159,7 @@ describe("приём ответов и запись пульта", () => {
   });
 
   it("отметка списка ответов: сколько на шаге и когда пришёл последний", () => {
-    expect(answersMark(0, [])).toEqual({ step: 0, count: 0, last: null });
+    expect(answersMark(0, [])).toEqual({ step: 0, count: 0, last: null, sum: 0 });
     expect(
       answersMark(3, [
         { step: 3, submittedAt: 500 },
@@ -164,6 +167,12 @@ describe("приём ответов и запись пульта", () => {
         { step: 3, submittedAt: null },
         { step: 2, submittedAt: 5000 },
       ]),
-    ).toEqual({ step: 3, count: 3, last: 900 });
+    ).toEqual({ step: 3, count: 3, last: 900, sum: 1400 });
+    // Ответ заменили другим с более ранним временем: число и последний те же, сумма — другая.
+    const before = answersMark(0, [{ step: 0, submittedAt: 1_800_000_000_100 }, { step: 0, submittedAt: 1_800_000_000_900 }]);
+    const after = answersMark(0, [{ step: 0, submittedAt: 1_800_000_000_500 }, { step: 0, submittedAt: 1_800_000_000_900 }]);
+    expect(after.count).toBe(before.count);
+    expect(after.last).toBe(before.last);
+    expect(after.sum).not.toBe(before.sum);
   });
 });

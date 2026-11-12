@@ -192,7 +192,7 @@ export interface ScreenMoments {
   fail: boolean;
   /** Кто-то встал на ремонт (лязг). */
   repair: boolean;
-  /** У кого-то убавилась прочность (удар о корпус). */
+  /** Событие (дождь, «Притяжение») убавило прочность (удар о корпус). */
   hull: boolean;
   finish: number[];
   salutes: Array<{ crew: number; n: number }>;
@@ -204,6 +204,11 @@ export interface ScreenMoments {
 /** Моменты для звука и салюта по новой модели: снимок (`fresh`) ничего не «наступает». */
 export function momentsFor(prev: ScreenView | null, m: ScreenModel): ScreenMoments {
   return momentsOf(m.fresh ? null : prev, m.view);
+}
+
+/** Шёл дождь или «Притяжение» (не предупреждение) — убыль прочности от него. */
+function hitByEvent(v: ScreenView): boolean {
+  return v.phase === "leg" && v.event !== null && !v.event.warn && (v.event.kind === "meteor" || v.event.kind === "pull");
 }
 
 export function momentsOf(prev: ScreenView | null, next: ScreenView | null): ScreenMoments {
@@ -221,7 +226,8 @@ export function momentsOf(prev: ScreenView | null, next: ScreenView | null): Scr
     orders: next.phase === "leg" && prev.phase === "leg" && next.leg === prev.leg ? Math.max(0, next.ordersDone - prev.ordersDone) : 0,
     fail: next.crews.some((c) => c.failSeq > (was.get(c.id)?.failSeq ?? c.failSeq)),
     repair: next.crews.some((c) => c.repair !== null && was.get(c.id)?.repair === null),
-    hull: next.phase === "leg" && prev.phase === "leg" && next.leg === prev.leg && next.crews.some((c) => c.hull < (was.get(c.id)?.hull ?? c.hull)),
+    // Удар о корпус — только от события (дождь пробил слабый щит, «Притяжение» не отпустило), не от приказов: у них свой удар.
+    hull: hitByEvent(prev) && next.leg === prev.leg && next.crews.some((c) => c.hull < (was.get(c.id)?.hull ?? c.hull)),
     finish: next.crews.filter((c) => c.finished && was.get(c.id)?.finished === false).map((c) => c.id),
     salutes: next.crews.map((c) => ({ crew: c.id, n: c.salutes - (was.get(c.id)?.salutes ?? c.salutes) })).filter((x) => x.n > 0),
     dock: next.stage === "dock" && prev.stage !== "dock",

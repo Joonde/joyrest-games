@@ -9,6 +9,7 @@ import {
   applyScreen,
   BEEP_EVERY_MS,
   boardOf,
+  tidyName,
   FLIGHT_MUSIC,
   FLIGHT_MUSIC_FAST_MS,
   FLIGHT_MUSIC_FAST_RATE,
@@ -435,9 +436,13 @@ describe("экран зала «Бубликатора»: аудит 2c", () => 
     expect(meteorHitIndex(null, 12_000)).toBeNull();
     // Прочность убавилась (метеорит пробил слабый щит) — тихий удар; вместе с просрочкой — только удар просрочки.
     const pick = (prev: ScreenView, next: ScreenView) => soundsOf(momentsOf(prev, next), false, 0, SOUND_CLOCK).sounds;
-    expect(pick(view({ crews: [crew(0, { hull: 5 }), crew(1)] }), view({ crews: [crew(0, { hull: 4 }), crew(1)] }))).toEqual(["hit"]);
-    expect(pick(view({ crews: [crew(0, { hull: 5, failSeq: 1 }), crew(1)] }), view({ crews: [crew(0, { hull: 4, failSeq: 2 }), crew(1)] }))).toEqual(["thud"]);
-    expect(pick(view({ crews: [crew(0, { hull: 2 }), crew(1)] }), view({ crews: [crew(0, { hull: 5 }), crew(1)] }))).toEqual([]);
+    const rainOn = { event: rain };
+    expect(pick(view({ ...rainOn, crews: [crew(0, { hull: 5 }), crew(1)] }), view({ crews: [crew(0, { hull: 4 }), crew(1)] }))).toEqual(["hit"]);
+    expect(pick(view({ event: { ...rain, kind: "pull" }, crews: [crew(0, { hull: 5 }), crew(1)] }), view({ crews: [crew(0, { hull: 4 }), crew(1)] }))).toEqual(["hit"]);
+    // Без события (выполненный ложный приказ) — не удар метеорита.
+    expect(pick(view({ crews: [crew(0, { hull: 5 }), crew(1)] }), view({ crews: [crew(0, { hull: 4 }), crew(1)] }))).toEqual([]);
+    expect(pick(view({ ...rainOn, crews: [crew(0, { hull: 5, failSeq: 1 }), crew(1)] }), view({ crews: [crew(0, { hull: 4, failSeq: 2 }), crew(1)] }))).toEqual(["thud"]);
+    expect(pick(view({ ...rainOn, crews: [crew(0, { hull: 2 }), crew(1)] }), view({ crews: [crew(0, { hull: 5 }), crew(1)] }))).toEqual([]);
   });
 
   it("№11: тон огонька SOS — свой на цвет, только когда загорелся новый", () => {
@@ -473,5 +478,13 @@ describe("экран зала «Бубликатора»: аудит 2c", () => 
     const themes = ["space", "pirates", "submarine", "wedding", "newyear"] as const;
     expect(new Set(themes.map((t) => flightMusicOf(fly({ theme: t }), at)?.url)).size).toBe(5);
     for (const t of themes) expect(existsSync(new URL(`../../../../public${FLIGHT_MUSIC[t]}`, import.meta.url))).toBe(true);
+  });
+
+  it("№7 (второй круг): смайлик не отрывается от названия — неразрывный пробел", () => {
+    expect(tidyName("🐻 Медведи из соседнего подъезда")).toBe("🐻\u00A0Медведи из соседнего подъезда");
+    expect(tidyName("⚡️ Молнии")).toBe("⚡️\u00A0Молнии");
+    expect(tidyName("👩‍🚀 Космос")).toBe("👩‍🚀\u00A0Космос");
+    expect(tidyName("Лисы 11")).toBe("Лисы 11");
+    expect(tidyName("🦊Лисы")).toBe("🦊Лисы");
   });
 });

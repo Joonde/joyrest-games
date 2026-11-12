@@ -9,7 +9,7 @@ import { cleanNote, dayIndex, dayInWindow, dayOf, isKind, PER_DAY_MAX, RANGE_MAX
 import { professionOf } from "../../src/core/professions";
 import * as permissions from "../../src/data/permissions";
 import type { AvailabilityEntry, CalendarMember } from "../../src/data/types";
-import { eventSpan, noticeText } from "../../src/core/events";
+import { eventSpan } from "../../src/core/events";
 import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
 import type { Bot } from "./telegram";
 import { recordHostNotice } from "./notices";
@@ -210,12 +210,15 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
           );
         }
       }
-      if (id.startsWith("ev-") && options.bot) {
+      // В Telegram — тем же путём, что «Отменить мероприятие» (`eventNotice`): он ещё и убирает кнопку «Принял, готовлюсь»
+      // под прошлым сообщением (диагностика 12 ноября 2026: после «Снять мероприятие» кнопка оставалась рабочей).
+      if (id.startsWith("ev-") && options.bot && wasLive?.live) {
         const [e] = await sql<{ host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number }[]>`
           select host_id, title, guests, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min from events where id = ${id.slice(3)}`;
         if (e) {
-          const ev = { title: e.title, guests: e.guests, day: e.day, start: e.start_min, end: e.end_min };
-          if (eventSpan(ev)) void options.bot.sendTo(e.host_id, noticeText("cancelled", ev, "")).catch(() => undefined);
+          const ev = { id: id.slice(3), title: e.title, guests: e.guests, day: e.day, start: e.start_min, end: e.end_min };
+          const span = eventSpan(ev);
+          if (span) void options.bot.eventNotice("cancelled", e.host_id, ev, new Date(span.from)).catch(() => undefined);
         }
       }
       request.log.info({ calendar: "remove" }, "calendar");

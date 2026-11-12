@@ -22,6 +22,7 @@ import {
   type ContactKind,
   EVENT_TITLES,
   eventsOfDay,
+  eventSpan,
   eventStatus,
   fillFromRequest,
   parseLeadText,
@@ -41,6 +42,7 @@ import { professionOf } from "../../core/professions";
 import { cleanProgram, isEmptyProgram, prepareHints, programFromCalc, programLines, PROGRAM_ADDONS, PROGRAM_EXTENSIONS, PROGRAM_FORMATS, PROGRAM_MAX_FORMATS, type EventProgram } from "../../core/eventProgram";
 import { eventLight, LIGHT_HINTS, LIGHT_ORDER, LIGHT_TITLES, lightCounts, sortByLight, type EventLight } from "../../core/eventLight";
 import { matchesSearch } from "../../core/search";
+import { cleanPrice, dueLine, dueOnSite, PREPAY_RUB, priceFromCalc, refundOpen, REFUND_HOURS, rub } from "../../core/prepay";
 import { eventFillFromClient, type ClientEventFill } from "../../core/clientToEvent";
 import { draftHasContent, draftsKey, draftTitle, parseDrafts, removeDraft, upsertDraft, type EventFormDraft } from "../../core/eventDrafts";
 import { CLIENT_STATUS_TITLES, durationLabel, originStats, phoneIssueText, phoneKey, phoneLabel, responseStats, telHref } from "../../core/clients";
@@ -324,7 +326,13 @@ export function Planner({
   function cancel(event: AgencyEvent) {
     ask({
       title: `Отменить «${eventName(event)}»?`,
-      text: `${dayTitle(event.day)}, ${rangeLabel(event.start, event.end)} · ведущий ${event.hostName}. Мероприятие уйдёт в «Отменённые», у ведущего время освободится. Вернуть можно там же.`,
+      text: `${dayTitle(event.day)}, ${rangeLabel(event.start, event.end)} · ведущий ${event.hostName}. Мероприятие уйдёт в «Отменённые», у ведущего время освободится. Вернуть можно там же.${
+        event.prepaidAt && !event.refundAt
+          ? canRefund(event, now)
+            ? ` Предоплата ${rub(PREPAY_RUB)} при этом остаётся у агентства. Клиент отказался — закройте окно и нажмите «Вернуть предоплату».`
+            : ` Предоплата ${rub(PREPAY_RUB)} остаётся у агентства: до начала меньше ${REFUND_HOURS} часов.`
+          : ""
+      }`,
       confirmLabel: "Отменить мероприятие",
       run: async () => {
         if (!eventsRepo) return;
@@ -343,6 +351,43 @@ export function Planner({
         if (!eventsRepo) return;
         replace(await eventsRepo.restore(event.id));
         onToast("Мероприятие возвращено");
+      },
+    });
+  }
+
+  // «Вернуть предоплату»: клиент отказался не позже чем за 48 часов — заказ закрывается у ведущего и у менеджера.
+  function refund(event: AgencyEvent) {
+    ask({
+      title: `Вернуть предоплату и закрыть «${eventName(event)}»?`,
+      text: `${dayTitle(event.day)}, ${rangeLabel(event.start, event.end)} · ведущий ${event.hostName}. Клиент отказался: мероприятие закроется у ведущего и у вас (уйдёт в «Отменённые»), ведущему придёт «Отменено», клиент станет «Отказ». Владельцу придёт сообщение — он вернёт клиенту ${rub(PREPAY_RUB)}. Вернуть это мероприятие потом нельзя — только записать новое.`,
+      confirmLabel: "Вернуть предоплату",
+      run: async () => {
+        if (!eventsRepo) return;
+        try {
+          replace(await eventsRepo.refund(event.id));
+          onToast("Заказ закрыт. Владельцу ушло сообщение — он вернёт предоплату");
+        } catch (e) {
+          const reason = typeof e === "object" && e !== null && "reason" in e ? String((e as { reason: unknown }).reason) : "";
+          if (reason === "late") onToast(`До начала меньше ${REFUND_HOURS} часов — предоплата не возвращается`);
+          else if (reason === "held") onToast("Мероприятие отмечено «Проведено» — предоплату вернуть нельзя");
+          else if (reason === "not-prepaid") onToast("У этого мероприятия предоплата не отмечена");
+          else throw e;
+          retry();
+        }
+      },
+    });
+  }
+
+  // «Отметить: вернул» — владелец вернул предоплату клиенту.
+  function refundDone(event: AgencyEvent) {
+    ask({
+      title: `Предоплата ${rub(PREPAY_RUB)} возвращена клиенту?`,
+      text: `«${eventName(event)}», ${dayTitle(event.day)}${event.clientName ? ` · клиент ${event.clientName}` : ""}. Отмечайте, когда деньги уже отправлены: менеджер увидит «Предоплата возвращена».`,
+      confirmLabel: "Да, вернул",
+      run: async () => {
+        if (!eventsRepo) return;
+        replace(await eventsRepo.refundDone(event.id));
+        onToast("Отмечено: предоплата возвращена");
       },
     });
   }
@@ -436,6 +481,8 @@ export function Planner({
       onCopy={() => setForm({ template: e, day: e.day < today ? today : e.day })}
       onCancel={() => cancel(e)}
       onRestore={() => restore(e)}
+      onRefund={() => refund(e)}
+      onRefundDone={() => refundDone(e)}
       onRemove={() => remove(e)}
       onHeld={(held) => void markHeld(e, held)}
     />
@@ -1061,6 +1108,8 @@ function EventCard({
   onCopy,
   onCancel,
   onRestore,
+  onRefund,
+  onRefundDone,
   onRemove,
   onHeld,
 }: {
@@ -1075,6 +1124,8 @@ function EventCard({
   onCopy: () => void;
   onCancel: () => void;
   onRestore: () => void;
+  onRefund: () => void;
+  onRefundDone: () => void;
   onRemove: () => void;
   onHeld: (held: boolean | null) => void;
 }) {
@@ -1107,6 +1158,10 @@ function EventCard({
           Ведёт: <b>{event.hostName || "—"}</b>
           {owner && event.clientName ? ` · клиент ${event.clientName}` : ""}
         </span>
+        {event.hostOff && !event.cancelled && status !== "past" && (
+          <span className="plan-card__host-off">⚠ Ведущий отключён — передайте мероприятие другому («Изменить» → «Кто ведёт»)</span>
+        )}
+        {owner && event.refundAt && !event.refundDoneAt && <span className="plan-card__refund">💸 Вернуть клиенту предоплату {rub(PREPAY_RUB)}</span>}
         <span className="plan-card__more" aria-hidden="true">
           {open ? "Свернуть ▲" : "Подробнее ▼"}
         </span>
@@ -1165,6 +1220,7 @@ function EventCard({
           </dl>
           {!event.clientName && !event.clientPhone && !event.place && event.guests === null && !event.note && isEmptyProgram(event.program) && <p className="muted small">Подробностей нет.</p>}
           <ProgramView program={event.program ?? null} />
+          <MoneyView event={event} manager={owner} />
           {ahead && mine && (
             accepted ? (
               <p className="small plan-accepted">✅ Вы приняли {event.acceptedAt ? acceptedLabel(event.acceptedAt) : ""}. Поменяют программу — придёт сообщение, примите заново.</p>
@@ -1202,9 +1258,21 @@ function EventCard({
             <div className="actions">
               {event.cancelled ? (
                 <>
-                  <button type="button" className="btn btn--secondary btn--block" onClick={onRestore}>
-                    Вернуть мероприятие
-                  </button>
+                  {event.refundAt ? (
+                    <>
+                      {!event.refundDoneAt && admin && (
+                        <button type="button" className="btn btn--block" onClick={onRefundDone}>
+                          ✅ Отметить: вернул предоплату
+                        </button>
+                      )}
+                      <p className="muted small">Заказ закрыт с возвратом предоплаты — вернуть его нельзя. Клиент передумал — запишите новое мероприятие.</p>
+                    </>
+                  ) : (
+                    <button type="button" className="btn btn--secondary btn--block" onClick={onRestore}>
+                      Вернуть мероприятие
+                    </button>
+                  )}
+                  <RefundButton event={event} now={now} onRefund={onRefund} />
                   {admin && (
                     <button type="button" className="btn btn--quiet btn--block" onClick={onRemove}>
                       Удалить навсегда
@@ -1219,6 +1287,7 @@ function EventCard({
                   <button type="button" className="btn btn--quiet btn--block" onClick={onCopy}>
                     Создать похожее
                   </button>
+                  <RefundButton event={event} now={now} onRefund={onRefund} />
                   <button type="button" className="btn btn--quiet btn--block" onClick={onCancel}>
                     Отменить мероприятие
                   </button>
@@ -1229,6 +1298,73 @@ function EventCard({
         </div>
       )}
     </article>
+  );
+}
+
+/** Можно ли ещё вернуть предоплату: отмечена, не возвращалась, не «Проведено», до начала не меньше 48 часов. */
+function canRefund(event: AgencyEvent, now: number): boolean {
+  const span = eventSpan(event);
+  return Boolean(event.prepaidAt) && !event.refundAt && event.held !== true && span !== null && refundOpen(span.from, now);
+}
+
+/**
+ * «Вернуть предоплату» (решение владельца 12 ноября 2026): светится, пока до начала не меньше 48 часов; позже —
+ * неактивна с пояснением. После начала и без отмеченной предоплаты кнопки нет.
+ */
+function RefundButton({ event, now, onRefund }: { event: AgencyEvent; now: number; onRefund: () => void }) {
+  const span = eventSpan(event);
+  if (!event.prepaidAt || event.refundAt || event.held === true || !span || now >= span.from) return null;
+  const open = canRefund(event, now);
+  return (
+    <>
+      <button type="button" className={open ? "btn btn--secondary btn--block plan-refund" : "btn btn--secondary btn--block"} disabled={!open} onClick={onRefund}>
+        💸 Вернуть предоплату
+      </button>
+      <p className="muted small">
+        {open
+          ? `Клиент отказался — заказ закроется у ведущего и у вас, владелец вернёт ${rub(PREPAY_RUB)}. Работает, пока до начала не меньше ${REFUND_HOURS} часов.`
+          : `До начала меньше ${REFUND_HOURS} часов — предоплата не возвращается.`}
+      </p>
+    </>
+  );
+}
+
+/** Деньги в карточке: менеджеру и владельцу — стоимость, предоплата и остаток; ведущему — сколько взять на месте. */
+function MoneyView({ event, manager }: { event: AgencyEvent; manager: boolean }) {
+  const prepaid = Boolean(event.prepaidAt);
+  const due = dueOnSite(event.price, prepaid);
+  if (due === null && !prepaid) return null;
+  if (!manager) {
+    if (event.cancelled || due === null) return null;
+    return (
+      <div className="plan-money stack stack--tight">
+        <p className="plan-money__due">{dueLine(event.price, prepaid)}</p>
+        <p className="muted small">Это вся сумма, которую клиент платит вам на месте. Продление — отдельно, по условиям.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="plan-money stack stack--tight">
+      <p className="plan-program__title">💰 Оплата</p>
+      {event.price != null && <p className="small">Стоимость по расчёту: {rub(event.price)}</p>}
+      {prepaid ? (
+        <p className="small">
+          Предоплата {rub(PREPAY_RUB)} внесена · отметил(а) {event.prepaidBy || "—"}
+          {event.prepaidAt ? `, ${acceptedLabel(event.prepaidAt)}` : ""}
+        </p>
+      ) : (
+        <p className="small plan-warn">Предоплата не отмечена.</p>
+      )}
+      {due !== null && !event.refundAt && <p className="plan-money__due">К оплате на месте (ведущему): {rub(due)}</p>}
+      {event.refundAt && (
+        <p className="small">
+          {event.refundDoneAt
+            ? `✅ Предоплата возвращена клиенту ${acceptedLabel(event.refundDoneAt)}.`
+            : `💸 Предоплата к возврату · запросил(а) ${event.refundBy || "—"}, ${acceptedLabel(event.refundAt)}. Возвращает владелец.`}
+        </p>
+      )}
+      {event.cancelled && prepaid && !event.refundAt && <p className="muted small">Мероприятие отменено без возврата: предоплата остаётся у агентства.</p>}
+    </div>
   );
 }
 
@@ -1373,7 +1509,7 @@ export interface EventDraft {
 export const PLACE_TBD = "Место уточняется";
 
 /** Обязательные поля формы — в порядке на экране (для «Заполнено N из 8 · осталось …»). */
-type Need = "name" | "phone" | "contact" | "when" | "title" | "program" | "place" | "host";
+type Need = "name" | "phone" | "contact" | "when" | "title" | "program" | "place" | "host" | "price" | "prepay";
 const NEED_TITLES: Record<Need, string> = {
   name: "имя",
   phone: "телефон",
@@ -1383,6 +1519,8 @@ const NEED_TITLES: Record<Need, string> = {
   program: "программа",
   place: "где",
   host: "кто ведёт",
+  price: "стоимость",
+  prepay: "предоплата",
 };
 /** Что подставилось (из расчёта, заявки, карточки клиента) — подсвечено, пока менеджер это поле не поправит. */
 type Got = Need | "guests" | "note";
@@ -1408,6 +1546,9 @@ function quickDays(today: string): Array<{ day: string; label: string }> {
 
 function errorText(e: unknown): string {
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  const reason = typeof e === "object" && e !== null && "reason" in e ? String((e as { reason: unknown }).reason) : "";
+  if (reason === "prepay") return "Записать мероприятие можно только с галочкой «Предоплата внесена».";
+  if (reason === "price") return "Впишите стоимость по расчёту — без неё не посчитать, сколько клиент платит на месте.";
   if (code === "invalid-argument") return "Проверьте дату и время: записать можно не раньше чем за месяц назад и не дальше двух лет вперёд.";
   if (code === "not-found") return "Этот человек отключён — выберите другого ведущего.";
   if (code === "failed-precondition") return "Мероприятие уже отменено — сначала верните его во вкладке «Отменённые».";
@@ -1447,9 +1588,11 @@ function NeedMark({ need, done, got }: { need?: boolean; done?: boolean; got?: s
 
 /**
  * Новое мероприятие, правка или «похожее» (решение владельца 24 октября 2026 — форма по макету «Заявка ведущему»):
- * сверху — «Вставить расчёт или заявку» (заполняет только пустые поля, подставленное подсвечено), «Заполнено N из 8».
+ * сверху — «Вставить расчёт или заявку» (заполняет только пустые поля, подставленное подсвечено), «Заполнено N из 10»
+ * (у мероприятий, записанных до предоплаты, — из 8).
  * Для карточки клиента: имя, телефон, связь. Для ведущего: когда (дата, с … до …), повод, программа по порядку, где,
- * кто ведёт. По желанию: гости и комментарий. «Записать» — когда всё обязательное заполнено.
+ * кто ведёт. Оплата (12 ноября 2026): стоимость по расчёту и галочка «Предоплата 2 000 ₽ внесена» — без неё новое
+ * мероприятие не записать. По желанию: гости и комментарий. «Записать» — когда всё обязательное заполнено.
  */
 export function EventForm({
   initial,
@@ -1496,6 +1639,11 @@ export function EventForm({
   const [guests, setGuests] = useState(r ? r.guests : pf?.guests !== undefined ? String(pf.guests) : base?.guests != null ? String(base.guests) : "");
   const [note, setNote] = useState(r?.note ?? base?.note ?? "");
   const [program, setProgram] = useState<EventProgram | null>(r ? r.program : (pf?.program ?? base?.program ?? null));
+  // Оплата (решение владельца 12 ноября 2026): стоимость по расчёту и галочка «Предоплата внесена». Отметку снять нельзя;
+  // «похожее» мероприятие — новая бронь: стоимость и предоплата вводятся заново.
+  const wasPrepaid = Boolean(initial?.prepaidAt);
+  const [price, setPrice] = useState(r?.price ?? (initial?.price != null ? String(initial.price) : ""));
+  const [prepaid, setPrepaid] = useState(wasPrepaid || r?.prepaid === true);
   const [allTeam, setAllTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   // Двойное касание «Записать»: второй запрос не уходит, пока первый не вернулся (иначе ведущему — два уведомления).
@@ -1562,7 +1710,7 @@ export function EventForm({
   const places = useMemo(() => [...new Set(pastEvents.map((e) => e.place).filter((p) => p && p !== PLACE_TBD))].slice(0, 30), [pastEvents]);
 
   const contact = formatContact({ kind: contactKind, value: contactKind === "telegram" ? telegramNick(contactValue) : contactKind === "email" ? contactValue.trim() : "" });
-  const fields = [day, start, end, whenSet, hostId, title, clientName, clientPhone, contactKind, contactValue, place, guests, note, program];
+  const fields = [day, start, end, whenSet, hostId, title, clientName, clientPhone, contactKind, contactValue, place, guests, note, program, price, prepaid];
   const initialSnapshot = useState(() => JSON.stringify(fields))[0];
   const dirty = JSON.stringify(fields) !== initialSnapshot;
 
@@ -1585,6 +1733,8 @@ export function EventForm({
     program,
     contact: contactKind ? `${contactKind}${contactValue.trim() ? `:${contactValue.trim()}` : ""}` : "",
     whenSet,
+    price,
+    prepaid,
   };
   const latest = useRef(snapshot);
   latest.current = snapshot;
@@ -1637,6 +1787,9 @@ export function EventForm({
   const guestsOk = guestsNum === null || (Number.isInteger(guestsNum) && guestsNum >= 0 && guestsNum <= EVENT_LIMITS.guestsMax);
 
   // ── Обязательное ──
+  const priceNum = cleanPrice(price);
+  const priceOk = typeof priceNum === "number";
+  const payNeeded = !initial || wasPrepaid || prepaid;
   const fullPhone = phoneKey(clientPhone) !== "";
   const nick = contactKind === "telegram" ? telegramNick(contactValue) : "";
   const phoneIncomplete = clientPhone.trim() !== "" && !fullPhone;
@@ -1665,10 +1818,15 @@ export function EventForm({
     program: (program?.formats.length ?? 0) > 0,
     place: place.trim() !== "",
     host: Boolean(hostId) && !hostGone,
+    price: priceOk,
+    prepay: prepaid,
   };
-  const needs = (Object.keys(NEED_TITLES) as Need[]).filter((k) => !done[k]);
-  const doneCount = 8 - needs.length;
-  const ready = needs.length === 0 && guestsOk;
+  // Новое мероприятие — только со стоимостью и галочкой предоплаты; записанное раньше без предоплаты правится как было.
+  const needKeys = (Object.keys(NEED_TITLES) as Need[]).filter((k) => (k === "price" ? payNeeded : k === "prepay" ? !initial : true));
+  const needs = needKeys.filter((k) => !done[k]);
+  const needTotal = needKeys.length;
+  const doneCount = needTotal - needs.length;
+  const ready = needs.length === 0 && guestsOk && priceNum !== undefined;
   const secId = (k: Need) => `ef-${k}-${id}`;
   const goToFirst = () => {
     const first = needs[0];
@@ -1677,7 +1835,7 @@ export function EventForm({
   const secClass = (k: Need) => `plan-sec${done[k] ? " is-done" : " is-need"}${got[k] ? " is-got" : ""}`;
 
   /** Вставка: заполняет только пустые поля (ничего не затирает), подставленное подсвечивает. */
-  function apply(fill: LeadFill & { program?: EventProgram | null }, from: string) {
+  function apply(fill: LeadFill & { program?: EventProgram | null; price?: number | null }, from: string) {
     const took: Got[] = [];
     if (fill.clientName && !clientName.trim()) {
       setClientName(fill.clientName);
@@ -1724,6 +1882,10 @@ export function EventForm({
       setProgram(fill.program);
       took.push("program");
     }
+    if (fill.price && !price.trim()) {
+      setPrice(String(fill.price));
+      took.push("price");
+    }
     setGot((g) => ({ ...g, ...Object.fromEntries(took.map((k) => [k, from])) }));
     const titles: Record<Got, string> = { ...NEED_TITLES, when: fill.start !== undefined ? "дата и время" : "дата", guests: "гости", note: "комментарий" };
     setFilled(
@@ -1753,6 +1915,8 @@ export function EventForm({
         guests: guestsNum,
         note: note.trim(),
         program,
+        price: typeof priceNum === "number" ? priceNum : null,
+        prepaid,
         // Правка — с версией, с которой открыли форму (владелец и менеджер могут править одно мероприятие).
         ...(initial?.updatedAt ? { expect: initial.updatedAt } : {}),
       });
@@ -1786,7 +1950,7 @@ export function EventForm({
           {needs.length ? (
             <>
               <b>
-                Заполнено {doneCount} из 8 обязательных
+                Заполнено {doneCount} из {needTotal} обязательных
               </b>
               <span> · осталось: {needs.map((k) => NEED_TITLES[k]).join(", ")}</span>
             </>
@@ -1795,7 +1959,7 @@ export function EventForm({
           )}
         </button>
         <span className="plan-progress__track" aria-hidden="true">
-          <i style={{ width: `${(doneCount / 8) * 100}%` }} />
+          <i style={{ width: `${(doneCount / needTotal) * 100}%` }} />
         </span>
       </div>
 
@@ -2124,6 +2288,52 @@ export function EventForm({
         {whenSet && chosen?.status === "busy" && <p className="small plan-warn">У выбранного ведущего это время занято. Записать всё равно можно.</p>}
       </fieldset>
 
+      <p className="plan-group">Оплата</p>
+      <fieldset id={secId("price")} className={`plan-sec${done.price && done.prepay ? " is-done" : payNeeded ? " is-need" : ""}${got.price ? " is-got" : ""}`}>
+        <legend>
+          💰 Стоимость и предоплата <NeedMark need={payNeeded} done={done.price && done.prepay} />
+        </legend>
+        <label className="field">
+          <span className="field__label">
+            Стоимость по расчёту, ₽ <NeedMark need={payNeeded} done={done.price} got={got.price} />
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={10}
+            value={price}
+            placeholder="Например, 24 900"
+            aria-invalid={price.trim() !== "" && !priceOk}
+            className={got.price ? "is-got" : done.price || !payNeeded ? "" : "is-need"}
+            onChange={(e) => {
+              setPrice(e.target.value.replace(/[^\d ]/g, ""));
+              touch("price");
+            }}
+          />
+        </label>
+        {price.trim() !== "" && !priceOk && <p className="small plan-warn">Стоимость — целыми рублями, не меньше {rub(PREPAY_RUB)}.</p>}
+        <p className="muted small">Итог расчёта для выбранного формата ведущего — то, о чём договорились с клиентом. Из вставленного расчёта подставится сама.</p>
+        <label id={secId("prepay")} className="choice">
+          <input type="checkbox" checked={prepaid} disabled={wasPrepaid} onChange={(e) => setPrepaid(e.target.checked)} />
+          <span className="choice__text">
+            <span className="choice__title">Предоплата {rub(PREPAY_RUB)} внесена — владелец подтвердил {!initial && <NeedMark need done={done.prepay} />}</span>
+            <span className="choice__hint">
+              {wasPrepaid
+                ? `Отмечена${initial?.prepaidBy ? ` · ${initial.prepaidBy}` : ""}. Снять отметку нельзя.`
+                : "Сначала напишите или позвоните владельцу: деньги пришли? Галочку ставьте только после его «да» — ему придёт уведомление."}
+            </span>
+          </span>
+        </label>
+        {typeof priceNum === "number" && (
+          <p className="small plan-due" role="status">
+            {prepaid
+              ? `Ведущему уйдёт: к оплате на месте ${rub(dueOnSite(priceNum, true) ?? 0)} (стоимость ${rub(priceNum)} − предоплата ${rub(PREPAY_RUB)}).`
+              : `После галочки ведущему уйдёт: к оплате на месте ${rub(dueOnSite(priceNum, true) ?? 0)}.`}
+          </p>
+        )}
+      </fieldset>
+
       <p className="plan-group">По желанию</p>
       <fieldset className={`plan-sec${got.guests || got.note ? " is-got" : ""}`}>
         <legend>Гостей и комментарий</legend>
@@ -2170,7 +2380,12 @@ export function EventForm({
           Чтобы записать, осталось: {needs.map((k) => NEED_TITLES[k]).join(", ")}.
         </p>
       )}
-      {!initial && <p className="muted small">Записывайте, когда клиент согласен и внёс предоплату 2 000 ₽: ведущему сразу уходит заявка, его время занято.</p>}
+      {!initial && (
+        <p className="muted small">
+          Записать можно только с галочкой «Предоплата внесена»: ведущему сразу уходит заявка с суммой к оплате на месте, его время занято. Клиент ещё не
+          оплатил — закройте форму, введённое останется в черновике.
+        </p>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -2298,7 +2513,7 @@ function ClientSuggestions({ base, query, onPick }: { base: ClientBase; query: s
  * заявки с сайта — имя, телефон, ник, дата, время «с» и «до» (из длительности расчёта), повод, гости, место и программа.
  * Заполняет только пустые поля. Или заявка клиента из базы площадок.
  */
-function ImportFromLead({ today, onFill }: { today: string; onFill: (fill: LeadFill & { program?: EventProgram | null }, from: string) => void }) {
+function ImportFromLead({ today, onFill }: { today: string; onFill: (fill: LeadFill & { program?: EventProgram | null; price?: number | null }, from: string) => void }) {
   const [text, setText] = useState("");
   const [showRequests, setShowRequests] = useState(false);
   return (
@@ -2313,7 +2528,7 @@ function ImportFromLead({ today, onFill }: { today: string; onFill: (fill: LeadF
             type="button"
             className="btn btn--secondary btn--block"
             disabled={!text.trim()}
-            onClick={() => onFill({ ...parseLeadText(text, today), program: programFromCalc(text) }, /Расч[её]т JoyRest/i.test(text) ? "из расчёта" : "из заявки")}
+            onClick={() => onFill({ ...parseLeadText(text, today), program: programFromCalc(text), price: priceFromCalc(text) }, /Расч[её]т JoyRest/i.test(text) ? "из расчёта" : "из заявки")}
           >
             Разложить по полям
           </button>

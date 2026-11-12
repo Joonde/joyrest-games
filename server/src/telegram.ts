@@ -111,7 +111,7 @@ export interface BotOptions {
 }
 
 /** Мероприятие для сообщения ведущему: программа и кнопка «Принял, готовлюсь» (если ещё не принял). */
-export type NoticeEvent = Pick<AgencyEvent, "id" | "title" | "guests" | "day" | "start" | "end"> & Partial<Pick<AgencyEvent, "program" | "acceptedAt" | "acceptRev">>;
+export type NoticeEvent = Pick<AgencyEvent, "id" | "title" | "guests" | "day" | "start" | "end"> & Partial<Pick<AgencyEvent, "program" | "acceptedAt" | "acceptRev" | "price" | "prepaidAt">>;
 
 /** Кнопка под сообщением: `acc:<мероприятие>:<версия>` — старая кнопка после правки программы не засчитывается. */
 export function acceptButton(e: NoticeEvent): object {
@@ -321,9 +321,9 @@ export function startBot(options: BotOptions): Bot {
 
   // ───── напоминания ─────
   async function remind(): Promise<void> {
-    const rows = await sql<{ id: string; host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; program: unknown; accepted: boolean; accept_rev: number }[]>`
+    const rows = await sql<{ id: string; host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; program: unknown; accepted: boolean; accept_rev: number; price: number | null; prepaid_at: Date | null }[]>`
       select e.id, e.host_id, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at,
-        e.program, (e.accepted_at is not null) as accepted, e.accept_rev
+        e.program, (e.accepted_at is not null) as accepted, e.accept_rev, e.price, e.prepaid_at
       from events e join tg_links l on l.user_id = e.host_id
       where e.cancelled_at is null and e.starts_at > now() and e.starts_at <= now() + interval '24 hours'`;
     for (const r of rows) {
@@ -332,7 +332,7 @@ export function startBot(options: BotOptions): Bot {
       const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, ${kind}, ${r.starts_at})
         on conflict do nothing returning 1`;
       if (fresh.length === 0) continue;
-      const e: NoticeEvent = { id: r.id, title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min, program: cleanProgram(r.program), acceptRev: r.accept_rev };
+      const e: NoticeEvent = { id: r.id, title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min, program: cleanProgram(r.program), acceptRev: r.accept_rev, price: r.price, prepaidAt: r.prepaid_at ? r.prepaid_at.getTime() : null };
       const text = noticeText(kind, e, platformUrl, now(), r.starts_at.getTime());
       // Ещё не принял — кнопка переезжает в напоминание (у прошлого сообщения убирается).
       if (asks(r.accepted ? 1 : null, r.accept_rev)) await sendAsk(r.host_id, text, e);
@@ -360,13 +360,16 @@ export function startBot(options: BotOptions): Bot {
       }
     }
     // Ведущий не нажал «Принял, готовлюсь», а до начала меньше суток — владельцу и менеджерам один раз (днём).
-    // Мероприятие записали или поменяли меньше часа назад — ведущему сначала дать время.
+    // Мероприятие записали или поменяли меньше часа назад — ведущему сначала дать время. До начала три часа и меньше —
+    // ждём только 10 минут (диагностика 12 ноября 2026: запись меньше чем за час до начала не давала сообщения никогда —
+    // час ожидания кончался уже после начала).
     if (answerHoursOpen(now())) {
       const silent = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null }[]>`
         select e.id, e.accept_rev, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name
         from events e left join users u on u.id = e.host_id
         where e.cancelled_at is null and e.accepted_at is null and e.accept_rev > 0 and e.starts_at > now()
-          and e.starts_at <= now() + interval '24 hours' and e.updated_at < now() - interval '1 hour'`;
+          and e.starts_at <= now() + interval '24 hours'
+          and e.updated_at < now() - (case when e.starts_at <= now() + interval '3 hours' then interval '10 minutes' else interval '1 hour' end)`;
       if (silent.length > 0) {
         const staff = await sql<{ user_id: string }[]>`
           select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and (u.role = 'admin' or u.access_role = 'sales')`;

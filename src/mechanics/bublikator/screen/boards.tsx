@@ -8,7 +8,7 @@ import { QrCode } from "../../../components/QrCode";
 import { joinHint, playUrl } from "../../../components/links";
 import { formatSessionCode } from "../../../core/code";
 import { VPN_HINT } from "../../../core/texts";
-import { wordsOf } from "../lexicon";
+import { GAME_TITLE, wordsOf } from "../lexicon";
 import { CAPTAIN_STAR, CAPTAIN_STARS_MAX, DRILL_MS, EVENT_MS, LAUNCH_MS, PULL_HOLD_MS, SOS_BONUS, VOTE_BONUS, VOTE_MS } from "../rules/constants";
 import type { ScreenCrewView, ScreenView, Theme } from "../rules/types";
 import { CrewBadge, CrewShip, crewVars, Goal, Mask, Mono, Puller, SOS_NAMES, SOS_SHAPES } from "./art";
@@ -140,7 +140,7 @@ export function LobbyBoard({ v, m, code }: BoardProps) {
   const max = lobby?.max ?? 10;
   return (
     <div className="bks-board bks-lobby">
-      <Head title="Бубликатор" sub={`Тема «${w.title}» · экипажи у старта`}>
+      <Head title={GAME_TITLE} sub={`Тема «${w.title}» · экипажи у старта`}>
         <Chip>
           В игре <b>{m.players}</b> {plural(m.players, "гость", "гостя", "гостей")}
         </Chip>
@@ -228,7 +228,7 @@ export function CrewsBoard({ v, m, code }: BoardProps) {
   const maxInitials = crews.length <= 5 ? 12 : crews.length <= 10 ? 6 : 4;
   return (
     <div className="bks-board bks-crews">
-      <Head title="Бубликатор" sub={`Тема «${w.title}» · экипажи собраны`}>
+      <Head title={GAME_TITLE} sub={`Тема «${w.title}» · экипажи собраны`}>
         <Chip>
           Гостей <b>{m.players}</b> · {crewsText(crews.length)}
         </Chip>
@@ -291,7 +291,7 @@ export function DrillBoard({ v, m, local, code }: BoardProps) {
   const crews = [...v.crews].sort((a, b) => a.id - b.id);
   return (
     <div className="bks-board bks-drill">
-      <Head title="Бубликатор" sub={`Тема «${w.title}» · тренировка`}>
+      <Head title={GAME_TITLE} sub={`Тема «${w.title}» · тренировка`}>
         <Chip>
           Вход по коду <Code code={code} />
         </Chip>
@@ -326,7 +326,7 @@ export function LaunchBoard({ v, m, local }: BoardProps) {
   const crews = [...v.crews].sort((a, b) => a.id - b.id);
   return (
     <div className="bks-board bks-launch">
-      <Head title="Бубликатор" sub={`${legText(v)} · тема «${w.title}»`}>
+      <Head title={GAME_TITLE} sub={`${legText(v)} · тема «${w.title}»`}>
         <Chip>
           Гостей <b>{m.players}</b>
         </Chip>
@@ -446,7 +446,7 @@ export function FlightBoard({ v, m, local, code, bumps }: BoardProps) {
   const guests = v.crews.reduce((a, c) => a + c.members, 0);
   return (
     <div className={`bks-board bks-flight${compact ? " is-many" : ""}${meteor ? " is-meteor" : ""}${glitch ? " is-glitch" : ""}`}>
-      <Head title="Бубликатор" sub={`${legText(v)} · ${rest.length > 0 ? `${crewsText(v.crews.length)} · ${guestsText(guests)}` : `цель — ${w.goalTitle}`}`}>
+      <Head title={GAME_TITLE} sub={`${legText(v)} · ${rest.length > 0 ? `${crewsText(v.crews.length)} · ${guestsText(guests)}` : `цель — ${w.goalTitle}`}`}>
         <Chip>
           Приказов выполнено <b className="bks-gold">{num(v.ordersDone)}</b>
         </Chip>
@@ -909,7 +909,7 @@ export function PodiumBoard({ v, m }: BoardProps) {
   };
   return (
     <div className="bks-board bks-podium">
-      <Head title="Бубликатор" sub={`Итоги ${v.legs === 2 ? "двух" : "трёх"} перелётов · тема «${w.title}»`}>
+      <Head title={GAME_TITLE} sub={`Итоги ${v.legs === 2 ? "двух" : "трёх"} перелётов · тема «${w.title}»`}>
         <Chip>
           Гостей <b>{m.players}</b>
         </Chip>
@@ -935,7 +935,7 @@ export function PodiumBoard({ v, m }: BoardProps) {
 export function InfoBoard({ title, text, children, theme }: { title: string; text: ReactNode; children?: ReactNode; theme: Theme }) {
   return (
     <div className="bks-board bks-info">
-      <Head title="Бубликатор" sub={`Тема «${wordsOf(theme).title}»`} />
+      <Head title={GAME_TITLE} sub={`Тема «${wordsOf(theme).title}»`} />
       <div className="bks-center bks-grow bks-info__body">
         <h2 className="bks-title">{title}</h2>
         <p className="bks-sub">{text}</p>

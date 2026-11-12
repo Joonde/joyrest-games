@@ -4,6 +4,9 @@
  */
 import type { Theme } from "./rules/types";
 
+/** Название игры — одно место на всю платформу: `src/core/bublikatorTitle.ts`. */
+export { BUBLIKATOR_TITLE as GAME_TITLE } from "../../core/bublikatorTitle";
+
 export interface ThemeWords {
   /** Чем летит экипаж: «корабль», «сани». */
   ship: string;

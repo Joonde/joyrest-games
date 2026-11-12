@@ -435,6 +435,9 @@ export interface PersonalView {
 
 export interface HostView {
   phase: Phase;
+  /** Тема игры (слова пульта: «корабль», «сани»). */
+  theme: Theme;
+  difficulty: Difficulty;
   stage: Stage | null;
   leg: number;
   legs: number;
@@ -442,9 +445,20 @@ export interface HostView {
   endsAt: number | null;
   flight: { elapsed: number; duration: number; stopped: boolean } | null;
   orderSeconds: number;
+  /** Сдвиг «Медленнее / Быстрее» этого перелёта, с: команда `time` шлёт его в `from` (двойное касание не прибавит дважды). */
+  shift: number;
+  /** Можно ли сейчас «Медленнее» / «Быстрее» (взлёт и полёт, не за пределами 4–30 с). */
+  slower: boolean;
+  faster: boolean;
   crews: Array<{
     id: number;
     name: string;
+    /** Цвет платформы 0–4 и значок (с 6 экипажей) — как на экране зала. */
+    color: number;
+    icon: number | null;
+    /** Командная сессия: команда платформы, чей это экипаж (её очки в таблице лидеров), и все команды, влитые в него. */
+    team: string | null;
+    teams: string[];
     place: number;
     hull: number;
     rate: number;
@@ -471,5 +485,12 @@ export interface HostView {
   reveal: VoteResult[] | null;
   podium: ScreenView["podium"];
   canBack: boolean;
+  /** В этом перелёте есть диверсанты (с «Привала» «Дальше» откроет голосование). */
+  voteAhead: boolean;
+  /** «Объединить экипажи» и «Пересадить» сейчас: null — можно, иначе причина, почему нельзя. */
+  merge: null | "vote-pending" | "vote-running" | "busy";
+  move: null | "vote-running" | "busy";
+  /** Голосование «Кто диверсант?» откроется само в этот момент (часы сервера), если ведущий не откроет раньше; null — нет. */
+  voteOpensAt: number | null;
   removable: Array<{ pid: string; name: string; crew: number | null; offlineMs: number }>;
 }

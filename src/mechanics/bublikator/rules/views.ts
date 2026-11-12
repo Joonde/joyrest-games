@@ -2,7 +2,7 @@
  * Сводки «Бубликатора»: экран (без тайн — ни диверсантов, ни ложных приказов, ни чужих приказов), личное каждому телефону
  * (свои приборы, свой приказ, своя роль; пометка ложного приказа — только диверсанту) и пульт. Время — по часам сервера.
  */
-import { FIRE_STREAK, GLITCH_SHOW_MS, FLIP_MS, KICK_AFTER_MS, REPAIR_MS, SPEED_WINDOW_MS } from "./constants";
+import { DOCK_MS, FIRE_STREAK, GLITCH_SHOW_MS, FLIP_MS, KICK_AFTER_MS, ORDER_MAX_S, ORDER_MIN_S, REPAIR_MS, SPEED_WINDOW_MS } from "./constants";
 import { activeMembers, captainOf, crewMembers, crewPlayers, crewTitle, liveCrews, lobbyCrewCount } from "./crews";
 import { crewLook } from "./names";
 import { cardStats, crewTotal, gameNow, legResultOf, meteorPower, meteorShield, orderSeconds, places, toServer, voteCandidates, voteVoters, type Env } from "./game";
@@ -424,6 +424,12 @@ export function hostView(s: BubState, env: ViewEnv): HostView {
     return {
       id: c.id,
       name: c.name,
+      color: c.color,
+      icon: c.icon,
+      team: c.team ?? null,
+      teams: Object.entries(s.teamCrew ?? {})
+        .filter(([, id]) => id === c.id)
+        .map(([team]) => team),
       place: st.get(c)?.place ?? 1,
       hull: round1(c.hull),
       rate: players.length > 0 ? round1(c.done / minutes / players.length) : 0,
@@ -455,15 +461,28 @@ export function hostView(s: BubState, env: ViewEnv): HostView {
     : [];
   const active = activeMembers(s);
   const screen = screenView(s, env);
+  const stage = s.phase === "leg" ? (leg?.stage ?? null) : null;
+  const between = stage === "dock" || stage === "vote" || stage === "voted";
+  const timeStage = stage === "launch" || stage === "fly";
+  const seconds = orderSeconds(s);
+  // Те же условия, что в командах `merge` и `move` (`game.ts`): пульт не показывает кнопку, которая получит отказ.
+  const merge: HostView["merge"] =
+    s.phase !== "crews" && !between ? "busy" : stage === "vote" ? "vote-running" : stage === "dock" && leg?.saboteurs && leg.vote === null ? "vote-pending" : null;
+  const move: HostView["move"] = s.phase === "lobby" || s.phase === "crews" || stage === "dock" || stage === "voted" ? null : stage === "vote" ? "vote-running" : "busy";
   return {
     phase: s.phase,
-    stage: s.phase === "leg" ? (leg?.stage ?? null) : null,
+    theme: s.content.theme,
+    difficulty: s.content.difficulty,
+    stage,
     leg: s.legIndex,
     legs: s.content.legs,
     attempt: s.attempts[s.legIndex] ?? 0,
     endsAt: endsAtOf(s),
     flight: flightOf(s),
-    orderSeconds: orderSeconds(s),
+    orderSeconds: seconds,
+    shift: leg?.shift ?? 0,
+    slower: timeStage && seconds < ORDER_MAX_S,
+    faster: timeStage && seconds > ORDER_MIN_S,
     crews,
     waiting: s.phase === "lobby" ? active.filter((m) => m.crew === null).map((m) => ({ pid: m.pid, name: m.name })) : [],
     lobbyCrews: screen.lobby?.crews.map((c) => ({ id: c.id, name: c.name, count: c.count })) ?? [],
@@ -476,7 +495,11 @@ export function hostView(s: BubState, env: ViewEnv): HostView {
     vote: screen.vote ? { endsAt: screen.vote.endsAt, voted: Object.values(screen.vote.voted).reduce((a, b) => a + b, 0), voters: Object.values(screen.vote.voters).reduce((a, b) => a + b, 0) } : null,
     reveal: screen.reveal,
     podium: screen.podium,
-    canBack: s.phase === "leg" && s.base !== null && (leg?.stage === "dock" || leg?.stage === "vote" || leg?.stage === "voted"),
+    canBack: s.phase === "leg" && s.base !== null && between,
+    voteAhead: s.phase === "leg" && leg?.saboteurs === true,
+    merge,
+    move,
+    voteOpensAt: stage === "dock" && leg?.saboteurs && leg.vote === null && leg.dockAt !== null ? toServer(s, leg.dockAt + DOCK_MS) : null,
     removable: active
       .filter((m) => m.role !== "out" && m.offlineSince !== null && now - m.offlineSince >= KICK_AFTER_MS)
       .map((m) => ({ pid: m.pid, name: m.name, crew: m.crew, offlineMs: now - (m.offlineSince ?? now) })),

@@ -540,6 +540,7 @@ describe("роли доступа помощников", () => {
       expect(p.canErasePersonalData(a)).toBe(false);
       expect(p.canSetMarketingConsent(a)).toBe(false);
       expect(p.canDeleteEvent(a)).toBe(false);
+      expect(p.canConfirmRefund(a)).toBe(false);
       expect(p.canViewEventStats(a)).toBe(false);
       expect(p.canArchiveVenues(a)).toBe(false);
       expect(p.isAdmin(a)).toBe(false);
@@ -552,7 +553,7 @@ describe("роли доступа помощников", () => {
     // Не ведущий по профессии — игр нет.
     expect(p.canUseGames(dj("sales"))).toBe(false);
     // У владельца всё, у ведущего без роли — ничего из этого.
-    for (const f of [p.canManageClients, p.canExportClients, p.canErasePersonalData, p.canSetMarketingConsent, p.canDeleteEvent, p.canViewEventStats, p.canReadSalesGuide]) {
+    for (const f of [p.canManageClients, p.canExportClients, p.canErasePersonalData, p.canSetMarketingConsent, p.canDeleteEvent, p.canConfirmRefund, p.canViewEventStats, p.canReadSalesGuide]) {
       expect(f(owner)).toBe(true);
       expect(f(host)).toBe(false);
     }

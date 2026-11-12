@@ -5,7 +5,8 @@
  * Отдельной таблицы уведомлений нет: их собирает сервер из истории клиентов (`client_contacts`) и `tg_chats`; помним
  * только, когда человек последний раз открывал колокольчик (`notice_seen`). В журнал — только действие.
  * Колокольчик ведущего (решение владельца 6 ноября 2026): каждому активному человеку команды — его мероприятия
- * (назначено, изменено, снято, отменено) из `host_notices`; без имени, телефона и адреса клиента.
+ * (назначено, изменено, снято, отменено) из `host_notices`; без имени, телефона и адреса клиента. Там же (12 ноября 2026):
+ * владельцу — «предоплата отмечена» и «верните предоплату», менеджеру, запросившему возврат, — «предоплата возвращена».
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
@@ -27,12 +28,16 @@ const FIRST_UNREAD_HOURS = 24;
 const WAIT_MINUTES = 30;
 
 /** Что случилось с мероприятием человека — вид записи колокольчика ведущего. */
-export type HostNoticeKind = "created" | "changed" | "removed" | "cancelled";
+export type HostNoticeKind = "created" | "changed" | "removed" | "cancelled" | "prepaid" | "refund" | "refunded";
 export const HOST_NOTICE_TITLES: Record<HostNoticeKind, string> = {
   created: "📅 Вам назначено мероприятие",
   changed: "✏️ Мероприятие изменено",
   removed: "↩️ Мероприятие снято с вас",
   cancelled: "✖️ Мероприятие отменено",
+  // Предоплата (решение владельца 12 ноября 2026): владельцу — отметка менеджера и просьба вернуть, менеджеру — «вернули».
+  prepaid: "💰 Предоплата 2 000 ₽ отмечена — проверьте, что деньги пришли",
+  refund: "💸 Верните предоплату 2 000 ₽ — клиент отказался",
+  refunded: "✅ Предоплата возвращена клиенту",
 };
 function isHostNoticeKind(value: string): value is HostNoticeKind {
   return Object.prototype.hasOwnProperty.call(HOST_NOTICE_TITLES, value);
@@ -113,7 +118,17 @@ export function registerNotices(app: FastifyInstance, options: NoticesOptions): 
           kind: "event",
           title: isHostNoticeKind(r.kind) ? HOST_NOTICE_TITLES[r.kind] : "Мероприятие",
           name: hostNoticeName(r.title, r.day, r.start_min, r.end_min),
-          line: r.by_name ? (r.kind === "created" ? `Назначил(а): ${r.by_name}` : `Кто: ${r.by_name}`) : "",
+          line: r.by_name
+            ? r.kind === "created"
+              ? `Назначил(а): ${r.by_name}`
+              : r.kind === "prepaid"
+                ? `Отметил(а): ${r.by_name}`
+                : r.kind === "refund"
+                  ? `Запросил(а): ${r.by_name}`
+                  : r.kind === "refunded"
+                    ? `Вернул(а): ${r.by_name}`
+                    : `Кто: ${r.by_name}`
+            : "",
           at: r.created_at.getTime(),
           unread: r.created_at > since,
         }),

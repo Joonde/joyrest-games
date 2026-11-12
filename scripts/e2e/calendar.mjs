@@ -212,6 +212,9 @@ async function fillEvent(scope, o) {
   if (o.place !== undefined) await scope.getByPlaceholder("Ресторан «Север», Тверская 7").fill(o.place);
   if (o.guests !== undefined) await scope.getByPlaceholder("Например, 37").fill(String(o.guests));
   if (o.note !== undefined) await scope.getByPlaceholder("Пожелания, особенности зала, что взять с собой").fill(o.note);
+  // Оплата (12 ноября 2026): без стоимости и галочки «Предоплата внесена» новое мероприятие не записать.
+  if (o.price !== undefined) await scope.getByPlaceholder("Например, 24 900").fill(String(o.price));
+  if (o.prepaid) await scope.getByRole("checkbox", { name: /Предоплата 2 000 ₽ внесена/ }).check();
 }
 
 /** Мой календарь: листаем месяц до нужного дня и касаемся его. */
@@ -368,9 +371,9 @@ try {
   const hostOption = ((await row.locator("label.plan-host", { hasText: hostName }).first().textContent()) ?? "").replace(/\s+/g, " ");
   check(hostOption.includes("Может"), "Владелец: у ведущего в форме — «Может»", `Владелец: в форме у ведущего «${hostOption}»`);
   // «Закрепить это время» — дата и время уже стоят: «Когда» заполнено.
-  check(((await row.locator(".plan-progress").textContent()) ?? "").includes("Заполнено 2 из 8"), "Владелец: «Закрепить» — в форме уже есть время и ведущий (2 из 8)", `Владелец: «${(await row.locator(".plan-progress").textContent())?.slice(0, 120)}»`);
+  check(((await row.locator(".plan-progress").textContent()) ?? "").includes("Заполнено 2 из 10"), "Владелец: «Закрепить» — в форме уже есть время и ведущий (2 из 10)", `Владелец: «${(await row.locator(".plan-progress").textContent())?.slice(0, 120)}»`);
   check(await row.getByRole("button", { name: "Записать мероприятие" }).isDisabled(), "Владелец: пока обязательное не заполнено — «Записать» недоступна");
-  await fillEvent(row, { title: "Корпоратив, проверка", name: "Клиент Проверка", phone: "+7 900 000-00-00", contact: "WhatsApp", formats: ["Квиз", "Танцевальный"], place: "Ресторан проверки", guests: 45, note: "Квиз и танцы, проверка" });
+  await fillEvent(row, { title: "Корпоратив, проверка", name: "Клиент Проверка", phone: "+7 900 000-00-00", contact: "WhatsApp", formats: ["Квиз", "Танцевальный"], place: "Ресторан проверки", guests: 45, note: "Квиз и танцы, проверка", price: 24900, prepaid: true });
   await shot(ap, "владелец-форма-мероприятия");
   await noSideScroll(ap, "Владелец, форма в «Кто может»");
   await row.locator("summary", { hasText: "Вставить расчёт или заявку" }).click();
@@ -437,7 +440,7 @@ try {
   await busyRadio.check();
   check((await ap.locator(".plan-warn", { hasText: "У выбранного ведущего это время занято" }).count()) === 1, "Владелец: форма предупреждает, что у ведущего время занято");
   await ap.getByRole("button", { name: "Корпоратив", exact: true }).click();
-  await fillEvent(ap, { title: "Квиз-вечер, проверка", name: "Второй Проверка", phone: "+7 900 000-00-01", contact: "Звонок", formats: ["Квиз"], place: "Где-то, проверка" });
+  await fillEvent(ap, { title: "Квиз-вечер, проверка", name: "Второй Проверка", phone: "+7 900 000-00-01", contact: "Звонок", formats: ["Квиз"], place: "Где-то, проверка", price: 19900, prepaid: true });
   await ap.getByRole("button", { name: "Записать мероприятие" }).click();
   await until(async () => (await ap.locator(".plan-event").count()) === 2, WAIT, "два мероприятия на таймлайне");
   const quizSaved = ((await api("GET", `/api/events?from=${D1}&to=${D1}`, admin.cookie)).data?.events ?? []).find((e) => e.title === "Квиз-вечер, проверка");

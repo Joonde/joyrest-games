@@ -8,11 +8,12 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
-import { bookingId, bookingNote, contactLinks, eventSpan, parseContact, parseEventInput, type EventInput } from "../../src/core/events";
+import { bookingId, bookingNote, contactLinks, eventLink, eventSpan, parseContact, parseEventInput, type EventInput } from "../../src/core/events";
+import { PREPAY_RUB, prepaidOwnerText, refundOpen, refundOwnerText, rub } from "../../src/core/prepay";
 import { cleanProgram, sameProgram } from "../../src/core/eventProgram";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
-import { dayTitle } from "../../src/core/calendar";
+import { dayTitle, rangeLabel } from "../../src/core/calendar";
 import { icsCalendar, icsFileName } from "../../src/core/ics";
 import { actorOf, apiGuard, sessionUser, type SessionRow, type UserRow } from "./auth";
 import { rangeOf } from "./calendar";
@@ -59,6 +60,12 @@ interface Row {
   accept_rev?: number;
   client_contact?: string;
   live?: boolean;
+  price?: number | null;
+  prepaid_at?: Date | null;
+  prepaid_by_name?: string | null;
+  refund_at?: Date | null;
+  refund_by_name?: string | null;
+  refund_done_at?: Date | null;
 }
 
 /** Окно итогов: from ≤ to, не больше 370 дней (год с запасом), с прошлым днём (вечер за полночь). */
@@ -93,6 +100,11 @@ export function eventOf(row: Row): AgencyEvent {
     acceptRev: row.accept_rev ?? 0,
     live: row.live === true,
     ...(row.host_active === false ? { hostOff: true } : {}),
+    // Предоплата (12 ноября 2026): поля есть только у мероприятий со стоимостью или отметками.
+    ...(row.price != null ? { price: row.price } : {}),
+    ...(row.prepaid_at ? { prepaidAt: row.prepaid_at.getTime(), ...(row.prepaid_by_name ? { prepaidBy: row.prepaid_by_name } : {}) } : {}),
+    ...(row.refund_at ? { refundAt: row.refund_at.getTime(), ...(row.refund_by_name ? { refundBy: row.refund_by_name } : {}) } : {}),
+    ...(row.refund_done_at ? { refundDoneAt: row.refund_done_at.getTime() } : {}),
   };
 }
 
@@ -146,6 +158,9 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       select e.id, e.host_id, u.name as host_name, u.active as host_active, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
         e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held, e.updated_at,
         e.program, e.accepted_at, e.accept_rev, e.client_contact,
+        e.price, e.prepaid_at, e.refund_at, e.refund_done_at,
+        (select pu.name from users pu where pu.id = e.prepaid_by) as prepaid_by_name,
+        (select ru.name from users ru where ru.id = e.refund_by) as refund_by_name,
         -- Игра этого вечера открыта у ведущего (как в «Мероприятие идёт дольше плана»): кружок «Идёт» / «Сверх плана».
         (e.cancelled_at is null and exists (select 1 from sessions s where s.host_id = e.host_id and s.phase in ('lobby', 'playing')
           and s.hidden_at is null and s.created_at between e.starts_at - interval '3 hours' and e.ends_at
@@ -155,6 +170,48 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
     async function one(id: string): Promise<AgencyEvent | null> {
       const [row] = await sql<Row[]>`${select} where e.id = ${id}`;
       return row ? eventOf(row) : null;
+    }
+
+    /**
+     * Владельцу агентства — колокольчик и Telegram о предоплате (решение владельца 12 ноября 2026): менеджер отметил
+     * «Предоплата внесена» или нажал «Вернуть предоплату». Без имени, телефона и адреса клиента; сам себе — не пишем.
+     */
+    async function tellOwners(request: FastifyRequest, kind: "prepaid" | "refund", event: AgencyEvent, by: { id: string; name: string }) {
+      const what = `${event.title || "Мероприятие"}${event.guests ? ` · ${event.guests} гостей` : ""}`;
+      const when = `${dayTitle(event.day)}, ${rangeLabel(event.start, event.end)}`;
+      const link = eventLink(platformOf(request), event.id);
+      const text = kind === "prepaid" ? prepaidOwnerText(what, when, event.price ?? null, by.name, link) : refundOwnerText(what, when, by.name, link);
+      const owners = await sql<{ id: string }[]>`select id from users where role = 'admin' and active`;
+      for (const o of owners) {
+        await bell(request, kind, o.id, event, by);
+        if (!bot || o.id === by.id) continue;
+        queue = queue
+          .then(() => bot.sendTo(o.id, text))
+          .then(() => undefined)
+          .catch(() => request.log.warn({ events: "owner-notice" }, "events: уведомление владельцу не отправилось"));
+      }
+    }
+
+    /**
+     * Клиент мероприятия в «Клиентах»: по телефону, без телефона — по нику Telegram из «Связи», а если в мероприятии
+     * потом сменили и телефон, и ник — по записи истории этого мероприятия. Строка блокируется до конца транзакции.
+     */
+    type FoundClient = { id: string; status: string };
+    async function clientOfEvent(t: Sql, ev: AgencyEvent): Promise<FoundClient | null> {
+      const key = phoneKey(ev.clientPhone);
+      const links = contactLinks(ev.clientContact ?? "");
+      let [client] = key
+        ? await t<FoundClient[]>`select id, status from clients where phone_key in ${t(phoneKeyVariants(key))}
+            order by (phone_key = ${key}) desc limit 1 for update`
+        : [];
+      if (!client && links.length > 0) {
+        [client] = await t<FoundClient[]>`select id, status from clients where links ?| ${t.array(links)} order by created_at limit 1 for update`;
+      }
+      if (!client) {
+        [client] = await t<FoundClient[]>`select c.id, c.status from clients c
+          join client_contacts h on h.client_id = c.id and h.source = 'event' and h.ref = ${ev.id} limit 1 for update of c`;
+      }
+      return client ?? null;
     }
 
     /** Ведущему — только свои. */
@@ -210,8 +267,9 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!span) return fail(reply, 400, "invalid-argument");
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${input.hostId}`;
       if (!host?.active) return fail(reply, 404, "not-found");
-      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date; program: unknown; client_contact: string }[]>`
-        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at, program, client_contact
+      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date; program: unknown; client_contact: string; price: number | null; prepaid: boolean }[]>`
+        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at, program, client_contact,
+          price, (prepaid_at is not null) as prepaid
         from events where id = ${input.id}`;
       if (existing?.cancelled) return fail(reply, 409, "failed-precondition");
       // Владелец и менеджер правят одно мероприятие: форма шлёт `expect` — версию, с которой её открыли.
@@ -219,6 +277,16 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (existing && typeof expect === "number" && Math.floor(existing.updated_at.getTime()) !== expect) {
         return reply.code(409).send({ error: "changed" });
       }
+      // Предоплата (решение владельца 12 ноября 2026): новое мероприятие записывается ведущему только с галочкой
+      // «Предоплата внесена» и стоимостью по расчёту. Форма без этих полей (вкладка, открытая до обновления) — как раньше.
+      // Отметка ставится один раз и не снимается; стоимость у отмеченного мероприятия стереть нельзя.
+      const wasPrepaid = existing?.prepaid === true;
+      const markPrepaid = input.prepaid === true && !wasPrepaid;
+      const newPrice = input.price !== undefined ? input.price : (existing?.price ?? null);
+      if (!existing && input.prepaid === false) return reply.code(400).send({ error: "invalid-argument", reason: "prepay" });
+      if ((markPrepaid || wasPrepaid) && newPrice === null) return reply.code(400).send({ error: "invalid-argument", reason: "price" });
+      // Сумма «к оплате на месте» поменялась (стоимость или новая отметка предоплаты) — ведущему «Изменено».
+      const dueChanged = Boolean(existing) && ((existing?.price ?? null) !== newPrice || markPrepaid);
       // Программа: форма её не прислала (старая страница) — остаётся прежняя.
       const given = input.program !== undefined;
       const oldProgram = existing ? cleanProgram(existing.program) : null;
@@ -234,22 +302,29 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           existing?.start_min !== input.start ||
           existing?.end_min !== input.end ||
           existing?.title !== input.title ||
-          existing?.guests !== input.guests);
+          existing?.guests !== input.guests ||
+          dueChanged);
       const programJson = newProgram ? sql.json(newProgram as never) : null;
       // Связь с клиентом: форма её не прислала (старая страница) — остаётся прежняя.
       const contact = input.clientContact ?? existing?.client_contact ?? "";
       // Двойное касание «Сохранить»: два одинаковых запроса почти одновременно. «Назначено» в Telegram — только тому,
       // чей запрос действительно создал запись (`xmax = 0` — вставка, а не правка), иначе ведущему пришло бы два.
+      const prepaidAt = markPrepaid ? new Date(now()) : null;
       const inserted = await sql.begin(async (tx) => {
         const t = tx as unknown as Sql;
         const [row] = await t<{ inserted: boolean }[]>`
-          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, client_contact, title, place, guests, note, program, accept_rev, created_by)
+          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, client_contact, title, place, guests, note, program, accept_rev, created_by,
+            price, prepaid_at, prepaid_by)
           values (${input.id}, ${input.hostId}, ${input.day}, ${input.start}, ${input.end}, ${new Date(span.from)}, ${new Date(span.to)},
-            ${input.clientName}, ${input.clientPhone}, ${contact}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${programJson}, 1, ${user.id})
+            ${input.clientName}, ${input.clientPhone}, ${contact}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${programJson}, 1, ${user.id},
+            ${newPrice}, ${prepaidAt}, ${markPrepaid ? user.id : null})
           on conflict (id) do update set host_id = excluded.host_id, day = excluded.day, start_min = excluded.start_min,
             end_min = excluded.end_min, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
             client_name = excluded.client_name, client_phone = excluded.client_phone, client_contact = excluded.client_contact, title = excluded.title,
             place = excluded.place, guests = excluded.guests, note = excluded.note, program = excluded.program,
+            price = excluded.price,
+            prepaid_by = case when events.prepaid_at is null then excluded.prepaid_by else events.prepaid_by end,
+            prepaid_at = coalesce(events.prepaid_at, excluded.prepaid_at),
             accepted_at = case when ${reaccept} then null else events.accepted_at end,
             accept_rev = events.accept_rev + case when ${reaccept} then 1 else 0 end, updated_at = now()
           returning (xmax = 0) as inserted`;
@@ -277,11 +352,14 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         existing.end_min !== saved.end ||
         existing.title !== saved.title ||
         existing.guests !== saved.guests ||
-        programChanged
+        programChanged ||
+        dueChanged
       ) {
         notice(request, "changed", saved.hostId, saved);
         await bell(request, "changed", saved.hostId, saved, by);
       }
+      // Предоплату отметили (при записи или позже, у мероприятия без отметки) — владельцу: колокольчик и Telegram.
+      if (markPrepaid && (existing || inserted)) await tellOwners(request, "prepaid", saved, by);
       // Клиент мероприятия — в базу клиентов (по телефону; повтор не дублирует историю). Ждём записи и при сбое
       // повторяем (17 октября 2026: раньше запись шла без ожидания — клиент мог молча не попасть в «Клиентов»).
       // Не записался и после повторов — мероприятие всё равно сохранено, а форма говорит добавить клиента вручную.
@@ -292,7 +370,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           phone: saved.clientPhone,
           links,
           source: "event",
-          summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}`,
+          summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}${saved.prepaidAt ? ` · предоплата ${rub(PREPAY_RUB)} внесена` : ""}`,
           ref: saved.id,
           promote: !saved.cancelled,
           by: { id: user.id, name: user.name },
@@ -354,6 +432,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!ID.test(id)) return fail(reply, 404, "not-found");
       const event = await one(id);
       if (!event) return fail(reply, 404, "not-found");
+      // Закрыто кнопкой «Вернуть предоплату»: брони больше нет. Клиент передумал — новое мероприятие с новой предоплатой.
+      if (event.cancelled && event.refundAt) return reply.code(409).send({ error: "failed-precondition", reason: "refunded" });
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${event.hostId}`;
       if (!host?.active) return fail(reply, 409, "failed-precondition");
       await sql.begin(async (tx) => {
@@ -371,6 +451,69 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         await bell(request, "created", restored.hostId, restored, { id: user.id, name: user.name });
       }
       return restored;
+    });
+
+    // «Вернуть предоплату» (решение владельца 12 ноября 2026): клиент отказался не позже чем за 48 часов до начала.
+    // Мероприятие закрывается у ведущего и у менеджера (уходит в «Отменённые», время ведущего свободно, ему — «Отменено»),
+    // клиент становится «Отказ», владельцу — колокольчик и Telegram «верните предоплату». Меньше 48 часов — 409 `late`:
+    // предоплата не возвращается. Повтор — успех без новых сообщений.
+    api.post<{ Params: { id: string } }>("/api/events/:id/refund", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canManageEvents(actorOf(u)));
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const [row] = await sql<{ starts_at: Date; held: boolean | null; prepaid: boolean; refund: boolean }[]>`
+        select starts_at, held, (prepaid_at is not null) as prepaid, (refund_at is not null) as refund from events where id = ${id}`;
+      if (!row) return fail(reply, 404, "not-found");
+      if (!row.prepaid) return reply.code(409).send({ error: "failed-precondition", reason: "not-prepaid" });
+      if (row.refund) return (await one(id)) ?? fail(reply, 404, "not-found");
+      if (row.held === true) return reply.code(409).send({ error: "failed-precondition", reason: "held" });
+      if (!refundOpen(row.starts_at.getTime(), now())) return reply.code(409).send({ error: "failed-precondition", reason: "late" });
+      const before = await one(id);
+      const at = new Date(now());
+      const by = { id: user.id, name: user.name };
+      const done = await sql.begin(async (tx) => {
+        const marked = await tx`update events set refund_at = ${at}, refund_by = ${user.id}, cancelled_at = coalesce(cancelled_at, now()), updated_at = now()
+          where id = ${id} and refund_at is null and prepaid_at is not null returning 1`;
+        await tx`delete from availability where id = ${bookingId(id)}`;
+        return marked.length > 0;
+      });
+      const event = await one(id);
+      if (!event) return fail(reply, 404, "not-found");
+      request.log.info({ events: "refund" }, "events");
+      if (!done) return event;
+      if (before && !before.cancelled) {
+        notice(request, "cancelled", event.hostId, event);
+        await bell(request, "cancelled", event.hostId, event, by);
+      }
+      await tellOwners(request, "refund", event, by);
+      // Клиент отказался — в «Клиентах» он «Отказ», в истории видно, что предоплату нужно вернуть.
+      await sql
+        .begin(async (tx) => {
+          const t = tx as unknown as Sql;
+          const client = await clientOfEvent(t, event);
+          if (!client || client.status === "lost") return;
+          await changeStatus(t, client.id, client.status, "lost", by, `Отказ · вернуть предоплату ${rub(PREPAY_RUB)} · ${event.title || "Мероприятие"}, ${dayTitle(event.day)} · ${user.name}`);
+        })
+        .catch(() => request.log.warn({ events: "client-refund" }, "events: статус клиента не обновлён"));
+      return event;
+    });
+
+    // «Отметить: вернул» — владелец вернул предоплату клиенту. Менеджеру, который запросил возврат, — в колокольчик.
+    api.post<{ Params: { id: string } }>("/api/events/:id/refund-done", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canConfirmRefund(actorOf(u)));
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const [row] = await sql<{ refund: boolean; refund_by: string | null }[]>`select (refund_at is not null) as refund, refund_by from events where id = ${id}`;
+      if (!row) return fail(reply, 404, "not-found");
+      if (!row.refund) return reply.code(409).send({ error: "failed-precondition", reason: "no-refund" });
+      const marked = await sql`update events set refund_done_at = ${new Date(now())}, updated_at = now() where id = ${id} and refund_done_at is null returning 1`;
+      const event = await one(id);
+      if (!event) return fail(reply, 404, "not-found");
+      request.log.info({ events: "refund-done" }, "events");
+      if (marked.length > 0 && row.refund_by) await bell(request, "refunded", row.refund_by, event, { id: user.id, name: user.name });
+      return event;
     });
 
     // «Принял, готовлюсь» — ведущий этого мероприятия (из студии; из Telegram — кнопкой бота). Повтор — успех, время — первое.
@@ -416,31 +559,20 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       // (диагностика 12 ноября 2026: клиент, записанный только по нику, оставался «Клиентом» — отзыв у него не просили),
       // а если в мероприятии потом сменили и телефон, и ник — по записи истории этого мероприятия.
       const ev = await one(id);
-      const key = ev ? phoneKey(ev.clientPhone) : "";
-      const links = ev ? contactLinks(ev.clientContact ?? "") : [];
-      if (ev && (key || links.length > 0)) {
-        await sql.begin(async (tx) => {
-          const t = tx as unknown as Sql;
-          type Found = { id: string; status: string };
-          let [client] = key
-            ? await t<Found[]>`select id, status from clients where phone_key in ${t(phoneKeyVariants(key))}
-                order by (phone_key = ${key}) desc limit 1 for update`
-            : [];
-          if (!client && links.length > 0) {
-            [client] = await t<Found[]>`select id, status from clients where links ?| ${t.array(links)} order by created_at limit 1 for update`;
-          }
-          if (!client) {
-            [client] = await t<Found[]>`select c.id, c.status from clients c
-              join client_contacts h on h.client_id = c.id and h.source = 'event' and h.ref = ${id} limit 1 for update of c`;
-          }
-          if (!client) return;
-          const what = `${ev.title || "Мероприятие"}, ${dayTitle(ev.day)}`;
-          if (held === true && client.status !== "held") {
-            await changeStatus(t, client.id, client.status, "held", { id: user.id, name: user.name }, `Провели · ${what} · ${user.name}`);
-          } else if (held !== true && client.status === "held") {
-            await changeStatus(t, client.id, client.status, "client", { id: user.id, name: user.name }, `Клиент · ${held === false ? "мероприятие не состоялось" : "отметку «Проведено» сняли"} · ${user.name}`);
-          }
-        }).catch(() => request.log.warn({ events: "client-held" }, "events: статус клиента не обновлён"));
+      if (ev) {
+        await sql
+          .begin(async (tx) => {
+            const t = tx as unknown as Sql;
+            const client = await clientOfEvent(t, ev);
+            if (!client) return;
+            const what = `${ev.title || "Мероприятие"}, ${dayTitle(ev.day)}`;
+            if (held === true && client.status !== "held") {
+              await changeStatus(t, client.id, client.status, "held", { id: user.id, name: user.name }, `Провели · ${what} · ${user.name}`);
+            } else if (held !== true && client.status === "held") {
+              await changeStatus(t, client.id, client.status, "client", { id: user.id, name: user.name }, `Клиент · ${held === false ? "мероприятие не состоялось" : "отметку «Проведено» сняли"} · ${user.name}`);
+            }
+          })
+          .catch(() => request.log.warn({ events: "client-held" }, "events: статус клиента не обновлён"));
       }
       return (await one(id)) ?? fail(reply, 404, "not-found");
     });

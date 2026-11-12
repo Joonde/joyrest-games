@@ -6,6 +6,7 @@
  */
 import { cleanProgram, programLines, type EventProgram } from "./eventProgram";
 import type { Overtime } from "./overtime";
+import { cleanPrice, dueLine } from "./prepay";
 import type { AgencyEvent } from "../data/types";
 import { cleanNote, DAY_MINUTES, dayIndex, dayInWindow, dayTitle, endAfter, MAX_END, rangeLabel, TIME_STEP, todayMoscow, validTime } from "./calendar";
 
@@ -126,6 +127,10 @@ export interface EventInput {
   program?: EventProgram | null;
   /** Где писать клиенту («telegram:@anna»); `undefined` — форма не прислала, прежнее остаётся. */
   clientContact?: string;
+  /** Стоимость по расчёту, ₽; `undefined` — форма не прислала, прежняя остаётся. */
+  price?: number | null;
+  /** Галочка «Предоплата внесена»; `undefined` — форма не прислала (страница, открытая до обновления). */
+  prepaid?: boolean;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
@@ -145,6 +150,9 @@ export function parseEventInput(body: unknown, now = Date.now()): EventInput | n
         ? guestsRaw
         : undefined;
   if (guests === undefined) return null;
+  // Стоимость: прислали мусор (не целые рубли, меньше предоплаты) — запись не принимается.
+  const price = "price" in b ? cleanPrice(b.price) : null;
+  if (price === undefined) return null;
   const input: EventInput = {
     id,
     hostId,
@@ -159,6 +167,8 @@ export function parseEventInput(body: unknown, now = Date.now()): EventInput | n
     note: cleanText(b.note, EVENT_LIMITS.note),
     ...("program" in b ? { program: cleanProgram(b.program) } : {}),
     ...("clientContact" in b ? { clientContact: formatContact(parseContact(b.clientContact)) } : {}),
+    ...("price" in b ? { price } : {}),
+    ...("prepaid" in b ? { prepaid: b.prepaid === true } : {}),
   };
   if (!input.title && !input.clientName) return null;
   return input;
@@ -505,7 +515,7 @@ export function eventLink(platformUrl: string, id?: string | null): string {
  */
 export function noticeText(
   kind: NoticeKind,
-  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end"> & Pick<Partial<AgencyEvent>, "program" | "id">,
+  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end"> & Pick<Partial<AgencyEvent>, "program" | "id" | "price" | "prepaidAt">,
   platformUrl: string,
   now = Date.now(),
   /** Время начала из базы (по нему срабатывают напоминания); нет — по дате и времени мероприятия. */
@@ -524,7 +534,9 @@ export function noticeText(
   // Программа — ведущему при назначении, изменении и в напоминаниях (без цены и без клиента).
   const lines = kind === "removed" || kind === "cancelled" || kind === "after" ? [] : programLines(e.program);
   const program = lines.length ? `\n\n🎯 Программа: ${lines.join("\n")}` : "";
-  return `${head}\n\n${what}\n${when}${program}${tail}`;
+  // Сколько взять с клиента на месте (стоимость минус предоплата) — при назначении, изменении и в напоминаниях.
+  const due = kind === "removed" || kind === "cancelled" || kind === "after" ? "" : dueLine(e.price, Boolean(e.prepaidAt));
+  return `${head}\n\n${what}\n${when}${program}${due ? `\n\n${due}` : ""}${tail}`;
 }
 
 /** Владельцу и менеджерам: ведущий не нажал «Принял, готовлюсь», а до начала меньше суток. Без клиента. */

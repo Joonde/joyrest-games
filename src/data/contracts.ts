@@ -304,7 +304,8 @@ export interface EventsRepository {
   list(scope: "upcoming" | "past" | "cancelled"): Promise<AgencyEvent[]>;
   /** Владелец: новое мероприятие или правка (id от браузера — повтор та же запись). */
   /** `expect` — версия, с которой открыли форму правки: мероприятие за это время изменил другой — ошибка `changed`. */
-  save(event: Omit<AgencyEvent, "hostName" | "cancelled" | "held" | "updatedAt"> & { expect?: number }): Promise<AgencyEvent>;
+  /** `prepaid` — галочка «Предоплата внесена» (новое мероприятие без неё сервер не запишет), `price` — стоимость по расчёту. */
+  save(event: Omit<AgencyEvent, "hostName" | "cancelled" | "held" | "updatedAt"> & { expect?: number; prepaid?: boolean }): Promise<AgencyEvent>;
   /** Итоги: все мероприятия периода до 370 дней (только владелец). */
   period(from: string, to: string): Promise<AgencyEvent[]>;
   /** «Проведено» (true), «Не состоялось» (false), снять отметку (null) — после начала. */
@@ -313,6 +314,10 @@ export interface EventsRepository {
   accept(id: string, rev: number): Promise<AgencyEvent>;
   cancel(id: string): Promise<AgencyEvent>;
   restore(id: string): Promise<AgencyEvent>;
+  /** «Вернуть предоплату»: клиент отказался не позже чем за 48 часов — мероприятие закрыто, владельцу — вернуть 2 000 ₽. */
+  refund(id: string): Promise<AgencyEvent>;
+  /** «Отметить: вернул» — владелец вернул предоплату клиенту. */
+  refundDone(id: string): Promise<AgencyEvent>;
   /** Удалить навсегда — только отменённое. */
   remove(id: string): Promise<void>;
   /** Файл .ics одного мероприятия («Добавить в календарь телефона») — адрес для ссылки. */

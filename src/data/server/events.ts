@@ -29,6 +29,10 @@ export function parseEvent(value: unknown): AgencyEvent {
     acceptRev: typeof d.acceptRev === "number" ? d.acceptRev : 0,
     live: d.live === true,
     ...(d.hostOff === true ? { hostOff: true } : {}),
+    ...(typeof d.price === "number" ? { price: d.price } : {}),
+    ...(typeof d.prepaidAt === "number" ? { prepaidAt: d.prepaidAt, ...(asText(d.prepaidBy) ? { prepaidBy: asText(d.prepaidBy) } : {}) } : {}),
+    ...(typeof d.refundAt === "number" ? { refundAt: d.refundAt, ...(asText(d.refundBy) ? { refundBy: asText(d.refundBy) } : {}) } : {}),
+    ...(typeof d.refundDoneAt === "number" ? { refundDoneAt: d.refundDoneAt } : {}),
     ...(d.clientNotSaved === true ? { clientNotSaved: true } : {}),
     ...(d.clientIncomplete === true ? { clientIncomplete: true } : {}),
   };
@@ -51,6 +55,12 @@ export const serverEventsRepository: EventsRepository = {
   },
   async restore(id) {
     return parseEvent(await api("POST", `/api/events/${encodeURIComponent(id)}/restore`, {}));
+  },
+  async refund(id) {
+    return parseEvent(await api("POST", `/api/events/${encodeURIComponent(id)}/refund`, {}));
+  },
+  async refundDone(id) {
+    return parseEvent(await api("POST", `/api/events/${encodeURIComponent(id)}/refund-done`, {}));
   },
   async period(from, to) {
     return list(await api("GET", `/api/events?stats=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`));

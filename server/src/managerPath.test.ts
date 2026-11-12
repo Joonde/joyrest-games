@@ -348,4 +348,153 @@ describe.skipIf(!url)("путь клиента: уведомления по ро
     const usual = await step("22", "до начала 20 часов, записано 30 минут назад, ведущий не принял");
     expect(usual.owner?.telegram ?? []).toEqual([]);
   });
+
+  // Предоплата (решение владельца 12 ноября 2026): запись ведущему только с галочкой, ведущему — остаток «к оплате на
+  // месте», владельцу — колокольчик и Telegram, «Вернуть предоплату» — не позже чем за 48 часов до начала.
+  it("предоплата: запись с галочкой, сумма ведущему, уведомления владельцу, возврат до 48 часов", async () => {
+    const mgr = who.manager?.cookie ?? "";
+    const own = who.owner?.cookie ?? "";
+    const a = (await post("/api/users", own, { email: "vika@example.com", name: "Вика" })).json() as { account: { uid: string }; temporaryPassword: string };
+    const vk = { id: a.account.uid, cookie: await login("vika@example.com", a.temporaryPassword), chat: 444 };
+    who.vika = vk;
+    seenBell.vika = new Set();
+    seenTg.vika = 0;
+    await connect("vika");
+    const vika = vk.id;
+    const vera = { clientName: "Вера", clientPhone: "+7 999 555-00-11", place: "ул. Секретная, 3" };
+    const noClient = (texts: string[]) => texts.every((t) => !t.includes("Вера") && !t.includes("555-00-11") && !t.includes("Секретная"));
+    const fullTg = (name: string, from: number) => tgOf(name).slice(from).map((m) => m.text);
+
+    // Без галочки и без стоимости новое мероприятие не записывается.
+    let r = await post("/api/events", mgr, base("p1", vika, { ...vera, price: 24900, prepaid: false }));
+    expect(r.statusCode).toBe(400);
+    expect(r.json()).toMatchObject({ reason: "prepay" });
+    r = await post("/api/events", mgr, base("p1", vika, { ...vera, prepaid: true }));
+    expect(r.statusCode).toBe(400);
+    expect(r.json()).toMatchObject({ reason: "price" });
+    expect((await post("/api/events", mgr, base("p1", vika, { ...vera, price: 1500, prepaid: true }))).statusCode).toBe(400);
+    expect((await post("/api/events", mgr, base("p1", vika, { ...vera, price: "много", prepaid: true }))).statusCode).toBe(400);
+    expect(await eventOf("p1")).toBeNull();
+    await step("P0", "менеджер пробует записать без галочки, без стоимости и с неверной стоимостью — отказ, никому ничего");
+
+    // С галочкой: ведущему — остаток, владельцу — «предоплата отмечена».
+    const vikaTg = tgOf("vika").length;
+    const ownerTg = tgOf("owner").length;
+    r = await post("/api/events", mgr, base("p1", vika, { ...vera, price: 24900, prepaid: true }));
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ price: 24900, prepaidBy: "Мария" });
+    expect(typeof (r.json() as { prepaidAt?: number }).prepaidAt).toBe("number");
+    const p1 = await step("P1", "менеджер записал мероприятие Вике: стоимость 24 900 ₽, предоплата внесена", { client: await clientStatus("79995550011") });
+    expect(fullTg("vika", vikaTg).some((t) => t.includes("К оплате на месте: 22 900 ₽") && t.includes("предоплата 2 000 ₽ уже внесена"))).toBe(true);
+    expect(p1.owner?.bell.some((b) => b.includes("Предоплата 2 000 ₽ отмечена"))).toBe(true);
+    expect(fullTg("owner", ownerTg).some((t) => t.includes("Предоплата 2 000 ₽ отмечена") && t.includes("22 900 ₽") && t.includes("Мария"))).toBe(true);
+    expect(noClient([...fullTg("vika", vikaTg), ...fullTg("owner", ownerTg)])).toBe(true);
+    expect((p1.manager?.bell ?? []).some((b) => b.includes("Предоплата"))).toBe(false);
+    // Ведущий видит сумму в студии.
+    const mine = (await get("/api/events?scope=upcoming", vk.cookie)).json() as { events: Array<{ id: string; price?: number; prepaidAt?: number }> };
+    expect(mine.events.find((e) => e.id === "p1")).toMatchObject({ price: 24900 });
+    expect(typeof mine.events.find((e) => e.id === "p1")?.prepaidAt).toBe("number");
+
+    // Стоимость поменяли — ведущему «Изменено» с новым остатком, «Принял» спрашиваем заново.
+    expect((await post("/api/events/p1/accept", vk.cookie, { rev: 1 })).statusCode).toBe(200);
+    const before = tgOf("vika").length;
+    r = await post("/api/events", mgr, base("p1", vika, { ...vera, price: 27900, prepaid: true }));
+    expect(r.statusCode).toBe(200);
+    const p2 = await step("P2", "менеджер поменял стоимость на 27 900 ₽", { event: await eventOf("p1") });
+    expect(fullTg("vika", before).some((t) => t.includes("изменено") && t.includes("К оплате на месте: 25 900 ₽"))).toBe(true);
+    expect((await eventOf("p1"))?.accepted).toBe(false);
+    expect((p2.owner?.bell ?? []).some((b) => b.includes("Предоплата"))).toBe(false);
+    // Отметку не снять, стоимость у отмеченного не стереть; правка без поля (старая вкладка) их не трогает.
+    r = await post("/api/events", mgr, base("p1", vika, { ...vera, price: 27900, prepaid: false }));
+    expect(r.json()).toMatchObject({ price: 27900 });
+    expect(typeof (r.json() as { prepaidAt?: number }).prepaidAt).toBe("number");
+    expect((await post("/api/events", mgr, base("p1", vika, { ...vera, price: null, prepaid: true }))).statusCode).toBe(400);
+    r = await post("/api/events", mgr, base("p1", vika, vera));
+    expect(r.json()).toMatchObject({ price: 27900, prepaidBy: "Мария" });
+    const quiet = await step("P3", "правки без изменения суммы: галочку «сняли», старая вкладка без полей оплаты");
+    expect(quiet.vika?.telegram ?? []).toEqual([]);
+    expect(quiet.owner?.telegram ?? []).toEqual([]);
+
+    // Владелец сам отметил предоплату — сам себе не пишет.
+    expect((await post("/api/events", own, base("p4", vika, { clientName: "Глеб", clientPhone: "+7 999 444-00-22", day: day(12), price: 19900, prepaid: true }))).statusCode).toBe(200);
+    const self = await step("P4", "ВЛАДЕЛЕЦ сам записал мероприятие с предоплатой");
+    expect((self.owner?.bell ?? []).some((b) => b.includes("Предоплата"))).toBe(false);
+    expect(self.owner?.telegram ?? []).toEqual([]);
+
+    // Мероприятие без предоплаты (записано раньше): отметили позже — владельцу уведомление, ведущему «Изменено» с суммой.
+    expect((await post("/api/events", mgr, base("p5", vika, { clientName: "Дарья", clientPhone: "+7 999 333-00-44", day: day(13) }))).statusCode).toBe(200);
+    await step("P5a", "мероприятие p5 записано по-старому, без оплаты");
+    expect((await post("/api/events/p5/refund", mgr)).json()).toMatchObject({ reason: "not-prepaid" });
+    const b5 = tgOf("vika").length;
+    expect((await post("/api/events", mgr, base("p5", vika, { clientName: "Дарья", clientPhone: "+7 999 333-00-44", day: day(13), price: 15900, prepaid: true }))).statusCode).toBe(200);
+    const p5 = await step("P5", "менеджер позже вписал стоимость 15 900 ₽ и отметил предоплату");
+    expect(p5.owner?.bell.some((b) => b.includes("Предоплата 2 000 ₽ отмечена"))).toBe(true);
+    expect(fullTg("vika", b5).some((t) => t.includes("К оплате на месте: 13 900 ₽"))).toBe(true);
+
+    // Напоминание за 2 часа — тоже с суммой.
+    await sql`update events set starts_at = now() + interval '100 minutes', ends_at = now() + interval '5 hours' where id = 'p5'`;
+    const b6 = tgOf("vika").length;
+    await bot.remindNow();
+    await step("P6", "напоминание Вике за 2 часа до начала p5");
+    expect(fullTg("vika", b6).some((t) => t.includes("начало мероприятия") && t.includes("К оплате на месте: 13 900 ₽"))).toBe(true);
+
+    // Меньше 48 часов до начала — «Вернуть предоплату» не работает, мероприятие остаётся.
+    expect((await post("/api/events", mgr, base("p7", vika, { clientName: "Ева", clientPhone: "+7 999 222-00-55", day: day(11), price: 21900, prepaid: true }))).statusCode).toBe(200);
+    await step("P7a", "мероприятие p7 с предоплатой");
+    await sql`update events set starts_at = now() + interval '47 hours', ends_at = now() + interval '51 hours' where id = 'p7'`;
+    r = await post("/api/events/p7/refund", mgr);
+    expect(r.statusCode).toBe(409);
+    expect(r.json()).toMatchObject({ reason: "late" });
+    expect((await eventOf("p7"))?.cancelled).toBe(false);
+    const late = await step("P7", "до начала 47 часов: менеджер жмёт «Вернуть предоплату» — отказ", { code: r.statusCode });
+    expect((late.owner?.bell ?? []).some((b) => b.includes("предоплату"))).toBe(false);
+    expect(late.vika?.telegram ?? []).toEqual([]);
+    // Ровно на границе — ещё можно.
+    await sql`update events set starts_at = now() + interval '48 hours 5 minutes', ends_at = now() + interval '52 hours' where id = 'p7'`;
+    expect((await post("/api/events/p7/refund", mgr)).statusCode).toBe(200);
+    await step("P7b", "до начала 48 часов 5 минут: возврат проходит");
+
+    // Вовремя: ведущий не может, менеджер может. Заказ закрыт у всех, владельцу — «верните предоплату», клиент — «Отказ».
+    expect((await post("/api/events/p1/refund", vk.cookie)).statusCode).toBe(403);
+    const bv = tgOf("vika").length;
+    const bo = tgOf("owner").length;
+    r = await post("/api/events/p1/refund", mgr);
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ cancelled: true, refundBy: "Мария" });
+    const p8 = await step("P8", "клиент отказался за 10 дней: менеджер нажал «Вернуть предоплату»", { event: await eventOf("p1"), client: await clientStatus("79995550011") });
+    expect((await eventOf("p1"))?.cancelled).toBe(true);
+    expect(await sql`select 1 from availability where id = 'ev-p1'`).toHaveLength(0);
+    expect(p8.vika?.bell.some((b) => b.includes("отменено"))).toBe(true);
+    expect(fullTg("vika", bv).some((t) => t.includes("отменено"))).toBe(true);
+    expect(p8.owner?.bell.some((b) => b.includes("Верните предоплату"))).toBe(true);
+    expect(fullTg("owner", bo).some((t) => t.includes("Верните предоплату 2 000 ₽") && t.includes("Мария"))).toBe(true);
+    expect(noClient([...fullTg("vika", bv), ...fullTg("owner", bo)])).toBe(true);
+    expect(await clientStatus("79995550011")).toBe("lost");
+    // Повтор — успех без новых сообщений; вернуть закрытое с возвратом нельзя.
+    expect((await post("/api/events/p1/refund", mgr)).statusCode).toBe(200);
+    r = await post("/api/events/p1/restore", mgr);
+    expect(r.statusCode).toBe(409);
+    expect(r.json()).toMatchObject({ reason: "refunded" });
+    const again = await step("P9", "повторное «Вернуть предоплату» и попытка «Вернуть мероприятие»");
+    expect(again.owner?.telegram ?? []).toEqual([]);
+    expect(again.vika?.telegram ?? []).toEqual([]);
+
+    // «Отметить: вернул» — только владелец; менеджеру — в колокольчик.
+    expect((await post("/api/events/p1/refund-done", mgr)).statusCode).toBe(403);
+    expect((await post("/api/events/p4/refund-done", own)).json()).toMatchObject({ reason: "no-refund" });
+    r = await post("/api/events/p1/refund-done", own);
+    expect(r.statusCode).toBe(200);
+    expect(typeof (r.json() as { refundDoneAt?: number }).refundDoneAt).toBe("number");
+    const done = await step("P10", "ВЛАДЕЛЕЦ отметил: предоплату вернул");
+    expect(done.manager?.bell.some((b) => b.includes("Предоплата возвращена"))).toBe(true);
+    expect((await post("/api/events/p1/refund-done", own)).statusCode).toBe(200);
+    expect(((await step("P11", "повтор «Отметить: вернул»")).manager?.bell ?? []).some((b) => b.includes("возвращена"))).toBe(false);
+
+    // Обычная отмена мероприятия с предоплатой: предоплата остаётся отмеченной, вернуть мероприятие можно.
+    expect((await post("/api/events/p4/cancel", own)).statusCode).toBe(200);
+    r = await post("/api/events/p4/restore", own);
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ price: 19900, cancelled: false });
+    await step("P12", "обычная отмена и возврат мероприятия с предоплатой");
+  });
 });

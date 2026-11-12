@@ -52,7 +52,7 @@ export function dueLine(price: number | null | undefined, prepaid: boolean): str
 export function priceFromCalc(text: string): number | null {
   const money = (line: string) => {
     const m = /:\s*([\d\s ]{1,12})₽/.exec(line);
-    const n = m ? cleanPrice(m[1].trim()) : undefined;
+    const n = m?.[1] ? cleanPrice(m[1].trim()) : undefined;
     return typeof n === "number" ? n : null;
   };
   const lines = text.split(/\r?\n/).map((l) => l.trim());

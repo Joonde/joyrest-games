@@ -492,7 +492,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         .begin(async (tx) => {
           const t = tx as unknown as Sql;
           const client = await clientOfEvent(t, event);
-          if (!client || client.status === "lost") return;
+          // «Провели» — у клиента уже был праздник с нами: он остаётся прежним клиентом, отказ — только от этого заказа.
+          if (!client || client.status === "lost" || client.status === "held") return;
           await changeStatus(t, client.id, client.status, "lost", by, `Отказ · вернуть предоплату ${rub(PREPAY_RUB)} · ${event.title || "Мероприятие"}, ${dayTitle(event.day)} · ${user.name}`);
         })
         .catch(() => request.log.warn({ events: "client-refund" }, "events: статус клиента не обновлён"));

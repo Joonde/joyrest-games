@@ -19,7 +19,7 @@ import { DEMO_QUIZ_FORMATS } from "./demo";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { LeaderboardEntry, Session, SessionState } from "../../data/types";
-import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, chooseLevel, chosenLevel, closeLevelVote, closeSuperVote, coinSuperVote, extraAction, isSuperCoin, levelVoteOf, levelVoteSync, openLevelVote, nextQuestion, openSuperVote, overrideSuperVote, primaryAction, reveal, showBoard, showQuestion, showTotal, skipSuper, superCoinSpinning, superSkipped, superSync, superVoteOf, superVoteSync, toggleAccepted } from "./flow";
+import { actionLabel, back, boardAfterReveal, historyOf, HISTORY_MAX, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, chooseLevel, chosenLevel, closeLevelVote, closeSuperVote, coinSuperVote, extraAction, isSuperCoin, levelVoteOf, levelVoteSync, openLevelVote, nextQuestion, openSuperVote, overrideSuperVote, primaryAction, reveal, showBoard, showQuestion, showTotal, skipSuper, superCoinSpinning, superSkipped, superSync, superVoteOf, superVoteSync, toggleAccepted } from "./flow";
 import { acceptKey } from "../../core/supergame";
 import { QUESTION_FORMATS } from "./content";
 import { emptyResult, groupOpenAnswers, isCorrect, numberDeltas, orderShown, parseResult, resultOf, score, steps, superAllowed } from "./logic";
@@ -137,7 +137,37 @@ describe("normalizeAnswer", () => {
     expect(normalizeAnswer("Санкт-Петербург")).toBe(normalizeAnswer("санкт петербург"));
     expect(matchesAnswer("ЕЛКА", ["ёлка"])).toBe(true);
     expect(matchesAnswer("елки", ["ёлка"])).toBe(false);
-    expect(matchesAnswer("!!!", ["!!!"])).toBe(false);
+    expect(matchesAnswer("!!!", ["ёлка"])).toBe(false);
+  });
+
+  it("числа различаются: дробь, минус; даты — по цифрам, как раньше (К-Н-7)", () => {
+    expect(normalizeAnswer("1,5")).toBe("1.5");
+    expect(matchesAnswer("1.5", ["1,5"])).toBe(true);
+    expect(matchesAnswer("15", ["1,5"])).toBe(false);
+    expect(matchesAnswer("1 5", ["1,5"])).toBe(false);
+    expect(matchesAnswer("5", ["-5"])).toBe(false);
+    expect(matchesAnswer("−5", ["-5"])).toBe(true);
+    expect(matchesAnswer("минус 5", ["-5"])).toBe(false);
+    expect(matchesAnswer("t = -5", ["t -5"])).toBe(true);
+    expect(matchesAnswer("Ту-154", ["ту 154"])).toBe(true);
+    expect(matchesAnswer("5-6", ["56"])).toBe(true);
+    expect(matchesAnswer("12.04.1961", ["12 04 1961"])).toBe(true);
+    expect(matchesAnswer("1 665", ["1665"])).toBe(true);
+    expect(matchesAnswer("3,14 м", ["3.14м"])).toBe(true);
+  });
+
+  it("ответ из одних знаков или смайликов не пропадает (К-Н-7)", () => {
+    expect(normalizeAnswer("👍")).toBe("👍");
+    expect(normalizeAnswer(" ! ! ! ")).toBe("!!!");
+    expect(matchesAnswer("!!!", ["!!!"])).toBe(true);
+    expect(matchesAnswer("👍", ["ёлка"])).toBe(false);
+    expect(normalizeAnswer("   ")).toBe("");
+    const q = { ...newQuestion("open"), id: "q1", text: "?", answers: ["Ёлка"] } as QuizQuestion;
+    const one = (pid: string, value: string) => ({ id: `0_${pid}`, step: 0, pid, uid: pid, value, submittedAt: 5 });
+    const groups = groupOpenAnswers(q, [one("a", "👍"), one("b", "ёлка"), one("c", "!!!")], []);
+    expect(groups.map((g) => g.key).sort()).toEqual(["!!!", "елка", "👍"].sort());
+    // Ведущий засчитал смайлик — он верный.
+    expect(isCorrect(q, "👍", ["👍"])).toBe(true);
   });
 });
 
@@ -426,7 +456,7 @@ describe("раунды квиза", () => {
 
   it("конец раунда: итоги раунда → общий счёт → следующий раунд со счётом раунда с нуля", () => {
     const people = [player("a", "Аня"), player("b", "Боря")];
-    const ans = (step: number, pid: string) => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: 0, submittedAt: 5 });
+    const ans = (step: number, pid: string) => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: 0, submittedAt: 6 });
     let s: Session = { ...base, leaderboard: {}, state: { ...base.state, step: 1 } };
     s = applyChange(s, showQuestion(s, content), 1);
     s = applyChange(s, reveal(s, content, [ans(1, "a")], people), 2);
@@ -1298,26 +1328,65 @@ describe("«Назад» через несколько вопросов (QA 23 �
     expect(s.leaderboard.a?.score).toBe(0);
   });
 
-  it("длинная игра: стопка ограничена по размеру, назад за её край нельзя (очки не портятся)", () => {
+  it("длинная игра: стопка — пять шагов и ограничена по размеру, назад за её край нельзя (очки не портятся; К-Н-12)", () => {
     const content: QuizContent = { questions: Array.from({ length: 30 }, () => choice()) };
     const crowd: Record<string, Session["leaderboard"][string]> = {};
     for (let i = 0; i < 500; i++) crowd[`guest-${String(i).padStart(24, "0")}`] = { name: `Гость ${i}`, kind: "player", score: 0 };
     let s: Session = { ...base(), leaderboard: crowd };
     for (let step = 0; step < 29; step++) {
       s = applyChange(s, showQuestion(s, content), step * 10 + 1);
-      const all = Object.keys(crowd).map((pid) => ans(step, pid, 0));
+      const all = Object.keys(crowd).map((pid) => ({ ...ans(step, pid, 0), submittedAt: step * 10 + 1 }));
       s = applyChange(s, reveal(s, content, all, []), step * 10 + 2);
       s = applyChange(s, showBoard(s, content), step * 10 + 3);
       s = applyChange(s, nextQuestion(s, content), step * 10 + 4);
     }
-    expect(JSON.stringify(s.state.result).length).toBeLessThan(45_000);
+    expect(JSON.stringify(s.state.result).length).toBeLessThan(25_000);
+    expect(historyOf(s.state.result).length).toBeLessThanOrEqual(HISTORY_MAX);
     let guard = 0;
     for (let plan = back(s, content); plan && guard < 400; plan = back(s, content), guard++) s = applyChange(s, plan.change, 1000 + guard);
     const first = Object.values(s.leaderboard)[0];
     // Снимали ровно столько шагов, сколько помнили: очки = 100 × число не снятых шагов.
     expect((first?.score ?? 0) % 100).toBe(0);
     expect(s.state.step).toBeGreaterThan(0);
+    expect(s.state.step).toBeGreaterThanOrEqual(29 - HISTORY_MAX);
     expect(first?.score).toBe(s.state.step * 100);
+  });
+});
+
+describe("ответ с прошлого показа вопроса (К-Н-6)", () => {
+  const player = (id: string, name: string) => ({ id, name, kind: "player" as const, teamId: null, captainUid: id, joinedAt: 1 });
+  const base = (): Session => ({
+    id: "s", code: "123456", hostId: "h", gameId: "g", gameTitle: "", mechanic: "quiz", gameSnapshot: null, themeId: "joyrest",
+    playMode: "solo", screenMode: "laptop", state: { ...startState(), phase: "playing" }, leaderboard: {}, createdAt: 0,
+  });
+  it("не считается ни «на скорость», ни в гонке; новый ответ считается", () => {
+    const sp: QuizQuestion = { ...newQuestion("speed"), id: "sp", text: "Быстро?", options: ["Да", "Нет"], correct: 0, points: 200, timeLimit: 15 };
+    const content: QuizContent = { questions: [sp] };
+    const people = [player("a", "Аня"), player("b", "Боря")];
+    let s: Session = { ...base(), leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } } };
+    s = applyChange(s, showQuestion(s, content), 100_000);
+    // Аня ответила при прошлом показе (стирание после «Назад» не дошло), Боря — на 3-й секунде нынешнего.
+    const old = { id: "0_a", step: 0, pid: "a", uid: "a", value: 0, submittedAt: 40_000 };
+    const fresh = { id: "0_b", step: 0, pid: "b", uid: "b", value: 0, submittedAt: 103_000 };
+    s = applyChange(s, reveal(s, content, [old, fresh], people), 104_000);
+    expect(s.leaderboard.a?.score ?? 0).toBe(0);
+    expect(s.leaderboard.b?.score).toBe(200);
+    expect(s.state.answered).toBe(1);
+  });
+
+  it("гонка: старое нажатие в очередь не встаёт", () => {
+    const bz: QuizQuestion = { ...newQuestion("buzz"), id: "bz", text: "Кто первый?", answers: ["да"], points: 100 };
+    const content: QuizContent = { questions: [bz] };
+    let s: Session = { ...base(), leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } } };
+    s = applyChange(s, showQuestion(s, content), 100_000);
+    const presses = [
+      { id: "0_a", step: 0, pid: "a", uid: "a", value: { buzz: true }, submittedAt: 50_000 },
+      { id: "0_b", step: 0, pid: "b", uid: "b", value: { buzz: true }, submittedAt: 101_000 },
+    ];
+    const sync = buzzSync(s, presses);
+    s = applyChange(s, sync!, 102_000);
+    expect(parseResult(s.state.result).buzz?.current).toBe("b");
+    expect(parseResult(s.state.result).buzz?.order).toEqual(["b"]);
   });
 });
 
@@ -1394,8 +1463,34 @@ describe("точечные правки по паспорту логики кв�
       },
     });
     const change = back(s, content)?.change;
-    expect(change?.leaderboard?.a).toMatchObject({ score: 0, last: 0, move: 0 });
-    expect(change?.leaderboard?.b).toMatchObject({ score: 50, move: 0 });
+    // Очки — прибавкой, стрелки и «+100» — полями записи (К-Н-3).
+    expect(change?.leaderboard).toBeUndefined();
+    expect(change?.addScore).toEqual({ a: -100 });
+    expect(change?.patch).toEqual({ a: { last: 0, move: 0 }, b: { move: 0 } });
+    const after = applyChange(s, change!, 2);
+    expect(after.leaderboard.a).toMatchObject({ score: 0, last: 0, move: 0 });
+    expect(after.leaderboard.b).toMatchObject({ score: 50, move: 0 });
+  });
+
+  it("К-Н-3: «+10» со второго пульта между показом ответа и записью не пропадает, убранный не возвращается", () => {
+    const content: QuizContent = { questions: [choice({ points: 100 })], settings: DEFAULT_SETTINGS };
+    const people = [
+      { id: "a", name: "Аня", kind: "player" as const, teamId: null, captainUid: "a", joinedAt: 1 },
+      { id: "gone", name: "Гость", kind: "player" as const, teamId: null, captainUid: "gone", joinedAt: 1 },
+    ];
+    // Пульт видит таблицу без «+10»; на сервере у Ани уже 10, Гостя другой пульт убрал.
+    const pult = session({
+      state: { ...startState(), stage: "question", startedAt: 1, timeLimit: 30, result: { accepted: [] } },
+      leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, gone: { name: "Гость", kind: "player", score: 0 } },
+    });
+    const change = reveal(pult, content, [{ id: "0_a", step: 0, pid: "a", uid: "a", value: 0, submittedAt: 2 }], people);
+    const server = { ...pult, leaderboard: { a: { name: "Аня", kind: "player" as const, score: 10 } } };
+    let s = applyChange(server, change, 3);
+    expect(s.leaderboard.a).toMatchObject({ score: 110, last: 100 });
+    expect(s.leaderboard.gone).toBeUndefined();
+    // «Назад» с ответа — снова 10.
+    s = applyChange(s, back(s, content)!.change, 4);
+    expect(s.leaderboard.a).toMatchObject({ score: 10, last: 0 });
   });
 });
 

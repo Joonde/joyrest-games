@@ -1,4 +1,4 @@
-import type { Answer, AnswersMark, ChangeExpect, Leaderboard, Session, SessionChange, SessionState } from "../data/types";
+import type { Answer, AnswersMark, ChangeExpect, Leaderboard, LeaderboardPatch, Session, SessionChange, SessionState } from "../data/types";
 
 /** Ручная правка очков за раз: от −100 000 до 100 000. */
 export const MAX_SCORE_DELTA = 100_000;
@@ -41,9 +41,13 @@ export function meetsExpect(state: SessionState, expect: ChangeExpect | undefine
   return true;
 }
 
-/** Прибавка очков и переименование — только у тех, кто уже в таблице. */
-export function adjustBoard(board: Leaderboard, addScore?: Record<string, number>, rename?: Record<string, string>): Leaderboard {
+/** Прибавка очков, переименование и поля без очков (`patch`) — только у тех, кто уже в таблице. */
+export function adjustBoard(board: Leaderboard, addScore?: Record<string, number>, rename?: Record<string, string>, patch?: Record<string, LeaderboardPatch>): Leaderboard {
   const next = { ...board };
+  for (const [pid, fields] of Object.entries(patch ?? {})) {
+    const entry = next[pid];
+    if (entry) next[pid] = { ...entry, ...fields };
+  }
   for (const [pid, delta] of Object.entries(addScore ?? {})) {
     const entry = next[pid];
     if (entry && Number.isFinite(delta)) next[pid] = { ...entry, score: entry.score + delta };
@@ -187,5 +191,5 @@ export function applyChange(session: Session, change: SessionChange, now: number
     if (entry === null) delete board[pid];
     else board[pid] = entry;
   }
-  return { ...session, state, leaderboard: adjustBoard(board, change.addScore, change.rename) };
+  return { ...session, state, leaderboard: adjustBoard(board, change.addScore, change.rename, change.patch) };
 }

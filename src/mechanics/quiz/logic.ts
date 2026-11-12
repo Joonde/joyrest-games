@@ -324,6 +324,15 @@ export function auctionAnswers(answers: Answer[], startedAt: number | null): Ans
   return answers.filter((a) => startedAt === null || a.submittedAt === null || a.submittedAt >= startedAt).filter((a) => typeof a.value === "number" || typeof a.value === "string");
 }
 
+/**
+ * Ответы нынешнего показа вопроса: запись, принятая раньше времени показа (осталась с прошлого показа — стирание ответов
+ * после «Назад» не дошло до сервера), не считается: «на скорость» она получила бы максимум, в гонке встала бы в очередь
+ * (паспорт квиза, К-Н-6). Кто ответил заново, свою старую запись уже заменил.
+ */
+export function shownAnswers(answers: Answer[], startedAt: number | null): Answer[] {
+  return answers.filter((a) => startedAt === null || a.submittedAt === null || a.submittedAt >= startedAt);
+}
+
 /** Распределение ответов для экрана зала. */
 export function resultOf(q: QuizQuestion, answers: Answer[], accepted: string[], buzz?: BuzzState, stateResult?: unknown): QuizResult {
   if (q.kind === "buzz") {

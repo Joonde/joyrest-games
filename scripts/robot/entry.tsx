@@ -188,7 +188,7 @@ function serverApply(change: SessionChange): void {
   if (change.expect && !meetsExpect(s.state, change.expect)) throw Object.assign(new Error("ушла вперёд"), { code: "failed-precondition" });
   if (s.state.phase === "finished") {
     const keys = Object.keys(change.state ?? {});
-    const ok = keys.every((k) => AFTER_FINISH.has(k)) && !change.leaderboard && !change.addScore && !change.rename;
+    const ok = keys.every((k) => AFTER_FINISH.has(k)) && !change.leaderboard && !change.addScore && !change.rename && !change.patch;
     if (!ok) throw Object.assign(new Error("после финиша"), { code: "failed-precondition" });
   }
   const before = s.state;

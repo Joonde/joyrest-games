@@ -107,7 +107,8 @@ export const CAPTAIN_TIMEOUT_MS = 90_000;
 
 /**
  * Если капитан команды вышел (нет его телефона или нет сигнала «на связи» дольше 90 с),
- * капитаном становится следующий по времени входа участник команды.
+ * капитаном становится следующий по времени входа участник команды, который сам на связи.
+ * Не на связи никто — капитан не меняется: иначе он менялся бы по кругу каждые 15 с (паспорт общей части, Н-9).
  * Возвращает команды, которым нужен новый капитан: teamId → uid.
  */
 export function captainChanges(participants: Participant[], now: number): Record<string, string> {
@@ -124,8 +125,12 @@ export function captainChanges(participants: Participant[], now: number): Record
     if (captain && lastSeen === null) continue;
     if (captain && lastSeen !== null && now - lastSeen < CAPTAIN_TIMEOUT_MS) continue;
     const start = captain ? members.indexOf(captain) : -1;
-    // Следующий по кругу, кроме ушедшего капитана.
-    const next = [...members.slice(start + 1), ...members.slice(0, Math.max(0, start))][0];
+    // Следующий по кругу, кроме ушедшего капитана, — из тех, кто на связи.
+    const online = (m: Participant) => {
+      const seen = m.seenAt ?? m.joinedAt ?? null;
+      return seen === null || now - seen < CAPTAIN_TIMEOUT_MS;
+    };
+    const next = [...members.slice(start + 1), ...members.slice(0, Math.max(0, start))].find(online);
     if (next && next.id !== team.captainUid) changes[team.id] = next.id;
   }
   return changes;

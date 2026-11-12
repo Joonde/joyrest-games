@@ -183,8 +183,11 @@ function JoinForm({
       window.location.reload();
     } catch (problem) {
       const code = errorCodeOf(problem);
+      const otherGame = typeof problem === "object" && problem !== null && "reason" in problem && problem.reason === "other-game";
       setError(
-        code === "failed-precondition"
+        otherGame
+          ? "Этот игрок или этот телефон сейчас в другой игре — войдите как новый игрок."
+          : code === "failed-precondition"
           ? "Этот игрок снова на связи — войти за него нельзя."
           : code === "already-exists"
             ? "С этого телефона уже играет другой игрок."
@@ -363,6 +366,16 @@ function answerSlot(session: Session, personal = false): string {
   return `${block}${state.step}.${state.startedAt ?? 0}${personal ? ".me" : ""}`;
 }
 
+/**
+ * Текст, если ответ не принят. Телефон больше не этот игрок (за него вошли с другого телефона — «Вы уже играли?»):
+ * объясняем, а не просим нажать ещё раз (паспорт общей части, Н-13).
+ */
+function answerFailText(problem: unknown, permanent: string, network: string): string {
+  const code = errorCodeOf(problem);
+  if (code === "unauthenticated" || code === "permission-denied") return "Ответ не принят: похоже, за вас вошли с другого телефона. Обновите страницу и войдите снова.";
+  return isPermanentError(problem) ? permanent : network;
+}
+
 /** Ответ на шаг запоминается на телефоне: после перезагрузки гость видит, что ответил. */
 function rememberedAnswer(sessionId: string, slot: string): { value: unknown } | null {
   try {
@@ -461,8 +474,13 @@ function InGame({
   // С сервера ответ спрашиваем только в двух случаях: телефон открыли заново посреди шага
   // (ответ мог уйти до перезагрузки) и участник команды при показе ответа (отвечал капитан).
   const firstStep = useRef(session.state.step);
+  // Показ, на котором телефон открыли (null — открыли в лобби или на заставке, до показа). Телефон, открытый до
+  // показа вопроса, сервер о своём ответе не спрашивает: ответить он мог только с этого телефона, а кнопки иначе
+  // ждали бы ответа сервера на медленной сети (паспорт общей части, Н-7).
+  const openedSlot = useRef(phase === "playing" && stage !== "ready" ? answerSlot(session) : null);
+  const openedPersonal = useRef(phase === "playing" && stage !== "ready" ? answerSlot(session, true) : null);
   const ask =
-    (session.state.step === firstStep.current && stage !== "ready") ||
+    (openedSlot.current !== null && answerSlot(session) === openedSlot.current) ||
     (role === "member" && (stage === "reveal" || stage === "board"));
   // Ответ не дошёл из-за сети (ревью 29 октября 2026): телефон его забыл и снова даёт ответить. Если запрос всё же
   // дошёл до сервера, а гость больше не нажал, — когда приём ответов закрыт, спрашиваем сервер, чтобы не показать
@@ -491,7 +509,7 @@ function InGame({
   const [unsurePersonal, setUnsurePersonal] = useState<string | null>(null);
   const personalNow = answerSlot(session, true);
   const recheckPersonal = phase === "playing" && unsurePersonal === personalNow && closed ? `${personalNow}:closed` : "";
-  const [myPersonal, setMyPersonal, clearMyPersonal] = useMyAnswer(session, me.id, teams && phase === "playing" && session.state.step === firstStep.current && stage !== "ready", true, recheckPersonal);
+  const [myPersonal, setMyPersonal, clearMyPersonal] = useMyAnswer(session, me.id, teams && phase === "playing" && openedPersonal.current !== null && personalNow === openedPersonal.current, true, recheckPersonal);
   const [personalSending, setPersonalSending] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -539,8 +557,16 @@ function InGame({
       if (result === "sent") rememberAnswer(session.id, slot, value);
       if (result === "rejected") {
         // Ответ уже есть (повторное нажатие) или время вышло: узнаём, что записано на сервере.
-        const saved = await answersRepo.getOwn(session.id, step, pid).catch(() => null);
+        // `undefined` — узнать не удалось (сеть): не говорим «время вышло», а сверимся ещё раз, когда приём закроется (Н-11).
+        const saved = await answersRepo.getOwn(session.id, step, pid).catch(() => undefined);
         if (slotRef.current !== slot) return;
+        if (saved === undefined) {
+          forgetAnswer(session.id, slot);
+          clearMyAnswer();
+          setUnsure(slot);
+          setError("Не удалось проверить ответ — проверьте интернет и нажмите ещё раз.");
+          return;
+        }
         // Запись с прошлого показа (ставка аукциона, ответ до «Назад») — не ответ на этот показ: не пишем «Ответ принят».
         if (saved && !olderThanShow(session.state, saved.submittedAt)) {
           rememberAnswer(session.id, slot, saved.value);
@@ -559,7 +585,7 @@ function InGame({
       if (slotRef.current !== slot) return;
       clearMyAnswer();
       setUnsure(slot);
-      setError(isPermanentError(problem) ? "Ответ не принят — нажмите ещё раз." : "Ответ не дошёл — проверьте интернет и нажмите ещё раз.");
+      setError(answerFailText(problem, "Ответ не принят — нажмите ещё раз.", "Ответ не дошёл — проверьте интернет и нажмите ещё раз."));
     } finally {
       setSending(false);
     }
@@ -577,8 +603,15 @@ function InGame({
       const result = await retryBriefly(() => answersRepo.submit(session.id, step, me.id, uid, value), undefined, undefined, () => personalSlotRef.current === slot);
       if (result === "sent") rememberAnswer(session.id, slot, value);
       if (result === "rejected") {
-        const saved = await answersRepo.getOwn(session.id, step, me.id).catch(() => null);
+        const saved = await answersRepo.getOwn(session.id, step, me.id).catch(() => undefined);
         if (personalSlotRef.current !== slot) return;
+        if (saved === undefined) {
+          forgetAnswer(session.id, slot);
+          clearMyPersonal();
+          setUnsurePersonal(slot);
+          setError("Не удалось проверить — проверьте интернет и нажмите ещё раз.");
+          return;
+        }
         if (saved && !olderThanShow(session.state, saved.submittedAt)) {
           rememberAnswer(session.id, slot, saved.value);
           setMyPersonal(saved.value);
@@ -593,7 +626,7 @@ function InGame({
       if (personalSlotRef.current !== slot) return;
       clearMyPersonal();
       setUnsurePersonal(slot);
-      setError(isPermanentError(problem) ? "Не принято — нажмите ещё раз." : "Не дошло — проверьте интернет и нажмите ещё раз.");
+      setError(answerFailText(problem, "Не принято — нажмите ещё раз.", "Не дошло — проверьте интернет и нажмите ещё раз."));
     } finally {
       setPersonalSending(false);
     }

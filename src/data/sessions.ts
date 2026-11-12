@@ -276,6 +276,9 @@ export const sessionsRepository: SessionsRepository = {
     for (const [pid, name] of Object.entries(change.rename ?? {})) {
       patch[`leaderboard.${pid}.name`] = name;
     }
+    for (const [pid, fields] of Object.entries(change.patch ?? {})) {
+      for (const [key, value] of Object.entries(fields)) if (value !== undefined) patch[`leaderboard.${pid}.${key}`] = value;
+    }
     if (Object.keys(patch).length === 0) return;
     await sdk.updateDoc(sdk.doc(col, sessionId), patch);
   },
@@ -284,7 +287,8 @@ export const sessionsRepository: SessionsRepository = {
     const { db, sdk } = await loadFirestore();
     const batch = sdk.writeBatch(db);
     batch.update(sdk.doc(db, "sessions", session.id), { "state.phase": "finished" });
-    batch.set(sdk.doc(db, "results", session.id), resultData(sdk, session, participantsCount));
+    // Никто не играл — в «Историю игр» пустую строку не пишем (как свой сервер; пульт так и говорит).
+    if (Object.keys(session.leaderboard).length > 0) batch.set(sdk.doc(db, "results", session.id), resultData(sdk, session, participantsCount));
     await batch.commit();
   },
 

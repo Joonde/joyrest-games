@@ -235,7 +235,7 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   }, [hallBusy]);
   useEffect(() => () => setHallBusy(false), []);
   // Пульт видит, что экран на связи и звук разрешён.
-  useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
+  const pultQuiet = useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
   // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.
   const slide = session.state.slide ?? null;
   const standalone = Boolean(mechanic?.standalone);
@@ -280,6 +280,12 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
         >
           <p>Игра продолжится. Экран зала можно снова открыть из студии: «Идёт игра» → «Экран зала».</p>
         </ConfirmDialog>
+      )}
+      {/* Пульт закрыт: опоздавшие не попадут в таблицу, капитаны не сменятся — ведущему видно сразу (Н-5). Гостям не показываем. */}
+      {isHost && pultQuiet && phase !== "finished" && !standalone && (
+        <p className="hall-pult-quiet" role="status">
+          Пульт не открыт — откройте пульт на телефоне, иначе опоздавшие не попадут в игру
+        </p>
       )}
       {/* Звук выключен или браузер ждёт касания — круглый значок в правом нижнем углу, не поверх игры. */}
       {muted ? (

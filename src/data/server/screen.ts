@@ -5,7 +5,8 @@ import { api, asRecord } from "./api";
 
 export const serverScreenStatusRepository: ScreenStatusRepository = {
   async report(sessionId, report) {
-    await api("POST", `/api/sessions/${encodeURIComponent(sessionId)}/screen`, report);
+    const data = asRecord(await api("POST", `/api/sessions/${encodeURIComponent(sessionId)}/screen`, report));
+    return { pultQuiet: data.pultQuiet === true };
   },
   async get(sessionId) {
     const data = asRecord(await api("GET", `/api/sessions/${encodeURIComponent(sessionId)}/screen`));

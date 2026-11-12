@@ -215,6 +215,8 @@ export function GameRow({ game, own, admin = false, helper = false, onChanged }:
             {live ? ago(game.updatedAt) : `закончилась ${ago(game.updatedAt)}`}
           </span>
           <GameTime game={game} />
+          {/* Своя игра идёт, а пульт закрыт: опоздавшие не попадут в таблицу, капитаны не сменятся (Н-5). */}
+          {own && live && !game.stale && game.pultQuiet && <span className="game-row__pult-quiet small">⚠️ Пульт не открыт — коснитесь, чтобы открыть</span>}
         </div>
         {hasActions && (
           <button type="button" className="btn btn--quiet game-row__more" aria-expanded={open} aria-label={`Действия: ${title}`} onClick={() => setOpen((v) => !v)}>

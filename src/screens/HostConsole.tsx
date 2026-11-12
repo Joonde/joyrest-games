@@ -367,10 +367,11 @@ function Console({ session }: { session: Session }) {
   const slide = session.state.slide ?? null;
   // Перерыв на время уходит сам, даже если пульт на вкладке «Музыка» или «Гости» (QA 22 октября 2026, M3).
   useTechBreakAutoEnd(slide, () => latest.current.state.slide ?? null, apply);
-  const screen = useScreenStatus(session.id, withScreen && phase !== "finished");
+  // Опрос экрана идёт и без экрана зала: по нему сервер знает, что пульт открыт (Н-5 — «Пульт не открыт» в студии).
+  const screen = useScreenStatus(session.id, phase !== "finished");
   // Телефон ведущего не гаснет, пока идёт вечер.
   useWakeLock(phase !== "finished");
-  const screenLabel = screen === undefined ? null : screenStatusLabel(screen);
+  const screenLabel = screen === undefined || !withScreen ? null : screenStatusLabel(screen);
   // Сколько идёт вечер: с первого гостя (сервер), пока он не записан — по самому раннему входу.
   const firstJoin = participants.reduce<number | null>((min, p) => (typeof p.joinedAt === "number" && (min === null || p.joinedAt < min) ? p.joinedAt : min), null);
   const eventStart = session.eventStartedAt ?? firstJoin;

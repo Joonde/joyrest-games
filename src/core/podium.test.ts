@@ -98,3 +98,34 @@ describe("пьедестал", () => {
     expect(s.state.result).toEqual({ counts: [1, 2], correct: 1 });
   });
 });
+
+describe("правка очков во время награждения (паспорт общей части, Н-10)", () => {
+  it("появилось новое третье место — открытые места не сдвигаются", () => {
+    let s = session({ a: p("Аня", 30), b: p("Боря", 20) });
+    s = applyChange(s, startPodium(s), 1);
+    // Открыли второе место (Боря) — третьего ещё нет.
+    s = applyChange(s, podiumNext(s), 2);
+    expect([...revealedPlaces(s)]).toEqual([2]);
+    // Ведущий дал Вите очки: появилось третье место. Открытым остаётся второе, следующим — первое.
+    s = { ...s, leaderboard: { ...s.leaderboard, c: p("Витя", 10) } };
+    expect([...revealedPlaces(s)].sort()).toEqual([2, 3]);
+    expect(nextPlace(s)).toBe(1);
+    s = applyChange(s, podiumNext(s), 3);
+    expect(podiumDone(s)).toBe(true);
+    // «Назад» закрывает первое, потом второе, потом третье.
+    s = applyChange(s, podiumBack(s), 4);
+    expect([...revealedPlaces(s)].sort()).toEqual([2, 3]);
+    s = applyChange(s, podiumBack(s), 5);
+    expect([...revealedPlaces(s)]).toEqual([3]);
+    s = applyChange(s, podiumBack(s), 6);
+    expect(revealedPlaces(s).size).toBe(0);
+    expect(podiumShown(s.state)).toBe(0);
+  });
+
+  it("старая сессия (только число открытых) читается как раньше", () => {
+    const s = session({ a: p("Аня", 30), b: p("Боря", 20), c: p("Витя", 10) }, { podium: 2 });
+    const podium = { ...s, state: { ...s.state, stage: "podium" as const } };
+    expect([...revealedPlaces(podium)].sort()).toEqual([2, 3]);
+    expect(nextPlace(podium)).toBe(1);
+  });
+});

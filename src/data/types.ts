@@ -382,6 +382,12 @@ export interface SessionChange {
   addScore?: Record<string, number>;
   /** Новое имя в таблице, остальное в записи не трогается. */
   rename?: Record<string, string>;
+  /**
+   * Поля записи без очков (`last`, `move`, `race`, `roundBase`) — только у тех, кто уже в таблице. Очки при этом идут
+   * прибавкой (`addScore`): одновременное «+10» со второго пульта не затирается, убранный участник не возвращается
+   * (паспорт квиза, К-Н-3).
+   */
+  patch?: Record<string, LeaderboardPatch>;
 }
 
 export interface ChangeExpect {
@@ -440,6 +446,9 @@ export interface LeaderboardEntry {
 
 /** Ключ — id участника (игрока или команды). */
 export type Leaderboard = Record<string, LeaderboardEntry>;
+
+/** Поля записи таблицы, которые механика меняет без очков: «+100», стрелка места, деления гонки, старт раунда. */
+export type LeaderboardPatch = Partial<Pick<LeaderboardEntry, "last" | "move" | "race" | "roundBase">>;
 
 export interface Session {
   id: string;
@@ -965,6 +974,8 @@ export interface SessionSummary {
   startedAt: number | null;
   /** «Ждёт гостей» или «идёт», но 12 часов без действий — скорее всего, брошена. */
   stale: boolean;
+  /** Идёт или ждёт гостей, а пульт не открыт дольше 30 с (только свой сервер; паспорт общей части, Н-5). */
+  pultQuiet?: boolean;
   /** Когда завершили (мс); null — идёт или ждёт гостей. */
   finishedAt?: number | null;
   /** Конец мероприятия этого вечера по планировщику (мс) — для «сверх плана»; null — мероприятия нет. */

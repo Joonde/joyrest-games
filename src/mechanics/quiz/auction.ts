@@ -71,11 +71,12 @@ export function openBets(q: QuizQuestion, carry: Record<string, unknown>, keep?:
 }
 
 /** Кто уже поставил — на экран (без сумм). null — записывать нечего. */
-export function auctionSync(session: Session, q: QuizQuestion, answers: Answer[]): SessionChange | null {
+export function auctionSync(session: Session, q: QuizQuestion, answers: Answer[], present?: (pid: string) => boolean): SessionChange | null {
   const result = parseResult(session.state.result);
   const auction = result.auction;
   if (session.state.stage !== "question" || auction?.phase !== "bets") return null;
-  const placed = auctionBets(session, q, answers)
+  // Убранного гостя на экране «уже поставили» не показываем — его ставку «Ставки сделаны» тоже не берёт (К-Н-8).
+  const placed = auctionBets(session, q, answers, present)
     .map((b) => b.pid)
     .sort();
   if (placed.length === auction.placed.length && placed.every((p, i) => auction.placed[i] === p)) return null;

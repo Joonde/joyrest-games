@@ -49,27 +49,45 @@ export function podiumShown(state: Pick<SessionState, "result">): number {
   return typeof n === "number" && Number.isInteger(n) && n > 0 ? n : 0;
 }
 
-/** Открытые места. */
-export function revealedPlaces(session: Pick<Session, "leaderboard" | "state">): Set<PodiumPlaceNumber> {
-  const order = revealOrder(session.leaderboard);
-  return new Set(order.slice(0, podiumShown(session.state)));
+/** Места открыты до этого номера включительно (3 — открыто третье, 1 — все); 4 — ни одного (только заставка). */
+const NONE_OPEN = 4;
+
+/**
+ * До какого места открыли (`result.podiumAt`): открываются 3 → 2 → 1, поэтому открыто всё, что не выше этого места.
+ * Хранится номер места, а не число открытых: ведущий поправил очки во время награждения и появилось новое третье
+ * место — уже открытые места не сдвигаются (паспорт общей части, Н-10). Старые сессии — по числу открытых.
+ */
+function openedFrom(session: Pick<Session, "leaderboard" | "state">): number {
+  const at = asRecord(session.state.result).podiumAt;
+  if (typeof at === "number" && Number.isInteger(at) && at >= 1 && at <= NONE_OPEN) return at;
+  const shown = podiumShown(session.state);
+  if (shown === 0) return NONE_OPEN;
+  return revealOrder(session.leaderboard)[shown - 1] ?? 1;
 }
 
-/** Все места открыты — дальше «Завершить игру». */
-export function podiumDone(session: Pick<Session, "leaderboard" | "state">): boolean {
-  return podiumShown(session.state) >= revealOrder(session.leaderboard).length;
+/** Открытые места. */
+export function revealedPlaces(session: Pick<Session, "leaderboard" | "state">): Set<PodiumPlaceNumber> {
+  const at = openedFrom(session);
+  return new Set(revealOrder(session.leaderboard).filter((p) => p >= at));
 }
 
 /** Какое место откроется следующим; null — все открыты. */
 export function nextPlace(session: Pick<Session, "leaderboard" | "state">): PodiumPlaceNumber | null {
-  return revealOrder(session.leaderboard)[podiumShown(session.state)] ?? null;
+  const at = openedFrom(session);
+  return revealOrder(session.leaderboard).find((p) => p < at) ?? null;
 }
 
-function withPodium(result: unknown, shown: number | null): Record<string, unknown> {
-  const { podium: _omit, podiumFrom: _from, ...rest } = asRecord(result);
+/** Все места открыты — дальше «Завершить игру». */
+export function podiumDone(session: Pick<Session, "leaderboard" | "state">): boolean {
+  return nextPlace(session) === null;
+}
+
+/** `shown` — число открытых мест (для старых пультов и «Назад»), `at` — до какого места открыто. */
+function withPodium(result: unknown, shown: number | null, at: number = NONE_OPEN): Record<string, unknown> {
+  const { podium: _omit, podiumFrom: _from, podiumAt: _at, ...rest } = asRecord(result);
   const from = asRecord(result).podiumFrom;
   if (shown === null) return rest;
-  return from === undefined ? { ...rest, podium: shown } : { ...rest, podium: shown, podiumFrom: from };
+  return { ...rest, podium: shown, podiumAt: at, ...(from === undefined ? {} : { podiumFrom: from }) };
 }
 
 /** Откуда ведущий ушёл на досрочное награждение («Назад» с заставки вернёт туда же). */
@@ -105,15 +123,22 @@ export function startPodium(session: Session): SessionChange {
 
 /** Открыть следующее место. */
 export function podiumNext(session: Session): SessionChange {
-  const total = revealOrder(session.leaderboard).length;
-  const shown = Math.min(podiumShown(session.state) + 1, total);
-  return { state: { result: withPodium(session.state.result, shown) } };
+  const next = nextPlace(session);
+  const at = next ?? openedFrom(session);
+  const shown = revealOrder(session.leaderboard).filter((p) => p >= at).length;
+  return { state: { result: withPodium(session.state.result, shown, at) } };
 }
 
 /** «Назад»: закрыть последнее открытое место, с заставки — к таблице. */
 export function podiumBack(session: Session): SessionChange {
-  const shown = podiumShown(session.state);
-  if (shown > 0) return { state: { result: withPodium(session.state.result, shown - 1) } };
+  const at = openedFrom(session);
+  if (at < NONE_OPEN) {
+    // Закрываем самое высокое из открытых (последнее открытое); открытым остаётся то, что ниже его по пьедесталу.
+    const order = revealOrder(session.leaderboard);
+    const back = [...order].reverse().find((p) => p > at) ?? NONE_OPEN;
+    const shown = order.filter((p) => p >= back).length;
+    return { state: { result: withPodium(session.state.result, shown, back) } };
+  }
   const from = podiumFrom(session.state);
   if (from) return { state: { stage: from.stage, revealed: from.revealed, result: withPodium(session.state.result, null) } };
   return { state: { stage: "board", revealed: true, result: withPodium(session.state.result, null) } };

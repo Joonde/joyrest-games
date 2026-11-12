@@ -50,7 +50,7 @@ import {
   toggleAccepted,
   type QuizAction,
 } from "./flow";
-import { auctionAnswers, groupOpenAnswers, parseResult, superAllowed } from "./logic";
+import { auctionAnswers, groupOpenAnswers, shownAnswers, parseResult, superAllowed } from "./logic";
 import { correctText, LETTERS } from "./views";
 import { SuperHostAnswers } from "../../components/live/SuperGame";
 import { activeLevels, LEVEL_NAMES, parsePickMode, parseSuperAnswer, superGroups, tallyLevelVote, tallySuperVote, voteUndecided, votePercent } from "../../core/supergame";
@@ -126,7 +126,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const auctionKey = q?.kind === "auction" && stage === "question" && auctionPhase === "bets" ? answers.filter((a) => a.step === step && parseBet(a.value) !== null).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
   useEffect(() => {
     if (!auctionKey || busy || !q) return;
-    const change = auctionSync(latest.current, q, answers);
+    const cur = latest.current;
+    const change = auctionSync(cur, q, answers, (pid) => pid in cur.leaderboard || participants.some((p) => p.id === pid));
     if (!change) return;
     const { phase, step: atStep, stage: atStage } = latest.current.state;
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: resultKey(latest.current.state.result) } }).catch(() => undefined);
@@ -183,7 +184,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const result = parseResult(session.state.result);
   const stepAnswers = answers.filter((a) => a.step === step);
   // Аукцион: после ставок ответы — только свежие (ставки того же шага — не ответы).
-  const own = q.kind === "auction" && result.auction && result.auction.phase !== "bets" ? auctionAnswers(stepAnswers, session.state.startedAt) : stepAnswers;
+  const own = q.kind === "auction" && result.auction && result.auction.phase !== "bets" ? auctionAnswers(stepAnswers, session.state.startedAt) : shownAnswers(stepAnswers, session.state.startedAt);
   const answeredIds = new Set(own.map((a) => a.pid));
   // Кто должен ответить: все в таблице и те, кого пульт ещё не успел в неё внести.
   // Участники, добавленные ведущим вручную (без телефона), не отвечают — их не ждём.

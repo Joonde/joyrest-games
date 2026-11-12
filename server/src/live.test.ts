@@ -20,6 +20,21 @@ describe("изменение пульта", () => {
     expect(checkChange({ leaderboard: { "../x": null } })).toBeNull();
   });
 
+  it("поля записи без очков (patch): чужое «+10» не затирается, убранный не возвращается (К-Н-3)", () => {
+    const checked = checkChange({ addScore: { a: 100 }, patch: { a: { last: 100, move: 1, race: 2 }, gone: { last: 50 } } });
+    expect(checked?.patch).toEqual({ a: { last: 100, move: 1, race: 2 }, gone: { last: 50 } });
+    expect(checkChange({ patch: { a: { score: 5 } } })).toBeNull();
+    expect(checkChange({ patch: { a: { name: "Х" } } })).toBeNull();
+    expect(checkChange({ patch: { a: { move: 1.5 } } })).toBeNull();
+    expect(checkChange({ patch: { a: { race: -1 } } })).toBeNull();
+    expect(checkChange({ patch: { "../x": { last: 1 } } })).toBeNull();
+    // На сервере у Ани уже 10 очков с другого пульта: прибавка ложится сверху, «+100» и стрелка — как прислал пульт.
+    const board = { a: { name: "Аня", kind: "player" as const, score: 10, last: 0 } };
+    const next = applyChange({ ...normalizeState({}), phase: "playing" }, board, checked!, 1);
+    expect(next.leaderboard.a).toEqual({ name: "Аня", kind: "player", score: 110, last: 100, move: 1, race: 2 });
+    expect(next.leaderboard.gone).toBeUndefined();
+  });
+
   it("звук по кнопке ведущего: только известные звуки и короткий id", () => {
     expect(checkChange({ state: { cue: { id: "abc123", sound: "gong" } } })?.state.cue).toEqual({ id: "abc123", sound: "gong" });
     expect(checkChange({ state: { cue: null } })?.state.cue).toBeNull();
@@ -390,6 +405,21 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", `/api/results?host=${hostUid}`, host)).json().map((r: { id: string }) => r.id)).toContain("fin1");
     expect((await call("GET", `/api/results?host=${hostUid}`, guest.cookie)).statusCode).toBe(403);
     expect((await call("GET", `/api/sessions?host=${hostUid}`, host)).json().length).toBeGreaterThan(0);
+  });
+
+  it("завершение без игроков: в историю не попадает, как и пишет пульт (Н-14); повтор завершения — тоже 200 (Н-8)", async () => {
+    await newSession("fin0");
+    await call("POST", "/api/sessions/fin0/phase", host, { phase: "playing" });
+    expect((await call("POST", "/api/sessions/fin0/finish", host, { participantsCount: 0 })).statusCode).toBe(200);
+    expect((await call("GET", "/api/results/fin0", "")).statusCode).toBe(404);
+    expect((await call("GET", "/api/sessions/fin0", host)).json().state.phase).toBe("finished");
+    // С игроками: итоги пишутся в той же транзакции, что и «завершена»; повторное завершение их не теряет.
+    await newSession("fin2");
+    await call("POST", "/api/sessions/fin2/phase", host, { phase: "playing" });
+    await call("POST", "/api/sessions/fin2/leaderboard", host, { entries: { p1: { name: "Аня", kind: "player", score: 20 } } });
+    expect((await call("POST", "/api/sessions/fin2/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/fin2/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    expect((await call("GET", "/api/results/fin2", "")).json()).toMatchObject({ board: [{ name: "Аня", score: 20 }] });
   });
 
   it("мероприятие из блоков: один код, блок → перерыв → следующий блок, общий счёт, ответы прошлого блока в архиве", async () => {

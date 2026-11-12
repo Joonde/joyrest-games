@@ -69,7 +69,7 @@ export function errorCode(error: unknown): unknown {
 
 /** В записи нечего менять — не отправляем. */
 export function isEmptyChange(change: SessionChange): boolean {
-  return !change.state && !change.leaderboard && !change.addScore && !change.rename;
+  return !change.state && !change.leaderboard && !change.addScore && !change.rename && !change.patch;
 }
 
 function samePlace(a: SessionState, b: SessionState): boolean {

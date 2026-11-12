@@ -64,7 +64,7 @@ a.dl{display:block;text-align:center;padding:14px;border-radius:12px;background:
 <div class="card" id="c3">
   <div class="row" style="justify-content:space-between"><b>3. Запись танца (39 с)</b><span class="st" id="st3">—</span></div>
   <div class="big" id="dance">—</div>
-  <div class="hint" id="dhint">Отсчёт 4 доли, потом метроном 118 уд/мин и подсказки по позам — те же, что в эталоне стенда. Двигай правой рукой под счёт.</div>
+  <div class="hint" id="dhint">Телефон сам говорит команды: «вверх», «вниз», «в сторону», «стой» — на экран смотреть не нужно. Сначала проговорит порядок, потом отсчёт, потом 39 секунд под метроном. Включи звук на телефоне.</div>
   <div class="bar" style="margin:10px 0"><i id="dbar"></i></div>
   <div class="kv" style="margin:8px 0"><b>наклон руки сейчас</b><span id="tilt">—</span><b>событий записано</b><span id="n">0</span></div>
   <button id="b3" disabled>Начать запись</button>
@@ -170,11 +170,11 @@ function tiltOf(accg) { const gu = accg.map(v => v / (norm(accg) + 1e-9)); retur
 
 // расписание калибровки: подсказки на 0 / 2,5 / 5 с, запись до 8 с
 $("b2").onclick = () => {
-  calEv = []; phase = "cal"; calStart = performance.now(); setSt("st2", "warn", "идёт"); $("b2").disabled = true; $("clog").textContent = "";
+  calEv = []; phase = "cal"; calStart = performance.now(); setSt("st2", "warn", "идёт"); $("b2").disabled = true; $("clog").textContent = ""; unlockVoice();
   const P = [[0, "РУКА ВНИЗ", "свободно вдоль тела, замри"], [2.5, "РУКА ВВЕРХ", "прямо вверх одним движением, замри"], [5, "В СТОРОНУ", "горизонтально в сторону, замри"]];
   const tick = () => {
     const s = (performance.now() - calStart) / 1000;
-    const cur = P.filter(p => s >= p[0]).pop(); $("pose").textContent = cur[1]; $("phint").textContent = cur[2];
+    const cur = P.filter(p => s >= p[0]).pop(); if ($("pose").textContent !== cur[1]) say(cur[1].toLowerCase(), 1.1); $("pose").textContent = cur[1]; $("phint").textContent = cur[2];
     $("pbar").style.width = Math.min(100, s / 8 * 100) + "%";
     if (s < 8) requestAnimationFrame(tick); else finishCal();
   };
@@ -195,28 +195,52 @@ function finishCal() {
 
 // ---------- запись танца: ровно хореография стенда (choreo.ROUTINE, 118 уд/мин, 38 тактов по 2 доли, музыка с 0,40 с) ----------
 let actx = null;
+// голос: телефон сам говорит команды — на экран смотреть не нужно
+const VOICE = { lang: "ru-RU", ok: () => "speechSynthesis" in window };
+function say(text, rate) {
+  if (!VOICE.ok()) return;
+  try { const u = new SpeechSynthesisUtterance(text); u.lang = VOICE.lang; u.rate = rate || 1.15; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+}
+function unlockVoice() { if (VOICE.ok()) try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(" "); u.lang = VOICE.lang; u.volume = 0; speechSynthesis.speak(u); } catch (e) {} }
 function click(acc) { if (!actx) return; const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = acc ? 1200 : 800; g.gain.value = .25; o.connect(g); g.connect(actx.destination); o.start(); g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + .08); o.stop(actx.currentTime + .09); }
 const T0 = 0.40, COUNT_IN = 4;
 const R = (m, n) => Array(n).fill(m);
 const ROUTINE = [].concat(R("rest", 2), R("disco", 4), R("vup", 4), R("wide", 4), R("knee", 4), R("clap", 4), R("spring", 4), R("disco", 2), R("knee", 2), R("vup", 2), R("wide", 2), R("clap", 2), R("rest", 2));
 // подсказки: [1-я доля, 2-я доля] — что делает ПРАВАЯ рука с телефоном
-const CUE = { rest: ["СТОЙКА", "стой"], disco: ["ДИСКО ↗ рука вверх", "↙ рука вниз"], vup: ["РУКИ ВВЕРХ", "вниз"],
-  wide: ["В СТОРОНЫ, кисть вниз", "кисть вверх"], knee: ["В СТОРОНЫ · колено", "другое колено"], clap: ["ХЛОПОК НАД ГОЛОВОЙ", "вниз"], spring: ["ПРУЖИНА, руки согнуты", "присядь"] };
+// команды голосом: только «вверх», «вниз», «в сторону», «стой» — то же движение руки, что ждёт эталон стенда
+const CUE = { rest: ["стой", "стой"], disco: ["вверх", "вниз"], vup: ["вверх", "вниз"], wide: ["в сторону", "в сторону"],
+  knee: ["в сторону", "в сторону"], clap: ["вверх", "вниз"], spring: ["вниз", "вниз"] };
+const LEAD = 0.28;                                   // слово звучит за 0,28 с до доли — рука успевает
+function plan() {                                    // порядок группами, чтобы запомнить заранее
+  const out = []; let i = 0;
+  const key = m => CUE[m].join("|");               // соседние такты с теми же словами — одна группа
+  while (i < ROUTINE.length) { let j = i; while (j < ROUTINE.length && key(ROUTINE[j]) === key(ROUTINE[i])) j++;
+    const m = ROUTINE[i]; out.push(`${j - i} × «${CUE[m][0]}${CUE[m][1] !== CUE[m][0] ? " – " + CUE[m][1] : ""}»`); i = j; }
+  return out;
+}
 const DUR = T0 + ROUTINE.length * 2 * BEAT;          // 39,0 с
 $("b3").onclick = () => {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
-  danceEv = []; setSt("st3", "warn", "отсчёт"); $("b3").disabled = true; $("b2").disabled = true;
-  const pressed = performance.now(); danceStart = pressed + COUNT_IN * BEAT * 1000; let beat = -99;
+  unlockVoice();
+  danceEv = []; setSt("st3", "warn", "слушай порядок"); $("b3").disabled = true; $("b2").disabled = true;
+  $("dance").textContent = "Слушай"; $("dhint").textContent = plan().join(" · ");
+  say("Команды голосом: вверх, вниз, в сторону, стой. Слушай и повторяй рукой. Начинаем после отсчёта.", 1.1);
+  const pressed = performance.now() + 7500; danceStart = pressed + COUNT_IN * BEAT * 1000; let beat = -99, said = -99;
   const tick = () => {
     const now = performance.now(); const s = (now - danceStart) / 1000;
-    if (s < 0) {                                           // отсчёт 4 доли перед записью
-      const b = Math.floor((now - pressed) / 1000 / BEAT); if (b !== beat) { beat = b; click(b === 0); $("dance").textContent = String(COUNT_IN - b); $("dhint").textContent = "приготовься — телефон в правой руке"; }
+    if (now < pressed) { requestAnimationFrame(tick); return; }
+    if (s < 0) {                                           // отсчёт 4 доли перед записью — голосом
+      const b = Math.floor((now - pressed) / 1000 / BEAT); if (b !== beat) { beat = b; click(b === 0); const n = COUNT_IN - b; $("dance").textContent = String(n); say(String(n), 1.3); $("dhint").textContent = "приготовься — телефон в правой руке"; setSt("st3", "warn", "отсчёт"); }
       requestAnimationFrame(tick); return;
     }
     if (phase !== "dance") phase = "dance";
     const b = Math.floor((s - T0) / BEAT);                 // доля с момента музыки
+    const bs = Math.floor((s - T0 + LEAD) / BEAT);         // доля, которую пора ОБЪЯВИТЬ
+    if (bs >= 0 && bs !== said && bs < ROUTINE.length * 2) { said = bs; const m = ROUTINE[Math.floor(bs / 2)];
+      const w = CUE[m][bs % 2]; const prev = bs > 0 ? CUE[ROUTINE[Math.floor((bs - 1) / 2)]][(bs - 1) % 2] : null;
+      if (w !== prev || bs % 2 === 0) say(w, 1.3); }     // то же слово второй долей подряд не повторяем
     if (b >= 0 && b !== beat) { beat = b; click(b % 2 === 0); const bar = Math.floor(b / 2), m = ROUTINE[Math.min(bar, ROUTINE.length - 1)];
-      $("dance").textContent = CUE[m][b % 2]; $("dhint").textContent = `такт ${bar + 1} из ${ROUTINE.length} · ${m}`; }
+      $("dance").textContent = CUE[m][b % 2]; $("dhint").textContent = `такт ${bar + 1} из ${ROUTINE.length}`; }
     $("dbar").style.width = Math.min(100, s / DUR * 100) + "%";
     if (s < DUR) requestAnimationFrame(tick); else finishDance();
   };

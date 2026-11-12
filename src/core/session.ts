@@ -119,19 +119,27 @@ export function answersOpen(state: Pick<SessionState, "phase" | "step" | "stage"
 }
 
 /**
- * Ответ остался с прошлого показа этого же шага — он старше нынешнего старта (ставка аукциона до «Ставки сделаны»,
- * ответ до «Назад» и нового показа). Сервер заменит такую запись новым ответом, поэтому телефон не считает её уже
- * данным ответом. Вне открытого вопроса и на шагах, где ответ можно менять (`result.changeable`), запись остаётся как есть.
+ * Запись старше нынешнего показа этого шага (ставка аукциона до «Ставки сделаны», ответ до «Назад» и нового показа):
+ * сервер заменяет её новым ответом, игра её не считает. На шагах, где ответ можно менять (`result.changeable`),
+ * запись остаётся как есть.
+ */
+export function olderThanShow(state: Pick<SessionState, "startedAt" | "result">, submittedAt: number | null): boolean {
+  if (state.startedAt === null || submittedAt === null) return false;
+  const result: unknown = state.result;
+  if (typeof result === "object" && result !== null && (result as Record<string, unknown>).changeable === true) return false;
+  return submittedAt < state.startedAt;
+}
+
+/**
+ * Вопрос открыт, а запись на сервере осталась с прошлого показа: телефон не считает её уже данным ответом —
+ * кнопки доступны, новый ответ её заменит. Когда вопрос закрыт, запись показывается как есть.
  */
 export function staleAnswer(
   state: Pick<SessionState, "phase" | "stage" | "revealed" | "startedAt" | "result">,
   submittedAt: number | null,
 ): boolean {
   if (state.phase !== "playing" || state.stage !== "question" || state.revealed) return false;
-  if (state.startedAt === null || submittedAt === null) return false;
-  const result: unknown = state.result;
-  if (typeof result === "object" && result !== null && (result as Record<string, unknown>).changeable === true) return false;
-  return submittedAt < state.startedAt;
+  return olderThanShow(state, submittedAt);
 }
 
 /** Где окажется игра после записи пульта — только то, от чего зависит приём ответов. */

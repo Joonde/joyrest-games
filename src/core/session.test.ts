@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Session } from "../data/types";
-import { acceptsAnswers, addTimeChange, adjustBoard, answerDeadline, answersMark, answersOpen, applyChange, closesAnswers, meetsExpect, placeAfter, secondsLeft, staleAnswer, startState } from "./session";
+import { acceptsAnswers, addTimeChange, adjustBoard, answerDeadline, answersMark, answersOpen, applyChange, closesAnswers, meetsExpect, olderThanShow, placeAfter, secondsLeft, staleAnswer, startState } from "./session";
 
 const session: Session = {
   id: "s",
@@ -161,6 +161,12 @@ describe("приём ответов и запись пульта", () => {
     expect(staleAnswer({ ...open, phase: "finished" }, 99_999)).toBe(false);
     expect(staleAnswer({ ...open, result: { changeable: true } }, 99_999)).toBe(false);
     expect(staleAnswer({ ...open, result: { changeable: false } }, 99_999)).toBe(true);
+    // Сервер отклонил ответ (время вышло, ведущий уже показал ответ): старая запись — всё равно не ответ на этот показ.
+    const shown = { ...open, stage: "reveal" as const, revealed: true };
+    expect(olderThanShow(shown, 99_999)).toBe(true);
+    expect(olderThanShow(open, 100_000)).toBe(false);
+    expect(olderThanShow({ ...open, result: { changeable: true } }, 99_999)).toBe(false);
+    expect(olderThanShow({ ...open, startedAt: null }, 99_999)).toBe(false);
   });
 
   it("запись закрывает приём: показать ответ, следующий шаг, назад к заставке; итоги шага и таймер — нет", () => {

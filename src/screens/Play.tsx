@@ -8,7 +8,7 @@ import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { VPN_HINT } from "../core/texts";
 import { snapshotContent } from "../core/games";
-import { staleAnswer } from "../core/session";
+import { olderThanShow, staleAnswer } from "../core/session";
 import { placeOf } from "../core/leaderboard";
 import { compactBoard, pointsLabel } from "../core/results";
 import type { StoryCardInput } from "../core/storyCard";
@@ -541,7 +541,8 @@ function InGame({
         // Ответ уже есть (повторное нажатие) или время вышло: узнаём, что записано на сервере.
         const saved = await answersRepo.getOwn(session.id, step, pid).catch(() => null);
         if (slotRef.current !== slot) return;
-        if (saved) {
+        // Запись с прошлого показа (ставка аукциона, ответ до «Назад») — не ответ на этот показ: не пишем «Ответ принят».
+        if (saved && !olderThanShow(session.state, saved.submittedAt)) {
           rememberAnswer(session.id, slot, saved.value);
           setMyAnswer(saved.value);
         } else {
@@ -578,7 +579,7 @@ function InGame({
       if (result === "rejected") {
         const saved = await answersRepo.getOwn(session.id, step, me.id).catch(() => null);
         if (personalSlotRef.current !== slot) return;
-        if (saved) {
+        if (saved && !olderThanShow(session.state, saved.submittedAt)) {
           rememberAnswer(session.id, slot, saved.value);
           setMyPersonal(saved.value);
         } else {

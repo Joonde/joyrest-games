@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { answersMark } from "../../src/core/session";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { applyChange, checkChange, Hub, normalizeState, OpenStreams, sseFrame } from "./live";
@@ -494,6 +495,37 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect(result.breaksCount).toBe(1);
     expect(result.breaksMs).toBe(15 * 60_000);
     expect(result.startedAt).toBe(started);
+  });
+
+  it("показать ответ: пока пульт считал очки, пришёл ещё ответ — отказ; со свежим списком проходит", async () => {
+    await newSession("ansg1");
+    const first = await device();
+    const second = await device();
+    await call("POST", `/api/sessions/ansg1/participants/${first.uid}/join`, first.cookie, { name: "Аня", teamId: null });
+    await call("POST", `/api/sessions/ansg1/participants/${second.uid}/join`, second.cookie, { name: "Боря", teamId: null });
+    expect((await call("POST", "/api/sessions/ansg1/phase", host, { phase: "playing" })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "question", startedAt: "server", timeLimit: 20 } })).statusCode).toBe(200);
+    const answer = (guest: { cookie: string; uid: string }) => call("POST", "/api/sessions/ansg1/answers", guest.cookie, { step: 0, pid: guest.uid, value: "a" });
+    const list = async () => (await call("GET", "/api/sessions/ansg1/answers/0", host)).json() as Array<{ step: number; submittedAt: number | null }>;
+    expect((await answer(first)).json()).toEqual({ result: "sent" });
+    // Пульт взял список (один ответ) и считает очки — в это время отвечает второй гость.
+    const stale = answersMark(0, await list());
+    expect(stale.count).toBe(1);
+    expect((await answer(second)).json()).toEqual({ result: "sent" });
+    const expect0 = { phase: "playing", step: 0, stage: "question" };
+    const late = await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "reveal", revealed: true }, expect: { ...expect0, answers: stale } });
+    expect(late.statusCode).toBe(409);
+    expect(late.json()).toEqual({ error: "failed-precondition" });
+    // Вопрос остался открытым: принятый ответ не потерян.
+    expect((await call("GET", "/api/sessions/ansg1", host)).json().state).toMatchObject({ stage: "question", revealed: false });
+    // Свежий список — оба ответа в подсчёте, вопрос закрывается.
+    const fresh = answersMark(0, await list());
+    expect(fresh.count).toBe(2);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "reveal", revealed: true }, expect: { ...expect0, answers: fresh } })).statusCode).toBe(200);
+    expect((await call("GET", "/api/sessions/ansg1", host)).json().state).toMatchObject({ stage: "reveal", revealed: true });
+    // Неверная отметка — 400; без отметки запись работает как раньше.
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { answers: { step: 0, count: -1, last: null } } })).statusCode).toBe(400);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { step: 0, stage: "reveal" } })).statusCode).toBe(200);
   });
 
   it("пульт: устаревшее изменение — 409; прибавка очков складывается; после финиша — только музыка и слайды", async () => {

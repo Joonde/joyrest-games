@@ -510,10 +510,13 @@ function InGame({
     const slot = answerSlot(session);
     setSending(true);
     setError(null);
-    rememberAnswer(session.id, slot, value);
+    // На телефоне ответ запоминается только после подтверждения сервера (паспорт общей части, Н-2): раньше он
+    // запоминался сразу, и если страница перезагружалась, пока запрос шёл, телефон показывал «Ответ принят» и
+    // «Верно!» за ответ, которого на сервере нет. После перезагрузки посреди шага телефон спрашивает сервер сам.
     setMyAnswer(value);
     try {
       const result = await retryBriefly(() => answersRepo.submit(session.id, step, pid, uid, value), undefined, undefined, () => slotRef.current === slot);
+      if (result === "sent") rememberAnswer(session.id, slot, value);
       if (result === "rejected") {
         // Ответ уже есть (повторное нажатие) или время вышло: узнаём, что записано на сервере.
         const saved = await answersRepo.getOwn(session.id, step, pid).catch(() => null);
@@ -546,10 +549,11 @@ function InGame({
     const slot = answerSlot(session, true);
     setPersonalSending(true);
     setError(null);
-    rememberAnswer(session.id, slot, value);
+    // Как и ответ за команду: запоминаем на телефоне только подтверждённое сервером.
     setMyPersonal(value);
     try {
       const result = await retryBriefly(() => answersRepo.submit(session.id, step, me.id, uid, value), undefined, undefined, () => personalSlotRef.current === slot);
+      if (result === "sent") rememberAnswer(session.id, slot, value);
       if (result === "rejected") {
         const saved = await answersRepo.getOwn(session.id, step, me.id).catch(() => null);
         if (personalSlotRef.current !== slot) return;

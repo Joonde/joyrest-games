@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { resultKey } from "../../core/session";
+import { answersOpen, placeAfter, resultKey } from "../../core/session";
 import type { Session, SessionChange, SessionState } from "../../data/types";
 import type { SessionControl } from "../../mechanics/types";
 
@@ -77,6 +77,21 @@ function samePlace(a: SessionState, b: SessionState): boolean {
 }
 
 /**
+ * Очистка ответов после записи, которая уже закрыла вопрос. Игра ушла назад в любом случае, поэтому сбой очистки
+ * ведущему не показываем (повторное «Назад» увело бы игру ещё на шаг): пробуем дважды. Остались старые ответы —
+ * при новом показе вопроса сервер заменяет их новыми ответами тех же участников.
+ */
+async function clearClosed(steps: readonly number[], clearAnswers: (step: number) => Promise<void>): Promise<void> {
+  for (const step of steps) {
+    try {
+      await clearAnswers(step);
+    } catch {
+      await clearAnswers(step).catch(() => undefined);
+    }
+  }
+}
+
+/**
  * Одна запись пульта с проверкой «игра там, где её видел ведущий»: этап, шаг и отпечаток итогов той сессии,
  * по которой собрана запись. Сервер отказал только из-за итогов шага (фон пульта, телефон) — ждём свежую
  * сессию, собираем запись заново и повторяем один раз; не вышло — `conflict`. Игра ушла дальше (второй
@@ -106,14 +121,21 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
     if (clear.length > 0 && resultKey(deps.current().state.result) !== key) conflict = true;
     else {
       const arrived = deps.rehearsal ? Promise.resolve() : deps.nextSession();
+      // Запись закрывает приём ответов на стираемых шагах («Назад» к заставке или на прошлый шаг): сначала запись,
+      // потом очистка — обрыв связи между ними не оставит открытый вопрос без ответов, пока телефоны показывают
+      // «Ответ принят» (паспорт общей части, Н-3). Вопрос остаётся открытым на том же шаге (переигровка) — прежний
+      // порядок: иначе стёрлись бы ответы, пришедшие сразу после записи.
+      const after = placeAfter(basis.state, change);
+      const applyFirst = clear.length > 0 && clear.every((s) => !answersOpen(after, s));
       try {
-        for (const s of clear) await deps.clearAnswers(s);
+        if (!applyFirst) for (const s of clear) await deps.clearAnswers(s);
         await deps.apply({ ...change, expect: { phase: at.phase, step: at.step, stage: at.stage, result: key } });
       } catch (e) {
         if (errorCode(e) !== "failed-precondition") return { error: e };
         conflict = true;
       }
       if (!conflict) {
+        if (applyFirst) await clearClosed(clear, deps.clearAnswers);
         await arrived;
         return "done";
       }

@@ -3,11 +3,11 @@ import { OrderNumberHost } from "./orderNumber";
 import { scoringParticipants } from "../../core/leaderboard";
 import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
-import type { Answer, Session, SessionChange } from "../../data/types";
+import type { Answer, AnswersMark, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { correctSet, drawEffectOfSettings, raceBonusOf, KIND_TITLES, roundAt, roundTitle, settingsOf, usesAnswers, usesOptions, type QuizContent } from "./content";
 import { clock } from "../../data";
-import { resultKey } from "../../core/session";
+import { answersMark, resultKey } from "../../core/session";
 import type { DrawEffect } from "../../core/draw";
 import { auctionSync, closeBets, isAuctionDraw, parseBet, QUIZ_AUCTION_HOLD_MS } from "./auction";
 import { AuctionHostPanel } from "./auctionViews";
@@ -60,6 +60,11 @@ import { activeLevels, LEVEL_NAMES, parsePickMode, parseSuperAnswer, superGroups
  * «Таблица» → «Следующий вопрос»), «Назад» на шаг, таймер, кто ответил и кто ещё нет,
  * открытые ответы гостей с засчитыванием похожих одним касанием.
  */
+/** Сервер отказал: игра уже не там, где её видел пульт, или на шаге появились новые ответы. */
+function isPrecondition(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "code" in e && (e as { code: unknown }).code === "failed-precondition";
+}
+
 export function QuizHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<QuizContent>) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -210,23 +215,39 @@ export function QuizHostControls({ session, content, answers, participants, cont
     });
   }
 
-  async function run(make: SessionChange | (() => Promise<SessionChange | null>), afterClear?: number) {
+  /**
+   * `again` — запись собрана по свежему списку ответов и уходит с его отметкой (`expect.answers`): сервер отказал, а
+   * игра там же — значит, пока пульт считал, пришёл ещё ответ; берём список заново и повторяем (до двух раз).
+   */
+  async function run(make: SessionChange | (() => Promise<SessionChange | null>), afterClear?: number, again = false) {
     if (busy) return;
     setBusy(true);
     setError(null);
     // Изменение — только если игра всё ещё там, где её видит этот пульт (второй пульт, двойное касание).
     const { phase, step: atStep, stage: atStage } = session.state;
     try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change) return;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, ...(change.expect ?? {}) } });
-      // Ответы убираем после закрытия вопроса: новые гости уже не успеют ответить.
-      if (afterClear !== undefined) await control.clearAnswers(afterClear);
-      await arrived;
+      for (let attempt = 0; ; attempt++) {
+        const change = typeof make === "function" ? await make() : make;
+        if (!change) return;
+        const arrived = rehearsal ? Promise.resolve() : nextSession();
+        try {
+          await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, ...(change.expect ?? {}) } });
+        } catch (e) {
+          // Сервер отказал, а игра там же: пока пульт считал очки, пришёл ещё ответ (сверка списка ответов, паспорт
+          // общей части, Н-1) — берём свежий список и повторяем. Игра ушла дальше — как раньше, молча.
+          const now = latest.current.state;
+          const same = now.phase === phase && now.step === atStep && now.stage === atStage;
+          if (again && typeof make === "function" && attempt < 2 && same && isPrecondition(e)) continue;
+          throw e;
+        }
+        // Ответы убираем после закрытия вопроса: новые гости уже не успеют ответить.
+        if (afterClear !== undefined) await control.clearAnswers(afterClear);
+        await arrived;
+        return;
+      }
     } catch (e) {
       // Игра уже ушла вперёд — пульт сейчас покажет, где она; ничего не делаем.
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) {
+      if (!isPrecondition(e)) {
         setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
       }
     } finally {
@@ -237,15 +258,20 @@ export function QuizHostControls({ session, content, answers, participants, cont
   /** Очки — по свежему списку ответов с сервера: ответ последней секунды мог ещё не дойти до пульта. */
   async function revealChange(): Promise<SessionChange> {
     let all: Answer[] = own;
+    let mark: AnswersMark | null = null;
     try {
       const fresh = await control.freshAnswers(step);
+      mark = answersMark(step, fresh);
       const byId = new Map(own.map((a) => [a.id, a]));
       for (const a of fresh) if (a.step === step) byId.set(a.id, a);
       all = [...byId.values()];
     } catch {
       // Нет связи — считаем по тому, что уже пришло.
     }
-    return reveal(latest.current, content, all, participants);
+    const change = reveal(latest.current, content, all, participants);
+    // Вопрос закроется, только если на сервере те же ответы, что в подсчёте: ответ, пришедший между списком и этой
+    // записью, не останется принятым, но без очков — сервер откажет, `run` возьмёт список заново.
+    return mark ? { ...change, expect: { ...change.expect, answers: mark } } : change;
   }
 
   /** «Ставки сделаны» — по свежим ставкам с сервера и свежей сессии; второй пульт не повторит жребий. */
@@ -305,7 +331,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
       void run(closeChange);
       return;
     }
-    if (action === "reveal") void run(revealChange);
+    if (action === "reveal") void run(revealChange, undefined, true);
     if (action === "board") void run(showBoard(session, content));
     if (action === "total") void run(showTotal(session));
     if (action === "next") void run(nextQuestion(session, content));

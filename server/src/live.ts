@@ -362,8 +362,16 @@ export function checkChange(value: unknown): CheckedChange | null {
   const checked: CheckedChange = { state, leaderboard };
   if (value.expect !== undefined) {
     if (!isRecord(value.expect)) return null;
-    const { phase, step, stage, result, slide } = value.expect;
+    const { phase, step, stage, result, slide, answers } = value.expect;
     const expect: ChangeExpect = {};
+    if (answers !== undefined) {
+      // Отметка списка ответов, по которому пульт считал очки (`answersMark`): проверяется под блокировкой строки.
+      if (!isRecord(answers)) return null;
+      const { step: at, count, last } = answers;
+      if (!Number.isInteger(at) || (at as number) < 0 || !Number.isInteger(count) || (count as number) < 0) return null;
+      if (last !== null && (typeof last !== "number" || !Number.isFinite(last))) return null;
+      expect.answers = { step: at as number, count: count as number, last: last as number | null };
+    }
     if (slide !== undefined) {
       // id слайда на экране (или null — слайда нет): конец перерыва с двух пультов не уберёт чужой слайд.
       if (slide === null) expect.slide = null;
@@ -678,6 +686,16 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const checked = update(state, board);
         if (checked === "conflict") return "conflict" as const;
         if (!checked) return null;
+        // Пульт посчитал очки по списку ответов и закрывает вопрос: пока он считал, пришёл ещё ответ — отказ, пульт
+        // возьмёт свежий список и повторит. Ответ пишется под `for share` этой же строки, поэтому здесь видны все
+        // принятые ответы, а новые ждут конца записи и попадут уже в закрытый вопрос.
+        const mark = checked.expect?.answers;
+        if (mark) {
+          const [seen] = await tx<{ count: number; last: Date | null }[]>`
+            select count(*)::int as count, max(submitted_at) as last from answers where session_id = ${sessionId} and step = ${mark.step}`;
+          const last = seen?.last ? seen.last.getTime() : null;
+          if ((seen?.count ?? 0) !== mark.count || last !== mark.last) return "conflict" as const;
+        }
         const at = now();
         const next = applyChange(state, board, checked, at);
         const starting = state.phase !== "playing" && next.state.phase === "playing";

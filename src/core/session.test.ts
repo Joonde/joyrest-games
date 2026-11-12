@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Session } from "../data/types";
-import { acceptsAnswers, addTimeChange, adjustBoard, answerDeadline, applyChange, meetsExpect, secondsLeft, startState } from "./session";
+import { acceptsAnswers, addTimeChange, adjustBoard, answerDeadline, answersMark, answersOpen, applyChange, closesAnswers, meetsExpect, placeAfter, secondsLeft, startState } from "./session";
 
 const session: Session = {
   id: "s",
@@ -115,8 +115,55 @@ describe("+10 секунд", () => {
     expect(addTimeChange({ ...open, stage: "reveal" }, 105_000)).toBeNull();
     expect(addTimeChange({ ...open, timeLimit: null }, 105_000)).toBeNull();
     expect(addTimeChange({ ...open, revealed: true }, 105_000)).toBeNull();
+    // Таймер ещё идёт и упёрся в потолок — прибавлять некуда.
     expect(addTimeChange({ ...open, timeLimit: 900 }, 105_000)).toBeNull();
-    // Открыт дольше потолка — продление не дало бы ни секунды.
-    expect(addTimeChange(open, 100_000 + 905_000)).toBeNull();
+  });
+
+  it("долгий перерыв при открытом вопросе: время вышло — кнопка работает и через 15 минут, и через час", () => {
+    // Раньше через 15 минут после показа вопроса кнопка гасла навсегда (паспорт общей части, Н-4).
+    const late = addTimeChange(open, 100_000 + 905_000);
+    expect(late?.state?.timeLimit).toBe(915);
+    expect(acceptsAnswers({ ...open, timeLimit: 915 }, 100_000 + 910_000)).toBe(true);
+    expect(addTimeChange(open, 100_000 + 3_600_000)?.state?.timeLimit).toBe(3610);
+    // Упёрся в потолок, время вышло — снова можно дать 10 секунд.
+    expect(addTimeChange({ ...open, timeLimit: 900 }, 100_000 + 901_000)?.state?.timeLimit).toBe(911);
+    // Разумный предел — 12 часов: дальше продлевать нечего.
+    expect(addTimeChange(open, 100_000 + 13 * 3_600_000)).toBeNull();
+  });
+});
+
+describe("приём ответов и запись пульта", () => {
+  const open = { ...startState(), stage: "question" as const, startedAt: 100_000, timeLimit: 20 };
+
+  it("открыт только текущий шаг с открытым вопросом", () => {
+    expect(answersOpen(open, 0)).toBe(true);
+    expect(answersOpen(open, 1)).toBe(false);
+    expect(answersOpen({ ...open, revealed: true }, 0)).toBe(false);
+    expect(answersOpen({ ...open, stage: "ready" }, 0)).toBe(false);
+    expect(answersOpen({ ...open, phase: "finished" }, 0)).toBe(false);
+  });
+
+  it("запись закрывает приём: показать ответ, следующий шаг, назад к заставке; итоги шага и таймер — нет", () => {
+    expect(closesAnswers(open, { state: { stage: "reveal", revealed: true } }, 0)).toBe(true);
+    expect(closesAnswers(open, { state: { step: 1, stage: "ready" } }, 0)).toBe(true);
+    expect(closesAnswers(open, { state: { stage: "ready", startedAt: null } }, 0)).toBe(true);
+    expect(closesAnswers(open, { state: { result: { mode: "vote" } } }, 0)).toBe(false);
+    expect(closesAnswers(open, { state: { timeLimit: 30 } }, 0)).toBe(false);
+    expect(closesAnswers(open, { state: { stage: "question", startedAt: "server" } }, 0)).toBe(false);
+    // Вопрос и так закрыт — закрывать нечего.
+    expect(closesAnswers({ ...open, stage: "reveal", revealed: true }, { state: { stage: "board" } }, 0)).toBe(false);
+    expect(placeAfter(open, { state: { step: 2 } })).toEqual({ phase: "playing", step: 2, stage: "question", revealed: false });
+  });
+
+  it("отметка списка ответов: сколько на шаге и когда пришёл последний", () => {
+    expect(answersMark(0, [])).toEqual({ step: 0, count: 0, last: null });
+    expect(
+      answersMark(3, [
+        { step: 3, submittedAt: 500 },
+        { step: 3, submittedAt: 900 },
+        { step: 3, submittedAt: null },
+        { step: 2, submittedAt: 5000 },
+      ]),
+    ).toEqual({ step: 3, count: 3, last: 900 });
   });
 });

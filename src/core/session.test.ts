@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Session } from "../data/types";
-import { acceptsAnswers, addTimeChange, adjustBoard, answerDeadline, answersMark, answersOpen, applyChange, closesAnswers, meetsExpect, placeAfter, secondsLeft, startState } from "./session";
+import { acceptsAnswers, addTimeChange, adjustBoard, answerDeadline, answersMark, answersOpen, applyChange, closesAnswers, meetsExpect, placeAfter, secondsLeft, staleAnswer, startState } from "./session";
 
 const session: Session = {
   id: "s",
@@ -144,6 +144,20 @@ describe("приём ответов и запись пульта", () => {
     expect(answersOpen({ ...open, revealed: true }, 0)).toBe(false);
     expect(answersOpen({ ...open, stage: "ready" }, 0)).toBe(false);
     expect(answersOpen({ ...open, phase: "finished" }, 0)).toBe(false);
+  });
+
+  it("ответ старше нынешнего показа вопроса — не ответ на этот показ (ставка аукциона, ответ до «Назад»)", () => {
+    expect(staleAnswer(open, 99_999)).toBe(true);
+    expect(staleAnswer(open, 100_000)).toBe(false);
+    expect(staleAnswer(open, 100_500)).toBe(false);
+    // Время неизвестно, вопрос закрыт или ответ можно менять — запись остаётся как есть.
+    expect(staleAnswer(open, null)).toBe(false);
+    expect(staleAnswer({ ...open, startedAt: null }, 99_999)).toBe(false);
+    expect(staleAnswer({ ...open, stage: "reveal", revealed: true }, 99_999)).toBe(false);
+    expect(staleAnswer({ ...open, stage: "ready" }, 99_999)).toBe(false);
+    expect(staleAnswer({ ...open, phase: "finished" }, 99_999)).toBe(false);
+    expect(staleAnswer({ ...open, result: { changeable: true } }, 99_999)).toBe(false);
+    expect(staleAnswer({ ...open, result: { changeable: false } }, 99_999)).toBe(true);
   });
 
   it("запись закрывает приём: показать ответ, следующий шаг, назад к заставке; итоги шага и таймер — нет", () => {

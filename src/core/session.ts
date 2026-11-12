@@ -116,6 +116,22 @@ export function answersOpen(state: Pick<SessionState, "phase" | "step" | "stage"
   return state.phase === "playing" && state.stage === "question" && !state.revealed && state.step === step;
 }
 
+/**
+ * Ответ остался с прошлого показа этого же шага — он старше нынешнего старта (ставка аукциона до «Ставки сделаны»,
+ * ответ до «Назад» и нового показа). Сервер заменит такую запись новым ответом, поэтому телефон не считает её уже
+ * данным ответом. Вне открытого вопроса и на шагах, где ответ можно менять (`result.changeable`), запись остаётся как есть.
+ */
+export function staleAnswer(
+  state: Pick<SessionState, "phase" | "stage" | "revealed" | "startedAt" | "result">,
+  submittedAt: number | null,
+): boolean {
+  if (state.phase !== "playing" || state.stage !== "question" || state.revealed) return false;
+  if (state.startedAt === null || submittedAt === null) return false;
+  const result: unknown = state.result;
+  if (typeof result === "object" && result !== null && (result as Record<string, unknown>).changeable === true) return false;
+  return submittedAt < state.startedAt;
+}
+
 /** Где окажется игра после записи пульта — только то, от чего зависит приём ответов. */
 export function placeAfter(state: SessionState, change: SessionChange): Pick<SessionState, "phase" | "step" | "stage" | "revealed"> {
   const next = change.state ?? {};

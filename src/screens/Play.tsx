@@ -8,6 +8,7 @@ import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { VPN_HINT } from "../core/texts";
 import { snapshotContent } from "../core/games";
+import { staleAnswer } from "../core/session";
 import { placeOf } from "../core/leaderboard";
 import { compactBoard, pointsLabel } from "../core/results";
 import type { StoryCardInput } from "../core/storyCard";
@@ -394,6 +395,9 @@ function useMyAnswer(session: Session, pid: string, ask: boolean, personal = fal
   const { step } = session.state;
   const slot = answerSlot(session, personal);
   const [answer, setAnswer] = useState<{ slot: string; value: { value: unknown } | null } | null>(null);
+  // Состояние на момент ответа сервера: запрос идёт долго, вопрос за это время могли открыть заново.
+  const stateRef = useRef(session.state);
+  stateRef.current = session.state;
 
   useEffect(() => {
     const local = rememberedAnswer(session.id, slot);
@@ -408,7 +412,13 @@ function useMyAnswer(session: Session, pid: string, ask: boolean, personal = fal
     }
     let cancelled = false;
     withRetry(() => answersRepo.getOwn(session.id, step, pid), () => cancelled)
-      .then((found) => !cancelled && setAnswer({ slot, value: found ? { value: found.value } : null }))
+      .then((found) => {
+        if (cancelled) return;
+        // Запись старше нынешнего показа вопроса (ставка аукциона до «Ставки сделаны», ответ до «Назад») — не ответ
+        // на этот показ: сервер заменит её новым ответом, поэтому телефон не блокирует кнопки (паспорт квиза, К-Н-1).
+        const fresh = found && !staleAnswer(stateRef.current, found.submittedAt);
+        setAnswer({ slot, value: found && fresh ? { value: found.value } : null });
+      })
       .catch(() => !cancelled && setAnswer({ slot, value: null }));
     return () => {
       cancelled = true;

@@ -689,6 +689,23 @@ export interface AgencyEvent {
   refundBy?: string;
   /** Владелец отметил, что вернул предоплату клиенту (мс). */
   refundDoneAt?: number | null;
+  /** Кто ведёт заявку (записал мероприятие или забрал себе): только он правит, отменяет и возвращает предоплату. */
+  ownerId?: string;
+  ownerName?: string;
+  /** «Не смогу провести» (мс): ведущий отказался — нужна замена. Сменили ведущего — снимается. */
+  declinedAt?: number | null;
+  declinedReason?: string;
+  /** После «Проведено»: получил ли ведущий остаток на месте — yes / no / part; пусто — не отмечено. */
+  restPaid?: "" | "yes" | "no" | "part";
+  /** Сколько получил при «частично», ₽. */
+  restAmount?: number | null;
+  /** «Созвонились с клиентом» перед мероприятием: когда и кто. */
+  calledAt?: number;
+  calledBy?: string;
+  /** Отзыв после «Проведено»: попросили или получен. */
+  review?: "asked" | "got";
+  /** Доплата за продление получена, ₽ (0 — продления не было). */
+  overtimePaid?: number;
   /** Только в ответе на сохранение: мероприятие записано, а клиент в базу клиентов — нет (добавить вручную). */
   clientNotSaved?: boolean;
   /** Только в ответе на сохранение: клиента не записали, потому что нет полного телефона или ссылки. */
@@ -703,6 +720,12 @@ export interface ClientRecord {
   /** Ссылки на соцсети: https://t.me/…, https://vk.com/…, https://instagram.com/…, https://wa.me/… */
   links: string[];
   status: "new" | "work" | "client" | "held" | "lost";
+  /** Кто ведёт клиента: только он меняет карточку, статус и заметку; другие — «Забрать себе». Пусто — никто не взял. */
+  /** «Следующий шаг» и его день (YYYY-MM-DD): в этот день — напоминание в колокольчик тому, кто ведёт клиента. */
+  nextStep?: string;
+  nextAt?: string;
+  ownerId?: string;
+  ownerName?: string;
   /** Согласие на рассылку: yes — сам отметил или подтвердил; no — отказался. */
   marketing: "yes" | "no" | "unknown";
   marketingAt: number | null;
@@ -768,17 +791,28 @@ export interface ClientContact {
 
 export interface ClientDetails extends ClientRecord {
   history: ClientContact[];
+  /** Мероприятия клиента (12 ноября 2026): по записям истории — со статусом для цветного кружка. */
+  events?: ClientEventLine[];
+}
+
+export type ClientEventLine = Pick<AgencyEvent, "id" | "title" | "day" | "start" | "end" | "hostName" | "cancelled" | "held" | "acceptedAt" | "acceptRev" | "declinedAt">;
+
+/** Строка истории мероприятия: кто и когда что сделал. */
+export interface EventLogLine {
+  at: number;
+  by: string;
+  text: string;
 }
 
 /** «Данные по номеру»: всё, что есть в базе по телефону, нику или почте человека (только владелец). */
 /** Уведомление колокольчика студии: новое обращение клиента или клиент ждёт ответа в Telegram. */
 export interface Notice {
   id: string;
-  /** Клиент обращения («new», «waiting»); у мероприятия — пусто. */
+  /** Клиент обращения («new», «waiting», «client» — «клиента забрали»); у мероприятия — пусто. */
   clientId: string;
   /** Мероприятие («event», колокольчик ведущего); у обращений клиентов — нет. */
   eventId?: string;
-  kind: "new" | "waiting" | "event";
+  kind: "new" | "waiting" | "event" | "client";
   /** «Заявка с сайта», «Из Telegram», «Ждёт ответа в Telegram», «📅 Вам назначено мероприятие». */
   title: string;
   /** Имя клиента (или телефон); у мероприятия — что и когда. */

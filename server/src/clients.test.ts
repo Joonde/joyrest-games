@@ -151,18 +151,27 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect((await post("/api/events", boris, { ...ev, id: "evboris" })).statusCode).toBe(403);
   });
 
-  it("владелец и менеджер одновременно: статус не затирает заметку, чужую правку заметки и формы не затереть", async () => {
+  // «Кто взял — тот и ведёт» (решение владельца 12 ноября 2026): клиента ведёт один человек, остальные — «Забрать себе».
+  it("владелец и менеджер: клиента ведёт один, «Забрать себе», чужую правку заметки и формы не затереть", async () => {
     const m = (await post("/api/users", owner, { email: "sales2@example.com", name: "Ника" })).json();
     expect((await post(`/api/users/${m.account.uid}/access`, owner, { role: "sales" })).statusCode).toBe(200);
     const nika = await login("sales2@example.com", m.temporaryPassword);
     const made = (await post("/api/clients", owner, { id: "kshared", name: "Олег", phone: "+7 916 000 11 22", links: [], status: "new", marketing: "unknown", notes: "квиз" })).json();
-    // Менеджер открыл карточку (версия made), владелец дописал заметку.
-    const owned = await post("/api/clients/kshared/notes", owner, { notes: "квиз\nперезвонить в 18:00", base: "квиз" });
-    expect(owned.statusCode).toBe(200);
-    // Менеджер ставит «В работе» по старой карточке — заметка владельца на месте, в истории — кто взял.
+    // Завёл владелец — он и ведёт.
+    expect(made).toMatchObject({ ownerId: expect.any(String) });
+    expect((await post("/api/clients/kshared/notes", owner, { notes: "квиз\nперезвонить в 18:00", base: "квиз" })).statusCode).toBe(200);
+    // Менеджер чужого клиента не меняет: статус, заметка, форма — 409 «ведёт другой».
+    const foreign = await post("/api/clients/kshared/status", nika, { status: "work" });
+    expect(foreign.statusCode).toBe(409);
+    expect(foreign.json()).toMatchObject({ reason: "owned" });
+    expect((await post("/api/clients/kshared/notes", nika, { notes: "x", base: "квиз\nперезвонить в 18:00" })).json()).toMatchObject({ reason: "owned" });
+    // «Забрать себе» — дальше ведёт менеджер; владельцу — в колокольчик.
+    const took = (await post("/api/clients/kshared/take", nika)).json();
+    expect(took).toMatchObject({ ownerName: "Ника", notes: "квиз\nперезвонить в 18:00" });
     const status = (await post("/api/clients/kshared/status", nika, { status: "work" })).json();
     expect(status).toMatchObject({ status: "work", notes: "квиз\nперезвонить в 18:00", statusLine: "В работе · Ника" });
-    // Заметка менеджера со старой основой — 409, текст владельца не затёрт.
+    expect((await post("/api/clients/kshared/status", owner, { status: "lost" })).json()).toMatchObject({ reason: "owned", by: "Ника" });
+    // Заметка менеджера со старой основой — 409, текст не затёрт.
     expect((await post("/api/clients/kshared/notes", nika, { notes: "квиз, 30 гостей", base: "квиз" })).statusCode).toBe(409);
     // Полная форма по старой версии — 409.
     const stale = await post("/api/clients", nika, { id: "kshared", name: "Олег", phone: "+7 916 000 11 22", links: [], status: "new", marketing: "unknown", notes: "квиз", expect: made.updatedAt });
@@ -172,10 +181,11 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     // По свежей версии — сохраняется.
     const fresh = await post("/api/clients", nika, { id: "kshared", name: "Олег Н.", phone: "+7 916 000 11 22", links: [], status: "work", marketing: "unknown", notes: now.notes, expect: now.updatedAt });
     expect(fresh.statusCode).toBe(200);
-    // Тот же статус ещё раз — без новой строки истории; архивного клиента статусом не трогаем.
-    await post("/api/clients/kshared/status", owner, { status: "work" });
-    expect(((await get("/api/clients/kshared", owner)).json().history as Array<{ source: string }>).filter((h) => h.source === "status")).toHaveLength(1);
-    await post("/api/clients/kshared/archive", owner);
+    // Тот же статус ещё раз — без новой строки «В работе»; архивного клиента статусом не трогаем.
+    await post("/api/clients/kshared/status", nika, { status: "work" });
+    expect(((await get("/api/clients/kshared", owner)).json().history as Array<{ source: string; summary: string }>).filter((h) => h.source === "status" && h.summary.startsWith("В работе"))).toHaveLength(1);
+    expect((await post("/api/clients/kshared/archive", owner)).statusCode).toBe(409);
+    await post("/api/clients/kshared/archive", nika);
     const inArchive = await post("/api/clients/kshared/status", nika, { status: "lost" });
     expect(inArchive.statusCode).toBe(409);
     // Причина — архив, а не чужая правка: браузер говорит «верните из архива».
@@ -184,15 +194,18 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect(noteInArchive.statusCode).toBe(409);
     expect(noteInArchive.json()).toMatchObject({ reason: "archived" });
     expect((await post("/api/clients/kshared/status", nika, { status: "мимо" })).statusCode).toBe(400);
-    // Мероприятие: владелец и менеджер открыли форму правки одной версии — второй не затрёт первого.
+    // Мероприятие: правит тот, кто записал; форма по старой версии не затрёт свежую правку; чужой — «Забрать себе».
     const ev = { id: "evshared", hostId: annaId, day: day(30), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 20, note: "" };
     const created = (await post("/api/events", owner, ev)).json();
     expect(created.updatedAt).toBeGreaterThan(0);
+    expect((await post("/api/events", nika, { ...ev, note: "Ника" })).json()).toMatchObject({ reason: "owned" });
     await new Promise((r) => setTimeout(r, 5));
-    expect((await post("/api/events", nika, { ...ev, note: "Ника: перенос на 19:00", expect: created.updatedAt })).statusCode).toBe(200);
+    expect((await post("/api/events", owner, { ...ev, note: "перенос на 19:00", expect: created.updatedAt })).statusCode).toBe(200);
     const staleEvent = await post("/api/events", owner, { ...ev, note: "владелец", expect: created.updatedAt });
     expect(staleEvent.statusCode).toBe(409);
     expect(staleEvent.json().error).toBe("changed");
+    expect((await post("/api/events/evshared/take", nika)).json()).toMatchObject({ ownerName: "Ника" });
+    expect((await post("/api/events", nika, { ...ev, note: "Ника: перенос на 19:00" })).statusCode).toBe(200);
     const list = (await get(`/api/events?from=${day(29)}&to=${day(31)}`, owner)).json().events as Array<{ id: string; note: string }>;
     expect(list.find((e) => e.id === "evshared")?.note).toBe("Ника: перенос на 19:00");
   });
@@ -397,14 +410,15 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     const half = await post("/api/events", owner, ev);
     expect(half.statusCode).toBe(200);
     expect(half.json()).toMatchObject({ id: "evhalf", clientNotSaved: true, clientIncomplete: true });
-    const nameOnly = await post("/api/events", owner, { ...ev, id: "evname", clientPhone: "" });
+    // Разные дни: занятого ведущего второй раз в то же время не записать (12 ноября 2026).
+    const nameOnly = await post("/api/events", owner, { ...ev, id: "evname", clientPhone: "", day: day(91) });
     expect(nameOnly.json()).toMatchObject({ clientNotSaved: true, clientIncomplete: true });
     // «8 915 123 45 6» — 10 цифр без последней: не «7 891 512-34-56», а неполный номер.
-    const short = await post("/api/events", owner, { ...ev, id: "evshort", clientPhone: "8 915 123 45 6" });
+    const short = await post("/api/events", owner, { ...ev, id: "evshort", clientPhone: "8 915 123 45 6", day: day(92) });
     expect(short.json()).toMatchObject({ clientNotSaved: true, clientIncomplete: true });
     expect(await sql`select 1 from clients where phone_key = '78915123456'`).toHaveLength(0);
     // Без клиента вовсе — ничего не говорим.
-    const none = (await post("/api/events", owner, { ...ev, id: "evnone", clientName: "", clientPhone: "" })).json();
+    const none = (await post("/api/events", owner, { ...ev, id: "evnone", clientName: "", clientPhone: "", day: day(93) })).json();
     expect(none.clientNotSaved).toBeUndefined();
   });
 

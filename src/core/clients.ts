@@ -532,6 +532,8 @@ export function clientErrorText(e: unknown, what: string): string {
   const code = errorCode(e);
   // 409 у архивного клиента — не чужая правка: сначала его нужно вернуть (третья проверка QA 22 октября 2026).
   if (code === "failed-precondition" && errorReason(e) === "archived") return `Клиент в архиве — верните его, чтобы ${what}.`;
+  // «Кто взял — тот и ведёт» (12 ноября 2026): клиента ведёт другой человек.
+  if (code === "failed-precondition" && errorReason(e) === "owned") return `Этого клиента ведёт другой человек — ${what} может только он. Нужно — нажмите «Забрать себе».`;
   if (code === "failed-precondition" || code === "already-exists") return "Клиента только что изменил другой человек — обновите список и попробуйте ещё раз.";
   if (code === "not-found") return "Этого клиента уже нет — обновите список.";
   if (code === "permission-denied") return "Нет доступа к этому действию.";

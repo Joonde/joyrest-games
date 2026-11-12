@@ -47,7 +47,8 @@ import {
 import { parseLeadText } from "../../core/events";
 import { composeWish, wishFromText, type ClientWish } from "../../core/clientWish";
 import { PROGRAM_FORMATS } from "../../core/eventProgram";
-import { todayMoscow } from "../../core/calendar";
+import { dayTitle, rangeLabel, todayMoscow } from "../../core/calendar";
+import { eventLight } from "../../core/eventLight";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
 import { clientsRepo, eventsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type ClientResponse, type UserProfile } from "../../data";
@@ -434,6 +435,7 @@ function ClientBase({ profile }: { profile: UserProfile }) {
               startOpen={c.id === focusId}
               now={now}
               manager={profile.name}
+              me={profile.uid}
               canBook={eventsRepo !== null && permissions.canManageEvents(profile)}
               onEdit={() => setForm(c)}
               onArchive={() => toggleArchive(c)}
@@ -572,6 +574,7 @@ function ClientCard({
   startOpen = false,
   now,
   manager,
+  me,
   canBook = false,
   onEdit,
   onArchive,
@@ -582,6 +585,8 @@ function ClientCard({
   startOpen?: boolean;
   now: number;
   manager: string;
+  /** Кто смотрит: клиента ведёт другой — менять нельзя, только «Забрать себе». */
+  me: string;
   /** Может записывать мероприятия — кнопка «📅 Записать мероприятие ведущему». */
   canBook?: boolean;
   onEdit: () => void;
@@ -620,6 +625,20 @@ function ClientCard({
       }
     }
     navigate(`/studio/calendar?tab=events&client=${encodeURIComponent(c.id)}`);
+  }
+  // «Кто взял — тот и ведёт» (решение владельца 12 ноября 2026): клиента ведёт другой — только смотреть и «Забрать себе».
+  const other = Boolean(c.ownerId && c.ownerName && c.ownerId !== me);
+  const [confirmTake, askTake] = useConfirm();
+  function take() {
+    askTake({
+      title: `Забрать «${c.name || phoneLabel(c.phone) || "клиента"}» себе?`,
+      text: `Сейчас клиента ведёт ${c.ownerName}. После этого статус, заметку и карточку меняете только вы; его будущие мероприятия тоже перейдут к вам. ${c.ownerName} получит уведомление.`,
+      confirmLabel: "Забрать себе",
+      run: async () => {
+        if (!clientsRepo) return;
+        onChanged(await clientsRepo.take(c.id), "Теперь этого клиента ведёте вы");
+      },
+    });
   }
   const wait = waitingOf(c);
   const waiting = wait ? now - wait.since : 0;
@@ -701,11 +720,11 @@ function ClientCard({
               {c.contacts > 1 ? ` · всего ${c.contacts}` : ""}
             </span>
           </span>
-          {c.status !== "new" && (c.takenBy || lastPart(c.statusLine)) && (
+          {(c.ownerName || (c.status !== "new" && (c.takenBy || lastPart(c.statusLine)))) && (
             <span className="clients-facts__row">
               <span className="clients-facts__label">Ведёт</span>
               <span className="clients-facts__value">
-                {c.takenBy || lastPart(c.statusLine)}
+                {c.ownerName || c.takenBy || lastPart(c.statusLine)}
                 {c.takenAt ? ` · с ${dateTimeLabel(c.takenAt)}` : c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
               </span>
             </span>
@@ -726,14 +745,31 @@ function ClientCard({
         {/* Новый клиент — таймер сверху; здесь — только «ждёт ответа в Telegram» (у любого статуса). */}
         {wait?.telegram && waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа в Telegram {agoLabel(waiting)}</span>}
         {!open && c.notes && <span className="clients-note-line">📝 {c.notes.split("\n")[0]}</span>}
+        {c.nextStep && (
+          <span className={c.nextAt && c.nextAt <= todayMoscow() ? "clients-next is-due" : "clients-next"}>
+            📌 {c.nextAt ? `${dayTitle(c.nextAt)}: ` : ""}
+            {c.nextStep}
+          </span>
+        )}
         <span className="plan-card__more" aria-hidden="true">
           {open ? "Свернуть ▲" : "Подробнее ▼"}
         </span>
       </button>
       {open && (
         <div className="stack stack--tight">
-          {!c.archived && <StatusPanel client={c} busy={busy} onPick={(st) => void setStatus(st)} />}
-          {canBook && !c.archived && c.status !== "lost" && (
+          {other && (
+            <div className="card stack stack--tight clients-owned">
+              <p className="small">
+                <b>Клиента ведёт {c.ownerName}.</b> Менять статус, заметку и карточку может только он(а) — вы видите всё, но не меняете. Заболел или не
+                отвечает — заберите клиента себе.
+              </p>
+              <button type="button" className="btn btn--secondary btn--block" onClick={take}>
+                ↪️ Забрать себе
+              </button>
+            </div>
+          )}
+          {!c.archived && !other && <StatusPanel client={c} busy={busy} onPick={(st) => void setStatus(st)} />}
+          {canBook && !other && !c.archived && c.status !== "lost" && (
             <div className="stack stack--tight clients-book">
               <button type="button" className={c.status === "work" || c.status === "client" ? "btn btn--block" : "btn btn--secondary btn--block"} disabled={busy} onClick={() => void book()}>
                 📅 Записать мероприятие ведущему
@@ -768,7 +804,33 @@ function ClientCard({
             </button>
           )}
 
-          {!c.archived && (
+          {other && c.notes && !c.archived && <p className="clients-history__text">📝 {c.notes}</p>}
+          {!c.archived && !other && <NextStep client={c} onSaved={(next) => onChanged(next, next.nextStep ? "Следующий шаг сохранён" : "Следующий шаг снят")} />}
+          {full?.events && full.events.length > 0 && (
+            <div className="stack stack--tight">
+              <h3 className="small clients-section">Мероприятия клиента</h3>
+              <ul className="clients-events">
+                {full.events.map((e) => {
+                  const info = eventLight({ ...e, live: false }, now);
+                  return (
+                    <li key={e.id}>
+                      <Link to={`/studio/calendar?tab=events&event=${encodeURIComponent(e.id)}`} className="clients-events__row">
+                        <span className={`plan-light plan-light--${info.light}`}>
+                          <span className="plan-light__dot" aria-hidden="true" />
+                          {info.label}
+                        </span>
+                        <span>
+                          {e.title || "Мероприятие"} · {dayTitle(e.day)}, {rangeLabel(e.start, e.end)}
+                          {e.hostName ? ` · ведёт ${e.hostName}` : ""}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          {!c.archived && !other && (
             <label className="field">
               <span className="field__label">Что хочет клиент: дата, гости, пожелания, следующий шаг</span>
               <textarea rows={3} maxLength={CLIENT_LIMITS.notes} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -865,17 +927,75 @@ function ClientCard({
               </ul>
             )}
           </Fold>
-          <div className="actions">
-            <button type="button" className="btn btn--secondary btn--block" onClick={onEdit}>
-              Изменить имя, телефон, ссылки
-            </button>
-            <button type="button" className="btn btn--quiet btn--block" onClick={onArchive}>
-              {c.archived ? "Вернуть из архива" : "Убрать в архив (спам)"}
-            </button>
-          </div>
+          {!other && (
+            <div className="actions">
+              <button type="button" className="btn btn--secondary btn--block" onClick={onEdit}>
+                Изменить имя, телефон, ссылки
+              </button>
+              <button type="button" className="btn btn--quiet btn--block" onClick={onArchive}>
+                {c.archived ? "Вернуть из архива" : "Убрать в архив (спам)"}
+              </button>
+            </div>
+          )}
         </div>
       )}
+      {confirmTake}
     </article>
+  );
+}
+
+/**
+ * «Следующий шаг» с датой (решение владельца 12 ноября 2026): что сделать и когда — в этот день тому, кто ведёт клиента,
+ * придёт напоминание в колокольчик. На свёрнутой карточке — «📌 пт, 15 ноября: позвонить», в нужный день — красным.
+ */
+function NextStep({ client: c, onSaved }: { client: ClientRecord; onSaved: (next: ClientRecord) => void }) {
+  const [text, setText] = useState(c.nextStep ?? "");
+  const [day, setDay] = useState(c.nextAt ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const dirty = text.trim() !== (c.nextStep ?? "") || day !== (c.nextAt ?? "");
+  async function save(t: string, d: string) {
+    if (!clientsRepo || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await clientsRepo.setNext(c.id, t.trim(), d);
+      setText(saved.nextStep ?? "");
+      setDay(saved.nextAt ?? "");
+      onSaved(saved);
+    } catch (e) {
+      setError(clientErrorText(e, "менять следующий шаг"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="stack stack--tight clients-next-box">
+      <h3 className="small clients-section">📌 Следующий шаг</h3>
+      <label className="field">
+        <span className="field__label">Что сделать</span>
+        <input maxLength={200} value={text} onChange={(e) => setText(e.target.value)} placeholder="Позвонить и подтвердить дату" />
+      </label>
+      <label className="field">
+        <span className="field__label">Когда — в этот день придёт напоминание в колокольчик</span>
+        <input type="date" value={day} min={todayMoscow()} onChange={(e) => setDay(e.target.value)} />
+      </label>
+      {dirty && (
+        <button type="button" className="btn btn--block" disabled={busy || !text.trim()} onClick={() => void save(text, day)}>
+          {busy ? "Сохраняем…" : "Сохранить шаг"}
+        </button>
+      )}
+      {!dirty && c.nextStep && (
+        <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void save("", "")}>
+          ✓ Сделано — убрать шаг
+        </button>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

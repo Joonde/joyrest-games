@@ -190,14 +190,20 @@ describe.skipIf(!url)("путь клиента: уведомления по ро
     r = await post("/api/events", mgr, base("e1", anna, { place: "пр. Новый, 12, зал 2", start: 1140 }));
     await step("5", "менеджер поменял время начала", { code: r.statusCode, event: await eventOf("e1") });
 
+    // «Кто взял — тот и ведёт» (12 ноября 2026): владелец чужое мероприятие не меняет — только «Забрать себе».
     r = await post("/api/events", own, base("e1", anna, { place: "пр. Новый, 12, зал 2", start: 1140, guests: 55 }));
-    await step("6", "ВЛАДЕЛЕЦ поменял число гостей в мероприятии менеджера", { code: r.statusCode, event: await eventOf("e1") });
+    expect(r.statusCode).toBe(409);
+    expect(r.json()).toMatchObject({ reason: "owned", by: "Мария" });
+    r = await post("/api/events", mgr, base("e1", anna, { place: "пр. Новый, 12, зал 2", start: 1140, guests: 55 }));
+    await step("6", "владельцу правка чужого — отказ; менеджер поменял число гостей", { code: r.statusCode, event: await eventOf("e1") });
 
     r = await post("/api/events", mgr, base("e1", boris, { place: "пр. Новый, 12, зал 2", start: 1140, guests: 55 }));
     await step("7", "менеджер передал мероприятие Борису (у него нет Telegram)", { code: r.statusCode, event: await eventOf("e1") });
 
-    r = await post("/api/events/e1/cancel", own);
-    await step("8", "ВЛАДЕЛЕЦ отменил мероприятие менеджера", { code: r.statusCode, client: await clientStatus("79991112233"), event: await eventOf("e1") });
+    expect((await post("/api/events/e1/cancel", own)).statusCode).toBe(409);
+    r = await post("/api/events/e1/cancel", mgr);
+    await step("8", "менеджер отменил (перенос — клиент остаётся «Клиентом»)", { code: r.statusCode, client: await clientStatus("79991112233"), event: await eventOf("e1") });
+    expect(await clientStatus("79991112233")).toBe("client");
 
     r = await post("/api/events/e1/restore", mgr);
     await step("9", "менеджер вернул отменённое", { code: r.statusCode, event: await eventOf("e1") });
@@ -298,6 +304,11 @@ describe.skipIf(!url)("путь клиента: уведомления по ро
     const a = await post("/api/events", mgr, base("d1", boris, { clientName: "Дина", clientPhone: "+7 999 555-66-77", day: day(20) }));
     const b = await post("/api/events", mgr, base("d2", boris, { clientName: "Егор", clientPhone: "+7 999 666-77-88", day: day(20) }));
     await step("19", "менеджер записал Борису ДВА мероприятия на одно и то же время", { codes: [a.statusCode, b.statusCode] });
+    // Занятого ведущего не записать (12 ноября 2026): второе — отказ, первое правится как обычно.
+    expect(a.statusCode).toBe(200);
+    expect(b.statusCode).toBe(409);
+    expect(b.json()).toMatchObject({ reason: "host-busy" });
+    expect((await post("/api/events", mgr, base("d1", boris, { clientName: "Дина", clientPhone: "+7 999 555-66-77", day: day(20), note: "правка" }))).statusCode).toBe(200);
 
     await post("/api/events", mgr, base("x1", anna, { clientName: "Жанна", clientPhone: "+7 999 777-88-99", day: day(21) }));
     await step("20a", "менеджер записал x1 Анне");
@@ -497,4 +508,106 @@ describe.skipIf(!url)("путь клиента: уведомления по ро
     expect(r.json()).toMatchObject({ price: 19900, cancelled: false });
     await step("P12", "обычная отмена и возврат мероприятия с предоплатой");
   }, 60_000);
+
+  // Доработки пути клиента (решения владельца 12 ноября 2026).
+  it("кто ведёт, «Забрать себе», отказ ведущего, остаток, созвон, отзыв, история, следующий шаг", async () => {
+    const mgr = who.manager?.cookie ?? "";
+    const own = who.owner?.cookie ?? "";
+    const boris = who.boris?.id ?? "";
+    const vika = who.vika?.id ?? "";
+    const vkc = who.vika?.cookie ?? "";
+    const client = { clientName: "Лиля", clientPhone: "+7 999 121-21-21", place: "ул. Скрытая, 9" };
+
+    // Занятый в календаре (сам отметил «занят») — не записать.
+    const busyDay = day(30);
+    expect((await post("/api/calendar", vkc, { id: "vbusy", day: busyDay, start: 1020, end: 1440, kind: "busy", note: "своё" })).statusCode).toBe(200);
+    let r = await post("/api/events", mgr, base("k1", vika, { ...client, day: busyDay, price: 20000, prepaid: true }));
+    expect(r.statusCode).toBe(409);
+    expect(r.json()).toMatchObject({ reason: "host-busy" });
+    // Свободен (не отметил) — можно.
+    r = await post("/api/events", mgr, base("k1", vika, { ...client, day: day(31), price: 20000, prepaid: true }));
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ ownerName: "Мария" });
+    await step("K1", "занятого ведущего не записать; свободному — записано");
+
+    // Ведущий принял — менеджеру (кто ведёт заявку) в колокольчик.
+    expect((await post("/api/events/k1/accept", vkc, { rev: 1 })).statusCode).toBe(200);
+    const acc = await step("K2", "Вика приняла");
+    expect(acc.manager?.bell.some((b) => b.includes("Ведущий принял"))).toBe(true);
+
+    // «Не смогу провести»: менеджеру и владельцу срочно, без данных клиента; принятие снято.
+    const bo = tgOf("owner").length;
+    r = await post("/api/events/k1/decline", vkc, { reason: "заболела" });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ declinedReason: "заболела", acceptedAt: null });
+    expect((await post("/api/events/k1/decline", who.manager?.cookie ?? "", {})).statusCode).toBe(403);
+    const dec = await step("K3", "Вика нажала «Не смогу провести»");
+    expect(dec.manager?.bell.some((b) => b.includes("нужна замена"))).toBe(true);
+    expect(dec.owner?.bell.some((b) => b.includes("нужна замена"))).toBe(true);
+    const ownerTexts = tgOf("owner").slice(bo).map((m) => m.text);
+    expect(ownerTexts.some((t) => t.includes("нужна замена"))).toBe(true);
+    expect(ownerTexts.every((t) => !t.includes("Лиля") && !t.includes("121-21") && !t.includes("Скрытая") && !t.includes("заболела"))).toBe(true);
+    // Сменили ведущего — отметка «не сможет» снята.
+    r = await post("/api/events", mgr, base("k1", boris, { ...client, day: day(31), price: 20000, prepaid: true }));
+    expect(r.statusCode).toBe(200);
+    expect((r.json() as { declinedAt?: number }).declinedAt).toBeUndefined();
+
+    // «Кто ведёт» у клиента: владелец не меняет статус и заметку, «Забрать себе» — забирает вместе с мероприятием.
+    const [kc] = await sql<{ id: string; owner_id: string | null }[]>`select id, owner_id from clients where phone_key = '79991212121'`;
+    expect(kc?.owner_id).toBe(who.manager?.id);
+    r = await post(`/api/clients/${kc?.id}/status`, own, { status: "work" });
+    expect(r.statusCode).toBe(409);
+    expect(r.json()).toMatchObject({ reason: "owned", by: "Мария" });
+    expect((await post(`/api/clients/${kc?.id}/notes`, own, { notes: "x", base: "" })).statusCode).toBe(409);
+    r = await post(`/api/clients/${kc?.id}/take`, own);
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ ownerName: expect.any(String) });
+    expect((await eventOf("k1")) && (await sql`select created_by from events where id = 'k1'`)[0]?.created_by).toBe(who.owner?.id);
+    const took = await step("K4", "владелец забрал клиента себе (и его мероприятие)");
+    expect(took.manager?.bell.some((b) => b.includes("забрали"))).toBe(true);
+    expect((await post(`/api/clients/${kc?.id}/status`, mgr, { status: "work" })).statusCode).toBe(409);
+    expect((await post("/api/events/k1/cancel", mgr)).statusCode).toBe(409);
+
+    // Следующий шаг с датой: в этот день — колокольчик тому, кто ведёт.
+    r = await post(`/api/clients/${kc?.id}/next`, own, { text: "Перезвонить по меню", day: day(0) });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ nextStep: "Перезвонить по меню", nextAt: day(0) });
+    expect((await post(`/api/clients/${kc?.id}/next`, mgr, { text: "чужое", day: day(0) })).statusCode).toBe(409);
+    const d = new Date();
+    fakeNow = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 9, 0, 0);
+    await bot.remindNow();
+    await bot.remindNow();
+    fakeNow = null;
+    const nx = await step("K5", "день следующего шага");
+    expect((nx.owner?.bell ?? []).filter((b) => b.includes("следующий шаг")).length).toBe(1);
+    // Мероприятия клиента — в его карточке.
+    const det = (await get(`/api/clients/${kc?.id}`, own)).json() as { events: Array<{ id: string }> };
+    expect(det.events.map((e) => e.id)).toContain("k1");
+
+    // Созвон, «Проведено», остаток, продление, отзыв — и всё в истории.
+    expect((await post("/api/events/k1/called", own, { called: true })).json()).toMatchObject({ calledBy: expect.any(String) });
+    await sql`update events set starts_at = now() - interval '4 hours', ends_at = now() - interval '1 hour' where id = 'k1'`;
+    expect((await post("/api/events/k1/review", own, { review: "asked" })).statusCode).toBe(409);
+    expect((await post("/api/events/k1/held", who.boris?.cookie ?? "", { held: true })).statusCode).toBe(200);
+    const held = await step("K6", "Борис отметил «Проведено»");
+    expect(held.owner?.bell.some((b) => b.includes("попросите у клиента отзыв"))).toBe(true);
+    r = await post("/api/events/k1/rest", who.boris?.cookie ?? "", { rest: "part", amount: 10000 });
+    expect(r.json()).toMatchObject({ restPaid: "part", restAmount: 10000 });
+    const debt = await step("K7", "Борис: остаток получен частично");
+    expect(debt.owner?.bell.some((b) => b.includes("не полностью"))).toBe(true);
+    expect((await post("/api/events/k1/overtime", who.boris?.cookie ?? "", { amount: 3900 })).json()).toMatchObject({ overtimePaid: 3900 });
+    expect((await post("/api/events/k1/review", own, { review: "got" })).json()).toMatchObject({ review: "got" });
+    const log = (await get("/api/events/k1/log", own)).json() as { log: Array<{ text: string }> };
+    const texts = log.log.map((l) => l.text).join(" | ");
+    for (const w of ["Записал(а)", "Принял", "Не сможет провести", "ведущий → Борис", "Забрал(а) себе", "Созвонился", "Проведено", "частично", "продление", "Отзыв получен"]) expect(texts).toContain(w);
+    expect(texts).not.toContain("Лиля");
+    out({ step: "K8", what: "история мероприятия", log: log.log.map((l) => l.text) });
+
+    // Отмена: клиент отказался — «Отказ».
+    expect((await post("/api/events", own, base("k2", boris, { ...client, day: day(33), price: 20000, prepaid: true }))).statusCode).toBe(200);
+    expect((await post("/api/events/k2/cancel", own, { client: "lost" })).statusCode).toBe(200);
+    expect(await clientStatus("79991212121")).toBe("lost");
+    await step("K9", "отмена с отказом клиента");
+  }, 60_000);
 });
+

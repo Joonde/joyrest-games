@@ -3,6 +3,7 @@
  * свободен и занят; владелец видит всех и закрепляет время за человеком («Мероприятие JoyRest»).
  * Проверки времени и дат — общие функции src/core/calendar.ts, права — src/data/permissions.ts.
  */
+import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { cleanNote, dayIndex, dayInWindow, dayOf, isKind, PER_DAY_MAX, RANGE_MAX_DAYS, todayMoscow, validTime } from "../../src/core/calendar";
@@ -195,7 +196,13 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
         return fail(reply, 403, "permission-denied");
       }
       // Мероприятие было не отменено — после снятия его ведущему в колокольчик «Отменено» (6 ноября 2026).
-      const [wasLive] = id.startsWith("ev-") ? await sql<{ live: boolean }[]>`select (cancelled_at is null) as live from events where id = ${id.slice(3)}` : [];
+      const [wasLive] = id.startsWith("ev-")
+        ? await sql<{ live: boolean; owner: string | null; owner_name: string | null }[]>`
+            select (e.cancelled_at is null) as live, u.id as owner, u.name as owner_name
+            from events e left join users u on u.id = e.created_by and u.active where e.id = ${id.slice(3)}`
+        : [];
+      // «Кто взял — тот и ведёт» (12 ноября 2026): снять чужое мероприятие нельзя — так же, как «Отменить мероприятие».
+      if (wasLive?.owner && wasLive.owner !== user.id) return reply.code(409).send({ error: "failed-precondition", reason: "owned", by: wasLive.owner_name ?? "" });
       await sql.begin(async (tx) => {
         await tx`delete from availability where id = ${id}`;
         // Запись мероприятия планировщика: снять время — значит отменить мероприятие (оно уходит в «Отменённые»).
@@ -221,6 +228,7 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
           if (span) void options.bot.eventNotice("cancelled", e.host_id, ev, new Date(span.from)).catch(() => undefined);
         }
       }
+      if (id.startsWith("ev-") && wasLive?.live) await sql`insert into event_log (id, event_id, by_name, text) values (${`l${randomBytes(12).toString("base64url")}`}, ${id.slice(3)}, ${user.name.slice(0, 80)}, ${"Снял(а) мероприятие в «Кто может» — отменено"})`.catch(() => undefined);
       request.log.info({ calendar: "remove" }, "calendar");
       return { ok: true };
     });

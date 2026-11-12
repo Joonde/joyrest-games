@@ -14,6 +14,7 @@ import type {
   AvailabilityEntry,
   CalendarMember,
   AgencyEvent,
+  EventLogLine,
   ClientDetails,
   OutreachMark,
   ClientResponse,
@@ -312,8 +313,23 @@ export interface EventsRepository {
   setHeld(id: string, held: boolean | null): Promise<AgencyEvent>;
   /** «Принял, готовлюсь» — ведущий этого мероприятия; `rev` — версия программы, которую он видел (поменяли — `changed`). */
   accept(id: string, rev: number): Promise<AgencyEvent>;
-  cancel(id: string): Promise<AgencyEvent>;
+  /** Отменить. `client: "lost"` — клиент отказался (в «Клиентах» — «Отказ»); без него — перенос, клиент остаётся «Клиентом». */
+  cancel(id: string, client?: "lost"): Promise<AgencyEvent>;
   restore(id: string): Promise<AgencyEvent>;
+  /** «Забрать себе»: мероприятие ведёт (правит) теперь этот человек; прежнему — в колокольчик. */
+  take(id: string): Promise<AgencyEvent>;
+  /** «Не смогу провести» — ведущий этого мероприятия; тому, кто ведёт заявку, и владельцу — срочно. */
+  decline(id: string, reason: string): Promise<AgencyEvent>;
+  /** После «Проведено»: остаток на месте получен — да, нет, частично (`amount` — сколько получили). */
+  rest(id: string, rest: "yes" | "no" | "part", amount?: number | null): Promise<AgencyEvent>;
+  /** «Созвонились с клиентом» перед мероприятием (false — снять). */
+  called(id: string, called: boolean): Promise<AgencyEvent>;
+  /** Отзыв после «Проведено»: попросили, получен или снять (""). */
+  review(id: string, review: "asked" | "got" | ""): Promise<AgencyEvent>;
+  /** Доплата за продление: сколько получили (0 — продления не было), null — снять. */
+  overtime(id: string, amount: number | null): Promise<AgencyEvent>;
+  /** История мероприятия: кто и когда что сделал, новые сверху. */
+  log(id: string): Promise<EventLogLine[]>;
   /** «Вернуть предоплату»: клиент отказался не позже чем за 48 часов — мероприятие закрыто, владельцу — вернуть 2 000 ₽. */
   refund(id: string): Promise<AgencyEvent>;
   /** «Отметить: вернул» — владелец вернул предоплату клиенту. */
@@ -369,6 +385,10 @@ export interface ClientsRepository {
   outreach(id: string, mark: OutreachMark): Promise<ClientDetails>;
   archive(id: string): Promise<void>;
   restore(id: string): Promise<void>;
+  /** «Забрать себе»: клиента и его будущие мероприятия ведёт теперь этот человек; прежнему — в колокольчик. */
+  take(id: string): Promise<ClientDetails>;
+  /** «Следующий шаг» и его день (YYYY-MM-DD или пусто): в этот день — напоминание тому, кто ведёт клиента. */
+  setNext(id: string, text: string, day: string): Promise<ClientDetails>;
   /** Адрес выгрузки CSV: только согласившиеся на рассылку или все. */
   exportUrl(all: boolean): string;
   /** Ответы на новые заявки за период (дни по Москве, окно до 370 дней): сколько ждали и кто взял. */

@@ -28,7 +28,22 @@ const FIRST_UNREAD_HOURS = 24;
 const WAIT_MINUTES = 30;
 
 /** Что случилось с мероприятием человека — вид записи колокольчика ведущего. */
-export type HostNoticeKind = "created" | "changed" | "removed" | "cancelled" | "prepaid" | "refund" | "refunded";
+export type HostNoticeKind =
+  | "created"
+  | "changed"
+  | "removed"
+  | "cancelled"
+  | "prepaid"
+  | "refund"
+  | "refunded"
+  | "accepted"
+  | "unaccepted"
+  | "declined"
+  | "held"
+  | "debt"
+  | "call"
+  | "noplace"
+  | "taken";
 export const HOST_NOTICE_TITLES: Record<HostNoticeKind, string> = {
   created: "📅 Вам назначено мероприятие",
   changed: "✏️ Мероприятие изменено",
@@ -38,6 +53,15 @@ export const HOST_NOTICE_TITLES: Record<HostNoticeKind, string> = {
   prepaid: "💰 Предоплата 2 000 ₽ отмечена — проверьте, что деньги пришли",
   refund: "💸 Верните предоплату 2 000 ₽ — клиент отказался",
   refunded: "✅ Предоплата возвращена клиенту",
+  // Путь клиента (12 ноября 2026): тому, кто ведёт заявку, — что сделал ведущий; за 3 дня — созвон и адрес.
+  accepted: "✅ Ведущий принял мероприятие",
+  unaccepted: "⏳ Ведущий ещё не подтвердил мероприятие",
+  declined: "🚨 Ведущий не сможет провести — нужна замена",
+  held: "🎉 Проведено — попросите у клиента отзыв",
+  debt: "💰 Остаток на месте получен не полностью",
+  call: "📞 Через 3 дня мероприятие — созвонитесь с клиентом",
+  noplace: "📍 Нет адреса — уточните у клиента",
+  taken: "↪️ Мероприятие забрали себе",
 };
 function isHostNoticeKind(value: string): value is HostNoticeKind {
   return Object.prototype.hasOwnProperty.call(HOST_NOTICE_TITLES, value);
@@ -62,7 +86,18 @@ export async function recordHostNotice(
 export const HOST_NOTICE_KEEP_DAYS = 90;
 export async function cleanupHostNotices(sql: Sql, now: number = Date.now()): Promise<number> {
   const rows = await sql`delete from host_notices where created_at < ${new Date(now - HOST_NOTICE_KEEP_DAYS * 86_400_000)} returning id`;
-  return rows.length;
+  const staff = await sql`delete from staff_notices where created_at < ${new Date(now - HOST_NOTICE_KEEP_DAYS * 86_400_000)} returning id`;
+  return rows.length + staff.length;
+}
+
+/** Уведомление о клиенте (не о мероприятии): «клиента забрал себе …». Без имени и телефона клиента. Себе — не пишем. */
+export async function recordStaffNotice(
+  sql: Sql,
+  input: { userId: string; clientId: string | null; kind: string; title: string; line: string; by: { id: string } },
+): Promise<void> {
+  if (!input.userId || input.userId === input.by.id) return;
+  await sql`insert into staff_notices (id, user_id, client_id, kind, title, line)
+    values (${randomBytes(12).toString("base64url")}, ${input.userId}, ${input.clientId}, ${input.kind}, ${input.title.slice(0, 200)}, ${input.line.slice(0, 200)})`;
 }
 
 /** Строка мероприятия в колокольчике: «Свадьба — пятница, 20 ноября, 18:00–23:00». */
@@ -127,14 +162,29 @@ export function registerNotices(app: FastifyInstance, options: NoticesOptions): 
                   ? `Запросил(а): ${r.by_name}`
                   : r.kind === "refunded"
                     ? `Вернул(а): ${r.by_name}`
-                    : `Кто: ${r.by_name}`
+                    : r.kind === "accepted" || r.kind === "unaccepted" || r.kind === "declined" || r.kind === "debt"
+                      ? `Ведущий: ${r.by_name}`
+                      : r.kind === "held"
+                        ? `Отметил(а): ${r.by_name}`
+                        : r.kind === "call" || r.kind === "noplace"
+                          ? ""
+                          : `Кто: ${r.by_name}`
             : "",
           at: r.created_at.getTime(),
           unread: r.created_at > since,
         }),
       );
+      // «Клиента забрал себе …» (кто взял — тот и ведёт): своя таблица, ссылка — на карточку клиента.
+      const staff = await sql<{ id: string; client_id: string | null; kind: string; title: string; line: string; created_at: Date }[]>`
+        select id, client_id, kind, title, line, created_at from staff_notices
+        where user_id = ${uid} and created_at > now() - make_interval(days => ${NOTICE_DAYS})
+        order by created_at desc limit ${NOTICE_LIMIT}`;
+      for (const r of staff) {
+        events.push({ id: `st-${r.id}`, clientId: r.client_id ?? "", kind: "client", title: r.title, name: "", line: r.line, at: r.created_at.getTime(), unread: r.created_at > since });
+      }
+      events.sort((a, b) => b.at - a.at);
       if (!who.clients) {
-        return { unread: events.filter((i) => i.unread).length, items: events };
+        return { unread: events.filter((i) => i.unread).length, items: events.slice(0, NOTICE_LIMIT) };
       }
       const rows = await sql<{ id: string; client_id: string; source: string; summary: string; created_at: Date; name: string; phone: string }[]>`
         select h.id, h.client_id, h.source, h.summary, h.created_at, c.name, c.phone

@@ -157,11 +157,17 @@ async function cleanup(admin, host) {
   const events = await api("GET", `/api/events?from=${from}&to=${to}`, admin.cookie);
   for (const e of events.data?.events ?? []) {
     if (!/проверка менеджера/i.test(e.title)) continue;
+    // «Кто взял — тот и ведёт» (12 ноября 2026): владелец сначала забирает мероприятие менеджера себе.
+    if (e.ownerId && e.ownerId !== admin.profile?.uid) await api("POST", `/api/events/${e.id}/take`, admin.cookie, {});
     if (!e.cancelled) await api("POST", `/api/events/${e.id}/cancel`, admin.cookie, {});
     await api("DELETE", `/api/events/${e.id}`, admin.cookie);
   }
   const clients = await api("GET", "/api/clients", admin.cookie);
-  for (const c of clients.data?.clients ?? []) if (c.name.includes(TAG)) await api("POST", `/api/clients/${c.id}/archive`, admin.cookie, {});
+  for (const c of clients.data?.clients ?? []) {
+    if (!c.name.includes(TAG)) continue;
+    if (c.ownerId && c.ownerId !== admin.profile?.uid) await api("POST", `/api/clients/${c.id}/take`, admin.cookie, {});
+    await api("POST", `/api/clients/${c.id}/archive`, admin.cookie, {});
+  }
   if (host) for (const id of liveSessions) await api("POST", `/api/sessions/${id}/finish`, host.cookie, {}).catch(() => undefined);
 }
 
@@ -583,6 +589,27 @@ try {
   await hostCard.getByRole("button", { name: "✅ Принял, готовлюсь" }).click();
   check(await soft(async () => Boolean((await apiEvent(sales.cookie, ev.id))?.acceptedAt), WAIT, "принято снова"), "Ведущий: принял изменённое — снова 🟢");
 
+  // ================= 6а. Кто ведёт, «Ведущий принял», история, занятый ведущий (12 ноября 2026) =================
+  section("6а. Кто ведёт, «Ведущий принял», история");
+  const bellMgr = ((await api("GET", "/api/notices", sales.cookie)).data?.items ?? []).filter((i) => i.eventId === ev.id);
+  check(bellMgr.some((i) => String(i.title).includes("Ведущий принял")), "Менеджер: в колокольчике «✅ Ведущий принял мероприятие»", `Колокольчик: ${JSON.stringify(bellMgr).slice(0, 300)}`);
+  await mp.reload();
+  await eventsList(mp);
+  await mp.getByRole("combobox", { name: "Поиск" }).fill("Корпоратив, проверка менеджера");
+  check(await soft(async () => (await evCard.locator(".plan-card__accepted").count()) > 0, WAIT, "плашка принял"), "Менеджер: на карточке зелёная плашка «✅ Ведущий принял»");
+  await openCard(evCard);
+  await evCard.getByText("📜 История мероприятия").click();
+  check(await soft(async () => ((await evCard.locator(".plan-history__list").textContent()) ?? "").includes("Записал(а)"), WAIT, "история"), "Карточка: «📜 История мероприятия» — «Записал(а)», «Изменил(а)», «Принял»");
+  const histText = (await evCard.locator(".plan-history__list").textContent().catch(() => "")) ?? "";
+  check(histText.includes("Принял") && histText.includes("Изменил(а)") && !histText.includes(`Анна ${TAG}`), "История: есть «Принял» и что меняли, имени клиента нет", `История: «${histText.slice(0, 300)}»`);
+  await shot(mp, "история-мероприятия");
+  const evNow = await apiEvent(sales.cookie, ev.id);
+  const ownerEdit = await api("POST", "/api/events", admin.cookie, { ...evNow, guests: 77 });
+  check(ownerEdit.status === 409 && ownerEdit.data?.reason === "owned", "Владелец: чужое мероприятие не меняет (409 «ведёт другой») — только «Забрать себе»", `Ответ: ${ownerEdit.status} ${JSON.stringify(ownerEdit.data)}`);
+  const dupId = `e2edup${Date.now() % 100000}`;
+  const dup = await api("POST", "/api/events", sales.cookie, { ...evNow, id: dupId, title: "Дубль, проверка менеджера", price: 19900, prepaid: true });
+  check(dup.status === 409 && dup.data?.reason === "host-busy", "Занятого ведущего не записать: то же время тому же ведущему — отказ", `Ответ: ${dup.status} ${JSON.stringify(dup.data)}`);
+
   // ================= 7. Все цвета =================
   section("7. Кружки на настоящих мероприятиях");
   const mk = async (id, s, title, extra = {}) => {
@@ -595,7 +622,8 @@ try {
   const idPast = `e2epast${Date.now() % 100000}`;
   const idOff = `e2eoff${Date.now() % 100000}`;
   await mk(idLate, slot(10 * 3_600_000, 180), "Скоро, проверка менеджера");
-  await mk(idLive, slot(-30 * 60_000, 180), "Сейчас, проверка менеджера");
+  // Занятого ведущего не записать (12 ноября 2026): «Сейчас» пересекается со «Сверх плана» — ведёт владелец.
+  await mk(idLive, slot(-30 * 60_000, 180), "Сейчас, проверка менеджера", { hostId: admin.profile?.uid });
   const pastSlot = slot(-3 * 3_600_000, 60);
   await mk(idPast, pastSlot, "Прошло, проверка менеджера");
   await mk(idOff, slot(5 * DAY_MS, 120), "Отмена, проверка менеджера");

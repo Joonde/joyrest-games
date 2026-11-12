@@ -7,6 +7,7 @@
  * Время «идёт сейчас» — по часам сервера (часы телефона могут спешить).
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { addDays, availabilityOf, DAY_MINUTES, dayIndex, dayTitle, DEFAULT_QUERY, MAX_END, rangeLabel, STATUS_ORDER, STATUS_TITLES, timeLabel, todayMoscow, type MemberStatus } from "../../core/calendar";
 import {
   bookingId,
@@ -24,6 +25,7 @@ import {
   eventsOfDay,
   eventSpan,
   eventStatus,
+  PLACE_TBD,
   fillFromRequest,
   parseLeadText,
   PERIOD_TITLES,
@@ -46,7 +48,7 @@ import { cleanPrice, dueLine, dueOnSite, PREPAY_RUB, priceFromCalc, refundOpen, 
 import { eventFillFromClient, type ClientEventFill } from "../../core/clientToEvent";
 import { draftHasContent, draftsKey, draftTitle, parseDrafts, removeDraft, upsertDraft, type EventFormDraft } from "../../core/eventDrafts";
 import { CLIENT_STATUS_TITLES, durationLabel, originStats, phoneIssueText, phoneKey, phoneLabel, responseStats, telHref } from "../../core/clients";
-import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type ClientResponse, type CalendarMember, type VenueRequestRecord } from "../../data";
+import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type EventLogLine, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type ClientResponse, type CalendarMember, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -324,6 +326,9 @@ export function Planner({
   }
 
   function cancel(event: AgencyEvent) {
+    // Что с клиентом (решение владельца 12 ноября 2026): отказался — «Отказ»; перенос — остаётся «Клиентом».
+    const fate = { lost: false };
+    const withClient = Boolean(event.clientName || event.clientPhone || event.clientContact);
     ask({
       title: `Отменить «${eventName(event)}»?`,
       text: `${dayTitle(event.day)}, ${rangeLabel(event.start, event.end)} · ведущий ${event.hostName}. Мероприятие уйдёт в «Отменённые», у ведущего время освободится. Вернуть можно там же.${
@@ -333,11 +338,42 @@ export function Planner({
             : ` Предоплата ${rub(PREPAY_RUB)} остаётся у агентства: до начала меньше ${REFUND_HOURS} часов.`
           : ""
       }`,
+      ...(withClient
+        ? {
+            text: (
+              <div className="stack stack--tight">
+                <p>
+                  {dayTitle(event.day)}, {rangeLabel(event.start, event.end)} · ведущий {event.hostName}. Мероприятие уйдёт в «Отменённые», у ведущего время освободится. Вернуть можно там же.
+                  {event.prepaidAt && !event.refundAt
+                    ? canRefund(event, now)
+                      ? ` Предоплата ${rub(PREPAY_RUB)} при этом остаётся у агентства. Клиент отказался — закройте окно и нажмите «Вернуть предоплату».`
+                      : ` Предоплата ${rub(PREPAY_RUB)} остаётся у агентства: до начала меньше ${REFUND_HOURS} часов.`
+                    : ""}
+                </p>
+                <fieldset className="plan-fate">
+                  <legend className="small">
+                    <b>Что с клиентом?</b>
+                  </legend>
+                  <label className="choice">
+                    <input type="radio" name="plan-fate" defaultChecked onChange={() => (fate.lost = false)} />
+                    <span className="choice__title">Перенос — клиент остаётся «Клиентом»</span>
+                    <span className="choice__hint">Дату ещё обсуждаете — потом запишите новое мероприятие.</span>
+                  </label>
+                  <label className="choice">
+                    <input type="radio" name="plan-fate" onChange={() => (fate.lost = true)} />
+                    <span className="choice__title">Клиент отказался — «Отказ»</span>
+                    <span className="choice__hint">В «Клиентах» он станет «Отказ», в истории — почему.</span>
+                  </label>
+                </fieldset>
+              </div>
+            ),
+          }
+        : {}),
       confirmLabel: "Отменить мероприятие",
       run: async () => {
         if (!eventsRepo) return;
-        replace(await eventsRepo.cancel(event.id));
-        onToast("Мероприятие отменено");
+        replace(await eventsRepo.cancel(event.id, fate.lost ? "lost" : undefined));
+        onToast(fate.lost ? "Мероприятие отменено, клиент — «Отказ»" : "Мероприятие отменено");
       },
     });
   }
@@ -405,6 +441,67 @@ export function Planner({
         onToast("Мероприятие удалено");
       },
     });
+  }
+
+  // «Забрать себе»: заявку вёл другой (заболел, не отвечает) — дальше её ведёте вы; ему придёт уведомление.
+  function take(event: AgencyEvent) {
+    ask({
+      title: `Забрать «${eventName(event)}» себе?`,
+      text: `Сейчас его ведёт ${event.ownerName || "другой человек"}. После этого менять, отменять и закрывать мероприятие сможете только вы, а ${event.ownerName || "он"} получит уведомление. Клиента в «Клиентах» заберите отдельно — кнопкой «Забрать себе» в его карточке.`,
+      confirmLabel: "Забрать себе",
+      run: async () => {
+        if (!eventsRepo) return;
+        replace(await eventsRepo.take(event.id));
+        onToast("Теперь это мероприятие ведёте вы");
+      },
+    });
+  }
+
+  // «Не смогу провести» — ведущий этого мероприятия: тому, кто ведёт заявку, и владельцу — срочно.
+  function decline(event: AgencyEvent) {
+    const note = { text: "" };
+    ask({
+      title: `Не сможете провести «${eventName(event)}»?`,
+      text: (
+        <div className="stack stack--tight">
+          <p>
+            {dayTitle(event.day)}, {rangeLabel(event.start, event.end)}. Менеджеру и владельцу сразу придёт сообщение — они найдут замену. Мероприятие останется у вас, пока не назначат другого ведущего.
+          </p>
+          <label className="field">
+            <span className="field__label">Почему — по желанию (видят менеджер и владелец)</span>
+            <textarea rows={2} maxLength={300} onChange={(e) => (note.text = e.target.value)} placeholder="Заболел, накладка по времени…" />
+          </label>
+        </div>
+      ),
+      confirmLabel: "Не смогу провести",
+      run: async () => {
+        if (!eventsRepo) return;
+        replace(await eventsRepo.decline(event.id, note.text));
+        onToast("Отправлено: менеджер и владелец ищут замену");
+      },
+    });
+  }
+
+  // Короткие отметки карточки (созвон, отзыв, доплата за продление): сразу на экран, ошибка — понятным текстом.
+  async function mark(run: () => Promise<AgencyEvent>, done: string) {
+    if (!eventsRepo) return;
+    try {
+      replace(await run());
+      onToast(done);
+    } catch (e) {
+      onToast(errorText(e));
+    }
+  }
+
+  // «Остаток на месте получен?» после «Проведено».
+  async function markRest(event: AgencyEvent, rest: "yes" | "no" | "part", amount: number | null) {
+    if (!eventsRepo) return;
+    try {
+      replace(await eventsRepo.rest(event.id, rest, amount));
+      onToast(rest === "yes" ? "Отмечено: остаток получен" : "Отмечено — владелец увидит");
+    } catch {
+      onToast("Не получилось отметить. Проверьте интернет.");
+    }
   }
 
   async function markHeld(event: AgencyEvent, held: boolean | null) {
@@ -485,6 +582,12 @@ export function Planner({
       onRefundDone={() => refundDone(e)}
       onRemove={() => remove(e)}
       onHeld={(held) => void markHeld(e, held)}
+      onTake={() => take(e)}
+      onDecline={() => decline(e)}
+      onRest={(rest, amount) => void markRest(e, rest, amount)}
+      onCalled={(on) => void mark(() => eventsRepo!.called(e.id, on), on ? "Отмечено: созвонились с клиентом" : "Отметка о созвоне снята")}
+      onReview={(v) => void mark(() => eventsRepo!.review(e.id, v), v === "asked" ? "Отмечено: отзыв попросили" : v === "got" ? "Отмечено: отзыв получен" : "Отметка снята")}
+      onOvertime={(amount) => void mark(() => eventsRepo!.overtime(e.id, amount), amount === null ? "Отметка снята" : amount === 0 ? "Отмечено: продления не было" : `Отмечено: доплата ${rub(amount)}`)}
     />
   );
 
@@ -1112,6 +1215,12 @@ function EventCard({
   onRefundDone,
   onRemove,
   onHeld,
+  onTake,
+  onDecline,
+  onRest,
+  onCalled,
+  onReview,
+  onOvertime,
 }: {
   event: AgencyEvent;
   now: number;
@@ -1128,8 +1237,16 @@ function EventCard({
   onRefundDone: () => void;
   onRemove: () => void;
   onHeld: (held: boolean | null) => void;
+  onTake: () => void;
+  onDecline: () => void;
+  onRest: (rest: "yes" | "no" | "part", amount: number | null) => void;
+  onCalled: (on: boolean) => void;
+  onReview: (value: "asked" | "got" | "") => void;
+  onOvertime: (amount: number | null) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  // «Кто взял — тот и ведёт» (12 ноября 2026): менять, отменять и закрывать может только тот, кто ведёт заявку.
+  const lead = owner && (!event.ownerId || event.ownerId === me);
   const status = eventStatus(event, now);
   const started = !event.cancelled && (status === "now" || status === "past");
   const detailsId = `plan-card-${event.id}`;
@@ -1160,6 +1277,21 @@ function EventCard({
         </span>
         {event.hostOff && !event.cancelled && status !== "past" && (
           <span className="plan-card__host-off">⚠ Ведущий отключён — передайте мероприятие другому («Изменить» → «Кто ведёт»)</span>
+        )}
+        {owner && event.ownerName && event.ownerId !== me && <span className="plan-card__owner">Заявку ведёт: {event.ownerName}</span>}
+        {event.declinedAt && !event.cancelled && status !== "past" && (
+          <span className="plan-card__declined">
+            {mine ? "🚨 Вы отказались — ищем замену" : `🚨 ${event.hostName || "Ведущий"} не сможет провести — нужна замена`}
+            {!mine && event.declinedReason ? ` · ${event.declinedReason}` : ""}
+          </span>
+        )}
+        {owner && ahead && accepted && !mine && <span className="plan-card__accepted">✅ Ведущий принял</span>}
+        {lead && status === "upcoming" && !event.cancelled && !event.calledAt && (eventSpan(event)?.from ?? Infinity) - now <= 3 * 86_400_000 && (
+          <span className="plan-card__refund">📞 Созвонитесь с клиентом — до начала меньше 3 дней</span>
+        )}
+        {lead && event.held === true && !event.review && <span className="plan-card__owner">⭐ Попросите отзыв</span>}
+        {owner && event.held === true && (event.restPaid === "no" || event.restPaid === "part") && (
+          <span className="plan-card__refund">💰 Остаток получен {event.restPaid === "no" ? "не был" : `частично${event.restAmount != null ? `: ${rub(event.restAmount)}` : ""}`}</span>
         )}
         {owner && event.refundAt && !event.refundDoneAt && <span className="plan-card__refund">💸 Вернуть клиенту предоплату {rub(PREPAY_RUB)}</span>}
         <span className="plan-card__more" aria-hidden="true">
@@ -1221,7 +1353,9 @@ function EventCard({
           {!event.clientName && !event.clientPhone && !event.place && event.guests === null && !event.note && isEmptyProgram(event.program) && <p className="muted small">Подробностей нет.</p>}
           <ProgramView program={event.program ?? null} />
           <MoneyView event={event} manager={owner} />
-          {ahead && mine && (
+          {ahead && mine && event.declinedAt ? (
+            <p className="small plan-warn">Вы нажали «Не смогу провести». Менеджер и владелец ищут замену — когда назначат другого ведущего, мероприятие уйдёт из вашего списка.</p>
+          ) : ahead && mine && (
             accepted ? (
               <p className="small plan-accepted">✅ Вы приняли {event.acceptedAt ? acceptedLabel(event.acceptedAt) : ""}. Поменяют программу — придёт сообщение, примите заново.</p>
             ) : (
@@ -1229,6 +1363,11 @@ function EventCard({
                 ✅ Принял, готовлюсь
               </button>
             )
+          )}
+          {ahead && mine && !event.declinedAt && (
+            <button type="button" className="btn btn--quiet btn--block" onClick={onDecline}>
+              🚨 Не смогу провести
+            </button>
           )}
           {ahead && owner && !mine && (
             <p className="muted small">{accepted ? `✅ Ведущий принял ${event.acceptedAt ? acceptedLabel(event.acceptedAt) : ""}.` : "⏳ Ведущий ещё не нажал «Принял, готовлюсь». За сутки до начала без отметки придёт напоминание."}</p>
@@ -1252,9 +1391,57 @@ function EventCard({
                 </button>
               </div>
               {event.held === true && event.guests === null && owner && <p className="muted small">Впишите точное число гостей («Изменить») — оно попадёт в итоги.</p>}
+              {event.held === true && (mine || owner) && dueOnSite(event.price, Boolean(event.prepaidAt)) !== null && <RestAsk event={event} onRest={onRest} />}
+              {event.held === true && (mine || owner) && <OvertimeAsk event={event} onOvertime={onOvertime} />}
+              {event.held === true && lead && (
+                <div className="stack stack--tight">
+                  <p className="small">
+                    <b>Отзыв клиента</b>
+                    {event.review === "asked" ? " — попросили" : event.review === "got" ? " — получен ✓" : " — ещё не просили"}
+                  </p>
+                  <div className="plan-quick" role="group" aria-label="Отзыв">
+                    <button type="button" className={event.review === "asked" ? "seg__btn is-on" : "seg__btn"} aria-pressed={event.review === "asked"} onClick={() => onReview(event.review === "asked" ? "" : "asked")}>
+                      Попросили
+                    </button>
+                    <button type="button" className={event.review === "got" ? "seg__btn is-on" : "seg__btn"} aria-pressed={event.review === "got"} onClick={() => onReview(event.review === "got" ? "" : "got")}>
+                      Получен
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          {owner && (
+          {lead && !event.cancelled && status === "upcoming" && (
+            event.calledAt ? (
+              <p className="small plan-accepted">
+                📞 Созвонились с клиентом · {event.calledBy || "—"}, {acceptedLabel(event.calledAt)}{" "}
+                <button type="button" className="btn btn--quiet" onClick={() => onCalled(false)}>
+                  снять
+                </button>
+              </p>
+            ) : (
+              <button type="button" className="btn btn--secondary btn--block" onClick={() => onCalled(true)}>
+                📞 Созвонились с клиентом — отметить
+              </button>
+            )
+          )}
+          {(owner || mine) && <EventHistory id={event.id} />}
+          {owner && (event.clientPhone || event.clientName) && (
+            <Link className="btn btn--quiet btn--block" to={`/studio/clients?q=${encodeURIComponent(event.clientPhone || event.clientName)}`}>
+              👤 Карточка клиента
+            </Link>
+          )}
+          {owner && !lead && (
+            <div className="actions">
+              <p className="muted small">
+                Заявку ведёт {event.ownerName}. Менять, отменять и закрывать мероприятие может только он(а). Заболел или не отвечает — заберите заявку себе.
+              </p>
+              <button type="button" className="btn btn--secondary btn--block" onClick={onTake}>
+                ↪️ Забрать себе
+              </button>
+            </div>
+          )}
+          {lead && (
             <div className="actions">
               {event.cancelled ? (
                 <>
@@ -1298,6 +1485,98 @@ function EventCard({
         </div>
       )}
     </article>
+  );
+}
+
+/** История мероприятия (12 ноября 2026): кто и когда записал, изменил, принял, провёл — грузится при раскрытии. */
+function EventHistory({ id }: { id: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, retry] = useLoad(() => (open && eventsRepo ? eventsRepo.log(id) : Promise.resolve([] as EventLogLine[])), [open, id]);
+  return (
+    <details className="plan-history" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="small">📜 История мероприятия</summary>
+      {open && state.status === "error" && <LoadFailedInline onRetry={retry} />}
+      {open && state.status !== "ready" && state.status !== "error" && <p className="muted small">Загружаем…</p>}
+      {open && state.status === "ready" && (
+        state.data.length === 0 ? (
+          <p className="muted small">Записей пока нет — история ведётся с 12 ноября 2026.</p>
+        ) : (
+          <ul className="plan-history__list">
+            {state.data.map((l, i) => (
+              <li key={`${l.at}-${i}`} className="small">
+                <b>{acceptedLabel(l.at)}</b> · {l.by || "платформа"} — {l.text}
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+    </details>
+  );
+}
+
+/** «Доплата за продление» после «Проведено»: не было — 0, получили — сумма. */
+function OvertimeAsk({ event, onOvertime }: { event: AgencyEvent; onOvertime: (amount: number | null) => void }) {
+  const [amount, setAmount] = useState(event.overtimePaid ? String(event.overtimePaid) : "");
+  const value = Number(amount.replace(/\D/g, ""));
+  return (
+    <div className="stack stack--tight plan-rest">
+      <p className="small">
+        <b>Продление сверх плана</b>
+        {event.overtimePaid === 0 ? " — не было" : event.overtimePaid ? ` — доплата получена: ${rub(event.overtimePaid)}` : ""}
+      </p>
+      <div className="plan-quick" role="group" aria-label="Продление">
+        <button type="button" className={event.overtimePaid === 0 ? "seg__btn is-on" : "seg__btn"} aria-pressed={event.overtimePaid === 0} onClick={() => onOvertime(event.overtimePaid === 0 ? null : 0)}>
+          Не было
+        </button>
+      </div>
+      <div className="plan-rest__part">
+        <label className="field">
+          <span className="field__label">Было продление — сколько доплатили, ₽</span>
+          <input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="3900" />
+        </label>
+        <button type="button" className="btn btn--secondary btn--block" disabled={!value} onClick={() => onOvertime(value)}>
+          Отметить доплату {value ? rub(value) : ""}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** «Остаток на месте получен?» после «Проведено» (12 ноября 2026): да / нет / частично — владелец видит, у кого долг. */
+function RestAsk({ event, onRest }: { event: AgencyEvent; onRest: (rest: "yes" | "no" | "part", amount: number | null) => void }) {
+  const due = dueOnSite(event.price, Boolean(event.prepaidAt)) ?? 0;
+  const [part, setPart] = useState(event.restPaid === "part");
+  const [amount, setAmount] = useState(event.restAmount != null ? String(event.restAmount) : "");
+  const value = Number(amount.replace(/\D/g, ""));
+  return (
+    <div className="stack stack--tight plan-rest">
+      <p className="small">
+        <b>Остаток на месте ({rub(due)}) получен?</b>
+        {event.restPaid === "yes" ? " — да, весь" : event.restPaid === "no" ? " — нет" : event.restPaid === "part" ? ` — частично${event.restAmount != null ? `: ${rub(event.restAmount)}` : ""}` : ""}
+      </p>
+      <div className="plan-quick" role="group" aria-label="Остаток получен">
+        <button type="button" className={event.restPaid === "yes" ? "seg__btn is-on" : "seg__btn"} aria-pressed={event.restPaid === "yes"} onClick={() => { setPart(false); onRest("yes", null); }}>
+          Да, весь
+        </button>
+        <button type="button" className={event.restPaid === "no" ? "seg__btn is-on" : "seg__btn"} aria-pressed={event.restPaid === "no"} onClick={() => { setPart(false); onRest("no", null); }}>
+          Нет
+        </button>
+        <button type="button" className={part || event.restPaid === "part" ? "seg__btn is-on" : "seg__btn"} aria-pressed={event.restPaid === "part"} onClick={() => setPart(true)}>
+          Частично
+        </button>
+      </div>
+      {part && (
+        <div className="plan-rest__part">
+          <label className="field">
+            <span className="field__label">Сколько получили, ₽</span>
+            <input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Например, 10000" />
+          </label>
+          <button type="button" className="btn btn--secondary btn--block" disabled={!value || value >= due} onClick={() => onRest("part", value)}>
+            Отметить: получено {value ? rub(value) : "…"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1506,7 +1785,7 @@ export interface EventDraft {
 }
 
 /** «Где» ещё не известно — галочка «Место пока уточняется» (поле обязательное, ведущий видит эту строку). */
-export const PLACE_TBD = "Место уточняется";
+export { PLACE_TBD };
 
 /** Обязательные поля формы — в порядке на экране (для «Заполнено N из 8 · осталось …»). */
 type Need = "name" | "phone" | "contact" | "when" | "title" | "program" | "place" | "host" | "price" | "prepay";
@@ -1547,6 +1826,8 @@ function quickDays(today: string): Array<{ day: string; label: string }> {
 function errorText(e: unknown): string {
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
   const reason = typeof e === "object" && e !== null && "reason" in e ? String((e as { reason: unknown }).reason) : "";
+  if (reason === "owned") return "Это мероприятие ведёт другой человек — менять его может только он. Нажмите «Отмена» и, если нужно, «Забрать себе» в карточке.";
+  if (reason === "host-busy") return "Ведущий в это время уже занят (другое мероприятие или отметил «занят»). Выберите другого ведущего.";
   if (reason === "prepay") return "Записать мероприятие можно только с галочкой «Предоплата внесена».";
   if (reason === "price") return "Впишите стоимость по расчёту — без неё не посчитать, сколько клиент платит на месте.";
   if (code === "invalid-argument") return "Проверьте дату и время: записать можно не раньше чем за месяц назад и не дальше двух лет вперёд.";
@@ -1809,6 +2090,10 @@ export function EventForm({
           : fullPhone
             ? ""
             : `${CONTACT_TITLES[contactKind]} — по номеру: впишите полный телефон.`;
+  // Занятого ведущего не записать (решение владельца 12 ноября 2026): уже записан, закреплён или сам отметил «занят».
+  // Старую двойную запись, которую не трогают (тот же ведущий, день и время), правка не ломает — так же проверяет сервер.
+  const sameSlot = Boolean(initial) && initial?.hostId === hostId && initial?.day === day && initial?.start === start && initial?.end === end;
+  const busyBlock = whenSet && chosen?.status === "busy" && !sameSlot;
   const done: Record<Need, boolean> = {
     name: clientName.trim() !== "",
     phone: fullPhone || nick !== "",
@@ -1817,7 +2102,7 @@ export function EventForm({
     title: title.trim() !== "",
     program: (program?.formats.length ?? 0) > 0,
     place: place.trim() !== "",
-    host: Boolean(hostId) && !hostGone,
+    host: Boolean(hostId) && !hostGone && !busyBlock,
     price: priceOk,
     prepay: prepaid,
   };
@@ -2264,7 +2549,13 @@ export function EventForm({
         <div className="plan-hosts" role="radiogroup" aria-label="Ведущий">
           {members.map(({ member, info }) => (
             <label key={member.uid} className="choice plan-host">
-              <input type="radio" name={`host-${id}`} checked={hostId === member.uid} onChange={() => setHostId(member.uid)} />
+              <input
+                type="radio"
+                name={`host-${id}`}
+                checked={hostId === member.uid}
+                disabled={whenSet && info.status === "busy" && hostId !== member.uid && !(initial?.hostId === member.uid && initial?.day === day && initial?.start === start && initial?.end === end)}
+                onChange={() => setHostId(member.uid)}
+              />
               <span className="choice__text">
                 <span className="choice__title">{member.name}</span>
                 {whenSet && (
@@ -2285,7 +2576,8 @@ export function EventForm({
             <span className="choice__hint">Не только ведущие: диджеи, музыканты, фокусники и другие.</span>
           </span>
         </label>
-        {whenSet && chosen?.status === "busy" && <p className="small plan-warn">У выбранного ведущего это время занято. Записать всё равно можно.</p>}
+        {busyBlock && <p className="small plan-warn">У выбранного ведущего это время занято — записать его нельзя. Выберите свободного или того, кто не отметил.</p>}
+        {whenSet && chosen?.status === "busy" && !busyBlock && <p className="small muted">У ведущего на это время есть другая запись — правку без смены времени и ведущего записать можно.</p>}
       </fieldset>
 
       <p className="plan-group">Оплата</p>

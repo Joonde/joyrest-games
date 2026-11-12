@@ -174,6 +174,9 @@ export function parseEventInput(body: unknown, now = Date.now()): EventInput | n
   return input;
 }
 
+/** «Место пока уточняется» — адрес ещё не известен (за 3 дня менеджеру напоминание «Нет адреса»). */
+export const PLACE_TBD = "Место уточняется";
+
 /** Заметка в календаре ведущего: что за мероприятие (без имени и телефона клиента). */
 export function bookingNote(e: Pick<EventInput, "title" | "guests">): string {
   const guests = e.guests ? `, ${e.guests} гостей` : "";

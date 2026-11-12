@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { dayTitle, rangeLabel } from "../../core/calendar";
 import { eventStatus } from "../../core/events";
+import { dueOnSite, rub } from "../../core/prepay";
 import { eventsRepo, useLoad, type AgencyEvent } from "../../data";
 
 /** Сколько дней назад ещё спрашиваем (дальше — только в «Итогах» планировщика). */
@@ -31,7 +32,28 @@ export function HeldPrompt({ owner, onToast, hostId }: { owner: boolean; onToast
   const open = state.data
     .filter((e) => !e.cancelled && e.held === null && e.day >= since && (onPult ? e.hostId === hostId && eventStatus(e, now) !== "upcoming" : eventStatus(e, now) === "past"))
     .sort((a, b) => b.day.localeCompare(a.day) || b.start - a.start);
-  if (open.length === 0) return null;
+  // «Остаток на месте получен?» (решение владельца 12 ноября 2026): после «Проведено» — да / нет; частично — в карточке.
+  const restOpen = onPult
+    ? []
+    : state.data
+        .filter((e) => !e.cancelled && e.held === true && !e.restPaid && e.day >= since && dueOnSite(e.price, Boolean(e.prepaidAt)) !== null)
+        .sort((a, b) => b.day.localeCompare(a.day) || b.start - a.start);
+  if (open.length === 0 && restOpen.length === 0) return null;
+
+  async function rest(e: AgencyEvent, value: "yes" | "no") {
+    if (!eventsRepo || busy) return;
+    setBusy(e.id);
+    setError(null);
+    try {
+      const saved = await eventsRepo.rest(e.id, value, null);
+      update((list) => list.map((x) => (x.id === saved.id ? saved : x)));
+      onToast(value === "yes" ? "Отмечено: остаток получен" : "Отмечено: остаток не получен — владелец увидит");
+    } catch {
+      setError("Не получилось отметить. Проверьте интернет и нажмите ещё раз.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function mark(e: AgencyEvent, held: boolean) {
     if (!eventsRepo || busy) return;
@@ -49,6 +71,38 @@ export function HeldPrompt({ owner, onToast, hostId }: { owner: boolean; onToast
   }
 
   return (
+    <>
+    {restOpen.length > 0 && (
+      <section className="card stack held-prompt" aria-labelledby="rest-prompt">
+        <p className="eyebrow">Оплата на месте</p>
+        <h2 id="rest-prompt">Остаток на месте получен?</h2>
+        <ul className="held-prompt__list">
+          {restOpen.slice(0, 5).map((e) => (
+            <li key={e.id} className="held-prompt__item">
+              <div>
+                <b>{e.title || "Мероприятие"}</b> · {rub(dueOnSite(e.price, Boolean(e.prepaidAt)) ?? 0)}
+                <div className="small muted">
+                  {dayTitle(e.day)}, {rangeLabel(e.start, e.end)}
+                  {owner && e.hostName ? ` · ведёт ${e.hostName}` : ""}
+                </div>
+              </div>
+              <div className="actions" role="group" aria-label="Остаток получен">
+                <button type="button" className="btn btn--block" disabled={busy !== null} onClick={() => void rest(e, "yes")}>
+                  {busy === e.id ? "Отмечаем…" : "✓ Да, весь"}
+                </button>
+                <button type="button" className="btn btn--quiet btn--block" disabled={busy !== null} onClick={() => void rest(e, "no")}>
+                  Нет
+                </button>
+                <Link className="btn btn--quiet btn--block" to={`/studio/calendar?tab=events&event=${encodeURIComponent(e.id)}`}>
+                  Частично — в карточке →
+                </Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+    {open.length > 0 && (
     <section className="card stack held-prompt" aria-labelledby="held-prompt">
       <p className="eyebrow">{onPult ? "Мероприятие из календаря" : "Мероприятия"}</p>
       <h2 id="held-prompt">{onPult ? "Вечер закончился? Отметьте, как прошло" : open.length === 1 ? "Как прошло мероприятие?" : `Отметьте прошедшие мероприятия: ${open.length}`}</h2>
@@ -88,5 +142,12 @@ export function HeldPrompt({ owner, onToast, hostId }: { owner: boolean; onToast
         </p>
       )}
     </section>
+    )}
+    {open.length === 0 && error && (
+      <p className="error" role="alert">
+        {error}
+      </p>
+    )}
+    </>
   );
 }

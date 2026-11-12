@@ -37,6 +37,7 @@ import { contactLinks, parseContact } from "../../src/core/events";
 import * as permissions from "../../src/data/permissions";
 import type { ClientContact, ClientDetails, ClientRecord } from "../../src/data/types";
 import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
+import { recordStaffNotice } from "./notices";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const newId = (prefix: string) => `${prefix}${randomBytes(12).toString("base64url")}`;
@@ -148,6 +149,10 @@ interface Row {
   contact: string | null;
   outreach_at: Date | null;
   outreach_fail: string | null;
+  owner_id?: string | null;
+  owner_name?: string | null;
+  next_step?: string | null;
+  next_at?: string | null;
 }
 
 /** Куда не дошло сообщение прежнему клиенту: только известные способы, без повторов. */
@@ -185,6 +190,9 @@ function recordOf(row: Row): ClientRecord {
     contact: isClientContact(row.contact) ? row.contact : "",
     outreachAt: row.outreach_at ? row.outreach_at.getTime() : null,
     outreachFail: outreachFails(row.outreach_fail),
+    // Кто ведёт клиента (12 ноября 2026) — только действующий человек: отключённый никого не держит.
+    ...(row.owner_id && row.owner_name ? { ownerId: row.owner_id, ownerName: row.owner_name } : {}),
+    ...(row.next_at ? { nextStep: row.next_step ?? "", nextAt: row.next_at } : row.next_step ? { nextStep: row.next_step } : {}),
   };
 }
 
@@ -289,6 +297,7 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     if (created) return id;
     const [now] = await t<{ status: string }[]>`select status from clients where id = ${id}`;
     const current: ClientStatus = now && isClientStatus(now.status) ? now.status : "new";
+    if (input.promote && by.id) await claimClient(t, id, by.id);
     if (input.promote) {
       // Мероприятие записано — «Клиент». Новое мероприятие — и из «Провели» (снова праздник); правка уже учтённого —
       // статус, который поставили люди («Провели», «Отказ»), не трогаем.
@@ -306,6 +315,22 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     }
     return id;
   });
+}
+
+/**
+ * «Кто взял — тот и ведёт» (решение владельца 12 ноября 2026): клиента, которого никто не ведёт (или ведёт отключённый),
+ * берёт тот, кто первым с ним что-то сделал — сменил статус, заметку, карточку или записал мероприятие.
+ */
+export async function claimClient(t: Sql, id: string, userId: string): Promise<void> {
+  await t`update clients set owner_id = ${userId}
+    where id = ${id} and (owner_id is null or not exists (select 1 from users u where u.id = clients.owner_id and u.active))`;
+}
+
+/** Клиента ведёт другой (действующий) человек — его имя, иначе null. */
+async function ownerElse(t: Sql, id: string, userId: string): Promise<string | null> {
+  const [row] = await t<{ name: string | null }[]>`
+    select u.name from clients c join users u on u.id = c.owner_id and u.active where c.id = ${id} and c.owner_id <> ${userId}`;
+  return row ? (row.name ?? "") : null;
 }
 
 export interface ClientsOptions {
@@ -353,7 +378,9 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         coalesce((select h.source from client_contacts h where h.client_id = c.id and h.source <> 'status' order by h.created_at desc limit 1), 'status') as last_source,
         -- С какого времени клиент ждёт ответа в Telegram (бот в Telegram для бизнеса).
         (select min(t.waiting_since) from tg_chats t where t.client_id = c.id) as tg_waiting,
-        c.new_since, c.taken_at, c.taken_ms, c.taken_by, c.contact, c.outreach_at, c.outreach_fail
+        c.new_since, c.taken_at, c.taken_ms, c.taken_by, c.contact, c.outreach_at, c.outreach_fail,
+        c.owner_id, (select u.name from users u where u.id = c.owner_id and u.active) as owner_name,
+        c.next_step, to_char(c.next_at, 'YYYY-MM-DD') as next_at
       from clients c`;
 
     async function details(id: string): Promise<ClientDetails | null> {
@@ -361,8 +388,28 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       if (!row) return null;
       const history = await sql<{ id: string; source: string; summary: string; created_at: Date; ref: string | null }[]>`
         select id, source, summary, created_at, ref from client_contacts where client_id = ${id} order by created_at desc limit 100`;
+      // Мероприятия клиента — по записям истории (source = event), новые сверху.
+      const events = await sql<{ id: string; title: string; day: string; start_min: number; end_min: number; host_name: string | null; cancelled: boolean; held: boolean | null; accepted_at: Date | null; accept_rev: number; declined_at: Date | null }[]>`
+        select e.id, e.title, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, u.name as host_name, (e.cancelled_at is not null) as cancelled,
+          e.held, e.accepted_at, e.accept_rev, e.declined_at
+        from events e left join users u on u.id = e.host_id
+        where e.id in (select h.ref from client_contacts h where h.client_id = ${id} and h.source = 'event' and h.ref is not null)
+        order by e.starts_at desc limit 20`;
       return {
         ...recordOf(row),
+        events: events.map((e) => ({
+          id: e.id,
+          title: e.title,
+          day: e.day,
+          start: e.start_min,
+          end: e.end_min,
+          hostName: e.host_name ?? "",
+          cancelled: e.cancelled,
+          held: e.held,
+          acceptedAt: e.accepted_at ? e.accepted_at.getTime() : null,
+          acceptRev: e.accept_rev,
+          ...(e.declined_at ? { declinedAt: e.declined_at.getTime() } : {}),
+        })),
         history: history.map((h): ClientContact => ({ id: h.id, source: h.source, summary: h.summary, at: h.created_at.getTime(), ref: h.source === "venue" || h.source === "event" ? h.ref : null })),
       };
     }
@@ -454,11 +501,16 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       // Что хочет клиент («Свадьба, 12 июня, 60 гостей») — первая запись истории нового клиента.
       const request0 = cleanSummary(b.request);
       type Existing = { marketing: string; status: string; updated_at: Date };
-      let outcome: { kind: "ok"; existed: boolean } | { kind: "changed" };
+      let outcome: { kind: "ok"; existed: boolean } | { kind: "changed" } | { kind: "owned"; by: string };
       try {
         outcome = await sql.begin(async (tx) => {
           const t = tx as unknown as Sql;
           const [existing] = await t<Existing[]>`select marketing, status, updated_at from clients where id = ${id} for update`;
+          // Клиента ведёт другой — менять его карточку нельзя (только «Забрать себе»).
+          if (existing) {
+            const by = await ownerElse(t, id, user.id);
+            if (by !== null) return { kind: "owned" as const, by };
+          }
           // Владелец и менеджер работают одновременно: форма шлёт `expect` — версию, с которой её открыли.
           // Карточку за это время изменили — 409, ничего не затираем (браузер покажет свежую версию).
           if (existing && expect !== null && Math.floor(existing.updated_at.getTime()) !== expect) return { kind: "changed" as const };
@@ -492,6 +544,9 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
             // Кто и когда сменил статус — в историю клиента: владелец видит, как идёт работа с заявкой.
             await changeStatus(t, id, existing.status, status, { id: user.id, name: user.name });
           }
+          // Новый клиент — за тем, кто его завёл (кроме прежних клиентов из контактов и таблиц: «Провели» и «Отказ» никто
+          // не ведёт); правка существующего, которого никто не вёл, — тоже.
+          if (existing || (status !== "held" && status !== "lost")) await claimClient(t, id, user.id);
           return { kind: "ok" as const, existed: Boolean(existing) };
         });
       } catch (error) {
@@ -502,6 +557,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         return reply.code(409).send({ error: "already-exists", ...(other ? { id: other.id } : {}) });
       }
       if (outcome.kind === "changed") return fail(reply, 409, "failed-precondition");
+      if (outcome.kind === "owned") return reply.code(409).send({ error: "failed-precondition", reason: "owned", by: outcome.by });
       request.log.info({ clients: outcome.existed ? "edit" : "create" }, "clients");
       return (await details(id)) ?? fail(reply, 500, "internal");
     });
@@ -519,10 +575,14 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         const [row] = await t<{ status: string; archived_at: Date | null }[]>`select status, archived_at from clients where id = ${id} for update`;
         if (!row) return "not-found" as const;
         if (row.archived_at) return "archived" as const;
+        const by = await ownerElse(t, id, user.id);
+        if (by !== null) return { owned: by };
         if (row.status === status) return "same" as const;
         await changeStatus(t, id, row.status, status, { id: user.id, name: user.name });
+        await claimClient(t, id, user.id);
         return "ok" as const;
       });
+      if (typeof result === "object") return reply.code(409).send({ error: "failed-precondition", reason: "owned", by: result.owned });
       if (result === "not-found") return fail(reply, 404, "not-found");
       // Архивного клиента статусом не поменять: браузер по `reason` говорит «верните из архива», а не «изменил другой».
       if (result === "archived") return reply.code(409).send({ error: "failed-precondition", reason: "archived" });
@@ -545,11 +605,15 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         const [row] = await t<{ notes: string; archived_at: Date | null }[]>`select notes, archived_at from clients where id = ${id} for update`;
         if (!row) return "not-found" as const;
         if (row.archived_at) return "archived" as const;
+        const by = await ownerElse(t, id, user.id);
+        if (by !== null) return { owned: by };
         if (row.notes === notes) return "ok" as const;
         if (row.notes !== base) return "conflict" as const;
         await t`update clients set notes = ${notes}, updated_at = now() where id = ${id}`;
+        await claimClient(t, id, user.id);
         return "ok" as const;
       });
+      if (typeof result === "object") return reply.code(409).send({ error: "failed-precondition", reason: "owned", by: result.owned });
       if (result === "not-found") return fail(reply, 404, "not-found");
       if (result === "archived") return reply.code(409).send({ error: "failed-precondition", reason: "archived" });
       if (result !== "ok") return fail(reply, 409, "failed-precondition");
@@ -592,10 +656,79 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       return (await details(id)) ?? fail(reply, 404, "not-found");
     });
 
+    // «Следующий шаг» с датой (решение владельца 12 ноября 2026): в этот день — напоминание в колокольчик тому, кто
+    // ведёт клиента. Пустой текст и без даты — снять. Клиента ведёт другой — 409 owned.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/clients/:id/next", { bodyLimit: 2048 }, async (request, reply) => {
+      const user = await allowed(request, reply);
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      const text = cleanLine(b.text, 200);
+      const day = typeof b.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.day) && !Number.isNaN(Date.parse(`${b.day}T00:00:00Z`)) ? b.day : null;
+      if (b.day !== null && b.day !== undefined && b.day !== "" && day === null) return fail(reply, 400, "invalid-argument");
+      const result = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ archived_at: Date | null }[]>`select archived_at from clients where id = ${id} for update`;
+        if (!row) return "not-found" as const;
+        if (row.archived_at) return "archived" as const;
+        const by = await ownerElse(t, id, user.id);
+        if (by !== null) return { owned: by };
+        await t`update clients set next_step = ${text}, next_at = ${day}, next_noticed = null, updated_at = now() where id = ${id}`;
+        await claimClient(t, id, user.id);
+        return "ok" as const;
+      });
+      if (typeof result === "object") return reply.code(409).send({ error: "failed-precondition", reason: "owned", by: result.owned });
+      if (result === "not-found") return fail(reply, 404, "not-found");
+      if (result === "archived") return reply.code(409).send({ error: "failed-precondition", reason: "archived" });
+      return (await details(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // «Забрать себе» (решение владельца 12 ноября 2026): владелец или менеджер берёт клиента (прежний заболел, не
+    // отвечает) — вместе с его будущими мероприятиями. Прежнему — в колокольчик. Повтор — успех.
+    api.post<{ Params: { id: string } }>("/api/clients/:id/take", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await allowed(request, reply);
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const result = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ owner_id: string | null }[]>`select owner_id from clients where id = ${id} for update`;
+        if (!row) return null;
+        if (row.owner_id === user.id) return { prev: null, events: 0 };
+        await t`update clients set owner_id = ${user.id}, updated_at = now() where id = ${id}`;
+        const moved = await t`update events set created_by = ${user.id}, updated_at = now()
+          where id in (select h.ref from client_contacts h where h.client_id = ${id} and h.source = 'event' and h.ref is not null)
+            and cancelled_at is null and ends_at > now() and created_by is distinct from ${user.id} returning id`;
+        // В историю каждого перешедшего мероприятия — кто забрал (без данных клиента).
+        for (const m of moved as unknown as Array<{ id: string }>) {
+          await t`insert into event_log (id, event_id, by_name, text) values (${newId("l")}, ${m.id}, ${user.name.slice(0, 80)}, ${"Забрал(а) себе вместе с клиентом"})`;
+        }
+        await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'status', ${`Забрал(а) себе · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
+        return { prev: row.owner_id, events: moved.length };
+      });
+      if (!result) return fail(reply, 404, "not-found");
+      if (result.prev) {
+        await recordStaffNotice(sql, {
+          userId: result.prev,
+          clientId: id,
+          kind: "taken",
+          title: "↪️ Клиента забрали себе",
+          line: `Ведёт теперь: ${user.name}${result.events ? ` · и мероприятия (${result.events})` : ""}`,
+          by: { id: user.id },
+        }).catch(() => request.log.warn({ clients: "take-notice" }, "clients: уведомление не записалось"));
+      }
+      request.log.info({ clients: "take" }, "clients");
+      return (await details(id)) ?? fail(reply, 404, "not-found");
+    });
+
     for (const action of ["archive", "restore"] as const) {
       api.post<{ Params: { id: string } }>(`/api/clients/:id/${action}`, { bodyLimit: 1024 }, async (request, reply) => {
-        if (!(await allowed(request, reply))) return reply;
+        const user = await allowed(request, reply);
+        if (!user) return reply;
         if (!ID.test(request.params.id)) return fail(reply, 404, "not-found");
+        const by = await ownerElse(sql, request.params.id, user.id);
+        if (by !== null) return reply.code(409).send({ error: "failed-precondition", reason: "owned", by });
         const done = await sql`update clients set archived_at = ${action === "archive" ? sql`coalesce(archived_at, now())` : null}, updated_at = now()
           where id = ${request.params.id} returning id`;
         if (done.length === 0) return fail(reply, 404, "not-found");

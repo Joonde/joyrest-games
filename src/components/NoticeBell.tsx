@@ -122,6 +122,7 @@ export function NoticeBell({ clients = false }: { clients?: boolean }) {
     setOpen(false);
     // Своё мероприятие — сразу его карточка с «✅ Принял, готовлюсь» (а не просто календарь).
     if (n.kind === "event") navigate(`/studio/calendar?tab=events${n.eventId ? `&event=${encodeURIComponent(n.eventId)}` : ""}`);
+    else if (n.kind === "client" && !n.clientId) navigate("/studio/clients");
     else navigate(`/studio/clients?id=${encodeURIComponent(n.clientId)}`);
   }
 

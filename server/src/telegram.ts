@@ -23,7 +23,7 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { ORIGIN_TITLES, originOf, parseLinks } from "../../src/core/clients";
-import { AFTER_EVENT_DAYS, AFTER_EVENT_MS, noticeText, overtimeNoticeText, parseLeadText, reminderDue, unacceptedText, type NoticeKind } from "../../src/core/events";
+import { AFTER_EVENT_DAYS, AFTER_EVENT_MS, noticeText, overtimeNoticeText, parseLeadText, PLACE_TBD, reminderDue, unacceptedText, type NoticeKind } from "../../src/core/events";
 import { OVERTIME_FREE_MIN, overtimeOf } from "../../src/core/overtime";
 import { cleanProgram } from "../../src/core/eventProgram";
 import { acceptEvent } from "./events";
@@ -32,6 +32,7 @@ import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent, TelegramStatus } from "../../src/data/types";
 import { actorOf, apiGuard, sessionUser } from "./auth";
 import { upsertClient } from "./clients";
+import { recordHostNotice, recordStaffNotice } from "./notices";
 import { dropBusinessOf } from "./telegramAccess";
 import { telegramBotUrl } from "./telegramApi";
 
@@ -84,6 +85,8 @@ export interface Bot {
   eventNotice(kind: NoticeKind, userId: string, event: NoticeEvent, startsAt: Date): Promise<void>;
   /** Ведущий принял в студии: кнопка последнего сообщения о мероприятии становится «✅ Принято». */
   acceptMarked(eventId: string): Promise<void>;
+  /** Ведущий нажал «Не смогу провести»: кнопка «Принял» под прошлым сообщением убирается. */
+  declineMarked?(eventId: string): Promise<void>;
   /** Менеджерам по продажам с подключённым Telegram — о новой заявке (без данных клиента). Ответ — скольким ушло. */
   salesNotice(kind: SalesLeadKind): Promise<number>;
   /** Напомнить о клиентах, которые ждут ответа в Telegram (раз в минуту — само; для проверок). */
@@ -312,11 +315,29 @@ export function startBot(options: BotOptions): Bot {
 
   async function salesNotice(kind: SalesLeadKind): Promise<number> {
     const rows = await sql<{ user_id: string }[]>`
-      select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and u.access_role = 'sales'`;
+      select l.user_id from tg_links l join users u on u.id = l.user_id
+      where u.active and (u.access_role = 'sales' or (${kind === "telegram"} and u.role = 'admin'))`;
+    // Клиент из Telegram менеджера — и владельцу (решение владельца 12 ноября 2026); заявки сайта владельцу и так
+    // приходят в чат заявок — их не дублируем.
     let sent = 0;
     for (const r of rows) if (await sendTo(r.user_id, salesNoticeText(kind, platformUrl))) sent += 1;
     log.info({ telegram: "sales-notice", kind, sent }, "telegram");
     return sent;
+  }
+
+  const activeAdmins = async () => (await sql<{ id: string }[]>`select id from users where role = 'admin' and active`).map((r) => r.id);
+  /** Колокольчик нескольким людям о мероприятии (без клиента), без повторов; ведущему этого мероприятия — не надо. */
+  async function bellAll(
+    userIds: Array<string | null>,
+    kind: "unaccepted",
+    r: { id: string; title: string; day: string; start_min: number; end_min: number },
+    hostId: string,
+    hostName: string | null,
+  ): Promise<void> {
+    for (const uid of new Set(userIds.filter((u): u is string => Boolean(u)))) {
+      if (uid === hostId) continue;
+      await recordHostNotice(sql, { kind, userId: uid, event: { id: r.id, title: r.title, day: r.day, start: r.start_min, end: r.end_min }, by: { id: hostId, name: hostName ?? "" } }).catch(() => undefined);
+    }
   }
 
   // ───── напоминания ─────
@@ -364,10 +385,11 @@ export function startBot(options: BotOptions): Bot {
     // ждём только 10 минут (диагностика 12 ноября 2026: запись меньше чем за час до начала не давала сообщения никогда —
     // час ожидания кончался уже после начала).
     if (answerHoursOpen(now())) {
-      const silent = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null }[]>`
-        select e.id, e.accept_rev, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name
+      const silent = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null; host_id: string; created_by: string | null }[]>`
+        select e.id, e.accept_rev, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name,
+          e.host_id, e.created_by
         from events e left join users u on u.id = e.host_id
-        where e.cancelled_at is null and e.accepted_at is null and e.accept_rev > 0 and e.starts_at > now()
+        where e.cancelled_at is null and e.accepted_at is null and e.declined_at is null and e.accept_rev > 0 and e.starts_at > now()
           and e.starts_at <= now() + interval '24 hours'
           and e.updated_at < now() - (case when e.starts_at <= now() + interval '3 hours' then interval '10 minutes' else interval '1 hour' end)`;
       if (silent.length > 0) {
@@ -379,11 +401,57 @@ export function startBot(options: BotOptions): Bot {
           if (fresh.length === 0) continue;
           const text = unacceptedText({ title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, r.host_name ?? "", platformUrl);
           for (const s of staff) await sendTo(s.user_id, text);
+          // И в колокольчик тому, кто ведёт заявку, и владельцу (12 ноября 2026): Telegram мог не дойти.
+          await bellAll([r.created_by, ...(await activeAdmins())], "unaccepted", r, r.host_id, r.host_name);
+        }
+      }
+      // Ведущий не принял за сутки после записи, а до начала ещё больше суток (12 ноября 2026): тому, кто ведёт заявку,
+      // — колокольчик, ведущему — повтор в Telegram с кнопкой. Один раз на версию программы.
+      const quiet = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null; host_id: string; created_by: string | null; program: unknown }[]>`
+        select e.id, e.accept_rev, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name,
+          e.host_id, e.created_by, e.program
+        from events e left join users u on u.id = e.host_id
+        where e.cancelled_at is null and e.accepted_at is null and e.declined_at is null and e.accept_rev > 0
+          and e.starts_at > now() + interval '24 hours' and e.updated_at < now() - interval '24 hours'`;
+      for (const r of quiet) {
+        const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, ${`nudge${r.accept_rev}`}, ${r.starts_at})
+          on conflict do nothing returning 1`;
+        if (fresh.length === 0) continue;
+        await bellAll([r.created_by], "unaccepted", r, r.host_id, r.host_name);
+        const e: NoticeEvent = { id: r.id, title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min, program: cleanProgram(r.program), acceptRev: r.accept_rev };
+        const text = `⏳ Вы ещё не подтвердили мероприятие\n\n${noticeText("changed", e, platformUrl, now(), r.starts_at.getTime()).split("\n\n").slice(1).join("\n\n")}`;
+        await sendAsk(r.host_id, text, e);
+      }
+      // За 3 дня до начала (12 ноября 2026) — тому, кто ведёт заявку: созвониться с клиентом; нет адреса — уточнить.
+      const soon = await sql<{ id: string; title: string; day: string; start_min: number; end_min: number; starts_at: Date; created_by: string | null; place: string; called: boolean }[]>`
+        select e.id, e.title, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, e.created_by, e.place, (e.called_at is not null) as called
+        from events e join users o on o.id = e.created_by and o.active
+        where e.cancelled_at is null and e.starts_at > now() and e.starts_at <= now() + interval '72 hours'`;
+      for (const r of soon) {
+        // Уже созвонились («Созвонились с клиентом») — напоминать о созвоне не нужно.
+        const kinds: Array<"call" | "noplace"> = [...(r.called ? [] : (["call"] as const)), ...(r.place.trim() === "" || r.place === PLACE_TBD ? (["noplace"] as const) : [])];
+        for (const kind of kinds) {
+          const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, ${`${kind}3`}, ${r.starts_at})
+            on conflict do nothing returning 1`;
+          if (fresh.length === 0) continue;
+          await recordHostNotice(sql, { kind, userId: r.created_by ?? "", event: { id: r.id, title: r.title, day: r.day, start: r.start_min, end: r.end_min }, by: { id: "", name: "" } }).catch(() => undefined);
         }
       }
     }
     // Мероприятие прошло, а «Проведено» не отмечено — ведущему один раз (днём): отметка сама ставит клиенту «Провели».
     if (!answerHoursOpen(now())) return;
+    // «Следующий шаг» клиента (12 ноября 2026): в его день — тому, кто ведёт клиента (никто не ведёт — владельцу), в колокольчик.
+    const today = new Date(now() + 3 * 3_600_000).toISOString().slice(0, 10);
+    const due = await sql<{ id: string; owner: string | null; next_step: string; next_at: string }[]>`
+      update clients c set next_noticed = c.next_at
+      where c.next_at is not null and c.next_at <= ${today} and (c.next_noticed is null or c.next_noticed < c.next_at) and c.archived_at is null
+      returning c.id, (select u.id from users u where u.id = c.owner_id and u.active) as owner, c.next_step, to_char(c.next_at, 'YYYY-MM-DD') as next_at`;
+    for (const r of due) {
+      const to = r.owner ? [r.owner] : await activeAdmins();
+      for (const userId of to) {
+        await recordStaffNotice(sql, { userId, clientId: r.id, kind: "next", title: "📌 Сегодня — следующий шаг с клиентом", line: r.next_step.slice(0, 120), by: { id: "" } }).catch(() => undefined);
+      }
+    }
     const past = await sql<{ id: string; host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date }[]>`
       select e.id, e.host_id, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at
       from events e join tg_links l on l.user_id = e.host_id
@@ -406,8 +474,9 @@ export function startBot(options: BotOptions): Bot {
         and t.waiting_since < now() - make_interval(mins => ${ANSWER_WAIT_MIN})
       returning s.value`;
     if (rows.length === 0) return 0;
+    // Менеджерам и владельцу (решение владельца 12 ноября 2026: владелец тоже видит, что клиент ждёт ответа).
     const sales = await sql<{ user_id: string }[]>`
-      select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and u.access_role = 'sales'`;
+      select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and (u.access_role = 'sales' or u.role = 'admin')`;
     let sent = 0;
     for (const r of rows) {
       let owner = "";
@@ -740,6 +809,9 @@ export function startBot(options: BotOptions): Bot {
     async acceptMarked(eventId: string) {
       const [row] = await sql<{ accepted_at: Date | null }[]>`select accepted_at from events where id = ${eventId}`;
       await settleAsk(eventId, `✅ Принято ${moscowClock((row?.accepted_at ?? new Date(now())).getTime())}`);
+    },
+    async declineMarked(eventId: string) {
+      await settleAsk(eventId, "🚨 Вы отказались — ищем замену");
     },
     salesNotice,
     waitingNow: waiting,

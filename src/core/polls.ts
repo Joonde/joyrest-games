@@ -95,7 +95,8 @@ export function parsePollAnswers(value: unknown, questions: PollQuestion[]): Rec
   const out: Record<string, string> = {};
   for (const q of questions) {
     const text = cleanPollText(d[q.id], POLL_LIMITS.answer);
-    if (text && pollKey(text)) out[q.id] = text;
+    // Ответ из одних знаков или смайликов в опросе не нужен (в табло его не взять).
+    if (text && /[\p{L}\p{N}]/u.test(text) && pollKey(text)) out[q.id] = text;
   }
   return out;
 }

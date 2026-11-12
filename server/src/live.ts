@@ -1048,9 +1048,9 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         staleOnly: hosted.staleOnly && !evening,
         after: async (tx, row, at) => {
           // Никто не играл (таблица пуста — в лобби или «Начать игру» без гостей) — в «Историю игр» пустую строку не
-          // пишем; пульт так и говорит: «в историю не попала» (Н-14).
-          if (!hasResultBoard(row)) return;
-          await saveResult(tx, row, participantsCount, true, at);
+          // пишем; пульт так и говорит: «в историю не попала» (Н-14). Баллы ведущему считаются по телефонам и ответам на
+          // сервере, а не по таблице (пульт мог не успеть внести гостей), — как раньше.
+          if (hasResultBoard(row)) await saveResult(tx, row, participantsCount, true, at);
           const end = Math.min(at, (last?.updated_at.getTime() ?? at) + 15 * 60_000);
           await awardGamePoints(tx as unknown as Sql, row.id, end);
         },

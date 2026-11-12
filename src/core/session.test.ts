@@ -130,6 +130,9 @@ describe("+10 секунд", () => {
     // Открыли заново после потолка, таймер идёт — ещё 10 секунд прибавляются (раньше кнопка гасла до конца отсчёта).
     expect(addTimeChange({ ...open, timeLimit: 915 }, 100_000 + 906_000)?.state?.timeLimit).toBe(925);
     expect(addTimeChange({ ...open, timeLimit: 3610 }, 100_000 + 3_601_000)?.state?.timeLimit).toBe(3620);
+    // Открыли заново у самого потолка (на 889-й секунде, лимит стал 899) — следующее «+10» не упирается в 900.
+    expect(addTimeChange(open, 100_000 + 889_000)?.state?.timeLimit).toBe(899);
+    expect(addTimeChange({ ...open, timeLimit: 899 }, 100_000 + 890_000)?.state?.timeLimit).toBe(909);
     // Разумный предел — 12 часов: дальше продлевать нечего.
     expect(addTimeChange(open, 100_000 + 13 * 3_600_000)).toBeNull();
   });

@@ -94,7 +94,9 @@ export function addTimeChange(state: SessionState, serverNow: number, seconds = 
   const elapsed = Math.max(0, Math.ceil((serverNow - state.startedAt) / 1000));
   const expired = state.startedAt + state.timeLimit * 1000 <= serverNow;
   // Таймер идёт: обычный потолок. Вопрос уже открывали заново после потолка (лимит больше него) — прибавляем дальше.
-  const cap = expired || state.timeLimit > MAX_TIME_LIMIT ? MAX_REOPEN_LIMIT : MAX_TIME_LIMIT;
+  // Вопрос открыли заново у самого потолка (лимит 891–900): иначе кнопка снова упиралась бы в потолок до конца отсчёта.
+  const late = elapsed + 2 * seconds > MAX_TIME_LIMIT;
+  const cap = expired || late || state.timeLimit > MAX_TIME_LIMIT ? MAX_REOPEN_LIMIT : MAX_TIME_LIMIT;
   const next = Math.min(cap, (expired ? elapsed : state.timeLimit) + seconds);
   // Продление должно дать время с этой минуты, иначе кнопка «сработает» впустую (потолок близко).
   if (next <= state.timeLimit || state.startedAt + next * 1000 <= serverNow) return null;

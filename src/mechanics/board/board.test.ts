@@ -355,6 +355,21 @@ describe("«Ставка на знания»: пока отвечают — вр
     expect(parseBoardResult(s.state.result).pausedAt).toBeNull();
   });
 
+  it("лимит уже за потолком, а ответ уложился бы в потолок — «Неверно» не режет лимит обратно", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    const start = s.state.startedAt ?? 0;
+    // Вопрос открыли заново на 891-й секунде и ведущий добавил время: лимит 931.
+    const now = start + 891_000;
+    s = apply(s, { state: { timeLimit: 931 } });
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, now + 1000)], now + 1100));
+    s = apply(s, boardWrong(s, c, now + 2000));
+    // Раньше лимит резался до 900 — остальным оставалось ~7 секунд вместо 39.
+    expect(s.state.timeLimit).toBeGreaterThanOrEqual(931);
+    const deadline = (s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000;
+    expect(deadline - (now + 2000)).toBeGreaterThanOrEqual(38_000);
+  });
+
   it("нажал в последнюю секунду — остальным всё равно не меньше 5 секунд; очередь — время стоит дальше", () => {
     const c = content();
     let s = openArmed(session(), c, "a0");

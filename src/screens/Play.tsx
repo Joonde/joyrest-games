@@ -476,7 +476,10 @@ function InGame({
   const closed = stage !== "question" && stage !== "ready";
   // Ключ перепроверки меняется ровно в момент закрытия приёма: на первом шаге после входа сервер уже спрашивали
   // (ответа тогда ещё не было) — без нового ключа телефон не спросил бы снова (нашла проверка в браузере).
-  const recheck = phase === "playing" && unsure === slotNow && closed ? `${slotNow}:closed` : "";
+  // Участник команды на шаге, где телефон открыли (для вошедших в лобби это первый вопрос): сервер уже спрашивали, когда
+  // капитан ещё не ответил, — при показе ответа спрашиваем ещё раз, иначе участник видел бы «Ответа не было».
+  const memberCheck = role === "member" && session.state.step === firstStep.current;
+  const recheck = phase === "playing" && closed && (unsure === slotNow || memberCheck) ? `${slotNow}:closed` : "";
   const [myAnswer, setMyAnswer, clearMyAnswer] = useMyAnswer(session, pid, phase === "playing" && ask, false, recheck);
   // Ответ на сервере уходит после паузы и повторов: шаг мог смениться — старый ответ не трогает новый шаг.
   const slotRef = useRef(slotNow);

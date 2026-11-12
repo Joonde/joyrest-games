@@ -238,9 +238,15 @@ export function QuizHostControls({ session, content, answers, participants, cont
           const now = latest.current.state;
           const same = now.phase === phase && now.step === atStep && now.stage === atStage;
           if (again && typeof make === "function" && same && isPrecondition(e)) {
-            if (attempt < 2) continue;
-            // Три отказа подряд: гости всё ещё отвечают. Молчать нельзя — ведущий решил бы, что кнопка не работает.
-            setError("Ответы ещё приходят — нажмите ещё раз.");
+            if (attempt < 2) {
+              // Отказ бывает и из-за итогов шага (фон пульта или второй пульт успели записать): даём свежей сессии
+              // дойти до пульта, иначе повтор ушёл бы с тем же устаревшим отпечатком.
+              await Promise.race([arrived, new Promise<void>((resolve) => window.setTimeout(resolve, 300))]);
+              continue;
+            }
+            // Три отказа подряд: гости всё ещё отвечают или игру меняет второй пульт. Молчать нельзя — ведущий
+            // решил бы, что кнопка не работает.
+            setError("Игра изменилась — нажмите ещё раз.");
             return;
           }
           throw e;

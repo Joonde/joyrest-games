@@ -495,7 +495,9 @@ export function boardWrong(session: Session, content: BoardContent, now?: number
     // Обычный потолок — только пока время ответа с этой минуты в него укладывается: вопрос, открытый заново после
     // долгого перерыва («+10 секунд» за потолком), иначе закрылся бы сразу после «Неверно».
     const wanted = Math.max(timeLimit + frozen, least);
-    const limit = least > MAX_TIME_LIMIT ? Math.min(MAX_REOPEN_LIMIT, wanted) : Math.min(MAX_TIME_LIMIT, wanted);
+    // Лимит уже за потолком (вопрос открыли заново, ведущий добавил время) — обратно до потолка не режем.
+    const reopened = least > MAX_TIME_LIMIT || timeLimit > MAX_TIME_LIMIT;
+    const limit = Math.min(reopened ? MAX_REOPEN_LIMIT : MAX_TIME_LIMIT, wanted);
     if (limit !== timeLimit) state.timeLimit = limit;
     next.pausedAt = null;
   }

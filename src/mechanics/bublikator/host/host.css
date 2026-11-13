@@ -189,13 +189,27 @@
 }
 .bkh-stars .seg {
   display: grid;
-  /* 6 кнопок в ряд, а на узком телефоне — сколько влезет по 44 px (две строки по три). */
-  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  /* 6 кнопок всегда в один ряд (аудит 2d, №9: на 360 px было две строки по три — 10 экипажей не помещались в экран). */
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
 }
 .bkh-stars .seg__btn {
   min-height: 44px;
   min-width: 0;
-  padding-inline: 2px;
+  padding-inline: 0;
+  font-size: 13px;
+}
+.bkh-stars {
+  gap: 4px;
+}
+/* С 520 px — название экипажа и звёзды одной строкой. */
+@media (min-width: 520px) {
+  .bkh-stars {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    align-items: center;
+    gap: 8px;
+  }
 }
 .bkh .field select {
   min-height: 52px;

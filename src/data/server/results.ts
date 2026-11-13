@@ -9,6 +9,7 @@ function parseBoard(value: unknown): ResultRow[] {
     const e = asRecord(raw);
     const row: ResultRow = { name: asText(e.name), score: typeof e.score === "number" ? e.score : 0 };
     if (typeof e.colorIndex === "number") row.colorIndex = e.colorIndex;
+    if (typeof e.group === "string" && e.group !== "") row.group = e.group;
     return row;
   });
 }

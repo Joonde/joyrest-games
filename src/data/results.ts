@@ -11,6 +11,7 @@ function parseBoard(value: unknown): ResultRow[] {
     const entry = asRecord(raw);
     const row: ResultRow = { name: asString(entry.name), score: asNumber(entry.score) };
     if (typeof entry.colorIndex === "number") row.colorIndex = entry.colorIndex;
+    if (typeof entry.group === "string" && entry.group !== "") row.group = entry.group;
     return row;
   });
 }

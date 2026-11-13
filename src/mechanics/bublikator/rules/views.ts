@@ -479,6 +479,7 @@ export function hostView(s: BubState, env: ViewEnv): HostView {
     attempt: s.attempts[s.legIndex] ?? 0,
     endsAt: endsAtOf(s),
     flight: flightOf(s),
+    pausedAt: env.paused ? toServer(s, now) : null,
     orderSeconds: seconds,
     shift: leg?.shift ?? 0,
     slower: timeStage && seconds < ORDER_MAX_S,

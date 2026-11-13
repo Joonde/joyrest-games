@@ -101,6 +101,28 @@ describe("места", () => {
     expect(placeOf(board, "b")).toEqual({ place: 1, total: 4 });
     expect(placeOf(board, "x")).toBeNull();
   });
+
+  it("группа (команды одного экипажа «Бубликатора») — одно место и считается за одного, «голова» первой", () => {
+    const merged = {
+      t0: { name: "Лисы", kind: "team" as const, score: 1200, group: "t0" },
+      t2: { name: "Медведи", kind: "team" as const, score: 1200, group: "t0" },
+      t1: { name: "Ракеты", kind: "team" as const, score: 800 },
+      t3: { name: "Альфа", kind: "team" as const, score: 800 },
+      t4: { name: "Бета", kind: "team" as const, score: 100 },
+    };
+    expect(rankedLeaderboard(merged).map((e) => [e.id, e.place])).toEqual([
+      ["t0", 1],
+      ["t2", 1],
+      ["t3", 2],
+      ["t1", 2],
+      ["t4", 4],
+    ]);
+    // Мест — по экипажам: 4 экипажа, а не 5 команд.
+    expect(placeOf(merged, "t2")).toEqual({ place: 1, total: 4 });
+    expect(placeOf(merged, "t4")).toEqual({ place: 4, total: 4 });
+    // Без групп — как раньше.
+    expect(rankedLeaderboard(board).map((e) => e.place)).toEqual([1, 1, 3, 4]);
+  });
 });
 
 describe("смена капитана", () => {

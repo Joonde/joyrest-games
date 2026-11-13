@@ -78,28 +78,50 @@ export function leaderboardAdditions(
   return additions;
 }
 
-/** Записи таблицы лидеров по убыванию очков, при равенстве — по имени. */
+/**
+ * Записи таблицы лидеров по убыванию очков, при равенстве — по имени. Записи одной группы (`group`) при равенстве стоят рядом:
+ * сначала «голова» группы, потом остальные (имя группы — имя «головы»).
+ */
 export function sortedLeaderboard(leaderboard: Leaderboard): Array<LeaderboardEntry & { id: string }> {
+  const key = (e: LeaderboardEntry) => (e.group !== undefined ? (leaderboard[e.group]?.name ?? e.name) : e.name);
   return Object.entries(leaderboard)
     .map(([id, entry]) => ({ id, ...entry }))
-    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, "ru"));
+    .sort((a, b) => b.score - a.score || key(a).localeCompare(key(b), "ru") || headFirst(a) - headFirst(b) || a.name.localeCompare(b.name, "ru"));
 }
 
-/** Таблица с местами: при равных очках — общее место (10, 10, 7 → 1, 1, 3). */
+function headFirst(e: LeaderboardEntry & { id: string }): number {
+  return e.group === undefined || e.group === e.id ? 0 : 1;
+}
+
+/** Группа записи для мест: своя (`group`) или сама запись. */
+function groupKey(e: LeaderboardEntry & { id: string }): string {
+  return e.group ?? `#${e.id}`;
+}
+
+/**
+ * Таблица с местами: при равных очках — общее место (10, 10, 7 → 1, 1, 3). Записи одной группы (команды одного экипажа
+ * «Бубликатора») — одно место и считаются за одного: 1200, 1200 (один экипаж), 800 → 1, 1, 2 (решение владельца 13 ноября 2026).
+ */
 export function rankedLeaderboard(leaderboard: Leaderboard): Array<LeaderboardEntry & { id: string; place: number }> {
   const sorted = sortedLeaderboard(leaderboard);
-  let place = 1;
+  // По убыванию очков: «выше» — все группы прошлых, строго больших очков (один проход, 500 гостей — без квадрата).
+  const above = new Set<string>();
+  const bucket: string[] = [];
   return sorted.map((entry, i) => {
-    if (i > 0 && sorted[i - 1]?.score !== entry.score) place = i + 1;
-    return { ...entry, place };
+    if (i > 0 && sorted[i - 1]?.score !== entry.score) {
+      for (const g of bucket) above.add(g);
+      bucket.length = 0;
+    }
+    bucket.push(groupKey(entry));
+    return { ...entry, place: above.has(groupKey(entry)) ? above.size : above.size + 1 };
   });
 }
 
-/** Место участника и сколько всего мест; null — участника нет в таблице. */
+/** Место участника и сколько всего мест (групп); null — участника нет в таблице. */
 export function placeOf(leaderboard: Leaderboard, pid: string): { place: number; total: number } | null {
   const ranked = rankedLeaderboard(leaderboard);
   const mine = ranked.find((e) => e.id === pid);
-  return mine ? { place: mine.place, total: ranked.length } : null;
+  return mine ? { place: mine.place, total: new Set(ranked.map(groupKey)).size } : null;
 }
 
 /** Капитан, от которого так долго нет сигнала, считается вышедшим. */

@@ -444,6 +444,11 @@ export interface HostView {
   attempt: number;
   endsAt: number | null;
   flight: { elapsed: number; duration: number; stopped: boolean } | null;
+  /**
+   * Пауза: момент, когда встало время (часы сервера); отсчёты пульта стоят на нём, пока сводка не скажет, что пауза кончилась
+   * (аудит 2d, №1: раньше пульт брал момент последней сводки — отсчёты шли на паузе и прыгали назад после «Продолжить»).
+   */
+  pausedAt: number | null;
   orderSeconds: number;
   /** Сдвиг «Медленнее / Быстрее» этого перелёта, с: команда `time` шлёт его в `from` (двойное касание не прибавит дважды). */
   shift: number;

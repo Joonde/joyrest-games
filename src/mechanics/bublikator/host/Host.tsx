@@ -20,10 +20,14 @@ import {
   hostBoardOf,
   leftOf,
   legTitle,
+  mergePick,
   mergeText,
+  moveText,
+  OFFLINE_SHOWN,
   mmss,
   nextLabel,
   offlineText,
+  pausedMomentOf,
   type HostBoard,
   type HostModel,
 } from "./model";
@@ -49,6 +53,11 @@ interface Confirm {
   args?: unknown;
 }
 
+/** Окно подтверждения с этапом, который ведущий видел, когда окно открылось (аудит 2d, №6). */
+interface OpenConfirm extends Confirm {
+  moment: string;
+}
+
 const crewStyle = (color: number): CSSProperties => ({ "--bkh-crew": `var(--team-${(color % 5) + 1}, var(--color-highlight))` }) as CSSProperties;
 
 function useTick(ms: number, on: boolean): void {
@@ -66,9 +75,10 @@ export function BublikatorHost({ link, sessionFinished = false, now = () => Date
   const [take, setTake] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Команда ушла: кнопки стоят, пока не придёт следующая сводка (до 3 с) — двойное касание не уйдёт дважды.
-  const [pending, setPending] = useState<{ seq: number; until: number } | null>(null);
-  const [confirm, setConfirm] = useState<Confirm | null>(null);
+  // Команда ушла: кнопки стоят, пока комната не ответила (`inFlight`), и потом — до следующей сводки (до 3 с). Сводка, пришедшая
+  // раньше ответа, кнопки не отпускает: она могла быть ещё до команды, и второе касание получило бы отказ (аудит 2d, №7).
+  const [pending, setPending] = useState<{ seq: number; until: number; inFlight: boolean } | null>(null);
+  const [confirm, setConfirm] = useState<OpenConfirm | null>(null);
   const receivedAt = useRef(now());
   const model = useRef(m);
   model.current = m;
@@ -99,7 +109,7 @@ export function BublikatorHost({ link, sessionFinished = false, now = () => Date
   }, [m.view]);
 
   useEffect(() => {
-    if (pending && m.seq > pending.seq) setPending(null);
+    if (pending && !pending.inFlight && m.seq > pending.seq) setPending(null);
   }, [m.seq, pending]);
   useEffect(() => {
     if (!pending) return;
@@ -110,18 +120,25 @@ export function BublikatorHost({ link, sessionFinished = false, now = () => Date
   const board: HostBoard = hostBoardOf(m, sessionFinished);
   const v = m.view;
   const timed = board === "drill" || board === "launch" || board === "fly" || board === "vote" || board === "dock";
-  useTick(500, timed && !m.paused);
+  useTick(500, timed && pausedMomentOf(m) === null);
   const serverNow = now() + m.skew;
-  const pausedAt = m.paused ? receivedAt.current + m.skew : null;
+  const pausedAt = pausedMomentOf(m);
   const busy = pending !== null;
 
+  /**
+   * Команда комнате. `expect`: true — этап из последней сводки, false — без этапа (пауза, «Продолжить»), строка — этап, который
+   * ведущий видел раньше (окно подтверждения: открыли на «Привале», нажали «Да» уже в полёте — отказ `moved`, молча).
+   */
   const run = useCallback(
-    async (cmd: string, args?: unknown, withMoment = true) => {
+    async (cmd: string, args?: unknown, expect: boolean | string = true) => {
       const before = model.current;
       setError(null);
-      setPending({ seq: before.seq, until: now() + 3000 });
+      // Пока ответа нет — не дольше 10 с (запрос сам сдаётся раньше), потом кнопки отпустит следующая сводка.
+      setPending({ seq: before.seq, until: now() + 10_000, inFlight: true });
+      const moment = typeof expect === "string" ? expect : expect ? before.moment : undefined;
       try {
-        await link.command(cmd, args, withMoment ? before.moment : undefined);
+        await link.command(cmd, args, moment);
+        setPending({ seq: model.current.seq, until: now() + 3000, inFlight: false });
         return true;
       } catch (e) {
         const { code, reason } = errorParts(e);
@@ -129,24 +146,31 @@ export function BublikatorHost({ link, sessionFinished = false, now = () => Date
         if (text) {
           setError(text);
           setPending(null);
-        }
+        } else setPending({ seq: model.current.seq, until: now() + 3000, inFlight: false });
         return false;
       }
     },
     [link, now],
   );
 
-  const ask = (c: Confirm) => setConfirm(c);
+  const ask = (c: Confirm) => setConfirm({ ...c, moment: model.current.moment });
   const doConfirm = async () => {
     const c = confirm;
     if (!c) return;
     setConfirm(null);
-    await run(c.cmd, c.args);
+    await run(c.cmd, c.args, c.moment);
   };
 
   if (board === "tab")
     return (
-      <Notice title="Пульт открыт в другой вкладке" text="Эта вкладка больше не получает игру. Управлять можно с одной вкладки на устройстве.">
+      <Notice
+        title={m.closed === "replaced" ? "Пульт открыли в другой вкладке" : "Пульт уже открыт в других вкладках"}
+        text={
+          m.closed === "replaced"
+            ? "Эта вкладка больше не получает игру: управление забрала другая вкладка. Можно вернуть его сюда — та вкладка отключится."
+            : "На этом устройстве уже открыты три пульта этой игры — четвёртый не подключается. Закройте лишнюю вкладку или откройте пульт здесь — самая старая вкладка отключится."
+        }
+      >
         <button
           type="button"
           className="btn btn--block"
@@ -275,7 +299,7 @@ export function BublikatorHost({ link, sessionFinished = false, now = () => Date
         </button>
       )}
 
-      <CrewTools v={v} board={board} busy={busy} run={run} ask={ask} />
+      <CrewTools v={v} board={board} busy={busy} ask={ask} />
 
       <ConfirmDialog open={confirm !== null} title={confirm?.title ?? ""} confirmLabel={confirm?.label ?? "Да"} onConfirm={() => void doConfirm()} onCancel={() => setConfirm(null)}>
         <p>{confirm?.text}</p>
@@ -488,7 +512,7 @@ function Flight(p: BoardProps) {
   const [captainOpen, setCaptainOpen] = useState(false);
   const [task, setTask] = useState(0);
   const [own, setOwn] = useState("");
-  const left = flightLeftOf(v, p.since, p.m.paused);
+  const left = flightLeftOf(v, p.since, p.pausedAt !== null);
   const ev = v.event;
   const launch = v.stage === "launch";
   const allDone = v.crews.length > 0 && v.crews.every((c) => c.finished);
@@ -708,52 +732,31 @@ function Ratings({ v, busy, run }: { v: HostView; busy: boolean; run: BoardProps
   );
 }
 
-/** Объединить маленький экипаж, пересадить гостя, убрать давно пропавшего — свёрнуто, всё через «Вы уверены?». */
-function CrewTools({ v, board, busy, run, ask }: { v: HostView; board: HostBoard; busy: boolean; run: BoardProps["run"]; ask: (c: Confirm) => void }) {
+/**
+ * Экипажи: объединить и пересадить (свёрнуто, сверху — до него не листать), ниже — «Давно без связи» (первые трое и «Показать
+ * всех»). Всё необратимое — через «Вы уверены?» (аудит 2d, №2, №5, №9).
+ */
+function CrewTools({ v, board, busy, ask }: { v: HostView; board: HostBoard; busy: boolean; ask: (c: Confirm) => void }) {
   const [from, setFrom] = useState<number | null>(null);
   const [to, setTo] = useState<number | null>(null);
   const [who, setWho] = useState("");
   const [where, setWhere] = useState<number | null>(null);
+  const [allOffline, setAllOffline] = useState(false);
+  if (board === "podium" || board === "finished" || board === "lobby") return null;
   const crews = v.crews;
   const small = crews.filter((c) => c.small);
   const between = board === "dock" || board === "vote" || board === "voted";
   const canMerge = v.merge === null && crews.length >= 2;
-  const canMove = v.move === null && board !== "lobby" && crews.length >= 2;
+  const canMove = v.move === null && crews.length >= 2;
   const members = crews.flatMap((c) => c.members.filter((x) => x.role !== "out").map((x) => ({ ...x, crew: c.id, crewName: c.name })));
-  const fromCrew = crews.find((c) => c.id === (from ?? small[0]?.id));
-  const toCrew = crews.find((c) => c.id === to && c.id !== fromCrew?.id) ?? crews.find((c) => c.id !== fromCrew?.id);
+  const { fromId, toId } = mergePick(crews, from, to);
+  const fromCrew = crews.find((c) => c.id === fromId);
+  const toCrew = crews.find((c) => c.id === toId);
   const target = members.find((x) => x.pid === who) ?? members[0];
   const whereCrew = crews.find((c) => c.id === where && c.id !== target?.crew) ?? crews.find((c) => c.id !== target?.crew);
-  if (board === "podium" || board === "finished" || board === "lobby") return null;
+  const offline = allOffline ? v.removable : v.removable.slice(0, OFFLINE_SHOWN);
   return (
     <>
-      {v.removable.length > 0 && (
-        <section className="bkh-sec" aria-label="Давно без связи">
-          <p className="eyebrow">Давно без связи</p>
-          {v.removable.map((r) => (
-            <div key={r.pid} className="bkh-row">
-              <span className="bkh-row__name">{r.name}</span>
-              <span className="bkh-row__meta">{offlineText(r.offlineMs)}</span>
-              <button
-                type="button"
-                className="btn btn--quiet"
-                disabled={busy}
-                onClick={() =>
-                  ask({
-                    title: `Убрать «${r.name}» из игры?`,
-                    text: "Гость минуту без связи. Приказов ему больше не будет, «Притяжение» его не ждёт, его приборы со следующего перелёта — товарищам.",
-                    label: "Убрать",
-                    cmd: "remove",
-                    args: { pid: r.pid },
-                  })
-                }
-              >
-                Убрать
-              </button>
-            </div>
-          ))}
-        </section>
-      )}
       {(canMerge || canMove || small.length > 0) && (
         <details className="bkh-fold" open={small.length > 0 && canMerge ? true : undefined}>
           <summary>Экипажи: объединить, пересадить{small.length > 0 ? ` · мало людей: ${small.length}` : ""}</summary>
@@ -821,7 +824,14 @@ function CrewTools({ v, board, busy, run, ask }: { v: HostView; board: HostBoard
                     ))}
                 </select>
               </label>
-              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run("move", { pid: target.pid, crew: whereCrew.id })}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--block"
+                disabled={busy}
+                onClick={() =>
+                  ask({ title: `Пересадить «${target.name}»?`, text: moveText(target.name, target.crewName, whereCrew.name), label: "Пересадить", cmd: "move", args: { pid: target.pid, crew: whereCrew.id } })
+                }
+              >
                 Пересадить
               </button>
               <p className="small muted">Пересадка — до смены команды: сменит команду на телефоне — окажется в её экипаже.</p>
@@ -829,6 +839,38 @@ function CrewTools({ v, board, busy, run, ask }: { v: HostView; board: HostBoard
           )}
           {!canMove && v.move === "busy" && <p className="small muted">Пересаживать можно до перелёта и на «Привале».</p>}
         </details>
+      )}
+      {v.removable.length > 0 && (
+        <section className="bkh-sec" aria-label="Давно без связи">
+          <p className="eyebrow">Давно без связи · {v.removable.length}</p>
+          {offline.map((r) => (
+            <div key={r.pid} className="bkh-row">
+              <span className="bkh-row__name">{r.name}</span>
+              <span className="bkh-row__meta">{offlineText(r.offlineMs)}</span>
+              <button
+                type="button"
+                className="btn btn--quiet"
+                disabled={busy}
+                onClick={() =>
+                  ask({
+                    title: `Убрать «${r.name}» из игры?`,
+                    text: "Гость минуту без связи. Приказов ему больше не будет, «Притяжение» его не ждёт, его приборы со следующего перелёта — товарищам.",
+                    label: "Убрать",
+                    cmd: "remove",
+                    args: { pid: r.pid },
+                  })
+                }
+              >
+                Убрать
+              </button>
+            </div>
+          ))}
+          {v.removable.length > OFFLINE_SHOWN && (
+            <button type="button" className="btn btn--quiet btn--block" aria-expanded={allOffline} onClick={() => setAllOffline((x) => !x)}>
+              {allOffline ? "Свернуть список" : `Показать всех (${v.removable.length})`}
+            </button>
+          )}
+        </section>
       )}
     </>
   );

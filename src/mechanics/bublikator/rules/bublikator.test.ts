@@ -3,7 +3,9 @@
  * обратно. Комната — понарошку (`world.test-kit.ts`), время двигаем сами.
  */
 import { describe, expect, it } from "vitest";
+import { placeOf, rankedLeaderboard } from "../../../core/leaderboard";
 import { fitNames, fitTasks } from "../editor/validate";
+import { leaderboardChange } from "../host/model";
 import {
   DRILL_MS,
   EVENT_EDGE_END_MS,
@@ -32,7 +34,7 @@ import { activeMembers, crewCountFor, crewMembers, crewPlayers, roster, rosterFr
 import { cardStats, chooseControl, crewTotal, gameNow, impulse, orderDamage, orderSeconds, places, restore, resume, scheduleEvents, snapshot, tallyVote, voteCandidates, voteVoters } from "./game";
 import { closer, CREW_NAMES, distance, ENDINGS, isBlocked, isRudeName, joinName, KIDS_ITEMS, kidsTinted, nameCandidates, norm, ROOTS, rootClashes, THEME_ROOTS } from "./names";
 import { cleanState, controlsPerPlayer, dealPanels, orderText, randomTarget, STATES } from "./panels";
-import type { Control, Crew, Member } from "./types";
+import type { Control, Crew, HostView, Member } from "./types";
 import { hostView, personalSnapshot, personalView, screenView } from "./views";
 import { hashRandom, World } from "./world.test-kit";
 
@@ -2231,5 +2233,88 @@ describe("конструктор: поля по строкам (аудит 2d, �
     expect(long.kept[0]).toHaveLength(120);
     expect(long.notes[0]).toContain("120");
     expect(fitTasks(["Встаньте по росту!"]).notes).toEqual([]);
+  });
+});
+
+describe("команда, появившаяся после «Собрать экипажи» (проверка 2d, №1)", () => {
+  /** 4 команды по 3 гостя, сбор; потом новая команда «Опоздавшие» и двое её людей. */
+  function lateWorld(): World {
+    const w = new World({ players: 12, teams: 4, content: { ...NOEV, saboteur: false } });
+    w.ok("gather");
+    w.env.teams.set("t9", "Опоздавшие");
+    w.addPlayer("late1", "Опоздавший 1", "t9");
+    w.addPlayer("late2", "Опоздавший 2", "t9");
+    return w;
+  }
+  it("команда — в экипаже, где сидят её люди: общий счёт и группа этого экипажа, своего места нет", () => {
+    const w = lateWorld();
+    const crew = w.member("late1").crew;
+    expect(crew).not.toBeNull();
+    expect(w.s.crews.some((c) => c.id === crew && !c.gone)).toBe(true);
+    expect(w.s.teamCrew?.t9).toBe(crew);
+    // Второй человек команды — туда же.
+    expect(w.member("late2").crew).toBe(crew);
+    // Новых экипажей нет: команда не получила номер несуществующего экипажа.
+    expect(w.s.crews).toHaveLength(4);
+    const v = hostView(w.s, w.env);
+    const own = v.crews.find((c) => c.id === crew);
+    expect(own?.teams).toContain("t9");
+    const board: Record<string, { name: string; kind: "team"; score: number; group?: string }> = {};
+    for (const c of v.crews) if (c.team) board[c.team] = { name: c.name, kind: "team", score: 0 };
+    board.t9 = { name: "Опоздавшие", kind: "team", score: 0 };
+    for (const c of w.s.crews) c.merged = 100 * (c.id + 1);
+    const change = leaderboardChange(hostView(w.s, w.env), board) ?? {};
+    const written = { ...board, ...change };
+    expect(written.t9?.score).toBe(written[own?.team ?? ""]?.score);
+    expect(written.t9?.group).toBe(own?.team);
+    // «N место из M» — M экипажей (4), не 5; место — как у экипажа.
+    expect(placeOf(written, "t9")).toEqual(placeOf(written, own?.team ?? ""));
+    expect(placeOf(written, "t9")?.total).toBe(4);
+    expect(rankedLeaderboard(written).filter((e) => e.place === placeOf(written, "t9")?.place).length).toBe(2);
+  });
+  it("«Назад — переиграть перелёт» и «Убрать»: команда остаётся с экипажем, где сидят её люди", () => {
+    const w = new World({ players: 12, teams: 4, content: { ...NOEV, saboteur: false } });
+    w.toFlight();
+    w.env.teams.set("t9", "Опоздавшие");
+    w.addPlayer("late1", "Опоздавший 1", "t9");
+    expect(w.s.teamCrew?.t9).toBe(w.member("late1").crew);
+    // Долетели до привала, «Назад»: опоздавший снова садится в самый маленький экипаж — команда туда же.
+    const leg = w.s.leg;
+    if (leg) {
+      leg.event = null;
+      leg.schedule = [];
+      leg.flight = leg.duration;
+    }
+    w.advance(500);
+    expect(w.s.leg?.stage).toBe("dock");
+    w.ok("back");
+    const crew = w.member("late1").crew;
+    expect(crew).not.toBeNull();
+    expect(w.s.teamCrew?.t9).toBe(crew);
+    expect(w.s.crews.some((c) => c.id === crew && !c.gone)).toBe(true);
+    // «Убрать» (минута без связи): гость остаётся в экипаже — команда тоже.
+    w.offline("late1");
+    w.advance(200);
+    w.advance(61_000);
+    w.cmd("remove", { pid: "late1" });
+    expect(w.member("late1").role).toBe("out");
+    expect(w.s.teamCrew?.t9).toBe(crew);
+  });
+  it("«Объединить» экипаж с опоздавшей командой — команда переезжает вместе с экипажем", () => {
+    const w = lateWorld();
+    const from = w.member("late1").crew ?? -1;
+    const to = w.s.crews.find((c) => c.id !== from)?.id ?? -1;
+    w.ok("merge", { from, to });
+    expect(w.s.teamCrew?.t9).toBe(to);
+    expect(hostView(w.s, w.env).crews.find((c) => c.id === to)?.teams).toContain("t9");
+  });
+  it("таблица: команда с группой, у которой экипажа больше нет, — 0 и без группы; ручные записи не трогаем", () => {
+    const v = { crews: [{ team: "t0", teams: ["t0"], total: 500 }] } as unknown as HostView;
+    const board = {
+      t0: { name: "Лисы", kind: "team" as const, score: 500 },
+      t9: { name: "Опоздавшие", kind: "team" as const, score: 500, group: "t0" },
+      m1: { name: "Без телефона", kind: "team" as const, score: 30 },
+    };
+    expect(leaderboardChange(v, board)).toEqual({ t9: { name: "Опоздавшие", kind: "team", score: 0 } });
   });
 });

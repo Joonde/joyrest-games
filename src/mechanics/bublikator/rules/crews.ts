@@ -47,9 +47,13 @@ export function crewCountFor(players: number, minSize: number): number {
   return Math.max(1, Math.min(k, Math.floor(players / Math.max(1, minSize))));
 }
 
-/** Командная сессия: экипажи команд — по порядку команд платформы (новые — следующими свободными номерами, до 20). */
+/**
+ * Командная сессия: экипажи команд — по порядку команд платформы (новые — следующими свободными номерами, до 20). Только в
+ * лобби: после «Собрать экипажи» новых экипажей не бывает, и команда, появившаяся позже, получает экипаж, где сели её люди
+ * (`adoptTeams`). Раньше ей доставался номер несуществующего экипажа — и 0 очков в итогах (проверка 2d, №1).
+ */
 export function registerTeams(s: BubState, teams: Iterable<string>): void {
-  if (!s.teamsMode) return;
+  if (!s.teamsMode || s.phase !== "lobby") return;
   const map = (s.teamCrew ??= {});
   // Занятые номера — и экипажи уже в игре: команда, появившаяся после сбора, чужой экипаж не получит.
   const used = new Set([...Object.values(map), ...s.crews.map((c) => c.id)]);
@@ -61,6 +65,35 @@ export function registerTeams(s: BubState, teams: Iterable<string>): void {
     map[team] = next;
     used.add(next);
   }
+}
+
+/** Экипаж есть и в игре (не влит в другой). */
+function liveCrew(s: BubState, id: number | undefined): boolean {
+  return id !== undefined && s.crews.some((c) => c.id === id && !c.gone);
+}
+
+/**
+ * Командная сессия после сбора: команда без своего экипажа (появилась после «Собрать экипажи», в лобби была без людей или сверх
+ * 20) — в экипаже, где сидит первый по входу её человек. Тот же механизм, что у влитых команд (решение владельца A, 13 ноября
+ * 2026): в таблице лидеров у неё общий счёт этого экипажа и его группа — то же место, без лишней строки, «из M» — по экипажам.
+ * Следующие её люди садятся туда же (`teamCrewOf`). Убранный гость («Убрать») остаётся в экипаже — команда тоже.
+ */
+export function adoptTeams(s: BubState): boolean {
+  if (!s.teamsMode || s.crews.length === 0) return false;
+  const map = (s.teamCrew ??= {});
+  let changed = false;
+  for (const [team, id] of Object.entries(map)) {
+    if (!liveCrew(s, id)) {
+      delete map[team];
+      changed = true;
+    }
+  }
+  for (const m of roster(s).active) {
+    if (m.team === undefined || m.team === null || map[m.team] !== undefined || m.crew === null || !liveCrew(s, m.crew)) continue;
+    map[m.team] = m.crew;
+    changed = true;
+  }
+  return changed;
 }
 
 /** Названия команд платформы: запоминаем и переименования (экипаж называется как команда). */
@@ -336,6 +369,7 @@ function gatherTeams(s: BubState): boolean {
   rosterChanged(s);
   for (const id of ids) assignRoles(s, id, false, false);
   rosterChanged(s);
+  adoptTeams(s);
   return true;
 }
 
@@ -351,6 +385,7 @@ export function seatLate(s: BubState, m: Member, ownCrew: number | null, midLeg:
   m.order = null;
   rosterChanged(s);
   if (crew !== null && !midLeg) assignRoles(s, crew, false);
+  adoptTeams(s);
 }
 
 export function moveMember(s: BubState, m: Member, crew: number, midLeg: boolean): void {

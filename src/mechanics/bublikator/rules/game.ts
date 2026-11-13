@@ -60,6 +60,7 @@ import {
 import { cleanTask, parseContent } from "./content";
 import {
   activeMembers,
+  adoptTeams,
   assignAllRoles,
   captainOf,
   crewMembers,
@@ -321,6 +322,8 @@ function teamChanged(s: BubState, env: Env, m: Member, team: string | null): voi
     moveMember(s, m, crew, midLeg(s));
     for (const pid of Object.keys(s.members)) s.rt.dirty.add(pid);
   }
+  // Новая команда без экипажа (появилась после сбора) — там, где сидит этот гость.
+  if (s.phase !== "lobby") adoptTeams(s);
   s.rt.dirty.add(m.pid);
   env.changed();
 }
@@ -1613,6 +1616,8 @@ function restoreBase(s: BubState, env: Env): void {
       // Командная сессия: сменил команду за перелёт — после «Назад» он в экипаже своей команды.
       else if (teamLive && team !== m.crew) moveMember(s, m, team, false);
     }
+    // Команда, появившаяся после точки «Назад», — в экипаже, где теперь сидят её люди (проверка 2d, №1).
+    adoptTeams(s);
   }
   dirtyAll(s);
   env.checkpoint();

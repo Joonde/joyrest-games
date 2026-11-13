@@ -192,6 +192,11 @@ export function leaderboardChange(v: HostView, board: Leaderboard): Record<strin
     const score = Math.max(0, Math.round(c.total));
     for (const team of teams) want.set(team, { score, group });
   }
+  // Команда была в экипаже (у записи группа), а теперь ни в одном («Назад» отменил перелёт, в который пришли её люди, и они
+  // ушли) — 0 и без группы, иначе висели бы чужие очки и место. Записи без группы (ручные «+ Добавить команду») не трогаем.
+  if (v.crews.length > 0) {
+    for (const [team, entry] of Object.entries(board)) if (!want.has(team) && entry.group !== undefined) want.set(team, { score: 0, group: undefined });
+  }
   const change: Record<string, LeaderboardEntry> = {};
   for (const [team, { score, group }] of want) {
     const entry = board[team];

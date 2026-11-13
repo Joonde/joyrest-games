@@ -13,6 +13,7 @@ const PerudoEditor = lazy(() => import("./Editor").then((m) => ({ default: m.Per
 export const perudo: Mechanic<PerudoContent, PerudoAnswerValue> = {
   id: "perudo",
   title: "Кости лжеца",
+  art: () => "perudo",
   supports: { solo: true, teams: true, noScreen: true },
   // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
   ownAward: true,

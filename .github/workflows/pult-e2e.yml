@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir -p /tmp/e2e && cp scripts/e2e/pult.mjs /tmp/e2e/ && cp -r scripts/e2e/fixtures /tmp/e2e/
           cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium || npx playwright install chromium  # зеркало Ubuntu недоступно — у сборщика GitHub системные библиотеки уже есть
       # Test пересобирается после каждого push в claude/*: ждём, пока выложится этот коммит (до 15 минут).
       - name: Ждём выкладку на test
         if: ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[no-test]') }}

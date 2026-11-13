@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { migrate } from "./migrate";
-import { answerHoursOpen, startBot, type Bot } from "./telegram";
+import { answerHoursOpen, startBot, STRANGER_TEXT, type Bot } from "./telegram";
 
 interface Sent {
   chat: number;
@@ -287,7 +287,12 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
   it("чужой чат — подсказка; /stop — уведомления больше не приходят", async () => {
     tg.push(333, "привет");
     await until(() => to(333).length === 1, "ответ незнакомцу");
-    expect(to(333)[0]).toContain("Подключить Telegram");
+    expect(to(333)[0]).toBe(STRANGER_TEXT);
+    expect(to(333)[0]).toContain("https://t.me/+79857822689");
+    expect(to(333)[0]).toContain("«Мой профиль» → «Уведомления в Telegram»");
+    tg.push(334, "/start");
+    await until(() => to(334).length === 1, "«Старт» без кода");
+    expect(to(334)[0]).toBe(STRANGER_TEXT);
     tg.push(ANNA, "/stop");
     await until(async () => (await get("/api/telegram/me", anna)).json().linked === false, "отключение Анны");
     const n = to(ANNA).length;
@@ -437,10 +442,61 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     await until(() => to(OWNER).filter((t) => t.includes("подключён к вашему Telegram")).length >= 3, "снова подключён");
     tg.update({ business_message: { message_id: 9201, business_connection_id: "bc4", chat: { id: 8301, type: "private" }, from: { id: 8301, first_name: "Ира", username: "ira_bell" }, text: "🧮 Расчёт JoyRest\nПакет: Квиз" } });
     await until(async () => ((await get("/api/notices", owner)).json() as { items: Array<{ name: string; unread: boolean }> }).items.some((n) => n.name === "Ира" && n.unread), "новое у владельца");
-    // Ведущему без права на клиентов колокольчика нет.
-    expect((await get("/api/notices", anna)).statusCode).toBe(403);
+    // Ведущему без права на клиентов — колокольчик только со своими мероприятиями (ниже), без обращений клиентов.
+    expect((await get("/api/notices", anna)).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/api/notices", headers: { host: HOST } })).statusCode).toBe(401);
   });
+  it("колокольчик ведущего: назначено, изменено, снято, отменено — тому, кого касается, без данных клиента и обращений", async () => {
+    type Item = { id: string; kind: string; title: string; name: string; line: string; unread: boolean; clientId: string; eventId?: string };
+    const bell = async (cookie: string) => (await get("/api/notices", cookie)).json() as { unread: number; items: Item[] };
+    // Анне в «назначение, перенос…» ev1 назначили, изменили и сняли (передали Борису).
+    const annaBell = await bell(anna);
+    const annaEv = annaBell.items.filter((n) => n.eventId === "ev1");
+    expect(annaEv.map((n) => n.title)).toEqual(["↩️ Мероприятие снято с вас", "✏️ Мероприятие изменено", "📅 Вам назначено мероприятие"]);
+    expect(annaEv.every((n) => n.kind === "event" && n.unread && n.clientId === "")).toBe(true);
+    expect(annaEv[2]?.name).toContain("Свадьба —");
+    expect(annaEv[2]?.name).toContain("18:00–23:00");
+    // «Снято» — о прежнем времени (19:00 после правки), не о новом у Бориса.
+    expect(annaEv[0]?.name).toContain("19:00–23:00");
+    expect(annaEv[2]?.line).toMatch(/^Назначил\(а\): /);
+    expect(annaBell.items.every((n) => n.kind === "event")).toBe(true);
+    const text = JSON.stringify(annaBell.items);
+    for (const secret of ["Ольга", "111-22-33", "Тайная"]) expect(text).not.toContain(secret);
+    expect(annaBell.unread).toBe(annaBell.items.filter((n) => n.unread).length);
+    // Борису — назначено и отменено (ev1), ev5 — назначено.
+    const borisEv1 = (await bell(boris)).items.filter((n) => n.eventId === "ev1").map((n) => n.title);
+    expect(borisEv1).toEqual(["✖️ Мероприятие отменено", "📅 Вам назначено мероприятие"]);
+    // Открыл колокольчик — прочитано только у него.
+    expect((await post("/api/notices/seen", anna)).statusCode).toBe(200);
+    expect((await bell(anna)).unread).toBe(0);
+    expect((await bell(boris)).unread).toBeGreaterThan(0);
+    // Вернули отменённое — снова «Назначено» Борису, новое и непрочитанное.
+    const sentBoris = to(BORIS).length;
+    expect((await post("/api/events/ev1/restore", owner)).statusCode).toBe(200);
+    await until(() => to(BORIS).length === sentBoris + 1, "«назначено» Борису в Telegram после «Вернуть»");
+    const restored = (await bell(boris)).items.filter((n) => n.eventId === "ev1");
+    expect(restored[0]).toMatchObject({ title: "📅 Вам назначено мероприятие", unread: true });
+    // Владелец назначил себя сам — себе в колокольчик ничего; обращения клиентов у него остаются.
+    const ownerId = ((await get("/api/auth/me", owner)).json() as { user: { uid: string } }).user.uid;
+    expect((await post("/api/events", owner, { id: "ev-self", hostId: ownerId, day: day(20), start: 1080, end: 1200, title: "Квиз", clientName: "", clientPhone: "", place: "", guests: 20, note: "" })).statusCode).toBe(200);
+    const ownerBell = await bell(owner);
+    expect(ownerBell.items.some((n) => n.eventId === "ev-self")).toBe(false);
+    expect(ownerBell.items.some((n) => n.kind === "new")).toBe(true);
+    await post("/api/events/ev1/cancel", owner);
+    await until(() => to(BORIS).length === sentBoris + 2, "«отменено» Борису в Telegram");
+  }, 20_000);
+  it("колокольчик ведущего: «Кто может» → «Снять мероприятие» — тоже «Отменено», повтор — без второй записи", async () => {
+    const bell = async (cookie: string) => (await get("/api/notices", cookie)).json() as { items: Array<{ title: string; eventId?: string }> };
+    expect((await post("/api/events", owner, { id: "ev-cal", hostId: annaId, day: day(21), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 30, note: "" })).statusCode).toBe(200);
+    const removeBooking = () => app.inject({ method: "DELETE", url: "/api/calendar/ev-ev-cal", headers: headers(owner) });
+    expect((await removeBooking()).statusCode).toBe(200);
+    expect((await removeBooking()).statusCode).toBe(200);
+    // Колокольчик пишется до ответа сервера — ждать не нужно.
+    const cal = (await bell(anna)).items.filter((n) => n.eventId === "ev-cal").map((n) => n.title);
+    expect(cal).toEqual(["✖️ Мероприятие отменено", "📅 Вам назначено мероприятие"]);
+    // Сообщения Telegram о «Корпоративе» дошли, чтобы не попасть в счёт следующих проверок.
+    await until(() => to(ANNA).filter((t) => t.includes("Корпоратив")).length >= 2, "Telegram Анне о «Корпоративе»");
+  }, 20_000);
   it("откуда пришёл: расчёт — «Сайт», по ссылке «Пишу с Авито» — новый клиент «Авито», вручную — можно сменить", async () => {
     tg.update({ business_message: { message_id: 9301, business_connection_id: "bc4", chat: { id: 8401, type: "private" }, from: { id: 8401, first_name: "Дина", username: "dina_avito" }, text: "Здравствуйте! Пишу с Авито, нужен ведущий на юбилей" } });
     tg.update({ business_message: { message_id: 9302, business_connection_id: "bc4", chat: { id: 8402, type: "private" }, from: { id: 8402, first_name: "Просто", username: "just_hi" }, text: "Привет, как дела?" } });

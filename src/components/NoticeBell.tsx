@@ -14,10 +14,12 @@ function agoLabel(ms: number): string {
 }
 
 /**
- * Колокольчик уведомлений в шапке студии (владелец и менеджер по продажам): число новых обращений клиентов и
- * клиентов, которые ждут ответа в Telegram; касание — список, касание строки — карточка клиента в «Клиентах».
+ * Колокольчик уведомлений в шапке студии. Владелец и менеджер по продажам (`clients`): обращения клиентов и клиенты,
+ * которые ждут ответа в Telegram (касание строки — карточка клиента в «Клиентах»). Все: свои мероприятия — назначено,
+ * изменено, снято, отменено (касание — карточка этого мероприятия в «Мероприятиях» календаря, раскрыта; решения владельца
+ * 6 и 7 ноября 2026).
  */
-export function NoticeBell() {
+export function NoticeBell({ clients = false }: { clients?: boolean }) {
   const navigate = useNavigate();
   const [state, setState] = useState<NoticesState | null>(null);
   const [open, setOpen] = useState(false);
@@ -82,7 +84,7 @@ export function NoticeBell() {
   /** Новое прочитано: на колокольчике остаются только ждущие ответа, точки у строк гаснут. */
   const markReadLocally = () =>
     setState((s) =>
-      s ? { ...s, unread: s.items.filter((i) => i.kind === "waiting").length, items: s.items.map((i) => (i.kind === "new" ? { ...i, unread: false } : i)) } : s,
+      s ? { ...s, unread: s.items.filter((i) => i.kind === "waiting").length, items: s.items.map((i) => (i.kind !== "waiting" ? { ...i, unread: false } : i)) } : s,
     );
 
   // Закрыли любым способом (кнопка, касание мимо, Escape, переход к клиенту) — новое прочитано и здесь.
@@ -106,7 +108,7 @@ export function NoticeBell() {
       .then((fresh) => {
         if (asked !== generation.current) return;
         setState(fresh);
-        if (!fresh.items.some((n) => n.unread && n.kind === "new")) return;
+        if (!fresh.items.some((n) => n.unread && n.kind !== "waiting")) return;
         return repo.markSeen().then(() => {
           // Отметка дошла до сервера: всё, что было запрошено до неё, — устарело.
           generation.current += 1;
@@ -118,7 +120,10 @@ export function NoticeBell() {
 
   function go(n: Notice) {
     setOpen(false);
-    navigate(`/studio/clients?id=${encodeURIComponent(n.clientId)}`);
+    // Своё мероприятие — сразу его карточка с «✅ Принял, готовлюсь» (а не просто календарь).
+    if (n.kind === "event") navigate(`/studio/calendar?tab=events${n.eventId ? `&event=${encodeURIComponent(n.eventId)}` : ""}`);
+    else if (n.kind === "client" && !n.clientId) navigate("/studio/clients");
+    else navigate(`/studio/clients?id=${encodeURIComponent(n.clientId)}`);
   }
 
   const unread = state?.unread ?? 0;
@@ -172,7 +177,7 @@ export function NoticeBell() {
         <div className="notice-panel" id={panelId} role="dialog" aria-label="Уведомления" style={{ ["--notice-top" as string]: `${panelTop}px` } as CSSProperties}>
           <p className="notice-panel__title">Уведомления</p>
           {items.length === 0 ? (
-            <p className="muted small">Пока тихо. Новые заявки клиентов появятся здесь.</p>
+            <p className="muted small">{clients ? "Пока тихо. Новые заявки клиентов и ваши мероприятия появятся здесь." : "Пока тихо. Назначенные вам мероприятия появятся здесь."}</p>
           ) : (
             <ul className="notice-list">
               {items.map((n) => (
@@ -180,7 +185,7 @@ export function NoticeBell() {
                   <button type="button" className={["notice-item", n.unread ? "is-unread" : "", n.kind === "waiting" ? "is-waiting" : ""].filter(Boolean).join(" ")} onClick={() => go(n)}>
                     <span className="notice-item__head">
                       <span className="notice-item__title">
-                        {n.kind === "waiting" ? "⏰ " : n.unread ? "🔔 " : ""}
+                        {n.kind === "waiting" ? "⏰ " : n.unread && n.kind !== "event" ? "🔔 " : ""}
                         {n.title}
                       </span>
                       <span className="notice-item__when">{n.kind === "waiting" ? `ждёт ${agoLabel(now - n.at).replace(" назад", "")}` : agoLabel(now - n.at)}</span>
@@ -197,10 +202,10 @@ export function NoticeBell() {
             className="btn btn--quiet btn--block"
             onClick={() => {
               setOpen(false);
-              navigate("/studio/clients?f=new");
+              navigate(clients ? "/studio/clients?f=new" : "/studio/calendar?tab=events");
             }}
           >
-            Все новые клиенты →
+            {clients ? "Все новые клиенты →" : "Мои мероприятия →"}
           </button>
         </div>
       )}

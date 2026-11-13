@@ -3,15 +3,17 @@
  * свободен и занят; владелец видит всех и закрепляет время за человеком («Мероприятие JoyRest»).
  * Проверки времени и дат — общие функции src/core/calendar.ts, права — src/data/permissions.ts.
  */
+import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { cleanNote, dayIndex, dayInWindow, dayOf, isKind, PER_DAY_MAX, RANGE_MAX_DAYS, todayMoscow, validTime } from "../../src/core/calendar";
 import { professionOf } from "../../src/core/professions";
 import * as permissions from "../../src/data/permissions";
 import type { AvailabilityEntry, CalendarMember } from "../../src/data/types";
-import { eventSpan, noticeText } from "../../src/core/events";
+import { eventSpan } from "../../src/core/events";
 import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
 import type { Bot } from "./telegram";
+import { recordHostNotice } from "./notices";
 
 export interface CalendarOptions {
   sql: Sql;
@@ -193,19 +195,40 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
       if (!permissions.canRemoveCalendarEntry(actorOf(user), { uid: existing.user_id, kind: existing.kind })) {
         return fail(reply, 403, "permission-denied");
       }
+      // Мероприятие было не отменено — после снятия его ведущему в колокольчик «Отменено» (6 ноября 2026).
+      const [wasLive] = id.startsWith("ev-")
+        ? await sql<{ live: boolean; owner: string | null; owner_name: string | null }[]>`
+            select (e.cancelled_at is null) as live, u.id as owner, u.name as owner_name
+            from events e left join users u on u.id = e.created_by and u.active where e.id = ${id.slice(3)}`
+        : [];
+      // «Кто взял — тот и ведёт» (12 ноября 2026): снять чужое мероприятие нельзя — так же, как «Отменить мероприятие».
+      if (wasLive?.owner && wasLive.owner !== user.id) return reply.code(409).send({ error: "failed-precondition", reason: "owned", by: wasLive.owner_name ?? "" });
       await sql.begin(async (tx) => {
         await tx`delete from availability where id = ${id}`;
         // Запись мероприятия планировщика: снять время — значит отменить мероприятие (оно уходит в «Отменённые»).
         if (id.startsWith("ev-")) await tx`update events set cancelled_at = coalesce(cancelled_at, now()), updated_at = now() where id = ${id.slice(3)}`;
       });
-      if (id.startsWith("ev-") && options.bot) {
+      if (id.startsWith("ev-") && wasLive?.live) {
+        const [e] = await sql<{ host_id: string; title: string; day: string; start_min: number; end_min: number }[]>`
+          select host_id, title, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min from events where id = ${id.slice(3)}`;
+        if (e) {
+          await recordHostNotice(sql, { kind: "cancelled", userId: e.host_id, event: { id: id.slice(3), title: e.title, day: e.day, start: e.start_min, end: e.end_min }, by: { id: user.id, name: user.name } }).catch(() =>
+            request.log.warn({ calendar: "bell" }, "calendar: уведомление в колокольчик не записалось"),
+          );
+        }
+      }
+      // В Telegram — тем же путём, что «Отменить мероприятие» (`eventNotice`): он ещё и убирает кнопку «Принял, готовлюсь»
+      // под прошлым сообщением (диагностика 12 ноября 2026: после «Снять мероприятие» кнопка оставалась рабочей).
+      if (id.startsWith("ev-") && options.bot && wasLive?.live) {
         const [e] = await sql<{ host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number }[]>`
           select host_id, title, guests, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min from events where id = ${id.slice(3)}`;
         if (e) {
-          const ev = { title: e.title, guests: e.guests, day: e.day, start: e.start_min, end: e.end_min };
-          if (eventSpan(ev)) void options.bot.sendTo(e.host_id, noticeText("cancelled", ev, "")).catch(() => undefined);
+          const ev = { id: id.slice(3), title: e.title, guests: e.guests, day: e.day, start: e.start_min, end: e.end_min };
+          const span = eventSpan(ev);
+          if (span) void options.bot.eventNotice("cancelled", e.host_id, ev, new Date(span.from)).catch(() => undefined);
         }
       }
+      if (id.startsWith("ev-") && wasLive?.live) await sql`insert into event_log (id, event_id, by_name, text) values (${`l${randomBytes(12).toString("base64url")}`}, ${id.slice(3)}, ${user.name.slice(0, 80)}, ${"Снял(а) мероприятие в «Кто может» — отменено"})`.catch(() => undefined);
       request.log.info({ calendar: "remove" }, "calendar");
       return { ok: true };
     });

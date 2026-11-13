@@ -5,15 +5,18 @@ import { pointsLabel } from "../core/points";
 import { ACCESS_ROLES, accessRoleTitle, isAccessRole, type AccessRole } from "../core/accessRoles";
 import { PROFESSIONS, professionOf, professionTitle, type Profession } from "../core/professions";
 import { retentionCutoff, SESSION_RETENTION_DAYS } from "../core/retention";
+import { dayTitle, rangeLabel } from "../core/calendar";
 import {
   edition,
   authService,
+  eventsRepo,
   permissions,
   sessionsRepo,
   staffRepo,
   useLoad,
   usersRepo,
   venuesRepo,
+  type AgencyEvent,
   type CleanupReport,
   type CreatedHost,
   type HostAccount,
@@ -76,6 +79,25 @@ export function useHostAdmin(profile: UserProfile, update: (fn: (list: HostAccou
   const [dialog, confirm] = useConfirm();
   const [toProfession, setToProfession] = useState<{ host: HostAccount; value: Profession } | null>(null);
   const [toRole, setToRole] = useState<{ host: HostAccount; value: AccessRole | null } | null>(null);
+
+  // Перед отключением — предстоящие мероприятия этого человека (диагностика 12 ноября 2026: они оставались за
+  // отключённым ведущим, и никто об этом не узнавал). Не загрузились — окно работает как раньше.
+  const [disableEvents, setDisableEvents] = useState<AgencyEvent[]>([]);
+  const disableUid = toDisable?.uid ?? null;
+  useEffect(() => {
+    setDisableEvents([]);
+    if (!disableUid || !eventsRepo) return;
+    let alive = true;
+    eventsRepo.list("upcoming").then(
+      (list) => {
+        if (alive) setDisableEvents(list.filter((e) => e.hostId === disableUid && !e.cancelled));
+      },
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [disableUid]);
 
   async function setActive(host: HostAccount, active: boolean) {
     setBusyUid(host.uid);
@@ -215,6 +237,22 @@ export function useHostAdmin(profile: UserProfile, update: (fn: (list: HostAccou
         <p>
           {toDisable?.name} больше не сможет войти в студию. Включить доступ можно в любой момент — игры и история сохраняются.
         </p>
+        {disableEvents.length > 0 && (
+          <div className="stack" data-disable-events>
+            <p className="plan-card__host-off">
+              ⚠ За {toDisable?.name} записано предстоящих мероприятий: {disableEvents.length}. Они останутся за отключённым человеком — передайте их
+              другому ведущему: «Календарь и мероприятия» → мероприятие → «Изменить» → «Кто ведёт».
+            </p>
+            <ul className="small">
+              {disableEvents.slice(0, 5).map((e) => (
+                <li key={e.id}>
+                  {e.title || "Мероприятие"} · {dayTitle(e.day)}, {rangeLabel(e.start, e.end)}
+                </li>
+              ))}
+              {disableEvents.length > 5 && <li>и ещё {disableEvents.length - 5}</li>}
+            </ul>
+          </div>
+        )}
       </ConfirmDialog>
 
       <ConfirmDialog

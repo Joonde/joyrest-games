@@ -8,7 +8,8 @@ function parseNotice(value: unknown): Notice {
   return {
     id: asText(d.id),
     clientId: asText(d.clientId),
-    kind: d.kind === "waiting" ? "waiting" : "new",
+    ...(asText(d.eventId) ? { eventId: asText(d.eventId) } : {}),
+    kind: d.kind === "waiting" ? "waiting" : d.kind === "event" ? "event" : d.kind === "client" ? "client" : "new",
     title: asText(d.title),
     name: asText(d.name),
     line: asText(d.line),
@@ -20,7 +21,7 @@ function parseNotice(value: unknown): Notice {
 export const serverNoticesRepository: NoticesRepository = {
   async load() {
     const d = asRecord(await api("GET", "/api/notices"));
-    const items = (Array.isArray(d.items) ? d.items : []).map(parseNotice).filter((n) => n.id && n.clientId);
+    const items = (Array.isArray(d.items) ? d.items : []).map(parseNotice).filter((n) => n.id && (n.clientId || n.eventId || n.kind === "client"));
     return { unread: typeof d.unread === "number" ? d.unread : items.filter((n) => n.unread).length, items };
   },
   async markSeen() {

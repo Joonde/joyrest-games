@@ -7,18 +7,19 @@ import { awardNow, podiumNext } from "../../core/podium";
 import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { cellText, QUEST_EMOJI, QUEST_TITLES, type QuestContent } from "./content";
-import { applyRoll, cellAt, judge, nextTurn, parseQuestResult, questBack, questPrimary, questTeams, rollChange, startQuest } from "./logic";
+import { applyRoll, cancelFinal, cellAt, declareFinal, finalLeft, judge, nextTurn, parseQuestResult, questBack, questPrimary, questTeams, rollChange, startQuest } from "./logic";
 
 /** Момент игры для повтора касания: ход, клетка и решение ведущего. */
 function questMoment(s: Session): string {
   const r = parseQuestResult(s.state.result);
-  return JSON.stringify([r.mode, r.mover, r.turn, r.at, r.outcome]);
+  return JSON.stringify([r.mode, r.mover, r.turn, r.at, r.outcome, r.finished, r.final]);
 }
 
 /**
  * Пульт «Активной настолки»: «Начать игру» → капитан (в «каждый сам» — игрок) бросает кубик на телефоне
  * (или «Бросить за команду» здесь) → задание клетки с ответом для ведущего → «Выполнено» / «Не выполнено» →
- * «Следующая команда». Первая на финише — награждение; «Завершить досрочно» — с подтверждением.
+ * «Следующая команда». Первая на финише открывает последний круг: его доигрывают, потом награждение. «Последний круг»
+ * ведущий может объявить и сам; «Закончить досрочно» — с подтверждением.
  */
 export function QuestHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<QuestContent>) {
   const { busy, error, run, quiet } = useHostRun(session, control, rehearsal, { moment: questMoment });
@@ -47,6 +48,11 @@ export function QuestHostControls({ session, content, answers, participants, con
     return ((bytes[0] ?? 0) % 6) + 1;
   };
   const ranked = [...r.order].sort((a, b) => (r.pos[b] ?? 0) - (r.pos[a] ?? 0));
+  const left = finalLeft(r);
+  const names = (list: string[]) => list.map((p) => name(p)).join(", ");
+  const finishPlace = (p: string) => r.finished.indexOf(p) + 1;
+  const canDeclare = declareFinal(session) !== null;
+  const canCancel = cancelFinal(session) !== null;
 
   return (
     <div className="stack host-quiz">
@@ -59,11 +65,27 @@ export function QuestHostControls({ session, content, answers, participants, con
         <p className="muted">{teams ? "Команды встанут на старт в порядке подключения. Ходит первая." : "Игроки встанут на старт в порядке подключения. Ходит первый."}</p>
       ) : (
         <>
-          <p>
-            {r.mode === "roll" ? "Бросает" : r.mode === "finish" ? "Финиш:" : "Ходит"} <strong><NameText name={name(r.mover)} /></strong>
-            {r.roll ? ` · выпало ${r.roll} · клетка ${r.hit || r.at}${r.moved ? ` → ${r.moved > 0 ? "бонус" : "ловушка"} → клетка ${r.at}` : ""}` : ""}
-          </p>
-          {cell && r.mode !== "finish" && (
+          {r.final && r.mode !== "over" && (
+            <p className="quest-host__final" role="status">
+              🏁 Последний круг · {left.length > 0 ? <>ходят ещё: <NameText name={names(left)} /></> : "больше никто не ходит — после этого хода итоги"}
+            </p>
+          )}
+          {r.skipped.length > 0 && r.mode === "roll" && <p className="muted small">⏸ Пропускают ход: <NameText name={names(r.skipped)} /></p>}
+          {r.mode === "over" ? (
+            <p>
+              <strong>Круг доигран.</strong> Награждение — по очкам{r.finished.length > 0 ? <> (бонус финиша уже в очках: <NameText name={names(r.finished)} />)</> : null}.
+            </p>
+          ) : r.mode === "finish" ? (
+            <p>
+              🏁 Финиш: <strong><NameText name={name(r.mover)} /></strong> · {r.finished.length}-е место на финише{r.points > 0 ? `, +${r.points}` : ""}
+            </p>
+          ) : (
+            <p>
+              {r.mode === "roll" ? "Бросает" : "Ходит"} <strong><NameText name={name(r.mover)} /></strong>
+              {r.roll ? ` · выпало ${r.roll} · клетка ${r.hit || r.at}${r.moved ? ` → ${r.moved > 0 ? "бонус" : "ловушка"} → клетка ${r.at}` : ""}` : ""}
+            </p>
+          )}
+          {cell && r.mode !== "finish" && r.mode !== "over" && (
             <div className="card stack stack--tight quest-host__cell">
               <p className="eyebrow">
                 {QUEST_EMOJI[cell.kind]} {QUEST_TITLES[cell.kind]} {cell.points > 0 ? `· ${cell.points} очков` : ""}
@@ -82,7 +104,7 @@ export function QuestHostControls({ session, content, answers, participants, con
             <ol>
               {ranked.map((p) => (
                 <li key={p}>
-                  <NameText name={name(p)} /> — {(r.pos[p] ?? 0) >= content.cells.length + 1 ? "финиш" : `клетка ${r.pos[p] ?? 0}`}
+                  <NameText name={name(p)} /> — {finishPlace(p) > 0 ? `финиш, ${finishPlace(p)}-е место` : `клетка ${r.pos[p] ?? 0}`}
                   {r.skip.includes(p) ? " · пропускает ход" : ""}
                 </li>
               ))}
@@ -124,7 +146,7 @@ export function QuestHostControls({ session, content, answers, participants, con
         )}
         {action === "next" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextTurn(s, participants))}>
-            {teams ? "Следующая команда" : "Следующий игрок"}
+            {r.final && left.length === 0 ? "Круг доигран — к итогам" : teams ? "Следующая команда" : "Следующий игрок"}
           </button>
         )}
         {(action === "podium" || action === "podiumNext") && (
@@ -137,7 +159,29 @@ export function QuestHostControls({ session, content, answers, participants, con
             Завершить игру
           </button>
         )}
-        {stage !== "podium" && stage !== "ready" && r.mode !== "finish" && (
+        {canDeclare && (
+          <button
+            type="button"
+            className="btn btn--quiet btn--block"
+            disabled={busy}
+            onClick={() =>
+              confirm({
+                title: "Объявить последний круг?",
+                text: `Сходят ${teams ? "команды" : "игроки"}, чья очередь после текущего хода, — и итоги. Кто успеет дойти, получит бонус финиша. Отменить можно, пока никто не дошёл.`,
+                confirmLabel: "Последний круг",
+                run: () => run((s) => declareFinal(s)),
+              })
+            }
+          >
+            🏁 Объявить последний круг
+          </button>
+        )}
+        {canCancel && (
+          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run((s) => cancelFinal(s))}>
+            Отменить последний круг
+          </button>
+        )}
+        {stage !== "podium" && stage !== "ready" && r.mode !== "finish" && r.mode !== "over" && (
           <button
             type="button"
             className="btn btn--quiet btn--block"

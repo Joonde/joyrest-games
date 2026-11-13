@@ -121,6 +121,7 @@ describe("редакция платформы: без базы", () => {
 // Адреса разделов агентства: в Лайте — 404, в платформе агентства — есть (без входа — не 404).
 const AGENCY_PATHS = [
   "/api/clients",
+  "/api/orders",
   "/api/notices",
   "/api/events?scope=upcoming",
   "/api/calendar?from=2026-01-01&to=2026-01-02",

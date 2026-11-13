@@ -37,7 +37,7 @@ export type QuestStyle = "classic" | "party" | "kids" | "adult";
 export interface QuestContent {
   cells: QuestCell[];
   style: QuestStyle;
-  /** Очки первой команде на финише. */
+  /** Бонус первой команде на финише (следующим — 75%, 50%, 25% — `finishBonus`). */
   finishPoints: number;
 }
 
@@ -78,7 +78,7 @@ export function newQuestCell(kind: QuestKind = "task", text = ""): QuestCell {
 }
 
 export function createQuest(): QuestContent {
-  return { cells: Array.from({ length: QUEST_LIMITS.minCells }, (_, i) => newQuestCell(i % 5 === 4 ? "question" : "task")), style: "classic", finishPoints: 200 };
+  return { cells: Array.from({ length: QUEST_LIMITS.minCells }, (_, i) => newQuestCell(i % 5 === 4 ? "question" : "task")), style: "classic", finishPoints: 100 };
 }
 
 function rec(v: unknown): Record<string, unknown> {
@@ -110,7 +110,7 @@ export function parseQuest(raw: unknown): QuestContent {
     };
   });
   const style: QuestStyle = d.style === "party" || d.style === "kids" || d.style === "adult" ? d.style : "classic";
-  return { cells, style, finishPoints: int(d.finishPoints, 200, 0, QUEST_LIMITS.maxPoints) };
+  return { cells, style, finishPoints: int(d.finishPoints, 100, 0, QUEST_LIMITS.maxPoints) };
 }
 
 /** Поменять число клеток (40–100): новые — пустые задания в конце, лишние с конца убираются. */

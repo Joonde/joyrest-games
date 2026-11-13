@@ -118,6 +118,11 @@ function Section({ section, onCopy }: { section: SalesSection; onCopy: (text: st
     <section id={section.id} className="card stack guide-game">
       <h2>{section.title}</h2>
       {section.lead && <p className="muted">{section.lead}</p>}
+      {section.warn && (
+        <p className="guide-warn" role="note">
+          ⚠️ {section.warn}
+        </p>
+      )}
       {section.steps && <Steps steps={section.steps} />}
       {section.checks && (
         <div className="stack stack--tight">

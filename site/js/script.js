@@ -238,7 +238,7 @@
   // ---------- Калькулятор ----------
   const P = window.JoyPricing;
   const calc = { pkg: 'quiz', tier: 0, weekend: false, date: '', time: '', extras: {}, ext: 0, addons: {}, info: '' };
-  // Сегодня по Москве — для ранней брони и чтобы не выбрать прошедшую дату.
+  // Сегодня по Москве — чтобы не выбрать прошедшую дату и показать уведомление о новогодней надбавке.
   const today = () => P.moscowToday();
   const money = (n) => P.money(n);
   const CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
@@ -347,20 +347,19 @@
   });
 
   const DAY_LABEL = (wk) => wk ? 'пятница–воскресенье' : 'будни';
-  // «27 400 + 5 500» под ценой: сумма вечера и праздничная цена (выезд — отдельной строкой ниже).
+  // «27 400 + 5 500» под ценой: сумма вечера и надбавка (выезд — отдельной строкой ниже).
   function levelCalc(t, r){
     const s = r.season;
     if(s.min && t.base + P.roundUp(t.base * s.pct / 100) < s.min) return `минимум ${money(s.min)}`;
     return `${money(t.base)} + ${money(t.extra)}`;
   }
-  // Ранняя бронь Нового года: блок виден с 1 сентября по 15 ноября по Москве.
+  // Уведомление о новогодней надбавке перед калькулятором (решение владельца 11 ноября 2026): видно с 1 октября по 1 января по Москве.
   (() => {
-    const promo = $('earlyPromo');
-    if(!promo) return;
+    const note = $('nyNote');
+    if(!note) return;
     const t = today();
-    const y = t.slice(0, 4);
-    promo.hidden = !(t >= `${y}-09-01` && t <= `${y}-${String(P.EARLY_UNTIL.m).padStart(2, '0')}-${String(P.EARLY_UNTIL.d).padStart(2, '0')}`);
-    $('earlyCalc').addEventListener('click', () => {
+    note.hidden = !(t.slice(5) >= '10-01' || t.slice(5) === '01-01');
+    $('nyCalc').addEventListener('click', () => {
       const input = $('calcDate');
       input.closest('.step-q').scrollIntoView({ behavior: smooth, block: 'center' });
       input.focus({ preventScroll: true });
@@ -377,7 +376,7 @@
     const ti = tierIndex();
     ui.packs.forEach(([id, b]) => pressable(b, id === calc.pkg));
     ui.tiers.forEach((b, i) => pressable(b, i === calc.tier));
-    const r = P.calcPrice({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() });
+    const r = P.calcPrice({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, extras: extrasList(), ext: calc.ext, addons: addonsList() });
     // Дата есть — день недели берётся из неё, кнопки дня только показывают его.
     ui.days.forEach(([wk, b]) => { pressable(b, wk === r.weekend); b.disabled = !!r.date; });
     // Пока человек вводит дату или время с клавиатуры, браузер отдаёт пустое значение до конца ввода —
@@ -388,7 +387,7 @@
     $('calcTimeClear').hidden = !calc.time;
     $('calcDateInfo').innerHTML = r.date
       ? `<b>${esc(r.date.label.replace(/, [а-я]+$/, ''))}, ${esc(r.date.weekday)}</b> — ${r.weekend ? 'пятница–воскресенье, +10%' : 'будний день'}${r.season ? ' · ' + esc(r.season.title.toLowerCase()) : ''}.${calc.date < today() ? ' Эта дата уже прошла — проверьте.' : ''}`
-      : 'Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.';
+      : 'Укажите дату — день недели и надбавку в праздничные даты посчитаем сами. Дата ещё не известна — выберите день ниже.';
     ui.extras.forEach(([id, b]) => {
       const same = id === calc.pkg;
       b.hidden = same;
@@ -405,19 +404,14 @@
     });
 
     lastResult = r;
-    // Праздничная цена: причина над ценами, у каждой цены — из чего она.
+    // Новогодняя надбавка или праздничная цена: причина над ценами, у каждой цены — из чего она.
     const season = r.individual ? null : r.season;
     $('calcSeason').hidden = !season;
     if(season){
-      $('calcSeasonTitle').textContent = 'Праздничная цена · ' + season.title;
+      $('calcSeasonTitle').textContent = season.label + ' · ' + season.title;
       $('calcSeasonBadge').textContent = P.seasonBadge(season);
       $('calcSeasonText').textContent = season.text;
-      $('calcSeasonEarly').hidden = !season.early;
-      if(season.early){
-        const t = r.totals.find((x) => x.id === (hostLevelField.value || 'standard')) || r.totals[0];
-        const full = t.base + P.roundUp(t.base * season.fullPct / 100) - t.base;
-        $('calcSeasonEarly').textContent = `Ранняя бронь до ${P.earlyUntilLabel(calc.date)}: +${season.pct}% вместо +${season.fullPct}% — экономия ${money(full - t.extra)} на формате «${t.name}».`;
-      }
+      $('calcSeasonNote').textContent = season.label + ' зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.';
     }
     const hint = r.individual ? '' : r.hint;
     $('calcSeasonHint').hidden = !hint;
@@ -446,7 +440,7 @@
     if(lines.length) lines[0][1] = money(r.lines[0].value);
     if(r.weekend) lines.push(['Пятница–воскресенье', '+10%']);
     r.lines.filter((l) => l.fixed && !/^Выезд/.test(l.label)).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
-    if(season) lines.push(['Праздничная цена · ' + season.title, P.seasonBadge(season)]);
+    if(season) lines.push([season.label + ' · ' + season.title, P.seasonBadge(season)]);
     r.lines.filter((l) => l.fixed && /^Выезд/.test(l.label)).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
     $('calcLines').innerHTML = lines.map(([k, v]) => `<li><span>${esc(k)}</span><span>${v}</span></li>`).join('');
     // Полоска итога внизу экрана телефона
@@ -472,7 +466,7 @@
   // калькулятором. Касание цены в карточке выбирает формат ведущего. Расчёт помнит телефон (jr-calc), после
   // отправки заявки — забывает. В /api/lead уходит полем calc.
   const CALC_KEY = 'jr-calc';
-  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, time: calc.time || '', today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
+  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, time: calc.time || '', extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
   function saveCalc(opts){
     try{ if(opts) localStorage.setItem(CALC_KEY, JSON.stringify(opts)); else localStorage.removeItem(CALC_KEY); }catch(_){ /* приватный режим — расчёт до перезагрузки */ }
   }
@@ -577,7 +571,7 @@
     return P.calcMessage(Object.assign({}, calcOpts(), { name: nameEl ? nameEl.value : '' }), hostLevelField.value || '');
   }
   function copyCalc(value, message){
-    const done = () => topToast(message || 'Расчёт скопирован — вставьте его в чат с менеджером', null, null, 6000);
+    const done = () => topToast(message || (sheetWord === 'пакет' ? 'Пакет' : 'Расчёт') + ' скопирован — вставьте его в чат с менеджером', null, null, 6000);
     const fallback = () => {
       const area = document.createElement('textarea');
       area.value = value;
@@ -598,6 +592,15 @@
   const avitoUrl = sheet ? (sheet.dataset.avito || '').trim() : '';
   document.querySelectorAll('[data-avito-link]').forEach((a) => { if(avitoUrl){ a.href = avitoUrl; a.hidden = false; } });
   let sheetText = '', sheetFrom = null;
+  // Что отправляем: расчёт калькулятора или готовый пакет («Выбрать пакет» в витрине) — свой текст и подписи окна.
+  let sheetMake = () => showcaseText(), sheetWord = 'расчёт';
+  const sheetTitle = $('sendSheetTitle'), sheetHint = $('sendSheetHint');
+  const sheetTitleCalc = sheetTitle ? sheetTitle.textContent : '', sheetHintCalc = sheetHint ? sheetHint.textContent : '';
+  function sheetMode(word){
+    sheetWord = word;
+    if(sheetTitle) sheetTitle.textContent = word === 'пакет' ? 'Куда отправить выбранный пакет?' : sheetTitleCalc;
+    if(sheetHint) sheetHint.textContent = word === 'пакет' ? 'Откроется чат с нами, пакет уже будет в сообщении — останется нажать «Отправить».' : sheetHintCalc;
+  }
   function closeSheet(){
     if(!sheet || sheet.hidden) return;
     sheet.hidden = true; document.body.style.overflow = '';
@@ -605,7 +608,8 @@
   }
   let sheetFile = null;
   function shareCalc(e){
-    sheetText = showcaseText();
+    sheetMake = () => showcaseText(); sheetMode('расчёт');
+    sheetText = sheetMake();
     if(!sheet){ copyCalc(sheetText); return; }
     sheetFrom = e && e.currentTarget;
     sheetLinks();
@@ -624,11 +628,11 @@
   }
   // Ссылки окна — по текущему тексту (имя меняется прямо в окне).
   function sheetLinks(){
-    sheetText = showcaseText();
+    sheetText = sheetMake();
     $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
     // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
     $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(sheetText));
-    const mails = P.mailLinks(sheetText);
+    const mails = P.mailLinks(sheetText, sheetWord === 'пакет' ? 'Готовый пакет JoyRest' : '');
     document.querySelectorAll('#sendMailList [data-mail]').forEach((a) => { a.href = mails[a.dataset.mail]; });
   }
   if(sheet){
@@ -642,10 +646,10 @@
     });
     document.querySelectorAll('#sendMailList [data-mail]').forEach((a) => a.addEventListener('click', () => {
       if(a.dataset.mail === 'app'){ setTimeout(closeSheet, 0); return; }
-      copyCalc(sheetText, 'Открываем почту — расчёт уже в письме (и скопирован, если понадобится вставить)'); closeSheet();
+      copyCalc(sheetText, 'Открываем почту — ' + sheetWord + ' уже в письме (и скопирован, если понадобится вставить)'); closeSheet();
     }));
     // Текст копируем и для Telegram: если приложение не подставит его, останется вставить.
-    $('sendTg').addEventListener('click', () => { copyCalc(sheetText, 'Открываем Telegram — расчёт уже в сообщении (и скопирован, если понадобится вставить)'); closeSheet(); });
+    $('sendTg').addEventListener('click', () => { copyCalc(sheetText, 'Открываем Telegram — ' + sheetWord + ' уже в сообщении (и скопирован, если понадобится вставить)'); closeSheet(); });
     // Авито не даёт подставить текст: копируем его, открываем профиль — там «Написать» и вставить.
     // Авито не даёт подставить текст: сначала шаги прямо в окне (клиент уходит на вкладку Авито и уведомление сайта
     // не видит — жалоба владельца 24 октября 2026), потом копируем расчёт и открываем профиль.
@@ -654,7 +658,7 @@
       $('sendAvito').setAttribute('aria-expanded', String(!box.hidden));
       if(!box.hidden) $('sendAvitoGo').focus();
     });
-    $('sendAvitoGo').addEventListener('click', () => { copyCalc(sheetText, 'Расчёт скопирован. На Авито нажмите «Написать» и вставьте его в сообщение'); closeSheet(); });
+    $('sendAvitoGo').addEventListener('click', () => { copyCalc(sheetText, (sheetWord === 'пакет' ? 'Пакет' : 'Расчёт') + ' скопирован. На Авито нажмите «Написать» и вставьте его в сообщение'); closeSheet(); });
     $('sendImg').addEventListener('click', () => {
       const go = (f) => window.JoyCalcImage.share(f, sheetText).then((how) => {
         if(how === 'saved') topToast('Картинка расчёта сохранена — прикрепите её в чат с нами', null, null, 6000);
@@ -685,6 +689,39 @@
   }
   $('calcSubmit').addEventListener('click', SHOWCASE ? shareCalc : sendCalc);
   $('calcBarSend').addEventListener('click', SHOWCASE ? shareCalc : sendCalc);
+  // «Выбрать пакет» у готовых пакетов: в витрине — окно «Куда отправить» с текстом пакета (bundleMessage), без картинки
+  // расчёта; на открытом сайте — пакет в «Тип мероприятия» заявки и к форме.
+  function shareBundle(id, e){
+    sheetMake = () => P.bundleMessage(id, $('sendName') ? $('sendName').value : ''); sheetMode('пакет');
+    sheetText = sheetMake();
+    if(!sheet){ copyCalc(sheetText); return; }
+    sheetFrom = e && e.currentTarget;
+    sheetLinks();
+    $('sendMailList').hidden = true; $('sendMail').setAttribute('aria-expanded', 'false');
+    if(avitoUrl){ $('sendAvitoGo').href = avitoUrl; $('sendAvito').hidden = false; }
+    $('sendAvitoBox').hidden = true; $('sendAvito').setAttribute('aria-expanded', 'false');
+    sheetFile = null;
+    $('sendImg').hidden = true;
+    sheet.hidden = false; document.body.style.overflow = 'hidden';
+    $('sendWa').focus();
+  }
+  document.querySelectorAll('[data-bundle]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const b = P.bundleById(link.dataset.bundle);
+      if(!b) return;
+      e.preventDefault();
+      if(SHOWCASE){ shareBundle(b.id, e); return; }
+      // Готовый пакет заменяет расчёт калькулятора в заявке: иначе тип и карточка «Ваш расчёт» противоречили бы друг другу.
+      const hadCalc = !!sentCalc;
+      if(hadCalc) clearCalcCard();
+      // Число гостей, вписанное калькулятором, к пакету «до 25» не относится — убираем; своё число клиента не трогаем.
+      const guestsInput = $('guests');
+      if(autoGuests && guestsInput && guestsInput.value === autoGuests){ guestsInput.value = ''; autoGuests = ''; }
+      selectType('Готовый пакет «' + b.name + '»');
+      goToForm();
+      topToast('Пакет «' + b.name + '» — в заявке ✓' + (hadCalc ? ' Расчёт калькулятора убран.' : ''));
+    });
+  });
   $('calcCardEdit').addEventListener('click', () => {
     $('calculator').scrollIntoView({ behavior: smooth, block: 'start' });
     topToast('Меняйте выбор — расчёт в заявке обновится сам');
@@ -888,6 +925,50 @@
     }, $('formNote'), $('formError'));
     if(ok){ this.reset(); clearCalcCard(); update(); markHosts(); }
   });
+
+  /* «Как проходят наши вечера»: одно фото крупно (целиком, без обрезки), за ним — два следующих; стрелки, лента,
+     касание фото и свайп листают. Адрес фото берётся из миниатюры — сборка переписывает его с отпечатком. */
+  const moments = $('moments');
+  if(moments){
+    const thumbs = Array.from(moments.querySelectorAll('[data-moment]'));
+    const print = $('momentPrint'), img = $('momentImg');
+    let cur = 0;
+    const srcOf = (i) => thumbs[(i + thumbs.length) % thumbs.length].querySelector('img').getAttribute('src');
+    function showMoment(i){
+      cur = (i + thumbs.length) % thumbs.length;
+      const t = thumbs[cur];
+      img.classList.add('is-loading');
+      img.onerror = () => { img.classList.remove('is-loading'); print.classList.remove('is-square'); };
+      img.onload = () => {
+        img.classList.remove('is-loading');
+        print.classList.toggle('is-square', img.naturalWidth > 0 && img.naturalWidth / img.naturalHeight < 1.2);
+      };
+      const small = t.querySelector('img');
+      img.width = Number(small.getAttribute('width')) || img.width;
+      img.height = Number(small.getAttribute('height')) || img.height;
+      img.src = srcOf(cur);
+      img.alt = t.dataset.alt || '';
+      $('momentCap').textContent = t.dataset.cap || '';
+      $('momentTag').textContent = t.dataset.tag || '';
+      $('momentNum').textContent = String(cur + 1);
+      $('momentBack1').src = srcOf(cur + 1);
+      $('momentBack2').src = srcOf(cur + 2);
+      print.classList.toggle('is-alt', cur % 2 === 1);
+      thumbs.forEach((b, k) => { b.classList.toggle('is-on', k === cur); if(k === cur) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+    }
+    thumbs.forEach((b, k) => b.addEventListener('click', () => showMoment(k)));
+    $('momentPrev').addEventListener('click', () => showMoment(cur - 1));
+    $('momentNext').addEventListener('click', () => showMoment(cur + 1));
+    print.addEventListener('click', () => showMoment(cur + 1));
+    let x0 = null, y0 = 0;
+    print.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    print.addEventListener('touchend', (e) => {
+      if(x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+      x0 = null;
+      if(Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)){ e.preventDefault(); showMoment(cur + (dx < 0 ? 1 : -1)); }
+    });
+  }
 
   /* Промо-ролик: превью в «Обзоре игр» открывает плеер поверх страницы. Видео грузится только сейчас
      (preload="none"); обложка — та же картинка превью (атрибут poster сборка не переписывает). */

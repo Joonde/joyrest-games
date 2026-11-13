@@ -89,6 +89,9 @@ services:
       SITE_INDEXING: ${SITE_INDEXING:-off}
       LEAD_TELEGRAM_TOKEN: ${LEAD_TELEGRAM_TOKEN:-}
       LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
+      # Telegram из российских дата-центров недоступен: адрес посредника за границей с секретным путём
+      # (secrets.env, sudo joyrest tg-relay). Пусто — прямой api.telegram.org.
+      TELEGRAM_API_BASE: ${TELEGRAM_API_BASE:-}
       # Анкеты площадок и заявки клиентов без входа (База площадок). По умолчанию ВЫКЛЮЧЕНЫ:
       # включает только владелец — sudo joyrest venues on (settings.env).
       VENUE_FORMS: ${VENUE_FORMS:-off}
@@ -134,6 +137,9 @@ services:
       LEAD_LABEL: "🧪 ТЕСТ (test.joy-rest.ru)"
       LEAD_TELEGRAM_TOKEN: ${LEAD_TELEGRAM_TOKEN:-}
       LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
+      # Telegram из российских дата-центров недоступен: адрес посредника за границей с секретным путём
+      # (secrets.env, sudo joyrest tg-relay). Пусто — прямой api.telegram.org.
+      TELEGRAM_API_BASE: ${TELEGRAM_API_BASE:-}
       # Анкеты площадок на test открыты всегда (проверка).
       VENUE_FORMS: "on"
       # Сообщения бота читает основная версия; тестовая только отправляет уведомления.

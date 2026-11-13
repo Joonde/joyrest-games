@@ -27,6 +27,10 @@ export interface EventFormDraft {
   contact?: string;
   /** Дату и время выбрали сами (или подставили из расчёта) — «Когда» заполнено. */
   whenSet?: boolean;
+  /** Стоимость по расчёту, как набрали («24 900»); у старых черновиков — пусто. */
+  price?: string;
+  /** Галочка «Предоплата внесена». */
+  prepaid?: boolean;
 }
 
 /** Не больше 10 черновиков; старше 30 дней — убираются сами. */
@@ -63,6 +67,8 @@ function parseOne(raw: unknown): EventFormDraft | null {
     program: cleanProgram(r.program),
     contact: str(r.contact, 120),
     whenSet: r.whenSet === true,
+    price: str(r.price, 12),
+    prepaid: r.prepaid === true,
   };
 }
 

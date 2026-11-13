@@ -293,6 +293,14 @@ export function canAcceptEvent(actor: Actor, event: { hostId: string }): boolean
   return isActiveHost(actor) && actor?.uid === event.hostId;
 }
 
+/**
+ * Колокольчик в студии — каждому активному человеку команды (решение владельца 6 ноября 2026): свои мероприятия
+ * (назначено, изменено, снято, отменено); обращения клиентов в нём — только у `canManageClients`.
+ */
+export function canSeeNotices(actor: Actor): boolean {
+  return isActiveHost(actor);
+}
+
 /** База клиентов (заявки, телефоны, статусы, заметки, архив) — владелец и менеджер по продажам. */
 export function canManageClients(actor: Actor): boolean {
   return isAdmin(actor) || isSalesManager(actor);
@@ -329,7 +337,17 @@ export function canDeleteEvent(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
+/** «Отметить: вернул» — предоплату клиенту возвращает только владелец (решение 12 ноября 2026). */
+export function canConfirmRefund(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
 export function canViewEventStats(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** «Активные заказы»: колонка и итог «Агентству» — только владелец (решение владельца 12 ноября 2026). */
+export function canSeeAgencyShare(actor: Actor): boolean {
   return isAdmin(actor);
 }
 

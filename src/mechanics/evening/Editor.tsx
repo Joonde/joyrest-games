@@ -1,48 +1,18 @@
 // Конструктор «Мероприятия из блоков»: 1–5 игр по порядку, готовые программы, добавление из своих игр и библиотеки.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Fold } from "../../components/Fold";
+import { blockPrepOf, prepTitle, templateBlocks } from "../../core/eveningPrep";
+import { editorGuideFor } from "../../core/editorGuideSkip";
+import { copyOfGame, GAME_TITLE_MAX_LENGTH } from "../../core/games";
+import { guideFor } from "../../core/guide";
 import { PROGRAM_LIMITS, type ProgramBlockRef } from "../../core/program";
 import { gamesRepo, useAuth, type Game } from "../../data";
-import { categoryOf, groupByCategory, type CategoryId } from "../categories";
-import { mechanicTitle } from "../registry";
+import { groupByCategory } from "../categories";
+import { gameMediaIds, mechanicTitle } from "../registry";
 import type { EditorProps } from "../types";
 import { NOT_IN_EVENING, type EveningContent } from "./content";
-import { parseDance } from "../dance/content";
-import { mainStyle, styleById } from "../dance/styles";
-
-interface Template {
-  id: string;
-  title: string;
-  hint: string;
-  /** Какие игры по порядку: механика или раздел («music» — музыкальный квиз). */
-  slots: Array<{ mechanic: string; category?: CategoryId; style?: string; variant?: string }>;
-}
-
-/** Слот программы подходит игре: механика, раздел, стиль танца (у батла), вариант («Танцуй как звезда» или «Караоке на поле»). */
-function fits(game: Game, slot: Template["slots"][number]): boolean {
-  if (game.mechanic !== slot.mechanic) return false;
-  if (slot.category && categoryOf(game) !== slot.category) return false;
-  if (slot.style && mainStyle(parseDance(game.content).cards) !== slot.style) return false;
-  if (slot.variant) {
-    const raw = game.content as { variant?: unknown } | null;
-    if ((raw?.variant ?? "dance") !== slot.variant) return false;
-  }
-  return true;
-}
-
-const TEMPLATES: Template[] = [
-  { id: "corp", title: "Корпоратив", hint: "Квиз → «Ставка на знания» → «Миллион на кону»", slots: [{ mechanic: "quiz", category: "quiz" }, { mechanic: "board" }, { mechanic: "millionaire" }] },
-  { id: "birthday", title: "День рождения", hint: "«Давайте знакомиться» → квиз → «Правда или действие»", slots: [{ mechanic: "story" }, { mechanic: "quiz", category: "quiz" }, { mechanic: "truth" }] },
-  { id: "music", title: "Музыкальный вечер", hint: "«Узнай по нотам» → музыкальное лото → танцевальный батл", slots: [{ mechanic: "quiz", category: "music" }, { mechanic: "lotto" }, { mechanic: "dance" }] },
-  { id: "table", title: "Вечер настолок", hint: "«Кости лжеца» → «Мафия»", slots: [{ mechanic: "perudo" }, { mechanic: "mafia" }] },
-  {
-    id: "dance",
-    title: "Танцевальный вечер",
-    hint: "Джаз-фанк → диско → латина → Танцуй как звезда",
-    slots: [{ mechanic: "dance", style: "jazz" }, { mechanic: "dance", style: "disco" }, { mechanic: "dance", style: "latin" }, { mechanic: "stage", variant: "dance" }],
-  },
-  { id: "show", title: "Телешоу", hint: "«Ставка на знания» → «Гонка на выживание» → «Миллион на кону»", slots: [{ mechanic: "board" }, { mechanic: "survival" }, { mechanic: "millionaire" }] },
-];
+import { fits, slotLabel, TEMPLATES, type Template } from "./templates";
 
 function refOf(game: Game): ProgramBlockRef {
   return { gameId: game.id, title: game.title, mechanic: game.mechanic };
@@ -72,15 +42,59 @@ function useAvailableGames(libraryOnly: boolean): { games: Game[] | null; failed
   return { games, failed };
 }
 
-export function EveningEditor({ content, onChange, editable, scope }: EditorProps<EveningContent>) {
+export function EveningEditor({ gameId, content, onChange, editable, scope, gameTitle, openGame }: EditorProps<EveningContent>) {
   const { games, failed } = useAvailableGames(scope === "agency");
+  const [auth] = useAuth();
+  const uid = auth.status === "signedIn" ? auth.user.uid : null;
+  const navigate = useNavigate();
   const [note, setNote] = useState<string | null>(null);
+  /** Блок, для которого сейчас делается копия игры («✍️ Подготовить под вечер»). */
+  const [preparing, setPreparing] = useState<number | null>(null);
+  // Двойное касание: второе приходит раньше, чем React обновит `preparing`, — без него вышли бы две копии.
+  const preparingRef = useRef(false);
   const blocks = content.blocks;
+  const latest = useRef(content);
+  latest.current = content;
   const room = PROGRAM_LIMITS.maxBlocks - blocks.length;
   const known = useMemo(() => new Map((games ?? []).map((g) => [g.id, g])), [games]);
   const mineIds = useMemo(() => new Set((games ?? []).filter((g) => g.scope === "personal").map((g) => g.id)), [games]);
 
   const set = (next: ProgramBlockRef[]) => onChange({ ...content, blocks: next.slice(0, PROGRAM_LIMITS.maxBlocks) });
+  // Шаблоны библиотеки в личном вечере — вопросы стандартные, их стоит подготовить (решение владельца 11 ноября 2026).
+  const templates = new Set(templateBlocks(scope ?? "personal", blocks.map((b) => known.get(b.gameId)?.scope ?? null)));
+
+  /** Уйти со страницы программы: конструктор сначала дождётся, пока программа сохранится. */
+  function go(path: string) {
+    if (openGame) openGame(path);
+    else navigate(path);
+  }
+  /** Открыть конструктор игры блока с возвратом к программе. */
+  function openBlock(id: string) {
+    go(`/studio/games/${id}?evening=${encodeURIComponent(gameId)}`);
+  }
+
+  /** «✍️ Подготовить под вечер»: своя копия шаблона вместо него в программе — и сразу её конструктор. */
+  async function prepare(i: number, game: Game) {
+    if (!uid || preparingRef.current) return;
+    preparingRef.current = true;
+    setPreparing(i);
+    setNote(null);
+    try {
+      const draft = { ...copyOfGame(game, "personal", uid), title: prepTitle(game.title, gameTitle ?? "", GAME_TITLE_MAX_LENGTH) };
+      const id = await gamesRepo.copy(game.id, gameMediaIds(game.mechanic, game.content), draft);
+      // Пока шла копия, программу могли поменять — заменяем по свежему содержимому: тот же блок, а если он сдвинулся — первый с этой игрой.
+      const now = latest.current.blocks;
+      const at = now[i]?.gameId === game.id ? i : now.findIndex((b) => b.gameId === game.id);
+      if (at < 0) return setNote("Блок убрали из программы — копия игры осталась в «Моих играх».");
+      onChange({ ...latest.current, blocks: now.map((b, k) => (k === at ? { gameId: id, title: draft.title, mechanic: game.mechanic } : b)) });
+      openBlock(id);
+    } catch {
+      setNote("Не удалось сделать копию игры. Проверьте интернет и нажмите ещё раз.");
+    } finally {
+      preparingRef.current = false;
+      setPreparing(null);
+    }
+  }
   const move = (i: number, by: -1 | 1) => {
     const next = [...blocks];
     const [b] = next.splice(i, 1);
@@ -97,10 +111,10 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
       const sorted = [...games].sort((a, b) => Number(mineIds.has(b.id)) - Number(mineIds.has(a.id)));
       const game = sorted.find((g) => fits(g, slot) && !picked.some((p) => p.gameId === g.id));
       if (game) picked.push(refOf(game));
-      else missing.push(slot.style ? `${mechanicTitle(slot.mechanic)} (${styleById(slot.style)?.title ?? slot.style})` : mechanicTitle(slot.mechanic));
+      else missing.push(slotLabel(slot));
     }
     set(picked);
-    setNote(missing.length > 0 ? `Не нашлось игр: ${missing.join(", ")}. Добавьте их ниже или скопируйте из библиотеки.` : `Программа «${t.title}» собрана — поменяйте игры и порядок, как нужно.`);
+    setNote(missing.length > 0 ? `Не нашлось игр: ${missing.join(", ")}. Добавьте их ниже или скопируйте из библиотеки.` : `Программа «${t.title}» собрана — поменяйте игры и порядок, как нужно. 👥 ${t.setup}`);
   }
 
   return (
@@ -125,6 +139,22 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
                     {mechanicTitle(b.mechanic)}
                     {game ? (mineIds.has(game.id) ? " · мои игры" : " · библиотека") : ""}
                   </span>
+                  {game && templates.has(i + 1) && <span className="ev-edit__tag ev-edit__tag--template">📚 Шаблон библиотеки — вопросы стандартные</span>}
+                  {game && mineIds.has(game.id) && scope !== "agency" && <span className="ev-edit__tag">✍️ Ваша игра</span>}
+                  {game && editable && (
+                    <span className="ev-edit__go">
+                      {templates.has(i + 1) ? (
+                        <button type="button" className="btn btn--secondary" disabled={preparing !== null} onClick={() => void prepare(i, game)}>
+                          {preparing === i ? "Делаем копию…" : "✍️ Подготовить под вечер"}
+                        </button>
+                      ) : (
+                        <button type="button" className="btn btn--secondary" disabled={preparing !== null} onClick={() => openBlock(game.id)}>
+                          ✍️ Редактировать
+                        </button>
+                      )}
+                    </span>
+                  )}
+                  {game && <BlockMemo mechanic={game.mechanic} go={go} />}
                   {lost && (
                     <span className="error small">
                       {scope === "agency" ? "Не игра библиотеки (или удалена) — ведущие её не запустят. Замените блок." : "Игра не найдена (удалена?) — уберите блок или замените."}
@@ -133,13 +163,13 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
                 </span>
                 {editable && (
                   <span className="ev-edit__tools">
-                    <button type="button" className="btn btn--quiet" aria-label="Выше" disabled={i === 0} onClick={() => move(i, -1)}>
+                    <button type="button" className="btn btn--quiet" aria-label="Выше" disabled={i === 0 || preparing !== null} onClick={() => move(i, -1)}>
                       ↑
                     </button>
-                    <button type="button" className="btn btn--quiet" aria-label="Ниже" disabled={i === blocks.length - 1} onClick={() => move(i, 1)}>
+                    <button type="button" className="btn btn--quiet" aria-label="Ниже" disabled={i === blocks.length - 1 || preparing !== null} onClick={() => move(i, 1)}>
                       ↓
                     </button>
-                    <button type="button" className="btn btn--quiet" onClick={() => set(blocks.filter((_, k) => k !== i))}>
+                    <button type="button" className="btn btn--quiet" disabled={preparing !== null} onClick={() => set(blocks.filter((_, k) => k !== i))}>
                       Убрать
                     </button>
                   </span>
@@ -166,6 +196,7 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
                       <span className="choice__text">
                         <span className="choice__title">{t.title}</span>
                         <span className="choice__hint">{t.hint}</span>
+                        <span className="choice__hint">👥 {t.setup}</span>
                       </span>
                     </button>
                   ))}
@@ -193,5 +224,33 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
         </section>
       )}
     </div>
+  );
+}
+
+/** «📋 Памятка» у блока: что подготовить, что сказать гостям и где подробная инструкция. */
+function BlockMemo({ mechanic, go }: { mechanic: string; go: (path: string) => void }) {
+  const explain = guideFor(mechanic)?.explain;
+  return (
+    <details className="ev-memo">
+      <summary>📋 Памятка ведущему</summary>
+      <p className="small">
+        <strong>Подготовить заранее.</strong> {blockPrepOf(mechanic)}
+      </p>
+      {explain && (
+        <p className="small">
+          <strong>Сказать гостям.</strong> {explain}
+        </p>
+      )}
+      <span className="ev-memo__links">
+        <button type="button" className="btn btn--quiet" onClick={() => go(`/studio/guide#${mechanic}`)}>
+          🎤 Как провести на празднике
+        </button>
+        {editorGuideFor(mechanic) && (
+          <button type="button" className="btn btn--quiet" onClick={() => go(`/studio/editor-guide#${mechanic}`)}>
+            ✍️ Как заполнить
+          </button>
+        )}
+      </span>
+    </details>
   );
 }

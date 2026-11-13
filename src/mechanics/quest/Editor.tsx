@@ -8,7 +8,8 @@ import { clipFields, parseClip } from "../../core/clip";
 import { embedUrl } from "../dance/content";
 import type { EditorProps } from "../types";
 import { newQuestCell, parseQuestList, QUEST_EMOJI, QUEST_LIMITS, QUEST_TITLES, resizeQuest, STYLE_TITLES, STYLE_HINTS, type QuestCell, type QuestContent, type QuestKind, type QuestStyle } from "./content";
-import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./demo";
+import { DEMO_QUEST, DEMO_QUEST_ADULT, DEMO_QUEST_DRINKS, DEMO_QUEST_SWEET } from "./demo";
+import { finishBonus, questMinutes } from "./logic";
 import { validateQuest } from "./validate";
 
 const KINDS: QuestKind[] = ["task", "question", "dance", "karaoke", "bonus", "trap", "skip", "empty"];
@@ -57,7 +58,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
       <section className="card">
         <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
-          На экране поле змейкой, фишки команд (или игроков) на старте. Капитан, чья очередь (в режиме «каждый сам» — сам игрок), жмёт «Бросить кубик» на телефоне — фишка идёт, открывается задание клетки. Ведущий решает: «Выполнено» (очки клетки) или «Не выполнено». Бонус и ловушка двигают фишку, «пропуск» — команда пропускает следующий ход. Кто первый на финише — получает бонус, дальше награждение.
+          На экране поле, фишки команд (или игроков) на старте. Капитан, чья очередь (в режиме «каждый сам» — сам игрок), жмёт «Бросить кубик» на телефоне — фишка идёт, задание клетки выходит крупно на экран. Ведущий решает: «Выполнено» (очки клетки) или «Не выполнено». Бонус и ловушка двигают фишку, «пропуск» — команда пропускает следующий ход. Первая команда на финише открывает последний круг: его доигрывают, чтобы ходов у всех было поровну, дошедшие получают бонус финиша по месту прихода. Потом награждение — побеждает больше очков.
         </p>
         <div className="row board-editor__size">
           <label className="field">
@@ -65,10 +66,11 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
             <ClampedNumber value={content.cells.length} min={QUEST_LIMITS.minCells} max={QUEST_LIMITS.maxCells} fallback={40} disabled={!editable} onChange={(n) => onChange(resizeQuest(latest.current, n))} />
           </label>
           <label className="field">
-            Очки за финиш
-            <ClampedNumber value={content.finishPoints} min={0} max={QUEST_LIMITS.maxPoints} fallback={200} disabled={!editable} onChange={(finishPoints) => onChange({ ...latest.current, finishPoints })} />
+            Бонус за финиш
+            <ClampedNumber value={content.finishPoints} min={0} max={QUEST_LIMITS.maxPoints} fallback={100} disabled={!editable} onChange={(finishPoints) => onChange({ ...latest.current, finishPoints })} />
           </label>
         </div>
+        <FinishHint content={content} />
         <fieldset>
           <legend>Оформление</legend>
           <div className="seg" role="group" aria-label="Оформление">
@@ -88,6 +90,12 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
             </button>
             <button type="button" className="btn btn--secondary btn--block" onClick={() => fillFrom(DEMO_QUEST_ADULT.content.cells, "Заполнить шаблоном «18+»")}>
               Заполнить шаблоном «18+»
+            </button>
+            <button type="button" className="btn btn--secondary btn--block" onClick={() => fillFrom(DEMO_QUEST_SWEET.content.cells, "Заполнить шаблоном «Сладкие приключения»")}>
+              Заполнить шаблоном «Сладкие приключения»
+            </button>
+            <button type="button" className="btn btn--secondary btn--block" onClick={() => fillFrom(DEMO_QUEST_DRINKS.content.cells, "Заполнить шаблоном «Алкогольные приключения»")}>
+              Заполнить шаблоном «Алкогольные приключения»
             </button>
             <button type="button" className="btn btn--quiet btn--block" onClick={() => setImporting((v) => !v)}>
               {importing ? "Скрыть замену списком" : "Заменить всё списком"}
@@ -142,6 +150,30 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
   );
 }
 
+/** Бонус финиша по местам, сколько он весит рядом с заданиями и сколько идёт игра. */
+function FinishHint({ content }: { content: QuestContent }) {
+  const tasks = content.cells.filter((c) => (c.kind === "task" || c.kind === "question" || c.kind === "dance" || c.kind === "karaoke") && c.points > 0);
+  const avg = tasks.length > 0 ? Math.round(tasks.reduce((sum, c) => sum + c.points, 0) / tasks.length) : 0;
+  const ratio = avg > 0 ? content.finishPoints / avg : 0;
+  const n = content.cells.length;
+  return (
+    <div className="muted small stack stack--tight">
+      {content.finishPoints > 0 ? (
+        <p>
+          Бонус по месту прихода: 1-е +{finishBonus(content.finishPoints, 0)}, 2-е +{finishBonus(content.finishPoints, 1)}, 3-е +{finishBonus(content.finishPoints, 2)}, дальше +{finishBonus(content.finishPoints, 3)}.
+          {avg > 0 ? ` Задание в среднем — ${avg} очков, финиш — как ${ratio < 1.5 ? "одно-два задания" : ratio <= 3.5 ? "2–3 задания" : `${Math.round(ratio)} заданий`}.` : ""}
+          {ratio > 5 ? " Финиш весит больше заданий — игру будет решать кубик." : ""}
+        </p>
+      ) : (
+        <p>Бонуса за финиш нет — побеждает тот, кто лучше выполнял задания.</p>
+      )}
+      <p>
+        Сколько идёт игра: ≈ {questMinutes(n, 4)} мин при 4 командах, {questMinutes(n, 6)} при 6, {questMinutes(n, 8)} при 8. Времени меньше — ведущий объявит на пульте «Последний круг».
+      </p>
+    </div>
+  );
+}
+
 function CellForm({ cell, editable, errors, onChange }: { cell: QuestCell; editable: boolean; errors: string[]; onChange: (p: Partial<QuestCell> | ((c: QuestCell) => QuestCell)) => void }) {
   const withTask = cell.kind === "task" || cell.kind === "question" || cell.kind === "dance" || cell.kind === "karaoke";
   return (
@@ -184,7 +216,7 @@ function CellForm({ cell, editable, errors, onChange }: { cell: QuestCell; edita
           )}
           <label className="field">
             Очки за выполнение
-            <ClampedNumber value={cell.points} min={0} max={QUEST_LIMITS.maxPoints} fallback={20} disabled={!editable} onChange={(points) => onChange({ points })} />
+            <ClampedNumber value={cell.points} min={0} max={QUEST_LIMITS.maxPoints} fallback={40} disabled={!editable} onChange={(points) => onChange({ points })} />
           </label>
         </>
       )}

@@ -1,8 +1,14 @@
 // Конструктор «Мафии»: роли (по числу игроков или свои), открывать ли роль выбывшего, таймеры речи и
 // голосования, очки победителям, название города.
 import { ClampedNumber } from "../../components/ClampedNumber";
+import { MafiaCardStyleContext, RoleArt } from "./RoleArt";
 import type { EditorProps } from "../types";
-import { autoCounts, MAFIA_LIMITS, ROLES, type MafiaContent, type RoleCounts } from "./content";
+import { autoCounts, MAFIA_LIMITS, ROLES, type MafiaCardStyle, type MafiaContent, type RoleCounts } from "./content";
+
+const CARD_STYLES: Array<{ id: MafiaCardStyle; title: string; hint: string }> = [
+  { id: "noir", title: "Нуар", hint: "Рисованные персонажи 1920-х: бордо, золото, дым" },
+  { id: "classic", title: "Классика JoyRest", hint: "Свои рисунки с живыми глазами и светом" },
+];
 
 const SIZES = [6, 8, 10, 12, 16, 20];
 
@@ -25,6 +31,28 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
           Название города на экране
           <input className="input" value={content.city} maxLength={MAFIA_LIMITS.city} disabled={!editable} onChange={(e) => onChange({ ...content, city: e.target.value })} />
         </label>
+      </section>
+
+      <section className="card stack">
+        <h2>Карты ролей</h2>
+        <p className="muted small">Как выглядят рубашка и карты ролей на телефонах и в итогах на экране зала.</p>
+        <div className="mf-styles">
+          {CARD_STYLES.map((x) => (
+            <label key={x.id} className="choice mf-styles__item">
+              <input type="radio" name="mafia-card-style" checked={content.cardStyle === x.id} disabled={!editable} onChange={() => onChange({ ...content, cardStyle: x.id })} />
+              <span className="choice__text">
+                <span className="mf-styles__preview" aria-hidden="true">
+                  <MafiaCardStyleContext.Provider value={x.id}>
+                    <span className="mf-styles__card"><RoleArt role="mafia" /></span>
+                    <span className="mf-styles__card"><RoleArt role="commissar" /></span>
+                  </MafiaCardStyleContext.Provider>
+                </span>
+                <span className="choice__title">{x.title}</span>
+                <span className="choice__hint">{x.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
       </section>
 
       <section className="card stack">

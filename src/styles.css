@@ -3397,6 +3397,25 @@ kbd {
   font-variant-numeric: lining-nums tabular-nums;
 }
 
+/* 7–8 строк на невысоком экране (ноутбук 16:10, проектор) не помещались над строкой «Вход: … · код» —
+   с 7 строк таблица плотнее, как листаемая (Ревизор, 11 ноября 2026). */
+.board-view:where(:has(.board-view__row:nth-child(7))) {
+  gap: 1.4cqh;
+  font-size: 3.4cqh;
+}
+
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__title {
+  font-size: 5.6cqh;
+}
+
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__list {
+  gap: 0.9cqh;
+}
+
+.board-view:where(:has(.board-view__row:nth-child(7))) .board-view__row {
+  padding: 0.8cqh 2cqw;
+}
+
 /* Длинная таблица (больше 8 строк): строки плотнее, страницы листаются сами, внизу — какие места и точки страниц. */
 .board-view--paged {
   gap: 1.4cqh;
@@ -11620,7 +11639,8 @@ button.dance-card:active {
   position: absolute;
   left: 1.25cqw;
   top: 8.9cqh;
-  width: 19.5cqw;
+  /* На проекторе 4:3 — шире (иначе имена не помещаются). */
+  width: max(19.5cqw, 32cqh);
   max-height: 72cqh;
   padding: 1.6cqh 1cqw;
   box-sizing: border-box;
@@ -11655,7 +11675,8 @@ button.dance-card:active {
 
 .qx-row {
   display: grid;
-  grid-template-columns: 1.2cqw 3.2cqh minmax(0, 1fr) auto 2.4cqw;
+  /* Имени — не меньше 6cqw (длинные имена на проекторе 4:3 сжимали его в ноль). */
+  grid-template-columns: 1.2cqw 3.2cqh minmax(6cqw, 1fr) auto minmax(2.4cqw, auto);
   align-items: center;
   gap: 0.45cqw;
   padding: 0.45cqh 0.6cqw;
@@ -11839,6 +11860,256 @@ button.dance-card:active {
   margin: 0;
   font: 500 2.2cqh Jost, sans-serif;
   color: #f5ebdd;
+}
+
+.qx-center__note + .qx-center__note {
+  margin-top: 1cqh;
+}
+
+/* Подписи колонок панели команд. */
+.qx-panel__cols {
+  float: right;
+  margin-top: 0.4cqh;
+  margin-left: 0.6cqw;
+  font: 400 1.75cqh Jost, sans-serif;
+  color: #cfc3ae;
+}
+
+/* Легенда клеток — под командами. */
+.qx-legend {
+  list-style: none;
+  margin: 1.2cqh 0 0;
+  padding: 1cqh 0 0;
+  border-top: 1px solid rgba(227, 198, 140, 0.35);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6cqh 0.9cqw;
+  font: 500 1.85cqh Jost, sans-serif;
+  color: #f5ebdd;
+}
+
+.qx-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4cqw;
+  white-space: nowrap;
+}
+
+.qx-legend__dot {
+  display: grid;
+  place-items: center;
+  min-width: 2.8cqh;
+  height: 2.8cqh;
+  padding: 0 0.3cqh;
+  box-sizing: border-box;
+  border-radius: 1.4cqh;
+  border: 2px solid #fff;
+  font: 700 1.45cqh Jost, sans-serif;
+  color: #1c1424;
+}
+
+.qx-legend__item--task .qx-legend__dot { background: #e8b64c; }
+.qx-legend__item--question .qx-legend__dot { background: #3fb6b0; }
+.qx-legend__item--dance .qx-legend__dot { background: #e46fa5; }
+.qx-legend__item--karaoke .qx-legend__dot { background: #9b6fe0; }
+.qx-legend__item--bonus .qx-legend__dot { background: #4cb86a; }
+.qx-legend__item--trap .qx-legend__dot { background: #d9534f; color: #fff; }
+.qx-legend__item--skip .qx-legend__dot { background: #8a8f98; color: #fff; }
+
+/* Последний круг и пропуски — под плашкой хода. */
+.qx-notes {
+  position: absolute;
+  top: 11.5cqh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 0.6cqh;
+  max-width: 56cqw;
+}
+
+.qx-note {
+  margin: 0;
+  padding: 0.6cqh 1.2cqw;
+  border-radius: 2cqh;
+  background: rgba(21, 16, 31, 0.84);
+  border: 1.5px solid rgba(227, 198, 140, 0.6);
+  font: 600 2cqh Jost, sans-serif;
+  color: #f5ebdd;
+  text-align: center;
+  backdrop-filter: blur(9px);
+}
+
+.qx-note--final {
+  border-color: #ffe7a3;
+  color: #ffe7a3;
+  box-shadow: 0 0 2cqh rgba(255, 231, 163, 0.35);
+}
+
+/* Карточка хода выходит, когда фишка дошла (задержку ставит экран: ход случился при открытом экране). */
+.qx-delayed {
+  animation: qx-in 0.45s ease-out both;
+  animation-delay: var(--qx-delay, 0ms);
+}
+
+@keyframes qx-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Задание открыто — крупно по центру, поле под ним темнеет. */
+.qx-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 6, 16, 0.55);
+}
+
+.qx-card--focus {
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  width: 52cqw;
+}
+
+.qx-card--focus .quest-task {
+  padding: 3cqh 2.6cqw;
+  gap: 1.6cqh;
+  text-align: center;
+  border-width: 3px;
+  box-shadow: 0 0 5cqh rgba(232, 182, 76, 0.55);
+}
+
+.qx-card--focus .quest-task__kind {
+  font-size: 2.6cqh;
+}
+
+.qx-card--focus .quest-task__text {
+  font-size: 5.2cqh;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.qx-card--focus .quest-task__video {
+  max-height: 46cqh;
+}
+
+.qx-card .quest-task__answer,
+.qx-card .quest-task__outcome.is-ok {
+  color: #a3c2aa;
+}
+
+/* Финиш и итоги круга. */
+.qx-center--finish {
+  border-color: #ffe7a3;
+  box-shadow: 0 0 6cqh rgba(255, 231, 163, 0.5);
+}
+
+.qx-center__bonus {
+  margin: 0 0 1cqh;
+  font: 700 4cqh Jost, sans-serif;
+  color: #a3c2aa;
+}
+
+.qx-finishers {
+  list-style: none;
+  margin: 0 0 1.4cqh;
+  padding: 0;
+  display: grid;
+  gap: 0.6cqh;
+  font: 600 2.6cqh Jost, sans-serif;
+  color: #f5ebdd;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qx-delayed {
+    animation: none;
+  }
+}
+
+/* Телефон: дорожка «старт → финиш», очередь, последний круг. */
+.quest-track {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.quest-track__line {
+  position: relative;
+  height: 12px;
+  /* Поля по бокам — половина своей фишки (34 px), чтобы на старте и финише она не вылезала за край. */
+  margin: 22px 20px 6px;
+  border-radius: 6px;
+  background: var(--color-border);
+}
+
+.quest-track__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 6px;
+  background: var(--color-highlight);
+}
+
+.quest-track__dot,
+.quest-track__me {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid var(--color-surface);
+}
+
+.quest-track__dot {
+  width: 14px;
+  height: 14px;
+}
+
+.quest-track__me {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font: 700 16px Jost, sans-serif;
+  color: #221e1b;
+  box-shadow: 0 0 0 2px var(--color-highlight);
+  z-index: 1;
+}
+
+.quest-track__ends {
+  padding: 0 4px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.quest-phone__queue {
+  margin: 0;
+  font-weight: 600;
+}
+
+.quest-phone__queue.is-soon {
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--color-highlight);
+}
+
+.quest-phone__final,
+.quest-host__final {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-highlight);
+  font-weight: 600;
+}
+
+.quest-task__answer {
+  margin: 0;
 }
 
 .quest-board {
@@ -12047,8 +12318,9 @@ button.dance-card:active {
   font-weight: 700;
 }
 
+/* На телефоне и пульте — цвет темы (светлая пастель на белой карточке не читается); на экране зала — свой. */
 .quest-task__outcome.is-ok {
-  color: #a3c2aa;
+  color: var(--color-success);
 }
 
 .quest-roll {
@@ -19245,6 +19517,51 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   justify-content: flex-end;
 }
 
+/* Подготовка блоков (11 ноября 2026): метка шаблона или своей игры, кнопка и памятка. Цвета — только токены темы. */
+.ev-edit__tag {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.ev-edit__tag--template {
+  border: 1.5px dashed var(--color-highlight);
+}
+
+.ev-edit__go {
+  display: flex;
+  margin-top: 8px;
+}
+
+.ev-edit__go .btn {
+  width: 100%;
+}
+
+.ev-memo {
+  margin-top: 6px;
+}
+
+.ev-memo > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.ev-memo p {
+  margin: 4px 0;
+}
+
+.ev-memo__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
 .ev-template {
   width: 100%;
   text-align: left;
@@ -19884,11 +20201,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .show-look__thumb--hundred-studio {
-  background-image: url("/shows/art/web/board-studio-1280.webp");
+  background-image: url("/shows/art/web/hundred-studio-1280.webp");
 }
 
 .show-look__thumb--hundred-evening {
-  background-image: url("/shows/art/web/board-evening-1280.webp");
+  background-image: url("/shows/art/web/hundred-evening-1280.webp");
 }
 
 /* ---------- Оформление телешоу: «Гонка на выживание» (content.look: «Трасса», «Вечер JoyRest») ----------
@@ -20694,6 +21011,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
  * Цветные кружки мероприятий (решение владельца 24 октября 2026): цвета заметно разные, «Сверх плана» — фиолетовый,
  * «Не подтвердил» — красный, «Прошло — отметьте» — колечко. Кружок — не текст: подпись всегда рядом, цвет текста — темы.
  */
+.plan-light--replace { --light: #d0122f; }
 .plan-light--over { --light: #c45ce8; }
 .plan-light--late { --light: #ef3b3b; }
 .plan-light--live { --light: #ff8a1f; }
@@ -20727,6 +21045,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   box-shadow: inset 0 0 0 2.5px var(--color-text);
 }
 
+.plan-light--replace .plan-light__dot,
 .plan-light--over .plan-light__dot,
 .plan-light--late .plan-light__dot,
 .plan-light--live .plan-light__dot {
@@ -21455,6 +21774,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border-color: var(--color-danger);
   padding: 16px;
 }
+/* Клиента ведёт другой человек (12 ноября 2026): только смотреть и «Забрать себе». */
+.clients-owned {
+  border-color: var(--color-highlight);
+  padding: 16px;
+}
 
 /* Первая строка заметки на свёрнутой карточке — следующий шаг виден без раскрытия. */
 .clients-note-line {
@@ -22085,7 +22409,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   max-width: 100%;
   font-size: 1.9cqh;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  /* Переносы по слогам (мягкие переносы в тексте): раньше «Франци-я», «Португа-ли» рвались на любой букве (снимки, 11 ноября 2026). */
+  hyphens: manual;
+  overflow-wrap: break-word;
 }
 
 .wine-cell__chips {
@@ -23806,21 +24132,21 @@ a.finale-step__aside {
 }
 
 .hd-screen.show-stage--studio {
-  --show-art: url("/shows/art/web/board-studio-1280.webp");
+  --show-art: url("/shows/art/web/hundred-studio-1280.webp");
   --show-shade: radial-gradient(ellipse 70% 65% at 50% 50%, rgba(5, 7, 30, 0.62), rgba(5, 7, 30, 0.2) 80%, transparent);
 }
 
 .hd-screen.show-stage--evening {
-  --show-art: url("/shows/art/web/board-evening-1280.webp");
+  --show-art: url("/shows/art/web/hundred-evening-1280.webp");
   --show-shade: radial-gradient(ellipse 70% 65% at 50% 50%, rgba(16, 13, 10, 0.62), rgba(16, 13, 10, 0.2) 80%, transparent);
 }
 
 @media (min-width: 1400px) {
   .hd-screen.show-stage--studio {
-    --show-art: url("/shows/art/web/board-studio.webp");
+    --show-art: url("/shows/art/web/hundred-studio.webp");
   }
   .hd-screen.show-stage--evening {
-    --show-art: url("/shows/art/web/board-evening.webp");
+    --show-art: url("/shows/art/web/hundred-evening.webp");
   }
 }
 
@@ -24064,6 +24390,8 @@ a.finale-step__aside {
   justify-content: center;
   font-weight: 600;
   font-size: 3.6cqh;
+  /* 1.3: при 1,45 ответ в две строки («За пунктуальность») наезжал на соседний на проекторе (Ревизор, 11 ноября 2026);
+     4 px «среза» по метрикам шрифта на 1,3 глазу не видны. */
   line-height: 1.3;
   overflow: hidden;
   overflow-wrap: anywhere;
@@ -25318,6 +25646,72 @@ a.finale-step__aside {
 .plan-accepted {
   margin: 0;
 }
+/* Ведущий мероприятия отключён владельцем: мероприятие надо передать другому (12 ноября 2026). */
+.plan-card__host-off {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+/* Путь клиента (12 ноября 2026): ведущий принял — зелёная плашка; отказался — красная; заявку ведёт другой. */
+.plan-card__accepted {
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-success);
+  color: var(--color-success);
+  font-weight: 600;
+}
+.plan-card__declined {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+.plan-card__owner {
+  color: var(--color-text-muted);
+}
+.plan-fate {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.plan-rest__part {
+  display: grid;
+  gap: 8px;
+}
+/* Предоплата (12 ноября 2026): деньги в карточке мероприятия, «Вернуть предоплату» светится, пока возврат возможен. */
+.plan-card__refund {
+  color: var(--color-highlight);
+  font-weight: 600;
+}
+.plan-money {
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.plan-money p {
+  margin: 0;
+}
+.plan-money__due,
+.plan-due {
+  font-weight: 600;
+}
+.plan-due {
+  margin: 0;
+}
+.plan-refund:not(:disabled) {
+  box-shadow: 0 0 0 2px var(--color-highlight), 0 0 16px color-mix(in srgb, var(--color-highlight) 45%, transparent);
+  animation: plan-refund-glow 2.4s ease-in-out infinite;
+}
+@keyframes plan-refund-glow {
+  50% {
+    box-shadow: 0 0 0 2px var(--color-highlight), 0 0 4px color-mix(in srgb, var(--color-highlight) 20%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-refund:not(:disabled) {
+    animation: none;
+  }
+}
 .btn.plan-inline {
   display: inline-flex;
   min-height: 32px;
@@ -25799,4 +26193,706 @@ a.finale-step__aside {
   height: 100%;
   background: var(--color-primary);
   border-radius: inherit;
+}
+
+/* «Мафия», стиль «Нуар»: рисунок Figma AI на всю карту, текст — в тёмной полосе снизу. */
+.mf-card__back--noir {
+  background: #120b0e center / cover no-repeat;
+}
+
+.mf-card__back--noir .mf-card__back-city {
+  top: calc(100% - 4.5cqi);
+  background: rgb(18 11 14 / 0.85);
+  border-radius: 999px;
+}
+
+.mf-card__front--noir {
+  justify-content: flex-end;
+  padding: 0;
+  background: #120b0e top center / cover no-repeat;
+}
+
+.mf-card__noir-text {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 1cqi;
+  padding: 12cqi 7cqi 7cqi;
+  background: linear-gradient(to bottom, rgb(14 8 10 / 0) 0%, rgb(14 8 10 / 0.88) 28%, rgb(14 8 10 / 0.96) 100%);
+}
+
+.mf-card__front--noir .mf-card__title { color: #f3dfae; }
+.mf-card__front--noir .mf-card__power,
+.mf-card__front--noir .mf-card__family { color: #fbf6f1; }
+.mf-card__front--noir .mf-card__seat,
+.mf-card__front--noir .mf-card__side {
+  padding: 0.6cqi 2.4cqi;
+  border-radius: 999px;
+  background: rgb(14 8 10 / 0.8);
+}
+
+.mf-art--img {
+  aspect-ratio: 3 / 3.4;
+  object-fit: cover;
+  object-position: 50% 12%;
+  border-radius: 10px;
+}
+
+.mf-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.mf-styles__preview {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mf-styles__card {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 110px;
+  padding: 6px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 30%, #3a2630 0%, #120b0e 80%);
+}
+
+/* «Нуар» в итогах «Мафии»: рисунок вписан в квадрат слота (раньше выше квадрата и заезжал под имя). */
+.mf-reveal__art .mf-art--img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: cover;
+  object-position: 50% 15%;
+}
+
+/* Деньги у владельца на главной студии (12 ноября 2026). */
+.owner-money__row {
+  display: block;
+  padding: 8px 0;
+  font-weight: 600;
+}
+
+/* История мероприятия (12 ноября 2026). */
+.plan-history summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.plan-history__list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+/* Следующий шаг и мероприятия клиента (12 ноября 2026). */
+.clients-next {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+.clients-next.is-due {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.clients-events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.clients-events__row {
+  display: grid;
+  gap: 4px;
+}
+
+/* Выделенное предупреждение в инструкции (12 ноября 2026). */
+.guide-warn {
+  margin: 0;
+  padding: 12px 16px;
+  border: 2px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+}
+
+/*
+ * «Активные заказы» (вкладка «Клиентов», решения владельца 12–13 ноября 2026; логика — docs/active-orders.md). Цвета — только
+ * токены темы: студия бывает вечерней и дневной. От 1024 px — таблица по группам, уже — карточки.
+ */
+.orders {
+  --orders-booked: var(--color-success);
+  --orders-talk: var(--color-highlight);
+  --orders-close: var(--color-link);
+  --orders-off: var(--color-text-muted);
+}
+
+.orders-sum {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .orders-sum {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+  }
+}
+
+.orders-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 16px);
+  background: var(--color-surface);
+}
+
+.orders-tile__title,
+.orders-tile__sub {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.orders-tile__value {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(22px, 6.5vw, 30px);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  min-width: 0;
+}
+
+.orders-tile--gold .orders-tile__value {
+  color: var(--color-highlight);
+}
+
+.orders-tile--bad {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+}
+
+.orders-tile--bad .orders-tile__value {
+  color: var(--color-danger);
+}
+
+.orders-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.orders-chip {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 22px;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.orders-chip.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.orders-chip:focus-visible,
+.orders-line:focus-visible,
+.orders-card:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.orders-tools {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 1024px) {
+  .orders-tools {
+    grid-template-columns: minmax(240px, 1.4fr) repeat(3, minmax(0, 1fr));
+    align-items: end;
+  }
+}
+
+.orders-select {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.orders-select select {
+  min-height: 52px;
+  padding: 0 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.orders-reset {
+  min-height: 44px;
+  text-decoration: underline;
+}
+
+/* Группы: блоки со своим цветом и итогом справа. */
+.orders-group {
+  --orders-accent: var(--orders-booked);
+}
+.orders-group--talk {
+  --orders-accent: var(--orders-talk);
+}
+.orders-group--close {
+  --orders-accent: var(--orders-close);
+}
+.orders-group--off {
+  --orders-accent: var(--orders-off);
+}
+
+.orders-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 12px 14px;
+  border-top: 3px solid var(--orders-accent);
+  border-radius: 14px 14px 0 0;
+  background: var(--color-surface-alt);
+}
+
+.orders-group__head h3 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--orders-accent);
+}
+
+.orders-group__head h3 i {
+  align-self: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  background: var(--orders-accent);
+}
+
+.orders-group__head h3 small {
+  font-family: Jost, system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.orders-group__head > span {
+  font-weight: 600;
+}
+
+/* Таблица (от 1024 px). Широкая — прокрутка вбок внутри блока, страница не едет. */
+.orders-scroll {
+  overflow-x: auto;
+  margin: 0 -4px;
+  padding: 0 4px 4px;
+}
+
+/* Вкладка «Активные заказы» на компьютере — страница шире обычной (таблица целиком помещается на ноутбуке 1366 px). */
+@media (min-width: 1024px) {
+  /* Специфичность выше общего правила страниц студии (`.page:has(> .topbar):not(…):not(…)`). */
+  .page:has(> .topbar):has(.orders-table):not(.page--pult):not(.page--wide) {
+    max-width: calc(1480px + var(--gutter) * 2);
+  }
+}
+
+.orders-table {
+  --orders-cols: 104px minmax(142px, 1.5fr) 104px 124px 112px 108px 112px 100px 100px 100px minmax(124px, 1.2fr);
+  display: grid;
+  gap: 0;
+  min-width: 1318px;
+}
+
+.orders-table--no-agency {
+  --orders-cols: 104px minmax(142px, 1.5fr) 104px 124px 112px 108px 112px 100px 100px minmax(124px, 1.2fr);
+  min-width: 1210px;
+}
+
+.orders-row {
+  display: grid;
+  grid-template-columns: var(--orders-cols);
+  column-gap: 6px;
+  padding: 0 12px;
+}
+
+.orders-head {
+  padding-bottom: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.orders-head--top {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-highlight);
+}
+
+.orders-span-client {
+  grid-column: 1 / span 3;
+}
+.orders-span-host {
+  grid-column: 4 / span 3;
+}
+.orders-span-money {
+  grid-column: 7 / span 4;
+}
+.orders-table--no-agency .orders-span-money {
+  grid-column: 7 / span 3;
+}
+
+.orders-sep {
+  padding-left: 10px;
+  border-left: 1px solid var(--color-border);
+}
+
+.orders-group + .orders-group {
+  margin-top: 22px;
+}
+
+.orders-line {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.orders-line:last-child {
+  border-radius: 0 0 14px 14px;
+}
+
+.orders-line > [role="cell"] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  /* Слова не рвём посреди («Админи‑стратор»): переносим по слогам, длинное без слогов — где придётся. */
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Имя ведущего — помельче и целым словом («Администратор» помещается в колонку). */
+.orders-line > [role="cell"].orders-host {
+  font-size: 14px;
+  overflow-wrap: normal;
+}
+
+/* Суммы целиком (в «Итого» помещается «≈ 25 900 ₽»). */
+.orders-line > [role="cell"] > b,
+.orders-line .orders-money > b {
+  overflow-wrap: normal;
+}
+
+/* Метка и сумма — подпись всегда своей строкой («Отменено» / «не состоится», «2 000 ₽» / «внесена»). */
+.orders-mark,
+.orders-money {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.orders-line:hover {
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-text));
+}
+
+.orders-line.is-alert,
+.orders-card.is-alert {
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+}
+
+/* Подписи и предупреждения: в дневной теме золото и серый на светлой подложке бледнее 4.5 — подмешиваем основной текст. */
+.orders-line.is-alert .orders-sub,
+.orders-card.is-alert .orders-sub {
+  color: color-mix(in srgb, var(--color-text-muted) 75%, var(--color-text));
+}
+
+.orders-sub {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.orders-sub.is-bad,
+.orders-card .is-bad,
+.orders-line.is-alert .orders-sub.is-bad,
+.orders-card.is-alert .orders-sub.is-bad {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.orders {
+  --orders-warn: color-mix(in srgb, var(--color-highlight) 70%, var(--color-text));
+}
+
+.orders-sub.is-warn,
+[role="cell"].is-warn,
+.orders-line.is-alert .orders-sub.is-warn,
+.orders-card.is-alert .orders-sub.is-warn {
+  color: var(--orders-warn);
+}
+
+.orders-st {
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-team-text);
+  background: var(--team-color, #b3aadd);
+}
+.orders-st--new {
+  --team-color: #e3c68c;
+}
+.orders-st--work {
+  --team-color: #b3aadd;
+}
+.orders-st--client {
+  --team-color: #a3c2aa;
+}
+.orders-st--held {
+  --team-color: #d2a0ac;
+}
+.orders-st--lost {
+  --team-color: #e3aa9c;
+}
+
+.orders-mark__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+
+.orders-mark--late .orders-mark__label,
+.orders-mark--replace .orders-mark__label {
+  color: var(--color-danger);
+}
+.orders-mark--ok .orders-mark__label,
+.orders-mark--held .orders-mark__label {
+  color: var(--color-success);
+}
+.orders-mark--off .orders-mark__label,
+.orders-mark--failed .orders-mark__label,
+.orders-mark--none .orders-mark__label {
+  color: var(--color-text-muted);
+}
+
+/* Кружки — те же цвета, что у цветных кружков планировщика (`plan-light`). */
+.orders-dot--replace { --light: #d0122f; }
+.orders-dot--over { --light: #c45ce8; }
+.orders-dot--late { --light: #ef3b3b; }
+.orders-dot--live { --light: #ff8a1f; }
+.orders-dot--wait { --light: #f2c81c; }
+.orders-dot--ok { --light: #2fb855; }
+.orders-dot--held { --light: #2f8cf0; }
+.orders-dot--failed,
+.orders-dot--off { --light: #6f6863; }
+.orders-dot--check {
+  --light: transparent;
+  box-shadow: inset 0 0 0 2px var(--color-text);
+}
+
+.orders-money b {
+  font-weight: 600;
+}
+.orders-money--ok b {
+  color: var(--color-success);
+}
+.orders-money--warn b,
+.orders-money--warn .orders-sub,
+.orders .is-alert .orders-money--warn .orders-sub {
+  color: var(--orders-warn);
+}
+.orders-money--bad b,
+.orders-money--bad .orders-sub,
+.orders .is-alert .orders-money--bad .orders-sub {
+  color: var(--color-danger);
+}
+.orders-money--muted b {
+  color: var(--color-text-muted);
+}
+
+.orders-agency b {
+  color: var(--orders-warn);
+}
+
+.orders-stale {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  font-size: 14px;
+}
+
+.orders-group__row {
+  display: block;
+}
+
+.orders-group__row > [role="cell"] {
+  display: block;
+}
+
+.orders-struck {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.orders-muted {
+  color: var(--color-text-muted);
+}
+
+.orders-step {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.orders-step--alert {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.orders-step--muted {
+  color: var(--color-text-muted);
+}
+
+/* Карточки (уже 1024 px). */
+.orders-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.orders-cards .orders-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orders-cards .orders-group__head {
+  border-radius: 12px;
+}
+
+.orders-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.orders-card.is-alert {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+}
+
+.orders-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.orders-card__top > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.orders-card__date {
+  font-size: 17px;
+}
+
+.orders-card__price {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 24px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.orders-card__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 8px;
+}
+
+.orders-card__marks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.orders-card__marks > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+}
+
+.orders-card__money {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.orders-card__money--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.orders-card__money > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.orders-card .orders-step {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.orders-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.orders-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }

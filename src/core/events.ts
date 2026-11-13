@@ -6,6 +6,7 @@
  */
 import { cleanProgram, programLines, type EventProgram } from "./eventProgram";
 import type { Overtime } from "./overtime";
+import { cleanPrice, dueLine } from "./prepay";
 import type { AgencyEvent } from "../data/types";
 import { cleanNote, DAY_MINUTES, dayIndex, dayInWindow, dayTitle, endAfter, MAX_END, rangeLabel, TIME_STEP, todayMoscow, validTime } from "./calendar";
 
@@ -126,6 +127,10 @@ export interface EventInput {
   program?: EventProgram | null;
   /** Где писать клиенту («telegram:@anna»); `undefined` — форма не прислала, прежнее остаётся. */
   clientContact?: string;
+  /** Стоимость по расчёту, ₽; `undefined` — форма не прислала, прежняя остаётся. */
+  price?: number | null;
+  /** Галочка «Предоплата внесена»; `undefined` — форма не прислала (страница, открытая до обновления). */
+  prepaid?: boolean;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
@@ -145,6 +150,9 @@ export function parseEventInput(body: unknown, now = Date.now()): EventInput | n
         ? guestsRaw
         : undefined;
   if (guests === undefined) return null;
+  // Стоимость: прислали мусор (не целые рубли, меньше предоплаты) — запись не принимается.
+  const price = "price" in b ? cleanPrice(b.price) : null;
+  if (price === undefined) return null;
   const input: EventInput = {
     id,
     hostId,
@@ -159,10 +167,15 @@ export function parseEventInput(body: unknown, now = Date.now()): EventInput | n
     note: cleanText(b.note, EVENT_LIMITS.note),
     ...("program" in b ? { program: cleanProgram(b.program) } : {}),
     ...("clientContact" in b ? { clientContact: formatContact(parseContact(b.clientContact)) } : {}),
+    ...("price" in b ? { price } : {}),
+    ...("prepaid" in b ? { prepaid: b.prepaid === true } : {}),
   };
   if (!input.title && !input.clientName) return null;
   return input;
 }
+
+/** «Место пока уточняется» — адрес ещё не известен (за 3 дня менеджеру напоминание «Нет адреса»). */
+export const PLACE_TBD = "Место уточняется";
 
 /** Заметка в календаре ведущего: что за мероприятие (без имени и телефона клиента). */
 export function bookingNote(e: Pick<EventInput, "title" | "guests">): string {
@@ -172,6 +185,8 @@ export function bookingNote(e: Pick<EventInput, "title" | "guests">): string {
 
 /** id записи календаря «занят» для мероприятия. */
 export const bookingId = (eventId: string) => `ev-${eventId}`;
+/** Обратно: запись календаря `ev-<id>` — какое это мероприятие (у «Закрепить за …» без мероприятия — null). */
+export const eventOfBooking = (entryId: string): string | null => (entryId.startsWith("ev-") && entryId.length > 3 ? entryId.slice(3) : null);
 
 /** Мероприятия, видимые в этом дне: свои за день и прошлого дня, идущие за полночь. Отменённые — нет. */
 export function eventsOfDay(events: AgencyEvent[], day: string, withCancelled = false): AgencyEvent[] {
@@ -401,7 +416,7 @@ export function parseLeadText(text: string, today: string): LeadFill {
   // Дата: строка «Дата: …» главнее всего (24 октября 2026: в расчёте сайта ниже стоит «Ранняя бронь: до 15 ноября» — это не
   // дата праздника); нет строки — самая ранняя дата в тексте без строк про раннюю бронь и праздничную цену.
   const dateLine = field(t, ["Дата праздника", "Дата", "Когда"]);
-  const day = (dateLine && dateIn(dateLine, today)) || dateIn(t.replace(/^\s*(?:ранняя бронь|праздничная цена)\s*[:：].*$/gim, ""), today);
+  const day = (dateLine && dateIn(dateLine, today)) || dateIn(t.replace(/^\s*(?:ранняя бронь|праздничная цена|новогодняя надбавка)\s*[:：].*$/gim, ""), today);
   if (day) out.day = day;
   // Время: 18:00–23:00, 18.00-23.00, «с 18 до 23».
   const range = /(\d{1,2})[:.](\d{2})\s*(?:[–—-]|до)\s*(\d{1,2})[:.](\d{2})/.exec(t) ?? null;
@@ -490,12 +505,20 @@ export function reminderDue(startsAt: number, now: number): "day" | "hours" | nu
 }
 
 /**
+ * Ссылка в студию на одно мероприятие: «Мои мероприятия» открываются на его дне, карточка раскрыта — с «✅ Принял, готовлюсь»
+ * (решение владельца 7 ноября 2026: из колокольчика и Telegram ведущий попадал в календарь и не находил, где подтвердить).
+ */
+export function eventLink(platformUrl: string, id?: string | null): string {
+  return `${platformUrl}/studio/calendar?tab=events${id ? `&event=${encodeURIComponent(id)}` : ""}`;
+}
+
+/**
  * Текст уведомления ведущему. Без имени и телефона клиента и без адреса: Telegram — не в России, а это
  * персональные данные; подробности — в студии по ссылке.
  */
 export function noticeText(
   kind: NoticeKind,
-  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end"> & Pick<Partial<AgencyEvent>, "program">,
+  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end"> & Pick<Partial<AgencyEvent>, "program" | "id" | "price" | "prepaidAt">,
   platformUrl: string,
   now = Date.now(),
   /** Время начала из базы (по нему срабатывают напоминания); нет — по дате и времени мероприятия. */
@@ -510,11 +533,13 @@ export function noticeText(
       ? ""
       : kind === "after"
         ? `\n\nОдно касание в студии — «Проведено» или «Не состоялось»:\n${platformUrl}/studio`
-        : `\n\nКлиент, телефон и подробности — в студии:\n${platformUrl}/studio/calendar?tab=events`;
+        : `\n\nКлиент, телефон и подробности — в студии:\n${eventLink(platformUrl, e.id)}`;
   // Программа — ведущему при назначении, изменении и в напоминаниях (без цены и без клиента).
   const lines = kind === "removed" || kind === "cancelled" || kind === "after" ? [] : programLines(e.program);
   const program = lines.length ? `\n\n🎯 Программа: ${lines.join("\n")}` : "";
-  return `${head}\n\n${what}\n${when}${program}${tail}`;
+  // Сколько взять с клиента на месте (стоимость минус предоплата) — при назначении, изменении и в напоминаниях.
+  const due = kind === "removed" || kind === "cancelled" || kind === "after" ? "" : dueLine(e.price, Boolean(e.prepaidAt));
+  return `${head}\n\n${what}\n${when}${program}${due ? `\n\n${due}` : ""}${tail}`;
 }
 
 /** Владельцу и менеджерам: ведущий не нажал «Принял, готовлюсь», а до начала меньше суток. Без клиента. */

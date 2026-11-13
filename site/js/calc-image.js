@@ -79,7 +79,9 @@
       });
       if (summary.season) {
         ctx.fillStyle = C.rose; ctx.font = '500 30px ' + SANS;
-        wrap(ctx, 'Праздничная цена уже в итоге: ' + summary.season.replace(/^праздничная цена /, ''), W - PAD * 2).forEach(function (l) { ctx.fillText(l, PAD, y + 30); y += 40; });
+        var sm = /^(новогодняя надбавка|праздничная цена) (.*)$/.exec(summary.season);
+        var sLabel = sm ? sm[1].charAt(0).toUpperCase() + sm[1].slice(1) : 'Надбавка';
+        wrap(ctx, sLabel + ' уже в итоге: ' + (sm ? sm[2] : summary.season), W - PAD * 2).forEach(function (l) { ctx.fillText(l, PAD, y + 30); y += 40; });
         y += 10;
       }
     } else {

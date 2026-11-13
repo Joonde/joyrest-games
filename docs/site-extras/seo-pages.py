@@ -25,6 +25,7 @@ LASTMOD = "2026-10-22"
 TG_CHAT = "https://t.me/+79857822689"
 WHATSAPP = "https://wa.me/79857822689"
 TG_CHANNEL = "https://t.me/JoyRest"
+VK_GROUP = "https://vk.com/joyrest"
 AVITO = "https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349"
 EMAIL = "joyrest@mail.ru"
 
@@ -149,9 +150,9 @@ PAGES = [
         "packages": ["quiz", "show", "music", "dance", "game"],
         "faq": [
             ("Когда бронировать новогодний корпоратив?",
-             "Декабрьские пятницы обычно разбирают первыми, поэтому дату лучше закрепить заранее. При брони до 15 ноября новогодняя праздничная цена вдвое меньше (кроме 29 декабря — 1 января). Бронь — предоплата 2 000 ₽, она засчитывается в стоимость."),
+             "Декабрьские пятницы обычно разбирают первыми, поэтому дату лучше закрепить заранее. До 9 декабря включительно новогодней надбавки нет. Бронь — предоплата 2 000 ₽, она засчитывается в стоимость."),
             ("Сколько стоит новогодний корпоратив?",
-             "Пакет «Квиз» на 1,5–2 часа — от 19 900 ₽ до 15 гостей в будний день, в пятницу–воскресенье +10%. В декабре действует праздничная цена: 5–18 декабря +20%, 19–30 декабря +40%, 31 декабря и 1 января — от 50 000 ₽. Для вашей даты и числа гостей — в калькуляторе."),
+             "Пакет «Квиз» на 1,5–2 часа — от 19 900 ₽ до 15 гостей в будний день, в пятницу–воскресенье +10%. С 10 декабря к итоговой цене прибавляется новогодняя надбавка: 10–20 декабря +20%, с 21 декабря по 1 января +35%, 31 декабря и 1 января — от 50 000 ₽. Для вашей даты и числа гостей — в калькуляторе."),
         ],
     },
     {
@@ -344,6 +345,7 @@ def page(p: dict) -> str:
 <meta property="og:image" content="{ORIGIN}/apple-touch-icon.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/favicon-120.png" type="image/png" sizes="120x120">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/fonts/jost-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/cormorant-garamond-cyrillic-600-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -442,7 +444,7 @@ def page(p: dict) -> str:
         <a class="btn btn--outline" href="mailto:{EMAIL}">Почта</a>
         <a class="btn btn--outline" href="{AVITO}" target="_blank" rel="noopener">Авито</a>
       </div>
-      <p class="lp-note">Telegram-канал: <a href="{TG_CHANNEL}" class="link" target="_blank" rel="noopener">t.me/JoyRest</a> · почта: <a href="mailto:{EMAIL}" class="link">{EMAIL}</a></p>
+      <p class="lp-note">Telegram-канал: <a href="{TG_CHANNEL}" class="link" target="_blank" rel="noopener">t.me/JoyRest</a> · ВКонтакте: <a href="{VK_GROUP}" class="link" target="_blank" rel="noopener">vk.com/joyrest</a> · почта: <a href="mailto:{EMAIL}" class="link">{EMAIL}</a></p>
     </div>
   </section>
 </main>
@@ -453,7 +455,7 @@ def page(p: dict) -> str:
   </nav>
   <div class="wrap footer__row">
     <span>© 2026 JoyRest — ведущие и игры для праздников · Радость без хлопот</span>
-    <span><a href="/" class="link">На главную</a> · <a href="{TG_CHANNEL}" target="_blank" rel="noopener" class="link">Telegram-канал</a></span>
+    <span><a href="/" class="link">На главную</a> · <a href="{TG_CHANNEL}" target="_blank" rel="noopener" class="link">Telegram-канал</a> · <a href="{VK_GROUP}" target="_blank" rel="noopener" class="link">ВКонтакте</a> · <a href="https://games.joy-rest.ru/privacy.html" target="_blank" rel="noopener" class="link">Политика конфиденциальности</a></span>
   </div>
 </footer>
 </body>

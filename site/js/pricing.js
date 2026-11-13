@@ -4,12 +4,12 @@
  * Порядок итога для каждой из трёх цен:
  * (пакет + добавленные игры + продление + обычные допы) × 1,1 в пт–вс
  *   × (1 − скидка ведущего) → вверх до 100 ₽ → + призы
- *   → + праздничная цена (процент от этой суммы, вверх до 100 ₽; 31 декабря и 1 января — не меньше 50 000 ₽)
- *   → + выезд за город (своя цена по дате, без процентов).
- * Праздничная цена (решение владельца 22 октября 2026) зависит от даты праздника, а не от дня брони; границы
- * включительно: 5–18 декабря +20%, 19–30 декабря +40%, 31 декабря и 1 января +40% и не меньше 50 000 ₽; перед
- * 14 февраля, 23 февраля и 8 марта: за 14–8 дней +10%, за 7–1 день +15%, в сам праздник +25%. Ранняя бронь —
- * сегодня (по Москве) не позже 15 ноября: новогодняя праздничная цена 5–28 декабря вдвое меньше. */
+ *   → + новогодняя надбавка или праздничная цена (процент от этой суммы, вверх до 100 ₽; 31 декабря и 1 января —
+ *     не меньше 50 000 ₽) → + выезд за город (своя цена по дате, без процентов).
+ * Зависит от даты праздника, а не от дня брони; границы включительно. Новогодняя надбавка (решение владельца
+ * 11 ноября 2026, вместо прежних 5–18 декабря +20% / 19–30 декабря +40% и ранней брони): 10–20 декабря +20%,
+ * 21 декабря — 1 января +35%, 31 декабря и 1 января — ещё и не меньше 50 000 ₽. Праздничная цена (22 октября 2026):
+ * перед 14 февраля, 23 февраля и 8 марта — за 14–8 дней +10%, за 7–1 день +15%, в сам праздник +25%. */
 (function (root) {
   'use strict';
 
@@ -24,7 +24,7 @@
     { id: 'dance', name: 'Танцевальный', games: 'Танцуй как звезда, Танцевальное лото, Танцевальный кураж', prices: [19900, 24900, 32900, 39900, 49900] },
     { id: 'active', name: 'Активные настолки', games: 'Бой с драконом, Гонка на выживание, Шашки', prices: [21400, 26400, 34400, 41400, 51400] }
   ];
-  var TURNKEY = { id: 'turnkey', name: 'Под ключ', games: 'Свой сценарий и большая программа', from: 35000 };
+  var TURNKEY = { id: 'turnkey', name: 'Под ключ', games: 'Свой сценарий и большая программа', from: 30000 };
 
   /** Продление: подпись, цена, часы. */
   var EXTENSIONS = [
@@ -48,7 +48,7 @@
     { id: 'out', label: 'Игра на открытом воздухе', tag: '', price: 2500, fixed: false,
       info: 'Игры на улице или за городом: дополнительное оборудование и реквизит для открытого воздуха.' },
     { id: 'far', label: 'Выезд за город', tag: '', price: 2000, fixed: true,
-      info: 'По Москве выезд включён; если рядом с местом праздника нет метро (дальше 10–15 минут пешком) — такси ведущему по факту. Города Подмосковья (Химки, Мытищи, Балашиха…) и дальше — +2 000 ₽ и такси ведущему по факту; в праздничные дни — 5 000 ₽, с 19 декабря по 1 января — 7 000 ₽. Эта сумма не меняется от дня недели и выбора ведущего.' }
+      info: 'По Москве выезд включён; если рядом с местом праздника нет метро (дальше 10–15 минут пешком) — такси ведущему по факту. Города Подмосковья (Химки, Мытищи, Балашиха…) и дальше — +2 000 ₽ и такси ведущему по факту; 10–20 декабря и в праздничные дни — 5 000 ₽, с 21 декабря по 1 января — 7 000 ₽. Эта сумма не меняется от дня недели и выбора ведущего.' }
   ];
 
   /** Формат ведущего — те же значения, что hostLevel в /api/lead. */
@@ -61,6 +61,43 @@
   var WEEKEND = 1.1;
   var MAX_EXTRAS = 2;
 
+  /** Готовые пакеты (решение владельца 7–8 ноября 2026): одна цена за весь пакет — опытный ведущий, будни, до 25 гостей
+   *  (BUNDLE_TIER). calc — та же сборка в калькуляторе: её цена на сайте зачёркнута, пакет дешевле (проверяет
+   *  server/src/sitePricing.test.ts). Пт–вс, новогодняя надбавка, праздничная цена, больше гостей — по правилам калькулятора, считает менеджер. */
+  var BUNDLE_TIER = 1;
+  var BUNDLES = [
+    { id: 'joyrest', name: 'Вечер JoyRest', tag: 'Хит · фирменный', time: '≈ 2,5–3 часа', price: 29900,
+      sub: 'Наш главный формат: квиз и вторая игра за один вечер',
+      includes: ['Квиз на выбор: классический или авторский', 'Вторая игра: Мафия, Убежище или Шпион', 'Экран зала и вход гостей по QR', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'quiz', extras: ['game'], addons: [] } },
+    { id: 'tvshow', name: 'Телешоу', tag: 'Телешоу', time: '1,5–2 часа', price: 24900,
+      sub: 'Большая игра как на телевидении — игры на выбор',
+      includes: ['На выбор: «Ставка на знания», «Миллион на кону» или «Что скажет большинство»', 'Можно две игры за вечер — сыграем короче', 'Экран зала и вход гостей по QR', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'show', extras: [], addons: [] } },
+    { id: 'nyshow', name: 'Новогоднее телешоу', tag: 'Новый год', time: '1,5–2 часа', price: 27900,
+      sub: '«Ставка на знания» и «Миллион на кону» в праздничной редакции',
+      includes: ['«Ставка на знания» — новогодние темы', '«Миллион на кону» с залом', 'Мини-квиз на финал', 'Призы и медали победителям'],
+      calc: { pkg: 'show', extras: [], addons: ['prize'] } },
+    { id: 'nyquiz', name: 'Новогодний квиз', tag: 'Новый год', time: '1,5–2 часа', price: 25900,
+      sub: 'Вопросы про зиму, праздники и уходящий год',
+      includes: ['Новогодние раунды: кино, музыка, традиции', 'Классический или авторский формат', 'Призы и медали победителям', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'quiz', extras: [], addons: ['prize'] } },
+    { id: 'mix', name: 'Всего понемногу', tag: 'Сборный', time: '1,5–2 часа', price: 24900,
+      sub: 'Музыка и танцы — для смешанной компании',
+      includes: ['«Узнай по нотам» или Музыкальное лото', 'Танцевальная пауза между раундами', 'Экран зала и вход гостей по QR', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'music', extras: [], addons: ['dance'] } },
+    { id: 'mafia', name: 'Мафия-вечер', tag: 'Игра', time: '1,5–2 часа', price: 19900,
+      sub: 'Детективная игра с ведущим-судьёй',
+      includes: ['Мафия на всех гостей, роли — на телефонах', 'Разминка «Шпион» в начале', 'Призы и медали лучшим игрокам', 'Таблица итогов со ссылкой для гостей'],
+      calc: { pkg: 'game', extras: [], addons: ['prize'] } },
+    // Детский (решение владельца 11 ноября 2026): до 10 детей, 1,5 часа — меньше ступени калькулятора, поэтому без зачёркнутой
+    // цены и «Выгоды» (compare: false). calc — только программа для сообщения менеджеру.
+    { id: 'kids', name: 'День рождения ребёнка', tag: 'Детям', time: '1,5 часа', price: 10900, guests: 'до 10 детей', compare: false,
+      sub: 'Дети играют с ведущим на большом экране, взрослые отдыхают рядом',
+      includes: ['«Бой с драконом» в детской версии', '«Сладкие приключения» — ходилка на экране', 'Весёлые вопросы и танцевальные игры', 'Таблица итогов со ссылкой для родителей'],
+      calc: { pkg: 'active', extras: [], addons: [] } }
+  ];
+
 
   // ---------- Праздничная цена ----------
   /** Праздники со ступенями «за 2 недели / за неделю / в сам день» (решение владельца 22 октября 2026). */
@@ -70,9 +107,9 @@
     { m: 3, d: 8, name: '8 марта' }
   ];
   var NY_MIN = 50000;
-  /** Ранняя бронь Нового года: сегодня не позже этого дня (месяц, число) того же года, что и декабрь праздника. */
-  var EARLY_UNTIL = { m: 11, d: 15 };
-  /** Выезд за город: обычные дни, праздничные периоды, пик (19 декабря — 1 января). */
+  /** Новогодняя надбавка (решение владельца 11 ноября 2026): с какого декабрьского дня и сколько. Пик идёт до 1 января. */
+  var NY = { season: { d: 10, pct: 20 }, peak: { d: 21, pct: 35 } };
+  /** Выезд за город: обычные дни, праздничные периоды (и 10–20 декабря), пик (21 декабря — 1 января). */
   var TRAVEL = { normal: 2000, holiday: 5000, peak: 7000 };
   var MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   var WEEKDAYS = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
@@ -100,22 +137,22 @@
   function isWeekendDay(p) { return p.wd === 5 || p.wd === 6 || p.wd === 0; }
 
   /**
-   * Праздничная цена на дату праздника (today — сегодня по Москве, для ранней брони).
-   * Ответ: null (обычный день) | { id, pct, fullPct, early, min, travel, title, text, holiday }.
+   * Надбавка на дату праздника. Ответ: null (обычный день) |
+   * { id, ny, label, pct, min, travel, title, text, holiday }. ny — новогодняя надбавка, label — как её называем в текстах.
    */
-  function seasonFor(date, today) {
+  function seasonFor(date) {
     var p = parseDate(date);
     if (!p) return null;
     var s = null;
     if ((p.m === 12 && p.d === 31) || (p.m === 1 && p.d === 1)) {
-      s = { id: 'nynight', pct: 40, min: NY_MIN, travel: 'peak', title: 'Новогодняя ночь',
+      s = { id: 'nynight', ny: true, pct: NY.peak.pct, min: NY_MIN, travel: 'peak', title: 'Новогодняя ночь',
         text: '31 декабря и 1 января — самые востребованные дни года: ведущий работает в новогоднюю ночь. Любой праздник в эти дни — от 50 000 ₽.' };
-    } else if (p.m === 12 && p.d >= 19) {
-      s = { id: 'nypeak', pct: 40, travel: 'peak', title: 'Пик новогодних корпоративов',
-        text: 'С 19 по 30 декабря — самые плотные даты года: ведущих бронируют за месяцы вперёд, праздники идут один за другим.' };
-    } else if (p.m === 12 && p.d >= 5) {
-      s = { id: 'nyseason', pct: 20, travel: 'holiday', title: 'Новогодний сезон',
-        text: 'С 5 по 18 декабря начинается сезон новогодних корпоративов: спрос на ведущих растёт, свободных дат всё меньше.' };
+    } else if (p.m === 12 && p.d >= NY.peak.d) {
+      s = { id: 'nypeak', ny: true, pct: NY.peak.pct, travel: 'peak', title: 'Пик новогодних праздников',
+        text: 'С 21 декабря по 1 января — самые плотные даты года: ведущих бронируют за месяцы вперёд, праздники идут один за другим.' };
+    } else if (p.m === 12 && p.d >= NY.season.d) {
+      s = { id: 'nyseason', ny: true, pct: NY.season.pct, travel: 'holiday', title: 'Новогодний сезон',
+        text: 'С 10 по 20 декабря — сезон новогодних корпоративов: спрос на ведущих растёт, свободных дат всё меньше.' };
     } else {
       var best = null;
       [p.y, p.y + 1].forEach(function (yy) {
@@ -137,38 +174,29 @@
       }
     }
     if (!s) return null;
-    s.fullPct = s.pct;
+    s.ny = !!s.ny;
+    s.label = s.ny ? 'Новогодняя надбавка' : 'Праздничная цена';
     s.min = s.min || 0;
-    s.early = false;
-    // Ранняя бронь: только новогодние даты 5–28 декабря и только если сегодня не позже 15 ноября того же года.
-    var t = parseDate(today);
-    if (p.m === 12 && p.d >= 5 && p.d <= 28 && t && t.t <= parseDate(iso(p.y, EARLY_UNTIL.m, EARLY_UNTIL.d)).t) {
-      s.pct = s.fullPct / 2;
-      s.early = true;
-    }
     return s;
   }
 
-  /** Подсказка «успейте без праздничной цены»: дата праздника — 14 ноября … 4 декабря. */
+  /** Подсказка «успейте без надбавки»: дата праздника — 1 ноября … 9 декабря. */
   function seasonHint(date) {
     var p = parseDate(date);
     if (!p) return '';
-    if ((p.m === 11 && p.d >= 14) || (p.m === 12 && p.d <= 4)) return 'Праздник до 4 декабря включительно — без новогодней праздничной цены. С 5 декабря действует новогодний сезон.';
+    if (p.m === 11 || (p.m === 12 && p.d < NY.season.d)) return 'Праздник до 9 декабря включительно — без новогодней надбавки. С 10 декабря действует новогодняя надбавка +20%.';
     return '';
   }
   function travelPrice(season) { return TRAVEL[season ? season.travel : 'normal']; }
-  /** «+20%» или «+10% вместо +20% (ранняя бронь)», для 31.12 и 1.01 — «+40%, от 50 000 ₽». */
+  /** «+20%», для 31.12 и 1.01 — «+35%, от 50 000 ₽». */
   function seasonBadge(s) {
     if (!s) return '';
     var b = '+' + hh(s.pct) + '%';
-    if (s.early) b += ' вместо +' + s.fullPct + '%';
     if (s.min) b += ', от ' + money(s.min);
     return b;
   }
-  function earlyUntilLabel(date) {
-    var p = parseDate(date);
-    return EARLY_UNTIL.d + ' ' + MONTHS[EARLY_UNTIL.m - 1] + (p ? ' ' + p.y : '');
-  }
+  /** «новогодняя надбавка» / «праздничная цена» — со строчной, для середины фразы. */
+  function seasonWord(s) { return s ? s.label.charAt(0).toLowerCase() + s.label.slice(1) : ''; }
 
   function pkgById(id) {
     for (var i = 0; i < PACKAGES.length; i++) if (PACKAGES[i].id === id) return PACKAGES[i];
@@ -186,18 +214,17 @@
   /**
    * opts: { pkg: id пакета | 'turnkey', tier: 0…5 (5 — больше 90), weekend: boolean,
    *         extras: [id других пакетов], ext: 0…4, addons: [id допов],
-   *         date: «2026-12-10» — дата праздника (есть — день недели берётся из неё), today: сегодня по Москве }
+   *         date: «2026-12-10» — дата праздника (есть — день недели берётся из неё) }
    * Ответ: { individual, reason, totals: [{ id, name, badge, price, base, extra }], lines: [{ label, value, fixed }],
    *          hours: { min, max }, extrasCount, weekend, date: { iso, label, weekday } | null, season, hint, travel }
-   * price — итог; base — до праздничной цены (без выезда); extra — праздничная цена в рублях.
+   * price — итог; base — до надбавки (без выезда); extra — надбавка в рублях.
    */
   function calcPrice(opts) {
     var pkgId = opts.pkg || 'quiz';
     var tier = typeof opts.tier === 'number' ? opts.tier : 0;
     var day = parseDate(opts.date);
     var weekend = day ? isWeekendDay(day) : !!opts.weekend;
-    var today = typeof opts.today === 'string' && parseDate(opts.today) ? opts.today : moscowToday();
-    var season = day ? seasonFor(opts.date, today) : null;
+    var season = day ? seasonFor(opts.date) : null;
     var hint = day ? seasonHint(opts.date) : '';
     var dateInfo = day ? { iso: opts.date, label: dateLabel(day), weekday: WEEKDAYS[day.wd] } : null;
     var ext = EXTENSIONS[opts.ext || 0] ? (opts.ext || 0) : 0;
@@ -248,12 +275,10 @@
   }
   function assign(a, b) { for (var k in b) a[k] = b[k]; return a; }
 
-  /** Строка о праздничной цене для текстов: «Праздничная цена +20% — Новогодний сезон». */
-  function seasonLine(s, date) {
+  /** Строка о надбавке для текстов: «новогодняя надбавка +20% — Новогодний сезон». */
+  function seasonLine(s) {
     if (!s) return '';
-    var line = 'праздничная цена ' + seasonBadge(s) + ' — ' + s.title;
-    if (s.early) line += ' (ранняя бронь до ' + earlyUntilLabel(date) + ')';
-    return line;
+    return seasonWord(s) + ' ' + seasonBadge(s) + ' — ' + s.title;
   }
 
   /**
@@ -273,8 +298,8 @@
   }
   /** Письмо с расчётом: почта в браузере (Gmail, Яндекс, Mail.ru) или почтовое приложение (mailto).
    *  Решение владельца 24 октября 2026: клиенту не нужно открывать почтовую программу Mac. */
-  function mailLinks(text) {
-    var to = 'joyrest@mail.ru', su = 'Расчёт JoyRest', enc = encodeURIComponent;
+  function mailLinks(text, subject) {
+    var to = 'joyrest@mail.ru', su = subject || 'Расчёт JoyRest', enc = encodeURIComponent;
     var app = 'mailto:' + to + '?subject=' + enc(su) + '&body=' + enc(String(text || ''));
     return {
       gmail: 'https://mail.google.com/mail/?view=cm&fs=1&to=' + enc(to) + '&su=' + enc(su) + '&body=' + enc(String(text || '')),
@@ -313,14 +338,14 @@
     if (ext > 0) parts.push('продление ' + EXTENSIONS[ext].label.replace('+', ''));
     var addons = ADDONS.filter(function (a) { return (opts.addons || []).indexOf(a.id) >= 0; }).map(function (a) { return a.label; });
     if (addons.length) parts.push('допы: ' + addons.join(', '));
-    var season = seasonLine(r.season, opts.date);
+    var season = seasonLine(r.season);
     if (season) parts.push(season);
     var hasFar = (opts.addons || []).indexOf('far') >= 0;
     if (hasFar) parts.push('выезд за город ' + money(r.travel) + ' + такси ведущему');
     var duration = '≈ ' + hh(r.hours.min) + '–' + hh(r.hours.max) + ' ' + hoursWord(r.hours.max);
     var totals = r.individual ? null : r.totals.map(function (t) { return { name: t.name, price: t.price, base: t.base, extra: t.extra }; });
     var totalText = totals ? totals.map(function (t) { return t.name + ' — ' + money(t.price); }).join(', ') : 'обсудим индивидуально';
-    var text = type + ', ' + parts.join(', ') + '. Вечер ' + duration + '. Итого' + (season && totals ? ' (праздничная цена уже в итоге)' : '') + ': ' + totalText + '.';
+    var text = type + ', ' + parts.join(', ') + '. Вечер ' + duration + '. Итого' + (season && totals ? ' (' + seasonWord(r.season) + ' уже в итоге)' : '') + ': ' + totalText + '.';
     if (!r.date) text += ' Дата праздника не указана.';
     return {
       type: type,
@@ -338,7 +363,8 @@
    * Расчёт сообщением менеджеру (решение владельца 17 октября 2026): строки «Что: значение», чтобы было видно, что
    * напротив чего. Мессенджеры и Авито таблиц не рисуют, поэтому каждая строка — пара, без разметки (Telegram, WhatsApp,
    * Авито, почта показывают одинаково). levelId — выбранный формат ведущего (отмечен ✓) или пусто.
-   * Праздничная цена (22 октября 2026): строка «Праздничная цена» с причиной, у цен — «32 900 ₽ (27 400 + 5 500)».
+   * Надбавка (22 октября, 11 ноября 2026): строка «Новогодняя надбавка» / «Праздничная цена» с причиной, у цен —
+   * «32 900 ₽ (27 400 + 5 500 новогодняя надбавка)».
    */
   function calcMessage(opts, levelId) {
     var r = calcPrice(opts);
@@ -360,10 +386,7 @@
     rows.push(['Допы', addons.length ? addons.join(', ') : 'нет']);
     if ((opts.addons || []).indexOf('far') >= 0) rows.push(['Выезд за город', money(r.travel) + ' + такси ведущему']);
     rows.push(['Длительность', '≈ ' + hh(r.hours.min) + '–' + hh(r.hours.max) + ' ' + hoursWord(r.hours.max)]);
-    if (r.season) {
-      rows.push(['Праздничная цена', seasonBadge(r.season) + ' — ' + r.season.title]);
-      if (r.season.early) rows.push(['Ранняя бронь', 'до ' + earlyUntilLabel(opts.date) + ' — посчитано ' + niceDate(opts.today || moscowToday())]);
-    }
+    if (r.season) rows.push([r.season.label, seasonBadge(r.season) + ' — ' + r.season.title]);
     var line = '────────────';
     var out = ['🧮 Расчёт JoyRest', line];
     rows.forEach(function (row) { out.push(row[0] + ': ' + row[1]); });
@@ -373,13 +396,13 @@
     } else {
       var chosen = LEVELS.filter(function (l) { return l.id === levelId; })[0];
       var far = (opts.addons || []).indexOf('far') >= 0;
-      out.push('Стоимость по формату ведущего' + (r.season ? ' (праздничная цена уже в итоге)' : '') + ':');
+      out.push('Стоимость по формату ведущего' + (r.season ? ' (' + seasonWord(r.season) + ' уже в итоге)' : '') + ':');
       r.totals.forEach(function (t) {
         var pick = chosen && chosen.id === t.id;
         var how = '';
         if (r.season) {
           var minHit = r.season.min && t.base + roundUp(t.base * r.season.pct / 100) < r.season.min;
-          how = minHit ? ' (' + money(t.base) + ' → минимум ' + money(r.season.min) + ')' : ' (' + money(t.base) + ' + ' + money(t.extra) + ' праздничная цена)';
+          how = minHit ? ' (' + money(t.base) + ' → минимум ' + money(r.season.min) + ')' : ' (' + money(t.base) + ' + ' + money(t.extra) + ' ' + seasonWord(r.season) + ')';
           if (far) how = how.replace(/\)$/, ' + ' + money(r.travel) + ' выезд)');
         }
         out.push((pick ? '✅ ' : '▫️ ') + t.name + (t.badge ? ' (' + t.badge + ')' : '') + ': ' + money(t.price) + how + (pick ? ' — выбран' : ''));
@@ -387,16 +410,43 @@
     }
     return out.join('\n').replace(/ /g, ' ');
   }
-  function niceDate(isoDate) {
-    var p = parseDate(isoDate);
-    return p ? p.d + ' ' + MONTHS[p.m - 1] + ' ' + p.y : isoDate;
+
+  function bundleById(id) {
+    for (var i = 0; i < BUNDLES.length; i++) if (BUNDLES[i].id === id) return BUNDLES[i];
+    return null;
+  }
+  /** Цена той же сборки в калькуляторе: опытный ведущий, будни, до 25 гостей, без даты. */
+  function bundleCalcPrice(b) {
+    var r = calcPrice({ pkg: b.calc.pkg, tier: BUNDLE_TIER, weekend: false, extras: b.calc.extras, ext: 0, addons: b.calc.addons });
+    return r.totals[0].price;
+  }
+  /** Сообщение менеджеру о готовом пакете (витрина: WhatsApp, Telegram, почта, Авито) — как calcMessage, без разметки. */
+  function bundleMessage(id, name) {
+    var b = bundleById(id);
+    if (!b) return '';
+    var line = '────────────';
+    var who = cleanName(name);
+    var out = ['🎁 Готовый пакет JoyRest'];
+    if (who) out.push('Имя: ' + who);
+    var r = calcPrice({ pkg: b.calc.pkg, tier: BUNDLE_TIER, extras: b.calc.extras, addons: b.calc.addons });
+    var program = [b.calc.pkg].concat(b.calc.extras).map(function (id) { return pkgById(id).name; }).join(' → ');
+    var addons = ADDONS.filter(function (a) { return b.calc.addons.indexOf(a.id) >= 0; }).map(function (a) { return a.label; });
+    out.push(line, 'Пакет: ' + b.name, 'Программа: ' + program, 'Допы: ' + (addons.length ? addons.join(', ') : 'нет'),
+      b.compare === false ? 'Длительность: ' + b.time : 'Длительность: ≈ ' + hh(r.hours.min) + '–' + hh(r.hours.max) + ' ' + hoursWord(r.hours.max),
+      'Гостей: ' + (b.guests || 'до ' + TIERS[BUNDLE_TIER]));
+    out.push('Что входит: ' + b.includes.join('; '));
+    out.push(line, 'Цена: ' + money(b.price) + ' — опытный ведущий, будни' + (b.guests ? ', ' + b.guests : ''));
+    // Без дат и чисел месяца: студия (parseLeadText) взяла бы их за дату праздника.
+    out.push('Дату, время и число гостей уточним в переписке: выходные, новогодняя надбавка и праздничные дни — по правилам калькулятора.');
+    return out.join('\n');
   }
 
   var api = {
+    BUNDLES: BUNDLES, BUNDLE_TIER: BUNDLE_TIER, bundleById: bundleById, bundleCalcPrice: bundleCalcPrice, bundleMessage: bundleMessage,
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
-    MAX_EXTRAS: MAX_EXTRAS, HOLIDAYS: HOLIDAYS, TRAVEL: TRAVEL, NY_MIN: NY_MIN, EARLY_UNTIL: EARLY_UNTIL,
-    seasonFor: seasonFor, seasonHint: seasonHint, seasonBadge: seasonBadge, seasonLine: seasonLine, moscowToday: moscowToday,
-    parseDate: parseDate, cleanTime: cleanTime, cleanName: cleanName, telegramText: telegramText, mailLinks: mailLinks, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
+    MAX_EXTRAS: MAX_EXTRAS, HOLIDAYS: HOLIDAYS, TRAVEL: TRAVEL, NY_MIN: NY_MIN, NY: NY,
+    seasonFor: seasonFor, seasonHint: seasonHint, seasonBadge: seasonBadge, seasonLine: seasonLine, seasonWord: seasonWord, moscowToday: moscowToday,
+    parseDate: parseDate, cleanTime: cleanTime, cleanName: cleanName, telegramText: telegramText, mailLinks: mailLinks, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
     roundUp: roundUp, hoursWord: hoursWord, gamesWord: gamesWord, hh: hh, money: money
   };
   // Браузер: обычный скрипт → window.JoyPricing. Тесты (vitest) импортируют файл и читают globalThis.JoyPricing.

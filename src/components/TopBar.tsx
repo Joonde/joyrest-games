@@ -36,8 +36,10 @@ export function TopBar({ title, actions = [], leaveWarning, onHome }: Props) {
   const inline = overflow ? actions.slice(0, INLINE_ACTIONS) : actions;
   const more = overflow ? actions.slice(INLINE_ACTIONS) : [];
   const profile = useContext(ProfileContext);
-  // Колокольчик — владельцу и менеджеру по продажам в студии (не на пульте: там свои дела).
-  const bell = !leaveWarning && noticesRepo !== null && profile !== null && permissions.canManageClients(profile);
+  // Колокольчик — каждому активному человеку команды в студии (не на пульте: там свои дела); обращения клиентов в нём —
+  // только у владельца и менеджера (6 ноября 2026: ведущему — назначенные ему мероприятия).
+  const bell = !leaveWarning && noticesRepo !== null && profile !== null && permissions.canSeeNotices(profile);
+  const bellClients = profile !== null && permissions.canManageClients(profile);
   // Светлая и тёмная тема — в студии (вошедший человек), не на пульте: там тема игры.
   const themeToggle = !leaveWarning && profile !== null;
   return (
@@ -68,7 +70,7 @@ export function TopBar({ title, actions = [], leaveWarning, onHome }: Props) {
       {(actions.length > 0 || bell || themeToggle) && (
         <div className="topbar__tools">
           {themeToggle && <ThemeToggle />}
-          {bell && <NoticeBell />}
+          {bell && <NoticeBell clients={bellClients} />}
           {actions.length > 0 && (
             <>
               {/* На компьютере — первые кнопки в ряд, остальное в «Ещё»; на телефоне — всё в меню ☰. */}

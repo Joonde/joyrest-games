@@ -17,6 +17,7 @@ import { MusicTab } from "./MusicTab";
 import { VideoTab } from "./VideoTab";
 import { SalesDesk } from "./SalesDesk";
 import { HeldPrompt } from "./HeldPrompt";
+import { OwnerMoney } from "./OwnerMoney";
 
 type TabId = "agency" | "mine" | "music" | "video" | "history";
 
@@ -144,6 +145,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       {(permissions.hostsGames(profile) || permissions.isSalesManager(profile)) && (
         <HeldPrompt owner={permissions.isAdmin(profile) || permissions.isSalesManager(profile)} onToast={showToast} />
       )}
+      {permissions.isAdmin(profile) && <OwnerMoney />}
       {clientsRepo && permissions.isSalesManager(profile) && <SalesDesk />}
       {!permissions.hostsGames(profile) && (
         <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>

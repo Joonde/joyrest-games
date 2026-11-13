@@ -495,7 +495,7 @@ describe("тексты и устройство страницы", () => {
     expect(t).toContain("Продление — 3 900 ₽ за 30 минут.");
     expect(t).toContain("Бронь даты — предоплата 2 000 ₽, засчитывается в стоимость. Отмена за 2 дня и раньше — возвращаем.");
     expect(t).toContain("По Москве выезд включён; если рядом с местом праздника нет метро (дальше 10–15 минут пешком) — такси ведущему по факту.");
-    expect(t).toContain("Города Подмосковья (Химки, Мытищи, Балашиха и другие) — +2 000 ₽ и такси ведущему; в праздничные дни — 5 000 ₽, с 19 декабря по 1 января — 7 000 ₽.");
+    expect(t).toContain("Города Подмосковья (Химки, Мытищи, Балашиха и другие) — +2 000 ₽ и такси ведущему; 10–20 декабря и в праздничные дни — 5 000 ₽, с 21 декабря по 1 января — 7 000 ₽.");
     expect(t).toContain("Подробные условия — в договоре.");
     expect(plain).toContain("Утверждаем программу и тайминг. Бронь даты — предоплата 2 000 ₽, засчитывается в стоимость.");
     expect(plain).toContain("Пакеты рассчитаны на 1,5–2 часа. Нужно дольше — добавьте продление");
@@ -535,12 +535,20 @@ describe("тексты и устройство страницы", () => {
     expect(plain).toContain("Каждые следующие 30 минут — 3 900 ₽.");
     expect(plain).toContain("Это итог за весь вечер — без скрытых доплат. Отдельно только такси ведущему — за город и туда, где рядом нет метро.");
     expect(plain).toContain("Выезд по Москве");
-    // Праздничная цена (22 октября 2026): дата праздника, причина и подсказка, блок ранней брони.
-    for (const id of ["calcDate", "calcDateInfo", "calcDateClear", "calcSeason", "calcSeasonTitle", "calcSeasonBadge", "calcSeasonText", "calcSeasonEarly", "calcSeasonHint", "calcNoDate", "earlyPromo", "earlyCalc"]) {
+    // Надбавка (22 октября, 11 ноября 2026): дата праздника, причина и подсказка, уведомление о новогодней надбавке.
+    for (const id of ["calcDate", "calcDateInfo", "calcDateClear", "calcSeason", "calcSeasonTitle", "calcSeasonBadge", "calcSeasonText", "calcSeasonNote", "calcSeasonHint", "calcNoDate", "nyNote", "nyCalc"]) {
       expect(html, id).toContain(`id="${id}"`);
     }
-    expect(plain).toContain("Праздничная цена зависит от даты праздника, а не от дня брони");
-    expect(plain).toContain("Новый год дешевле — если забронировать заранее!");
+    expect(plain).toContain("зависит от даты праздника, а не от дня брони");
+    expect(plain).toContain("Новогодняя надбавка");
+    expect(plain).toMatch(/10–20 декабря\s*\+20%/);
+    expect(plain).toMatch(/21 декабря —(?:\s|&nbsp;)*1(?:\s|&nbsp;)*января\s*\+35%/);
+    // Ранней брони больше нет — ни на главной, ни на /calc/, ни в скриптах.
+    const calcPage = readFileSync(join(root, "site/calc/index.html"), "utf8") + readFileSync(join(root, "site/calc/calc.js"), "utf8");
+    for (const text of [html, js, calcPage]) {
+      expect(text).not.toMatch(/earlyPromo|EARLY_UNTIL|earlyUntilLabel|Новый год дешевле|ранн[яе][яй] брон|праздничная цена новогоднего сезона вдвое меньше/i);
+    }
+    expect(calcPage).toContain('id="nyNote"');
     expect(js).toContain("window.JoyPricing");
     // Старого почасового калькулятора нет.
     for (const old of ["calcHours", "calcGuests", "calcCustom", "calcComplexity", "calcQuiz", "calcHostLevel", "isWeekend ? 8500"]) {
@@ -635,7 +643,8 @@ describe("логотип сайта", () => {
     execFileSync(process.execPath, [join(root, "node_modules/tsx/dist/cli.mjs"), join(root, "scripts/build-site.ts")], { cwd: root });
     const out = join(root, "build/site");
     const built = readFileSync(join(out, "index.html"), "utf8");
-    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(3); // логотип, монограмма, эмблема (у QR — свой атрибут)
+    // Логотип, монограмма и эмблема (у QR — свой атрибут; у помощника «Джой» — картинки, не SVG).
+    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(3);
     expect(built).not.toMatch(/<svg[^>]*aria-hidden="true"[^>]*aria-hidden=/);
     // QR канала распознаётся, как QR платформы (src/brand/qrSvg.test.ts): крупно и мелко.
     const qr = /data-brand-qr="https:\/\/t\.me\/JoyRest">(<svg[\s\S]*?<\/svg>)<\/div>/.exec(built)?.[1] ?? "";
@@ -656,6 +665,18 @@ describe("логотип сайта", () => {
       return [png.readUInt32BE(16), png.readUInt32BE(20)];
     };
     expect(size("favicon-32.png")).toEqual([32, 32]);
+    expect(size("favicon-120.png")).toEqual([120, 120]);
+    expect(built).toContain('rel="icon" href="/favicon-120.png" type="image/png" sizes="120x120"');
+    // favicon.ico: ICO с тремя PNG 16, 32, 48 — Яндекс берёт значок сайта и отсюда.
+    const ico = readFileSync(join(out, "favicon.ico"));
+    expect([ico.readUInt16LE(0), ico.readUInt16LE(2), ico.readUInt16LE(4)]).toEqual([0, 1, 3]);
+    for (const [i, side] of [16, 32, 48].entries()) {
+      const at = 6 + 16 * i;
+      expect([ico.readUInt8(at), ico.readUInt8(at + 1)]).toEqual([side, side]);
+      const start = ico.readUInt32LE(at + 12);
+      expect(ico.subarray(start + 1, start + 4).toString("latin1")).toBe("PNG");
+      expect(start + ico.readUInt32LE(at + 8)).toBeLessThanOrEqual(ico.length);
+    }
     expect(size("apple-touch-icon.png")).toEqual([180, 180]);
     expect(built).toContain('rel="apple-touch-icon" href="/apple-touch-icon.png"');
     for (const dir of ["css", "js", "img"]) {
@@ -722,7 +743,18 @@ describe("поисковики: главная, страницы услуг, sit
       // Ведут в калькулятор и к связи; форм и сбора данных нет — работают и в витрине.
       expect(page, slug).toContain('href="/calc/"');
       expect(page, slug).not.toMatch(/<form\b|fetch\(|<input/);
+      // Политика — внизу каждой страницы (решение владельца 11 ноября 2026).
+      expect(page, slug).toContain('href="https://games.joy-rest.ru/privacy.html"');
     }
+  });
+
+  it("политика: ссылка на калькуляторе, актуальные сервер и копии, без устаревшего хостинга", () => {
+    expect(readFileSync(join(root, "site/calc/index.html"), "utf8")).toContain('href="https://games.joy-rest.ru/privacy.html"');
+    const policy = readFileSync(join(root, "public/privacy.html"), "utf8");
+    expect(policy).not.toMatch(/Бегет|Beget/);
+    expect(policy).toContain("VDSina, г. Москва");
+    expect(policy).toContain("Selectel, г. Санкт-Петербург");
+    expect(policy).toContain('href="https://joy-rest.ru/"');
   });
 
   it("на страницах услуг — только то, что есть на главной: без площадок, диджеев, штрафов и чужих названий", () => {

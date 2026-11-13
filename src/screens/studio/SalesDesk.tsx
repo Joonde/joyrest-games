@@ -21,7 +21,7 @@ export function SalesDesk() {
   // Мероприятия, которые требуют внимания (цветные кружки, 24 октября 2026): сверх плана, не подтвердил, прошло — отметьте.
   const [events] = useLoad(async () => (eventsRepo ? (await Promise.all([eventsRepo.list("upcoming"), eventsRepo.list("past")])).flat() : ([] as AgencyEvent[])), []);
   const counts = events.status === "ready" ? lightCounts(events.data, opened) : null;
-  const attention = counts ? (["over", "late", "check"] as const).filter((l) => counts[l] > 0) : [];
+  const attention = counts ? (["replace", "over", "late", "check"] as const).filter((l) => counts[l] > 0) : [];
   return (
     <section className="card stack" aria-labelledby="sales-desk">
       <p className="eyebrow">Менеджер по продажам</p>

@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p /tmp/e2e && cp scripts/e2e/prod-check.mjs /tmp/e2e/
           cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium || npx playwright install chromium  # зеркало Ubuntu недоступно — у сборщика GitHub системные библиотеки уже есть
       - name: Какая версия в main
         id: main
         run: echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"

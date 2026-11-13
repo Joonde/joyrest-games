@@ -77,8 +77,34 @@ function brandSvg(name: string): string {
 // углы, а прозрачные углы закрасил бы чёрным.
 const favicon = brandSvg("favicon");
 writeFileSync(join(OUT, "favicon.svg"), favicon);
+/** ICO из готовых PNG: заголовок 6 байт, по 16 байт на картинку, дальше сами PNG. */
+function ico(images: Uint8Array[]): Buffer {
+  const head = Buffer.alloc(6 + 16 * images.length);
+  head.writeUInt16LE(0, 0);
+  head.writeUInt16LE(1, 2);
+  head.writeUInt16LE(images.length, 4);
+  let offset = head.length;
+  images.forEach((data, i) => {
+    const png = Buffer.from(data);
+    const width = png.readUInt32BE(16);
+    const height = png.readUInt32BE(20);
+    const at = 6 + 16 * i;
+    head.writeUInt8(width >= 256 ? 0 : width, at);
+    head.writeUInt8(height >= 256 ? 0 : height, at + 1);
+    head.writeUInt16LE(1, at + 4);
+    head.writeUInt16LE(32, at + 6);
+    head.writeUInt32LE(png.length, at + 8);
+    head.writeUInt32LE(offset, at + 12);
+    offset += png.length;
+  });
+  return Buffer.concat([head, ...images.map((data) => Buffer.from(data))]);
+}
 const png = (svg: string, size: number) => new Resvg(svg, { fitTo: { mode: "width", value: size } }).render().asPng();
 writeFileSync(join(OUT, "favicon-32.png"), png(favicon, 32));
+// Яндекс показывает значок сайта в поиске: просит не меньше 120×120 и ищет /favicon.ico (решение владельца 7 ноября 2026 —
+// в выдаче вместо значка JoyRest был пустой кружок). favicon.ico — PNG 16, 32 и 48 внутри ICO (так ICO умеет с Vista).
+writeFileSync(join(OUT, "favicon-120.png"), png(favicon, 120));
+writeFileSync(join(OUT, "favicon.ico"), ico([16, 32, 48].map((size) => png(favicon, size))));
 writeFileSync(join(OUT, "apple-touch-icon.png"), png(favicon.replace(/(<rect width="512" height="512") rx="\d+"/, "$1"), 180));
 
 // Маска эмблемы для первого экрана: та же форма, чёрная заливка (CSS mask-image).

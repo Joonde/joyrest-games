@@ -2,11 +2,18 @@
 # мероприятия → ведущий принимает → цветные кружки → «Проведено». Тестовый менеджер sales-check@joy-rest.ru (создаётся
 # сам и в конце отключается), ведущий load@joy-rest.ru и владелец (TEST_ADMIN_*) на test.games.joy-rest.ru.
 # Только вручную (Run workflow) или коммитом с [manager] в ветке claude/* (~10–20 минут).
+# «Только «Активные заказы»» — Run workflow, поле only = orders.
 # Итог — аннотацией и сводкой задачи; снимки экранов — в ветку e2e-shots (папка manager/).
 name: Проверка пути менеджера
 
 on:
   workflow_dispatch:
+    inputs:
+      only:
+        description: "Что проверить: all — весь путь, orders — только «Активные заказы» (~3 минуты)"
+        type: choice
+        options: [all, orders]
+        default: all
   push:
     branches: ["claude/**"]
 
@@ -31,9 +38,10 @@ jobs:
         run: |
           mkdir -p /tmp/e2e && cp scripts/e2e/manager.mjs /tmp/e2e/
           cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium || npx playwright install chromium  # зеркало Ubuntu недоступно — у сборщика GitHub системные библиотеки уже есть
       - name: Ждём выкладку на test
-        if: ${{ !contains(github.event.head_commit.message, '[no-test]') }}
+        # «Только заказы» проверяет то, что уже на test, — ждать новую выкладку не нужно.
+        if: ${{ inputs.only != 'orders' && !contains(github.event.head_commit.message, '[no-test]') }}
         run: |
           for i in $(seq 1 40); do
             v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
@@ -48,6 +56,7 @@ jobs:
           E2E_BASE: https://test.games.joy-rest.ru
           SITE_DIR: ${{ github.workspace }}/site
           E2E_SHOTS: /tmp/e2e/shots
+          E2E_ONLY: ${{ inputs.only || 'all' }}
           LOAD_HOST_EMAIL: load@joy-rest.ru
           LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
           TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL }}

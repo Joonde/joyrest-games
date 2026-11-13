@@ -4,7 +4,7 @@ import type { Participant, Session, SessionChange } from "../../data/types";
 import { cellText, newQuestCell, parseQuest, parseQuestList, resizeQuest } from "./content";
 import { DEMO_QUEST, DEMO_QUEST_ADULT, DEMO_QUEST_DRINKS, DEMO_QUEST_SWEET } from "./demo";
 import { validateQuest } from "./validate";
-import { applyRoll, dieOf, judge, nextTurn, parseQuestResult, questBack, questPrimary, rollChange, startQuest } from "./logic";
+import { applyRoll, cancelFinal, declareFinal, dieOf, finishBonus, judge, movesBefore, nextTurn, parseQuestResult, questBack, questMinutes, questPrimary, rollChange, startQuest } from "./logic";
 
 const teams: Participant[] = ["A", "B"].map((id, i) => ({ id, name: `Команда ${id}`, kind: "team", teamId: null, captainUid: `u${id}`, joinedAt: i }));
 const session = (): Session => ({ id: "s", code: "1", hostId: "h", gameId: "g", gameTitle: "", mechanic: "quest", gameSnapshot: null, themeId: "joyrest", playMode: "teams", screenMode: "laptop", state: startState(), leaderboard: {}, createdAt: 0 });
@@ -104,7 +104,7 @@ describe("Активная настолка", () => {
     expect(parseQuestResult(s.state.result).mover).toBe("A");
   });
 
-  it("финиш: бонус финиша и награждение", () => {
+  it("финиш: бонус финиша, круг доигрывает вторая команда, потом награждение", () => {
     const content = board();
     let s = session();
     s = apply(s, startQuest(s, teams));
@@ -114,16 +114,142 @@ describe("Активная настолка", () => {
     const done = parseQuestResult(s.state.result);
     expect(done.mode).toBe("finish");
     expect(done.winner).toBe("A");
+    expect(done.final).toEqual({ why: "finish", left: ["B"] });
     expect(s.leaderboard.A?.score).toBe(content.finishPoints);
+    expect(questPrimary(s)).toBe("next");
+    s = apply(s, nextTurn(s, teams));
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "roll", mover: "B" });
+    s = apply(s, applyRoll(s, content, 1, teams));
+    s = apply(s, judge(s, content, true));
+    s = apply(s, nextTurn(s, teams));
+    expect(parseQuestResult(s.state.result).mode).toBe("over");
     expect(questPrimary(s)).toBe("podium");
   });
 });
 
+describe("Активная настолка: последний круг (решение владельца 4 ноября 2026)", () => {
+  const three: Participant[] = ["A", "B", "C"].map((id, i) => ({ id, name: `Команда ${id}`, kind: "team", teamId: null, captainUid: `u${id}`, joinedAt: i }));
+  const at = (s: Session, pos: Record<string, number>, extra: Record<string, unknown> = {}): Session => ({ ...s, state: { ...s.state, result: { ...(s.state.result as Record<string, unknown>), pos, ...extra } } });
+
+  it("бонус финиша по месту прихода: 100% · 75% · 50% · 25%, кратно 5", () => {
+    expect([0, 1, 2, 3, 7].map((p) => finishBonus(100, p))).toEqual([100, 75, 50, 25, 25]);
+    expect(finishBonus(200, 1)).toBe(150);
+    expect(finishBonus(0, 0)).toBe(0);
+  });
+
+  it("первый финиш открывает круг: кто после него в очереди, ходит; дошедший — 75%; финишировавшие больше не ходят", () => {
+    const content = board();
+    let s = session();
+    s = apply(s, startQuest(s, three));
+    // A ходит, B — у финиша. Круг: A, B, C.
+    s = at(s, { A: 38, B: 39, C: 0 });
+    s = apply(s, applyRoll(s, content, 6, three));
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "finish", finished: ["A"], final: { left: ["B", "C"] } });
+    expect(s.leaderboard.A?.score).toBe(100);
+    s = apply(s, nextTurn(s, three));
+    expect(parseQuestResult(s.state.result).mover).toBe("B");
+    expect(movesBefore(parseQuestResult(s.state.result), "C")).toBe(1);
+    expect(movesBefore(parseQuestResult(s.state.result), "A")).toBeNull();
+    s = apply(s, applyRoll(s, content, 4, three));
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "finish", finished: ["A", "B"], winner: "A", points: 75 });
+    expect(s.leaderboard.B?.score).toBe(75);
+    expect(questPrimary(s)).toBe("next");
+    s = apply(s, nextTurn(s, three));
+    expect(parseQuestResult(s.state.result).mover).toBe("C");
+    s = apply(s, applyRoll(s, content, 2, three));
+    s = apply(s, judge(s, content, true));
+    expect(questPrimary(s)).toBe("next");
+    const lastMove = s;
+    s = apply(s, nextTurn(s, three));
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "over", mover: null });
+    expect(questPrimary(s)).toBe("podium");
+    // «Назад» с итогов круга — к последнему ходу как он был.
+    s = apply(s, questBack(s)?.change ?? {});
+    expect(s.state.stage).toBe(lastMove.state.stage);
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "done", mover: "C", outcome: "ok" });
+  });
+
+  it("последний в очереди дошёл первым — круг уже доигран, сразу награждение", () => {
+    const content = board();
+    let s = session();
+    s = apply(s, startQuest(s, three));
+    s = apply(s, applyRoll(s, content, 1, three));
+    s = apply(s, nextTurn(s, three));
+    s = apply(s, applyRoll(s, content, 1, three));
+    s = apply(s, nextTurn(s, three));
+    expect(parseQuestResult(s.state.result).mover).toBe("C");
+    s = at(s, { A: 1, B: 1, C: 40 });
+    s = apply(s, applyRoll(s, content, 3, three));
+    expect(parseQuestResult(s.state.result).final).toEqual({ why: "finish", left: [] });
+    expect(questPrimary(s)).toBe("podium");
+  });
+
+  it("«Назад» с финиша: фишка обратно, бонус снят, последнего круга нет", () => {
+    const content = board();
+    let s = session();
+    s = apply(s, startQuest(s, three));
+    s = at(s, { A: 39, B: 0, C: 0 });
+    s = apply(s, applyRoll(s, content, 5, three));
+    expect(s.leaderboard.A?.score).toBe(100);
+    s = apply(s, questBack(s)?.change ?? {});
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "roll", mover: "A", finished: [], final: null, winner: null, pos: { A: 39 } });
+    expect(s.leaderboard.A?.score).toBe(0);
+  });
+
+  it("ведущий объявляет последний круг: доходят остальные, отменить можно до первого финиша; пропуск в круге действует", () => {
+    const content = board();
+    let s = session();
+    s = apply(s, startQuest(s, three));
+    expect(cancelFinal(s)).toBeNull();
+    s = apply(s, declareFinal(s) ?? {});
+    expect(parseQuestResult(s.state.result).final).toEqual({ why: "host", left: ["B", "C"] });
+    expect(declareFinal(s)).toBeNull();
+    // Отменить и объявить снова.
+    s = apply(s, cancelFinal(s) ?? {});
+    expect(parseQuestResult(s.state.result).final).toBeNull();
+    s = apply(s, declareFinal(s) ?? {});
+    // B пропускает ход — в последнем круге его ход сгорает.
+    s = at(s, { A: 0, B: 0, C: 0 }, { skip: ["B"] });
+    expect(movesBefore(parseQuestResult(s.state.result), "B")).toBe("skip");
+    s = apply(s, applyRoll(s, content, 1, three));
+    s = apply(s, judge(s, content, true));
+    s = apply(s, nextTurn(s, three));
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mover: "C", skipped: ["B"] });
+    s = apply(s, applyRoll(s, content, 1, three));
+    s = apply(s, judge(s, content, false));
+    s = apply(s, nextTurn(s, three));
+    expect(parseQuestResult(s.state.result).mode).toBe("over");
+  });
+
+  it("очередь на телефоне: через сколько ходов, «пропуск»", () => {
+    const content = board();
+    let s = session();
+    s = apply(s, startQuest(s, three));
+    let r = parseQuestResult(s.state.result);
+    expect([movesBefore(r, "A"), movesBefore(r, "B"), movesBefore(r, "C")]).toEqual([0, 1, 2]);
+    s = apply(s, applyRoll(s, content, 1, three));
+    r = parseQuestResult(s.state.result);
+    expect([movesBefore(r, "A"), movesBefore(r, "B"), movesBefore(r, "C")]).toEqual([2, 0, 1]);
+    s = at(s, r.pos, { skip: ["B"] });
+    r = parseQuestResult(s.state.result);
+    expect([movesBefore(r, "A"), movesBefore(r, "B"), movesBefore(r, "C")]).toEqual([1, "skip", 0]);
+  });
+
+  it("длительность: 40 клеток — около часа на 4 команды, больше команд — дольше", () => {
+    expect(questMinutes(40, 4)).toBeGreaterThanOrEqual(55);
+    expect(questMinutes(40, 4)).toBeLessThanOrEqual(75);
+    expect(questMinutes(40, 8)).toBeGreaterThan(questMinutes(40, 4));
+    expect(questMinutes(100, 4)).toBeGreaterThan(questMinutes(40, 4));
+  });
+});
+
 describe("шаблоны настолки", () => {
-  it("«Классика» и «18+» — по 40 клеток, готовы к запуску", () => {
-    for (const demo of [DEMO_QUEST, DEMO_QUEST_ADULT]) {
+  it("шаблоны — по 40 клеток, готовы к запуску; финиш 100, задания от 30 очков (финиш — как 2–3 задания)", () => {
+    for (const demo of [DEMO_QUEST, DEMO_QUEST_ADULT, DEMO_QUEST_DRINKS, DEMO_QUEST_SWEET]) {
       expect(demo.content.cells).toHaveLength(40);
       expect(validateQuest(demo.content)).toEqual([]);
+      expect(demo.content.finishPoints).toBe(100);
+      for (const c of demo.content.cells) if (c.points > 0) expect(c.points, c.text).toBeGreaterThanOrEqual(30);
     }
   });
 });

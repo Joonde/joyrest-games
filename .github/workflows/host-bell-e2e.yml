@@ -1,0 +1,89 @@
+# Проверка пути ведущего (CLAUDE.md, раздел 3, «Колокольчик ведущего»): мероприятие назначено → колокольчик →
+# карточка мероприятия раскрыта → «✅ Принял, готовлюсь» → владелец видит «Принято»; изменение — снова «Принял»;
+# «Мой календарь» → «Открыть мероприятие →»; ссылка из Telegram; отменённое.
+# Приложение запускается прямо в сборщике со своей базой PostgreSQL — test и основная версия не трогаются,
+# учётные записи на сервере не нужны. Только вручную (Run workflow) или коммитом с [bell] в ветке claude/* (~6 минут).
+name: Проверка пути ведущего
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  bell:
+    name: Колокольчик → «Принял, готовлюсь»
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[bell]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:ci@localhost:5432/postgres
+      E2E_ADMIN_EMAIL: owner@example.com
+      E2E_ADMIN_PASSWORD: Owner-Check-Pass-2026!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Сборка платформы и сервера
+        run: npm run build && npm run build:server
+      - name: База и владелец
+        run: |
+          MIGRATIONS_DIR="$PWD/server/migrations" node build/server/migrate-main.js
+          printf '%s\n%s\n' "$E2E_ADMIN_EMAIL" "$E2E_ADMIN_PASSWORD" | node build/server/admin-password.js
+      - name: Запуск приложения
+        run: |
+          mkdir -p /tmp/media
+          PORT=8080 PUBLIC_DIR="$PWD/dist" DATA_BACKEND=server MEDIA_DIR=/tmp/media APP_VERSION="$GITHUB_SHA" \
+            PLATFORM_URL=http://localhost:8080 nohup node build/server/main.js > /tmp/server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:8080/health && exit 0; sleep 1; done
+          cat /tmp/server.log; exit 1
+      - name: Браузер
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/host-bell.mjs /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium || npx playwright install chromium  # зеркало Ubuntu недоступно — у сборщика GitHub системные библиотеки уже есть
+      - name: Путь ведущего
+        working-directory: /tmp/e2e
+        run: node host-bell.mjs
+        env:
+          E2E_BASE: http://localhost:8080
+          E2E_SHOTS: /tmp/e2e/shots
+      - name: Журнал приложения
+        if: failure()
+        run: tail -n 80 /tmp/server.log
+      - name: Снимки в ветку e2e-shots
+        if: always()
+        run: |
+          [ -d /tmp/e2e/shots ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
+          rm -rf host-bell && mkdir -p host-bell && cp /tmp/e2e/shots/*.png host-bell/ 2>/dev/null || true
+          git add -A host-bell
+          if git commit -qm "Снимки проверки пути ведущего ${GITHUB_SHA::7}"; then
+            sent=""
+            for i in 1 2 3 4 5; do
+              if out=$(git push -q origin HEAD:e2e-shots 2>&1); then sent=1; break; fi
+              git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break
+            done
+            [ -n "$sent" ] || echo "::warning::Не отправлено в e2e-shots: $(echo "$out" | tr '\n' ' ' | cut -c1-300)"
+          else
+            echo "::notice::Нечего отправлять в e2e-shots"
+          fi

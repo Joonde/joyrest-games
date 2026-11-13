@@ -39,11 +39,12 @@
     { "@type": "AdministrativeArea", "name": "Московская область" }
   ],
   "knowsAbout": ["ведущий на праздник", "квиз", "викторина", "интерактивное шоу", "корпоратив", "новогодний корпоратив", "день рождения", "детский праздник"],
-  "sameAs": ["https://t.me/JoyRest", "https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349"]
+  "sameAs": ["https://t.me/JoyRest", "https://vk.com/joyrest", "https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349"]
 }
 </script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/favicon-120.png" type="image/png" sizes="120x120">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <!-- Свои шрифты (css/fonts.css), без Google Fonts. Основные начертания — заранее. -->
 <link rel="preload" href="/fonts/jost-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -77,6 +78,24 @@
     <p class="form-error" id="askError" role="alert"></p>
   </form>
 </div>
+
+<!-- Помощник «Джой»: бот без ИИ, отвечает заготовленными ответами (js/joy-faq.js — ответы из pricing.js, js/joy-bot.js — окно).
+     Ничего не отправляет на сервер, поэтому работает и в витрине. -->
+<button type="button" class="joy-fab" id="joyFab" aria-expanded="false" aria-controls="joyPanel"><span class="joy-av" aria-hidden="true"><img class="joy-av__f joy-av__f--base" src="img/joy-base.webp" width="240" height="240" decoding="async" alt=""><img class="joy-av__f joy-av__f--blink" src="img/joy-blink.webp" width="240" height="240" decoding="async" alt=""></span><span class="joy-fab__text">Спросить Джой</span></button>
+<section class="joy-panel" id="joyPanel" role="dialog" aria-labelledby="joyTitle" hidden>
+  <div class="joy-head">
+    <span class="joy-av joy-av--big" id="joyAvatar" aria-hidden="true"><img class="joy-av__f joy-av__f--base" src="img/joy-base.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--blink" src="img/joy-blink.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--a" src="img/joy-a.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--o" src="img/joy-o.webp" width="240" height="240" loading="lazy" decoding="async" alt=""><img class="joy-av__f joy-av__f--i" src="img/joy-i.webp" width="240" height="240" loading="lazy" decoding="async" alt=""></span>
+    <div class="joy-head__text"><h4 id="joyTitle">Джой — помощник JoyRest</h4><p id="joyStatus">Отвечаю на частые вопросы</p></div>
+    <button type="button" class="joy-close" id="joyClose" aria-label="Закрыть помощника">✕</button>
+  </div>
+  <div class="joy-log" id="joyLog" tabindex="-1" aria-live="polite"></div>
+  <div class="joy-chips" id="joyChips" aria-label="Частые вопросы"></div>
+  <form class="joy-form" id="joyForm" autocomplete="off">
+    <input type="text" id="joyInput" maxlength="200" placeholder="Напишите вопрос…" aria-label="Ваш вопрос Джой">
+    <button type="submit" class="joy-send" aria-label="Спросить">→</button>
+  </form>
+  <p class="joy-foot">Не нашли ответ? <a href="#contact" id="joyHuman">Напишите менеджеру</a></p>
+</section>
 
 <!-- Витрина: куда отправить расчёт. Адрес Авито — data-avito (пусто — кнопки Авито нет). -->
 <div class="vmodal send-sheet" id="sendSheet" role="dialog" aria-modal="true" aria-labelledby="sendSheetTitle" data-avito="https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349" hidden>
@@ -155,7 +174,8 @@
     <p>Оператор персональных данных — организатор проекта JoyRest (Москва; ФИО, ИНН и ОГРНИП будут указаны после регистрации ИП), почта для обращений: <a class="link" href="mailto:joyrest@mail.ru">joyrest@mail.ru</a>. Политика составлена по Федеральному закону № 152-ФЗ «О персональных данных» и действует для сайтов joy-rest.ru и games.joy-rest.ru.</p>
     <p><strong>Какие данные собираются:</strong> имя, номер телефона, способ и ссылка для связи (Telegram/WhatsApp/ВК/MAX), тип мероприятия, количество гостей, комментарий к заявке, текст вопроса или отзыва — только то, что вы сами вводите в формы.</p>
     <p><strong>Цель:</strong> ответ на вопрос и обсуждение мероприятия; публикация отзыва — только с вашего согласия; новости — только если вы отдельно на них согласились.</p>
-    <p><strong>Где хранятся:</strong> на серверах в России (Санкт-Петербург), резервные копии зашифрованы. О новой заявке оператор получает уведомление в Telegram с именем и контактом — это трансграничная передача, на неё вы тоже даёте согласие. Третьим лицам и для рекламы данные не передаются.</p>
+    <p><strong>Если вы пишете нам в мессенджер, на почту или Авито:</strong> мы получаем имя и контакт из вашего профиля, текст сообщения и расчёт, если вы его прислали, — только чтобы ответить и обсудить праздник.</p>
+    <p><strong>Где хранятся:</strong> на серверах в России (Москва, резервные копии — в Санкт-Петербурге), копии зашифрованы. О новой заявке оператор получает уведомление в Telegram с именем и контактом — это трансграничная передача, на неё вы тоже даёте согласие. Третьим лицам и для рекламы данные не передаются.</p>
     <p><strong>Срок:</strong> до достижения цели, но не дольше 3 лет с последнего обращения, или до отзыва согласия. Рекламных и аналитических cookie и счётчиков на сайте нет.</p>
     <p><strong>Ваши права:</strong> узнать, исправить или удалить свои данные и отозвать согласие — напишите на почту joyrest@mail.ru, ответ в течение 10 рабочих дней.</p>
     <p><a class="link" href="https://games.joy-rest.ru/privacy.html" target="_blank" rel="noopener">Полный текст политики</a></p>
@@ -173,13 +193,14 @@
       </span></span>
     </a>
     <nav class="nav-links" aria-label="Разделы сайта">
-      <a href="#calculator">Пакеты и цены</a>
+      <a href="#prices">Пакеты и цены</a>
       <a href="#games">Игры</a>
       <a href="#platform">Платформа</a>
       <a href="#terms">Условия</a>
       <a href="#faq">Вопросы</a>
     </nav>
     <div class="header-actions">
+      <button type="button" class="joy-hbtn" data-joy-open aria-controls="joyPanel" aria-label="Спросить помощника Джой"><span class="joy-av joy-av--head" aria-hidden="true"><img class="joy-av__f joy-av__f--base" src="img/joy-base.webp" width="240" height="240" decoding="async" alt=""><img class="joy-av__f joy-av__f--blink" src="img/joy-blink.webp" width="240" height="240" decoding="async" alt=""></span><span class="joy-hbtn__text" aria-hidden="true">Спросить Джой</span></button>
       <button type="button" class="theme-toggle" id="themeToggle" aria-label="Включить светлую тему">
         <svg class="i-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></svg>
         <svg class="i-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>
@@ -191,15 +212,18 @@
     </div>
   </div>
   <div class="mobile-panel" id="mobilePanel">
-    <a href="#calculator">Пакеты и калькулятор</a>
-    <a href="#hosts">Ведущие</a>
+    <a href="#prices">Пакеты и цены</a>
+    <a href="#look">Как это выглядит</a>
     <a href="#games">Игры</a>
     <a href="#platform">Игры с телефонов</a>
+    <a href="#calculator">Калькулятор</a>
+    <a href="#hosts">Ведущие</a>
     <a href="#terms">Условия работы</a>
     <a href="#process">Как это работает</a>
     <a href="#faq">Частые вопросы</a>
     <a href="#reviews">Telegram</a>
     <a href="#contact">Контакты</a>
+    <a href="#joy" class="nav-joy" data-joy-open>Спросить помощника Джой</a>
     <a href="#contact" class="nav-cta" data-focus-target="name">Оставить заявку</a>
   </div>
 </header>
@@ -259,15 +283,17 @@
         <nav class="route" aria-label="Что на этой странице">
           <p class="route__title">Что на странице — листайте вниз по порядку</p>
           <ol class="route__list">
-            <li><a href="#calculator"><b>1</b>Пакеты и цены</a></li>
-            <li><a href="#hosts"><b>2</b>Ведущие</a></li>
+            <li><a href="#prices"><b>1</b>Пакеты и цены</a></li>
+            <li><a href="#look"><b>2</b>Как это выглядит</a></li>
             <li><a href="#games"><b>3</b>Игры</a></li>
             <li><a href="#platform"><b>4</b>Как играют гости</a></li>
-            <li><a href="#terms"><b>5</b>Условия</a></li>
-            <li><a href="#process"><b>6</b>Как заказать</a></li>
-            <li><a href="#faq"><b>7</b>Вопросы</a></li>
-            <li><a href="#reviews"><b>8</b>Отзывы и Telegram</a></li>
-            <li><a href="#contact"><b>9</b>Связаться</a></li>
+            <li><a href="#calculator"><b>5</b>Свой вечер</a></li>
+            <li><a href="#hosts"><b>6</b>Ведущие</a></li>
+            <li><a href="#terms"><b>7</b>Условия</a></li>
+            <li><a href="#process"><b>8</b>Как заказать</a></li>
+            <li><a href="#faq"><b>9</b>Вопросы</a></li>
+            <li><a href="#reviews"><b>10</b>Отзывы и Telegram</a></li>
+            <li><a href="#contact"><b>11</b>Связаться</a></li>
           </ol>
         </nav>
       </div>
@@ -292,154 +318,181 @@
   <!-- Бегущая строка цен пакетов (опытный ведущий, будни, до 15 гостей). Вторая копия — для бесшовной прокрутки. -->
   <div class="ticker" aria-label="Цены пакетов">
     <div class="ticker__in">
-      <span class="ticker__item">Игровой вечер <b>от 14 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Квиз <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Шоу-вечер <b>от 22 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Музыкальный <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Танцевальный <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Активные настолки <b>от 21 400 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Под ключ <b>от 35 000 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Гости играют с телефонов — без приложений<span class="ticker__star">✦</span></span>
-      <span class="ticker__item" aria-hidden="true">Игровой вечер <b>от 14 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Квиз <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Шоу-вечер <b>от 22 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Музыкальный <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Танцевальный <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Активные настолки <b>от 21 400 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Под ключ <b>от 35 000 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Гости играют с телефонов — без приложений<span class="ticker__star">✦</span></span>
+      <span class="ticker__item">Игровой вечер <b>от 14 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Квиз <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Шоу-вечер <b>от 22 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Музыкальный <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Танцевальный <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Активные настолки <b>от 21 400 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Под ключ <b>от 30 000 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item">Гости играют с телефонов — без приложений<span class="ticker__star">✦</span></span>
+      <span class="ticker__item" aria-hidden="true">Игровой вечер <b>от 14 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Квиз <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Шоу-вечер <b>от 22 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Музыкальный <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Танцевальный <b>от 19 900 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Активные настолки <b>от 21 400 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Под ключ <b>от 30 000 ₽</b><span class="ticker__star">✦</span></span><span class="ticker__item" aria-hidden="true">Гости играют с телефонов — без приложений<span class="ticker__star">✦</span></span>
     </div>
   </div>
 
-  <!-- Калькулятор: пакеты на 1,5–2 часа, гости, день, ещё игра, продление, допы — три цены сразу
-       (опытный, «Новые лица», «Первый старт»). Расчёт — js/pricing.js, вывод — js/script.js. -->
-  <section id="calculator" class="section">
+  <section id="prices" class="section">
     <div class="wrap">
       <p class="eyebrow"><span class="eyebrow__n">1</span><span class="eyebrow__t">Пакеты и цены</span></p>
-      <h2>Соберите свой вечер</h2>
-      <p class="sub">Выберите пакет, гостей и дату — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
-      <!-- Ранняя бронь Нового года (решение владельца 22 октября 2026): видна с 1 сентября по 15 ноября по Москве, показывает js/script.js. -->
-      <aside class="early" id="earlyPromo" hidden aria-labelledby="earlyTitle">
-        <p class="early__tag">До 15 ноября</p>
-        <h3 class="early__title" id="earlyTitle">Новый год дешевле — если забронировать заранее!</h3>
-        <p class="early__text">Бронируете корпоратив или праздник до 15 ноября включительно — праздничная цена новогоднего сезона вдвое меньше.</p>
-        <ul class="early__rows">
-          <li><span>5–18 декабря</span><span><s>+20%</s> <b>+10%</b></span></li>
-          <li><span>19–28 декабря</span><span><s>+40%</s> <b>+20%</b></span></li>
-          <li><span>29 декабря —&nbsp;1&nbsp;января</span><span class="early__full">полная цена</span></li>
-        </ul>
-        <p class="early__note">Цена закрепляется предоплатой 2&nbsp;000&nbsp;₽. Лучшие даты разбирают первыми!</p>
-        <button type="button" class="btn btn--primary" id="earlyCalc">Посчитать новогодний праздник</button>
-      </aside>
-      <div class="calc">
-        <div class="calc__steps">
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">1</span>Пакет на 1,5–2 часа</p>
-            <div class="packs" id="calcPacks" role="group" aria-label="Пакет"></div>
-            <p class="hint">Диджей и другие услуги — обсуждаем индивидуально. Напишите о пожеланиях в комментарии к заявке.</p>
+      <!-- Готовые пакеты (решение владельца 7–8 ноября 2026): одна цена за весь пакет, дешевле той же сборки в калькуляторе.
+           Цены и состав — BUNDLES в js/pricing.js (сверяет server/src/sitePricing.test.ts); «Выбрать пакет» — js/script.js. -->
+      <h2>Готовые пакеты — считать ничего не нужно</h2>
+      <p class="sub">Одна цена за весь пакет — это дешевле, чем собрать то же самое в калькуляторе. Выберите вечер и напишите нам.</p>
+      <div class="bundles" id="packages">
+        <article class="bundle bundle--hit" data-bundle-card="joyrest">
+          <div class="bundle__top"><span class="bundle__tag bundle__tag--hit">Хит · фирменный</span><span class="bundle__time">≈ 2,5–3 часа</span></div>
+          <h3 class="bundle__name">Вечер JoyRest</h3>
+          <p class="bundle__sub">Наш главный формат: квиз и вторая игра за один вечер</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Квиз на выбор: классический или авторский</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Вторая игра: Мафия, Убежище или Шпион</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Экран зала и вход гостей по QR</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>29 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>34 400 ₽</s></p>
+            <p class="bundle__save">Выгода 4 500 ₽</p>
+            <a href="#contact" class="hbtn hbtn--primary bundle__go" data-bundle="joyrest">Выбрать пакет</a>
           </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">2</span>Сколько гостей</p>
-            <div class="chips chips--6" id="calcTiers" role="group" aria-label="Сколько гостей"></div>
-            <p class="hint">90+ — больше 90 гостей: подберём нескольких ведущих, цену назовём индивидуально.</p>
+        </article>
+        <article class="bundle" data-bundle-card="tvshow">
+          <div class="bundle__top"><span class="bundle__tag">Телешоу</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Телешоу</h3>
+          <p class="bundle__sub">Большая игра как на телевидении — игры на выбор</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>На выбор: «Ставка на знания», «Миллион на кону» или «Что скажет большинство»</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Можно две игры за вечер — сыграем короче</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Экран зала и вход гостей по QR</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>24 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>27 900 ₽</s></p>
+            <p class="bundle__save">Выгода 3 000 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="tvshow">Выбрать пакет</a>
           </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">3</span><label for="calcDate">Дата праздника</label></p>
-            <div class="datebox"><input type="date" id="calcDate" class="datebox__input" aria-describedby="calcDateInfo"><button type="button" class="chip" id="calcDateClear" hidden>Убрать дату</button></div>
-            <div class="timebox"><label class="timebox__label" for="calcTime">Время начала <span>— по желанию</span></label><input type="time" id="calcTime" class="datebox__input timebox__input" step="900"><button type="button" class="chip" id="calcTimeClear" hidden>Убрать время</button></div>
-            <p class="hint datebox__info" id="calcDateInfo">Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.</p>
-            <div class="chips" id="calcDays" role="group" aria-label="День"></div>
-            <p class="hint">В пятницу, субботу и воскресенье стоимость на 10% выше: это самые востребованные дни. В декабре, перед 14 февраля, 23 февраля и 8 марта и в сами праздники действует праздничная цена.</p>
-            <p class="hint">Время начала на цену не влияет. Менеджер проверит, какие ведущие свободны в этот день и час, и подтвердит время в переписке.</p>
+        </article>
+        <article class="bundle" data-bundle-card="nyshow">
+          <div class="bundle__top"><span class="bundle__tag bundle__tag--ny">Новый год</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Новогоднее телешоу</h3>
+          <p class="bundle__sub">«Ставка на знания» и «Миллион на кону» в праздничной редакции</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>«Ставка на знания» — новогодние темы</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>«Миллион на кону» с залом</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Мини-квиз на финал</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Призы и медали победителям</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>27 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>30 400 ₽</s></p>
+            <p class="bundle__save">Выгода 2 500 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="nyshow">Выбрать пакет</a>
           </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">4</span>Ещё игра в этот вечер</p>
-            <div class="extras" id="calcExtras" role="group" aria-label="Ещё игра в этот вечер"></div>
-            <p class="hint">Каждая добавленная игра — за полцены своего пакета и около часа. Например, квиз, а после — Мафия. <b class="hint__hl">Больше двух дополнительных игр — индивидуальный заказ:</b> цену и программу обсудим с вами.</p>
+        </article>
+        <article class="bundle" data-bundle-card="nyquiz">
+          <div class="bundle__top"><span class="bundle__tag bundle__tag--ny">Новый год</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Новогодний квиз</h3>
+          <p class="bundle__sub">Вопросы про зиму, праздники и уходящий год</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Новогодние раунды: кино, музыка, традиции</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Классический или авторский формат</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Призы и медали победителям</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>25 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>27 400 ₽</s></p>
+            <p class="bundle__save">Выгода 1 500 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="nyquiz">Выбрать пакет</a>
           </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">5</span>Продление</p>
-            <div class="chips chips--5" id="calcExt" role="group" aria-label="Продление"></div>
-            <p class="hint">Каждые следующие 30 минут — 3 900 ₽. Если вечер затянется на месте, ведущий заранее спросит, продлеваем ли, — без согласия ничего не добавится.</p>
+        </article>
+        <article class="bundle" data-bundle-card="mix">
+          <div class="bundle__top"><span class="bundle__tag">Сборный</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Всего понемногу</h3>
+          <p class="bundle__sub">Музыка и танцы — для смешанной компании</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>«Узнай по нотам» или Музыкальное лото</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Танцевальная пауза между раундами</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Экран зала и вход гостей по QR</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>24 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>27 900 ₽</s></p>
+            <p class="bundle__save">Выгода 3 000 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="mix">Выбрать пакет</a>
           </div>
-          <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">6</span>Добавить к вечеру</p>
-            <div class="addons" id="calcAddons"></div>
+        </article>
+        <article class="bundle" data-bundle-card="mafia">
+          <div class="bundle__top"><span class="bundle__tag">Игра</span><span class="bundle__time">1,5–2 часа</span></div>
+          <h3 class="bundle__name">Мафия-вечер</h3>
+          <p class="bundle__sub">Детективная игра с ведущим-судьёй</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Мафия на всех гостей, роли — на телефонах</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Разминка «Шпион» в начале</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Призы и медали лучшим игрокам</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для гостей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>19 900 ₽</b> <s data-bundle-old><span class="vh">в калькуляторе </span>21 400 ₽</s></p>
+            <p class="bundle__save">Выгода 1 500 ₽</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="mafia">Выбрать пакет</a>
           </div>
-        </div>
-        <aside class="summary" id="calcSummary" aria-live="polite">
-          <div class="summary__head"><p class="summary__label">Итого за вечер — коснитесь, чтобы выбрать ведущего</p><button type="button" class="qhelp" id="levelsHelp" aria-haspopup="dialog" aria-label="Чем отличаются ведущие" title="Чем отличаются ведущие">?</button></div>
-          <div class="summary__indiv" id="calcIndiv" hidden>
-            <p class="summary__indiv-title">Обсудим индивидуально</p>
-            <p class="summary__note">Оставьте заявку — предложим программу и цену в течение дня.</p>
+        </article>
+        <article class="bundle" data-bundle-card="kids">
+          <div class="bundle__top"><span class="bundle__tag">Детям</span><span class="bundle__time">1,5 часа</span></div>
+          <h3 class="bundle__name">День рождения ребёнка</h3>
+          <p class="bundle__sub">Дети играют с ведущим на большом экране, взрослые отдыхают рядом</p>
+          <ul class="bundle__list">
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>«Бой с драконом» в детской версии</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>«Сладкие приключения» — ходилка на экране</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Весёлые вопросы и танцевальные игры</span></li>
+            <li><svg class="bundle__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Таблица итогов со ссылкой для родителей</span></li>
+          </ul>
+          <div class="bundle__foot">
+            <p class="bundle__price"><b data-bundle-price>10 900 ₽</b></p>
+            <p class="bundle__save">До 10 детей, 1,5 часа</p>
+            <a href="#contact" class="hbtn hbtn--secondary bundle__go" data-bundle="kids">Выбрать пакет</a>
           </div>
-          <div class="season" id="calcSeason" hidden>
-            <p class="season__title"><span id="calcSeasonTitle"></span><span class="season__badge" id="calcSeasonBadge"></span></p>
-            <p class="season__text" id="calcSeasonText"></p>
-            <p class="season__early" id="calcSeasonEarly" hidden></p>
-            <p class="season__note">Праздничная цена зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.</p>
-          </div>
-          <p class="season-hint" id="calcSeasonHint" hidden></p>
-          <div class="levels" id="calcLevels"></div>
-          <p class="summary__nodate" id="calcNoDate" hidden>Укажите дату праздника — в декабре, перед праздниками и в сами праздники действует праздничная цена.</p>
-          <p class="summary__text" id="calcText"></p>
-          <div class="duration" id="calcDuration">
-            <span class="duration__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
-            <div>
-              <p class="duration__label">Вечер длится примерно</p>
-              <p class="duration__value" id="calcDurValue"></p>
-              <div class="duration__parts" id="calcDurParts"></div>
-            </div>
-          </div>
-          <ul class="summary__lines" id="calcLines"></ul>
-          <div class="included"><span>Ведущий</span><span>Сценарий</span><span>Платформа и QR</span><span>Реквизит</span><span>Выезд по Москве</span></div>
-          <button type="button" class="btn btn--primary btn--block" id="calcSubmit">Отправить расчёт в заявку</button>
-          <p class="summary__linked" id="calcLinked" hidden>✓ Расчёт в заявке и обновляется сам, когда вы меняете выбор</p>
-          <p class="summary__foot">Это итог за весь вечер — без скрытых доплат. Отдельно только такси ведущему — за город и туда, где рядом нет метро. Бронь даты — предоплата 2 000 ₽ в счёт стоимости.</p>
-        </aside>
+        </article>
       </div>
-      <div class="mbar" id="calcBar"><a href="#calcSummary" class="mbar__sum" id="calcBarSum" aria-label="Итог расчёта"></a><button type="button" class="mbar__send" id="calcBarSend">В заявку</button></div>
-      <noscript><p class="hint">Калькулятор работает с включённым JavaScript. Цены пакетов — в бегущей строке выше, остальное подскажем в заявке.</p></noscript>
-      <a class="next" href="#hosts"><span class="next__k">Дальше · 2</span><span class="next__t">Кто проведёт ваш вечер</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <p class="bundles__note">Цены — с опытным ведущим, в будни, до 25 гостей; «День рождения ребёнка» — до 10 детей, 1,5 часа. В каждом пакете — ведущий, сценарий, игровая платформа JoyRest, реквизит и выезд по Москве. Пятница–воскресенье +10%, с 10 декабря — новогодняя надбавка, перед 14 февраля, 23 февраля и 8 марта — праздничная цена, как в калькуляторе.</p>
+      <a class="next" href="#look"><span class="next__k">Дальше · 2</span><span class="next__t">Как это выглядит</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
-  <!-- Формат ведущего. Тексты «Новые лица» и «Первый старт» согласованы с владельцем — правка только с ним.
-       Скидка — на весь вечер (калькулятор показывает три цены), поле «Формат ведущего» в заявке, hostLevel в /api/lead. -->
-  <section id="hosts" class="section band">
+  <!-- «Как это выглядит» (решение владельца 11 ноября 2026): сразу после пакетов — ролик и живые кадры, потом игры и калькулятор. -->
+  <section id="look" class="section band">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">2</span><span class="eyebrow__t">Ведущие</span></p>
-      <h2>Кто проведёт ваш вечер</h2>
-      <p class="sub">Три формата — три цены в калькуляторе. Программа, игры и реквизит одинаковые, разница — в опыте ведущего.</p>
-      <div class="hosts">
-        <article class="host host--main">
-          <span class="host__badge">Основной формат</span>
-          <h3>Опытный ведущий</h3>
-          <p>Ведущие JoyRest с опытом праздников: держат темп вечера, подстраиваются под гостей и спокойно справляются с неожиданностями.</p>
-          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="standard">Выбрать этот формат</a>
-        </article>
-        <article class="host">
-          <span class="host__badge">−20%</span>
-          <h3>Новые лица <span class="host__sub">— для тех, кто любит пробовать новое</span></h3>
-          <p>Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.</p>
-          <p>Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 20% — мы честно делим с вами возможные шероховатости.</p>
-          <p class="host__how">Как это устроено:</p>
-          <ul class="host__list">
-            <li>сценарий и программу готовим вместе с опытным ведущим JoyRest;</li>
-            <li>игры, реквизит и оборудование — как в обычном формате;</li>
-            <li>на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.</li>
+      <p class="eyebrow"><span class="eyebrow__n">2</span><span class="eyebrow__t">Как это выглядит</span></p>
+      <h2>Как проходят вечера JoyRest</h2>
+      <p class="sub">Ролик — все форматы за 30 секунд. Ниже — живые кадры с наших праздников.</p>
+      <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
+      <button type="button" class="promo" id="promoOpen" aria-haspopup="dialog">
+        <span class="promo__thumb"><img src="img/promo-poster.webp" width="540" height="960" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
+        <span class="promo__text"><b>Все форматы за 30 секунд</b><span>Квизы, телешоу, танцы, карточные игры и настолки — смотрите со звуком</span><span class="promo__go">Смотреть ролик →</span></span>
+      </button>
+      <!-- «Как проходят наши вечера» (решение владельца 8 ноября 2026): фото с мероприятий целиком, без обрезки — стопка
+           распечаток; не список ведущих (в кадре могут быть не все). Новое фото: img/moment-*.webp и строка в .moments__strip. -->
+      <div class="moments" id="moments" role="region" aria-labelledby="momentsTitle">
+        <div class="moments__text">
+          <div class="moments__head">
+            <p class="moments__kicker">Живые кадры</p>
+            <h3 class="moments__title" id="momentsTitle">Как проходят наши вечера</h3>
+            <p class="moments__lead">Ведущего подбираем под ваш формат и компанию — расскажите о празднике, и мы предложим программу.</p>
+          </div>
+          <div class="moments__nav">
+            <button type="button" class="moments__arrow" id="momentPrev" aria-label="Предыдущее фото"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <p class="moments__count" aria-hidden="true"><b id="momentNum">1</b> / 6</p>
+            <button type="button" class="moments__arrow moments__arrow--next" id="momentNext" aria-label="Следующее фото"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <ul class="moments__strip" aria-label="Все фото">
+          <li><button type="button" class="moments__thumb is-on" data-moment="0" data-tag="Мафия" data-cap="Город засыпает — просыпается мафия" data-alt="Ведущий в чёрном костюме указывает на гостей в масках за праздничным столом — идёт игра в Мафию" aria-label="Фото 1: Город засыпает — просыпается мафия" aria-current="true"><img src="img/moment-mafia.webp" alt="" width="1280" height="839" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="1" data-tag="Игры на ловкость" data-cap="Один бросок — и весь зал замер" data-alt="Ведущий бросает шарик в стаканчики, гости на диване следят за броском" aria-label="Фото 2: Один бросок — и весь зал замер"><img src="img/moment-pong.webp" alt="" width="1280" height="853" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="2" data-tag="Праздник" data-cap="Держим зал от начала до финала" data-alt="Ведущий с микрофоном говорит с гостями за накрытыми столами в ресторане" aria-label="Фото 3: Держим зал от начала до финала"><img src="img/moment-host.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="3" data-tag="Ролевая настолка" data-cap="Мастер игры, драконы и кубики" data-alt="Мастер игры за ширмой с драконом улыбается и разводит руками" aria-label="Фото 4: Мастер игры, драконы и кубики"><img src="img/moment-tabletop.webp" alt="" width="640" height="640" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="4" data-tag="Свадьбы — на заказ" data-cap="Первый танец в облаках" data-alt="Первый танец молодожёнов в облаке тяжёлого дыма, гости снимают на телефоны" aria-label="Фото 5: Первый танец в облаках"><img src="img/moment-wedding.webp" alt="" width="1280" height="960" loading="lazy" decoding="async"></button></li>
+          <li><button type="button" class="moments__thumb" data-moment="5" data-tag="Праздник" data-cap="Жених и друзья — фото на память" data-alt="Жених с друзьями стоят вместе у кирпичной стены с гирляндами" aria-label="Фото 6: Жених и друзья — фото на память"><img src="img/moment-friends.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></button></li>
           </ul>
-          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="new">Выбрать этот формат</a>
-        </article>
-        <article class="host">
-          <span class="host__badge">−35%</span>
-          <h3>Первый старт <span class="host__sub">— для самых смелых</span></h3>
-          <p>Ведущие, для которых ваш праздник станет одним из первых. Волнение, искренность и стремление выложиться на все сто — такого вы больше нигде не увидите.</p>
-          <p>Это максимальный эксперимент, поэтому и скидка максимальная — 35%.</p>
-          <p class="host__how">Как это устроено:</p>
-          <ul class="host__list">
-            <li>сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;</li>
-            <li>игры, реквизит и оборудование — как в обычном формате;</li>
-            <li>на празднике ведущий работает самостоятельно — для него это настоящий первый выход.</li>
-          </ul>
-          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="first">Выбрать этот формат</a>
-        </article>
-      </div>
-      <p class="hosts__note">Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.</p>
-      <!-- Занятость ведущих (решение владельца 23 октября 2026): ведущих ограниченное число, формат может быть занят на дату. -->
-      <aside class="busy" aria-labelledby="busyTitle">
-        <span class="busy__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M9.5 14.5l2 2 3.5-4"/></svg></span>
-        <div>
-          <h3 class="busy__title" id="busyTitle">Ведущий может быть уже занят — это нормально</h3>
-          <p class="busy__text">Ведущих у нас ограниченное число, и на популярные даты разбирают их быстро. Поэтому на ваш день один или даже несколько форматов могут быть уже заняты. Менеджер сразу скажет, кто свободен, и предложит варианты: другой формат, другое время или соседнюю дату. Чтобы выбор был шире — пишите заранее.</p>
         </div>
-      </aside>
+        <div class="moments__stage">
+          <div class="moments__back moments__back--2" aria-hidden="true"><img id="momentBack2" src="img/moment-host.webp" alt="" width="1280" height="852" loading="lazy" decoding="async"></div>
+          <div class="moments__back moments__back--1" aria-hidden="true"><img id="momentBack1" src="img/moment-pong.webp" alt="" width="1280" height="853" loading="lazy" decoding="async"></div>
+          <figure class="moments__print" id="momentPrint">
+            <span class="moments__tape" aria-hidden="true"></span>
+            <img id="momentImg" src="img/moment-mafia.webp" alt="Ведущий в чёрном костюме указывает на гостей в масках за праздничным столом — идёт игра в Мафию" width="1280" height="839" loading="lazy" decoding="async">
+            <figcaption aria-live="polite"><span class="moments__cap" id="momentCap">Город засыпает — просыпается мафия</span><span class="moments__tag" id="momentTag">Мафия</span></figcaption>
+          </figure>
+        </div>
+      </div>
       <a class="next" href="#games"><span class="next__k">Дальше · 3</span><span class="next__t">Игры: выберите, во что играть</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
@@ -451,11 +504,6 @@
       <p class="eyebrow"><span class="eyebrow__n">3</span><span class="eyebrow__t">Игры</span></p>
       <h2>Выберите, во что играть</h2>
       <p class="sub">37 игр JoyRest — настоящие экраны платформы и карточки. Выберите раздел — покажем подходящие игры и в каком они пакете.</p>
-      <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
-      <button type="button" class="promo" id="promoOpen" aria-haspopup="dialog">
-        <span class="promo__thumb"><img src="img/promo-poster.webp" width="540" height="960" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
-        <span class="promo__text"><b>Все форматы за 30 секунд</b><span>Квизы, телешоу, танцы, карточные игры и настолки — смотрите со звуком</span><span class="promo__go">Смотреть ролик →</span></span>
-      </button>
       <div class="filters" role="group" aria-label="Фильтр игр">
         <button type="button" class="filter is-on" data-filter="all" aria-pressed="true">Все игры<span class="filter__n">37</span></button>
         <button type="button" class="filter" data-filter="phone" aria-pressed="false">С телефонов<span class="filter__n">22</span></button>
@@ -543,7 +591,7 @@
           </div>
         </article>
         <article class="game" data-cat="tv" data-phone>
-          <div class="game__media"><img src="img/game-hundred.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Что скажет большинство»: табло ответов «Что дарят молодожёнам», открытые строки с очками и банк раунда"></div>
+          <div class="game__media"><img src="img/game-hundred.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Что скажет большинство» в телестудии: «Двойная игра», открытые ответы с очками, команды и банк раунда"></div>
           <div class="game__body">
             <p class="game__cat">Телешоу<span class="game__phone"> · с телефонов</span></p>
             <h3>Что скажет большинство</h3>
@@ -579,7 +627,7 @@
           </div>
         </article>
         <article class="game" data-cat="dance" data-phone>
-          <div class="game__media"><img src="img/game-dance.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Танцевального батла»: команда Север выбирает карточку — Танец, Караоке или Батл в разных стилях"></div>
+          <div class="game__media"><img src="img/game-dance.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Танцуй как звезда» на светящемся танцполе: танцуют двое мужчин и две женщины, зрительская симпатия"></div>
           <div class="game__body">
             <p class="game__cat">Танцевальные<span class="game__phone"> · с телефонов</span></p>
             <h3>Танцуй как звезда</h3>
@@ -606,7 +654,7 @@
           </div>
         </article>
         <article class="game" data-cat="cards" data-phone>
-          <div class="game__media"><img src="img/cards-mafia.webp" width="1400" height="518" loading="lazy" decoding="async" alt="Карточки «Мафии»: рубашка с логотипом JoyRest и роли Мафия, Комиссар и Доктор с иллюстрациями"></div>
+          <div class="game__media"><img src="img/cards-mafia.webp" width="1400" height="518" loading="lazy" decoding="async" alt="Карточки «Мафии» в стиле «Нуар»: рубашка с розой и шляпой, роли Мафия, Комиссар и Доктор"></div>
           <div class="game__body">
             <p class="game__cat">Карточные<span class="game__phone"> · с телефонов</span></p>
             <h3>Мафия</h3>
@@ -651,7 +699,7 @@
           </div>
         </article>
         <article class="game" data-cat="cards" data-phone>
-          <div class="game__media"><img src="img/game-perudo.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Кости лжеца»: вскрытие — на столе 6 двоек, ставка честная, кости всех команд"></div>
+          <div class="game__media"><img src="img/game-perudo.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Кости лжеца» в пиратской таверне: вскрытие — на столе 7 шестёрок, ставка честная, кости всех команд"></div>
           <div class="game__body">
             <p class="game__cat">Карточные<span class="game__phone"> · с телефонов</span></p>
             <h3>Кости лжеца</h3>
@@ -660,7 +708,7 @@
           </div>
         </article>
         <article class="game" data-cat="active" data-phone>
-          <div class="game__media"><img src="img/game-dragon.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Боя с драконом»: команда бьёт дракона катаной, шкала здоровья, вопрос и карточки команд"></div>
+          <div class="game__media"><img src="img/game-dragon.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Боя с драконом» на огненной арене: шкала здоровья дракона, вопрос «Сколько будет 7 × 8?» и карточки команд"></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки<span class="game__phone"> · с телефонов</span></p>
             <h3>Бой с драконом</h3>
@@ -678,7 +726,7 @@
           </div>
         </article>
         <article class="game" data-cat="active" data-phone>
-          <div class="game__media"><img src="img/game-checkers.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Шашек»: доска, счёт команд и вопрос команде, потерявшей шашку"></div>
+          <div class="game__media"><img src="img/game-checkers.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Шашек» в клубной комнате: доска, счёт команд и вопрос команде, потерявшей шашку"></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки<span class="game__phone"> · с телефонов</span></p>
             <h3>Шашки</h3>
@@ -705,7 +753,7 @@
           </div>
         </article>
         <article class="game" data-cat="party" data-phone>
-          <div class="game__media"><img src="img/game-meet.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Давайте знакомиться»: «Чья это история?» — случай из жизни гостя на открытке"></div>
+          <div class="game__media"><img src="img/game-meet.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Давайте знакомиться» в уютной гостиной: «Сочиняем историю» — слова гостей в пропусках"></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка<span class="game__phone"> · с телефонов</span></p>
             <h3>Давайте знакомиться</h3>
@@ -759,7 +807,7 @@
           </div>
         </article>
         <article class="game" data-cat="party" data-phone>
-          <div class="game__media"><img src="img/game-wine.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Винного казино»: паспорт открытой бутылки — Совиньон Блан из Новой Зеландии — и выигравшие ячейки поля ставок"></div>
+          <div class="game__media"><img src="img/game-wine.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Винного казино» в винном погребе: паспорт открытой бутылки — Розовое из Прованса — и выигравшие ячейки поля ставок"></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка<span class="game__phone"> · с телефонов</span></p>
             <h3>Винное казино · 18+</h3>
@@ -829,7 +877,154 @@
           <figcaption><strong>Телефон гостя</strong> — вход по QR-коду. Нет экрана — вопросы появятся прямо на телефонах.</figcaption>
         </figure>
       </div>
-      <a class="next" href="#terms"><span class="next__k">Дальше · 5</span><span class="next__t">Условия работы</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#calculator"><span class="next__k">Дальше · 5</span><span class="next__t">Соберите свой вечер</span><span class="next__a" aria-hidden="true">↓</span></a>
+    </div>
+  </section>
+
+  <!-- Калькулятор: пакеты на 1,5–2 часа, гости, день, ещё игра, продление, допы — три цены сразу
+       (опытный, «Новые лица», «Первый старт»). Расчёт — js/pricing.js, вывод — js/script.js. -->
+  <section id="calculator" class="section">
+    <div class="wrap">
+      <p class="eyebrow"><span class="eyebrow__n">5</span><span class="eyebrow__t">Свой вечер</span></p>
+      <div class="calc-head">
+        <p class="calc-head__or">Хотите по-своему?</p>
+        <h2>Соберите свой вечер</h2>
+        <p class="sub">Выберите пакет, гостей и дату — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
+      </div>
+      <!-- Новогодняя надбавка (решение владельца 11 ноября 2026): видна с 1 октября по 1 января по Москве, показывает js/script.js. -->
+      <aside class="nynote" id="nyNote" hidden aria-labelledby="nyNoteTitle">
+        <h3 class="nynote__title" id="nyNoteTitle"><span aria-hidden="true">🎄 </span>Новогодняя надбавка</h3>
+        <p class="nynote__text">В праздничные даты ведущих бронируют за месяцы вперёд, поэтому к итоговой цене прибавляется надбавка. Калькулятор посчитает её сам — укажите дату праздника.</p>
+        <ul class="nynote__rows">
+          <li><span>10–20 декабря</span><b>+20%</b></li>
+          <li><span>21 декабря —&nbsp;1&nbsp;января</span><b>+35%</b></li>
+          <li><span>31 декабря и 1 января</span><b>от 50&nbsp;000&nbsp;₽</b></li>
+        </ul>
+        <button type="button" class="chip nynote__go" id="nyCalc">Указать дату праздника</button>
+      </aside>
+      <div class="calc">
+        <div class="calc__steps">
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">1</span>Пакет на 1,5–2 часа</p>
+            <div class="packs" id="calcPacks" role="group" aria-label="Пакет"></div>
+            <p class="hint">Диджей и другие услуги — обсуждаем индивидуально. Напишите о пожеланиях в комментарии к заявке.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">2</span>Сколько гостей</p>
+            <div class="chips chips--6" id="calcTiers" role="group" aria-label="Сколько гостей"></div>
+            <p class="hint">90+ — больше 90 гостей: подберём нескольких ведущих, цену назовём индивидуально.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">3</span><label for="calcDate">Дата праздника</label></p>
+            <div class="datebox"><input type="date" id="calcDate" class="datebox__input" aria-describedby="calcDateInfo"><button type="button" class="chip" id="calcDateClear" hidden>Убрать дату</button></div>
+            <div class="timebox"><label class="timebox__label" for="calcTime">Время начала <span>— по желанию</span></label><input type="time" id="calcTime" class="datebox__input timebox__input" step="900"><button type="button" class="chip" id="calcTimeClear" hidden>Убрать время</button></div>
+            <p class="hint datebox__info" id="calcDateInfo">Укажите дату — день недели и надбавку в праздничные даты посчитаем сами. Дата ещё не известна — выберите день ниже.</p>
+            <div class="chips" id="calcDays" role="group" aria-label="День"></div>
+            <p class="hint">В пятницу, субботу и воскресенье стоимость на 10% выше: это самые востребованные дни. С 10 декабря по 1 января — новогодняя надбавка, перед 14 февраля, 23 февраля и 8 марта и в сами праздники — праздничная цена.</p>
+            <p class="hint">Время начала на цену не влияет. Менеджер проверит, какие ведущие свободны в этот день и час, и подтвердит время в переписке.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">4</span>Ещё игра в этот вечер</p>
+            <div class="extras" id="calcExtras" role="group" aria-label="Ещё игра в этот вечер"></div>
+            <p class="hint">Каждая добавленная игра — за полцены своего пакета и около часа. Например, квиз, а после — Мафия. <b class="hint__hl">Больше двух дополнительных игр — индивидуальный заказ:</b> цену и программу обсудим с вами.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">5</span>Продление</p>
+            <div class="chips chips--5" id="calcExt" role="group" aria-label="Продление"></div>
+            <p class="hint">Каждые следующие 30 минут — 3 900 ₽. Если вечер затянется на месте, ведущий заранее спросит, продлеваем ли, — без согласия ничего не добавится.</p>
+          </div>
+          <div class="step-q">
+            <p class="step-q__label"><span class="step-q__n">6</span>Добавить к вечеру</p>
+            <div class="addons" id="calcAddons"></div>
+          </div>
+        </div>
+        <aside class="summary" id="calcSummary" aria-live="polite">
+          <div class="summary__head"><p class="summary__label">Итого за вечер — коснитесь, чтобы выбрать ведущего</p><button type="button" class="qhelp" id="levelsHelp" aria-haspopup="dialog" aria-label="Чем отличаются ведущие" title="Чем отличаются ведущие">?</button></div>
+          <div class="summary__indiv" id="calcIndiv" hidden>
+            <p class="summary__indiv-title">Обсудим индивидуально</p>
+            <p class="summary__note">Оставьте заявку — предложим программу и цену в течение дня.</p>
+          </div>
+          <div class="season" id="calcSeason" hidden>
+            <p class="season__title"><span id="calcSeasonTitle"></span><span class="season__badge" id="calcSeasonBadge"></span></p>
+            <p class="season__text" id="calcSeasonText"></p>
+            <p class="season__note" id="calcSeasonNote">Надбавка зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.</p>
+          </div>
+          <p class="season-hint" id="calcSeasonHint" hidden></p>
+          <div class="levels" id="calcLevels"></div>
+          <p class="summary__nodate" id="calcNoDate" hidden>Укажите дату праздника — с 10 декабря по 1 января действует новогодняя надбавка, перед праздниками и в сами праздники — праздничная цена.</p>
+          <p class="summary__text" id="calcText"></p>
+          <div class="duration" id="calcDuration">
+            <span class="duration__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+            <div>
+              <p class="duration__label">Вечер длится примерно</p>
+              <p class="duration__value" id="calcDurValue"></p>
+              <div class="duration__parts" id="calcDurParts"></div>
+            </div>
+          </div>
+          <ul class="summary__lines" id="calcLines"></ul>
+          <div class="included"><span>Ведущий</span><span>Сценарий</span><span>Платформа и QR</span><span>Реквизит</span><span>Выезд по Москве</span></div>
+          <button type="button" class="btn btn--primary btn--block" id="calcSubmit">Отправить расчёт в заявку</button>
+          <p class="summary__linked" id="calcLinked" hidden>✓ Расчёт в заявке и обновляется сам, когда вы меняете выбор</p>
+          <p class="summary__foot">Это итог за весь вечер — без скрытых доплат. Отдельно только такси ведущему — за город и туда, где рядом нет метро. Бронь даты — предоплата 2 000 ₽ в счёт стоимости.</p>
+        </aside>
+      </div>
+      <div class="mbar" id="calcBar"><a href="#calcSummary" class="mbar__sum" id="calcBarSum" aria-label="Итог расчёта"></a><button type="button" class="mbar__send" id="calcBarSend">В заявку</button></div>
+      <noscript><p class="hint">Калькулятор работает с включённым JavaScript. Цены пакетов — в бегущей строке выше, остальное подскажем в заявке.</p></noscript>
+      <a class="next" href="#hosts"><span class="next__k">Дальше · 6</span><span class="next__t">Кто проведёт ваш вечер</span><span class="next__a" aria-hidden="true">↓</span></a>
+    </div>
+  </section>
+
+  <!-- Формат ведущего. Тексты «Новые лица» и «Первый старт» согласованы с владельцем — правка только с ним.
+       Скидка — на весь вечер (калькулятор показывает три цены), поле «Формат ведущего» в заявке, hostLevel в /api/lead. -->
+  <section id="hosts" class="section band">
+    <div class="wrap">
+      <p class="eyebrow"><span class="eyebrow__n">6</span><span class="eyebrow__t">Ведущие</span></p>
+      <h2>Кто проведёт ваш вечер</h2>
+      <p class="sub">Три формата — три цены в калькуляторе. Программа, игры и реквизит одинаковые, разница — в опыте ведущего.</p>
+      <div class="hosts">
+        <article class="host host--main">
+          <span class="host__badge">Основной формат</span>
+          <h3>Опытный ведущий</h3>
+          <p>Ведущие JoyRest с опытом праздников: держат темп вечера, подстраиваются под гостей и спокойно справляются с неожиданностями.</p>
+          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="standard">Выбрать этот формат</a>
+        </article>
+        <article class="host">
+          <span class="host__badge">−20%</span>
+          <h3>Новые лица <span class="host__sub">— для тех, кто любит пробовать новое</span></h3>
+          <p>Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.</p>
+          <p>Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 20% — мы честно делим с вами возможные шероховатости.</p>
+          <p class="host__how">Как это устроено:</p>
+          <ul class="host__list">
+            <li>сценарий и программу готовим вместе с опытным ведущим JoyRest;</li>
+            <li>игры, реквизит и оборудование — как в обычном формате;</li>
+            <li>на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.</li>
+          </ul>
+          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="new">Выбрать этот формат</a>
+        </article>
+        <article class="host">
+          <span class="host__badge">−35%</span>
+          <h3>Первый старт <span class="host__sub">— для самых смелых</span></h3>
+          <p>Ведущие, для которых ваш праздник станет одним из первых. Волнение, искренность и стремление выложиться на все сто — такого вы больше нигде не увидите.</p>
+          <p>Это максимальный эксперимент, поэтому и скидка максимальная — 35%.</p>
+          <p class="host__how">Как это устроено:</p>
+          <ul class="host__list">
+            <li>сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;</li>
+            <li>игры, реквизит и оборудование — как в обычном формате;</li>
+            <li>на празднике ведущий работает самостоятельно — для него это настоящий первый выход.</li>
+          </ul>
+          <a href="#contact" class="hbtn hbtn--secondary host__choose" data-host-level="first">Выбрать этот формат</a>
+        </article>
+      </div>
+      <p class="hosts__note">Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.</p>
+      <!-- Занятость ведущих (решение владельца 23 октября 2026): ведущих ограниченное число, формат может быть занят на дату. -->
+      <aside class="busy" aria-labelledby="busyTitle">
+        <span class="busy__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M9.5 14.5l2 2 3.5-4"/></svg></span>
+        <div>
+          <h3 class="busy__title" id="busyTitle">Ведущий может быть уже занят — это нормально</h3>
+          <p class="busy__text">Ведущих у нас ограниченное число, и на популярные даты разбирают их быстро. Поэтому на ваш день один или даже несколько форматов могут быть уже заняты. Менеджер сразу скажет, кто свободен, и предложит варианты: другой формат, другое время или соседнюю дату. Чтобы выбор был шире — пишите заранее.</p>
+        </div>
+      </aside>
+      <a class="next" href="#terms"><span class="next__k">Дальше · 7</span><span class="next__t">Условия работы</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -837,7 +1032,7 @@
        бронь даты — предоплата 2 000 ₽. Подробности — в договоре. Галочки в заявке — deposit и terms в /api/lead. -->
   <section id="terms" class="section">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">5</span><span class="eyebrow__t">Условия</span></p>
+      <p class="eyebrow"><span class="eyebrow__n">7</span><span class="eyebrow__t">Условия</span></p>
       <h2>Условия работы</h2>
       <p class="sub">Коротко и честно — чтобы праздник прошёл спокойно для всех.</p>
       <div class="terms">
@@ -855,17 +1050,17 @@
         <div class="terms__card">
           <h3>Выезд</h3>
           <p>По Москве выезд включён; если рядом с местом праздника нет метро (дальше 10–15 минут пешком) — такси ведущему по факту.</p>
-          <p>Города Подмосковья (Химки, Мытищи, Балашиха и другие) — +2 000 ₽ и такси ведущему; в праздничные дни — 5 000 ₽, с 19 декабря по 1 января — 7 000 ₽. Другие регионы — по договорённости.</p>
+          <p>Города Подмосковья (Химки, Мытищи, Балашиха и другие) — +2 000 ₽ и такси ведущему; 10–20 декабря и в праздничные дни — 5 000 ₽, с 21 декабря по 1 января — 7 000 ₽. Другие регионы — по договорённости.</p>
         </div>
       </div>
       <p class="terms__more">Подробные условия — в договоре.</p>
-      <a class="next" href="#process"><span class="next__k">Дальше · 6</span><span class="next__t">Как заказать праздник</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#process"><span class="next__k">Дальше · 8</span><span class="next__t">Как заказать праздник</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
   <section id="process" class="section band">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">6</span><span class="eyebrow__t">Как заказать</span></p>
+      <p class="eyebrow"><span class="eyebrow__n">8</span><span class="eyebrow__t">Как заказать</span></p>
       <h2>Четыре шага до праздника</h2>
       <ol class="steps">
         <li class="steps__item"><span class="steps__n">01</span><h3>Расскажите о мероприятии</h3><p>Дата, число гостей и формат — через калькулятор, заявку или сообщение.</p></li>
@@ -874,13 +1069,13 @@
         <li class="steps__item"><span class="steps__n">04</span><h3>Проводим праздник</h3><p>Ведущий приезжает с реквизитом и платформой — вы гость на своём празднике.</p></li>
       </ol>
       <p class="callout">⏱ <strong>Про сроки:</strong> на мероприятия под заказ (<span data-needs="venue">особенно с большой площадкой или форматом «под ключ»</span><span data-unless="venue">особенно по индивидуальному сценарию и с квизом под компанию</span>) пишите минимум за 2 недели, а лучше за месяц.</p>
-      <a class="next" href="#faq"><span class="next__k">Дальше · 7</span><span class="next__t">Частые вопросы</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#faq"><span class="next__k">Дальше · 9</span><span class="next__t">Частые вопросы</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
   <section id="faq" class="section">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">7</span><span class="eyebrow__t">Вопросы</span></p>
+      <p class="eyebrow"><span class="eyebrow__n">9</span><span class="eyebrow__t">Вопросы</span></p>
       <h2>Частые вопросы</h2>
       <p class="sub">Не нашли ответ — <span class="no-showcase">нажмите «Задать вопрос» внизу экрана или </span>напишите в Telegram.</p>
       <div class="faq">
@@ -917,7 +1112,7 @@
           <p>Да, и детей мы ничем не ограничиваем. Для них есть настольная игра «Сладкие приключения», детский вариант «Боя с драконом» и квизы для детей. А любое наше телешоу — «Миллион на кону», «Ставка на знания», «Что скажет большинство» и другие — подберём специально для ребёнка с вопросами по возрасту или с теми, что попросите вы. Напишите возраст гостей — соберём программу.</p>
         </details>
       </div>
-      <a class="next" href="#reviews"><span class="next__k">Дальше · 8</span><span class="next__t">Отзывы и наш Telegram</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#reviews"><span class="next__k">Дальше · 10</span><span class="next__t">Отзывы и наш Telegram</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -925,7 +1120,7 @@
        Вернуть — data-review-form="on". Тип review в /api/lead не трогаем. -->
   <section id="reviews" class="section band" data-review-form="on">
     <div class="wrap">
-      <p class="eyebrow"><span class="eyebrow__n">8</span><span class="eyebrow__t" id="reviewsEyebrow">Telegram</span></p>
+      <p class="eyebrow"><span class="eyebrow__n">10</span><span class="eyebrow__t" id="reviewsEyebrow">Telegram</span></p>
       <h2 id="reviewsTitle">Следите за нами</h2>
       <p class="sub" id="reviewsSub">Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.</p>
 
@@ -954,6 +1149,7 @@
           <div class="tg-card__actions">
             <a class="hbtn hbtn--primary" href="https://t.me/JoyRest" target="_blank" rel="noopener">Открыть канал</a>
             <a class="hbtn hbtn--secondary" data-tg-chat href="" target="_blank" rel="noopener">Беседа</a>
+            <a class="hbtn hbtn--secondary" href="https://vk.com/joyrest" target="_blank" rel="noopener">Мы во ВКонтакте</a>
           </div>
         </div>
         <div class="tg-card__qr" role="img" aria-label="QR-код канала t.me/JoyRest" data-brand-qr="https://t.me/JoyRest"></div>
@@ -983,7 +1179,7 @@
           <p class="form-error" id="reviewError" role="alert"></p>
         </form>
       </div>
-      <a class="next" href="#contact"><span class="next__k">Дальше · 9</span><span class="next__t">Связаться с нами</span><span class="next__a" aria-hidden="true">↓</span></a>
+      <a class="next" href="#contact"><span class="next__k">Дальше · 11</span><span class="next__t">Связаться с нами</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -991,13 +1187,14 @@
     <div class="wrap">
       <div class="contact">
         <div class="contact__info">
-          <p class="eyebrow"><span class="eyebrow__n">9</span><span class="eyebrow__t">Связаться</span></p>
+          <p class="eyebrow"><span class="eyebrow__n">11</span><span class="eyebrow__t">Связаться</span></p>
           <h2>Обсудим ваш праздник</h2>
           <p class="no-showcase">Оставьте контакты — свяжемся в течение дня и предложим программу под ваш формат и бюджет.</p>
           <p class="showcase-only">Напишите нам в Telegram, WhatsApp, на почту или на Авито — предложим программу под ваш формат и бюджет.</p>
           <ul class="contact__list">
             <li class="no-showcase">Телефон: <a href="tel:+79857822689">+7 (985) 782-26-89</a></li>
             <li>Telegram-канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener" class="link">t.me/JoyRest</a></li>
+            <li>ВКонтакте: <a href="https://vk.com/joyrest" target="_blank" rel="noopener" class="link">vk.com/joyrest</a></li>
             <li>Почта: <a href="mailto:joyrest@mail.ru">joyrest@mail.ru</a></li>
             <li class="showcase-only">Авито: <a href="https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349" target="_blank" rel="noopener" class="link">профиль JoyRest</a></li>
             <li>Москва — выезд включён, Подмосковье — +2 000 ₽ и такси, другие регионы — по договорённости</li>
@@ -1019,6 +1216,15 @@
                 <option>Корпоратив</option>
                 <option>День рождения</option>
                 <option>Частное событие</option>
+              </optgroup>
+              <optgroup label="Готовый пакет">
+                <option>Готовый пакет «Вечер JoyRest»</option>
+                <option>Готовый пакет «Телешоу»</option>
+                <option>Готовый пакет «Новогоднее телешоу»</option>
+                <option>Готовый пакет «Новогодний квиз»</option>
+                <option>Готовый пакет «Всего понемногу»</option>
+                <option>Готовый пакет «Мафия-вечер»</option>
+                <option>Готовый пакет «День рождения ребёнка»</option>
               </optgroup>
               <optgroup label="Пакет">
                 <option>Пакет «Игровой вечер»</option>
@@ -1179,14 +1385,16 @@
   </nav>
   <div class="wrap footer__row">
     <span>© 2026 JoyRest — ведущие и игры для праздников · Радость без хлопот</span>
-    <span><a href="https://t.me/JoyRest" target="_blank" rel="noopener" class="link">Telegram-канал</a> · <button type="button" class="privacy-link">Политика конфиденциальности</button></span>
+    <span><a href="https://t.me/JoyRest" target="_blank" rel="noopener" class="link">Telegram-канал</a> · <a href="https://vk.com/joyrest" target="_blank" rel="noopener" class="link">ВКонтакте</a> · <button type="button" class="privacy-link">Политика конфиденциальности</button></span>
   </div>
 </footer>
 
 <script src="js/pricing.js"></script>
+<script src="js/joy-faq.js"></script>
 <script src="js/calc-image.js"></script>
 <script src="js/script.js"></script>
 <script src="js/reviews.js"></script>
+<script src="js/joy-bot.js"></script>
 
 <!-- Уведомление сверху экрана («Расчёт добавлен в заявку», «Расчёт убран · Вернуть»). -->
 <div class="top-toast" id="topToast" role="status" aria-live="polite" hidden><span class="top-toast__text" id="topToastText"></span><button type="button" class="top-toast__action" id="topToastAction" hidden></button></div>

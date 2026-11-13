@@ -54,7 +54,15 @@ describe("цветной кружок мероприятия", () => {
     const sorted = sortByLight(list, now);
     expect(sorted.map((e) => e.id)).toEqual(["over", "late", "live", "check-new", "check-old", "wait-near", "wait-far", "ok-near", "ok-far", "held-new", "held-old", "off"]);
     const counts = lightCounts(list, now);
-    expect(counts).toEqual({ over: 1, late: 1, live: 1, check: 2, wait: 2, ok: 2, held: 2, failed: 0, off: 1 } satisfies Record<EventLight, number>);
-    expect(LIGHT_ORDER).toHaveLength(9);
+    expect(counts).toEqual({ replace: 0, over: 1, late: 1, live: 1, check: 2, wait: 2, ok: 2, held: 2, failed: 0, off: 1 } satisfies Record<EventLight, number>);
+    expect(LIGHT_ORDER).toHaveLength(10);
+  });
+
+  it("«Не смогу провести» — 🟥 «Нужна замена», выше всего; после начала — как обычно", () => {
+    const start = eventSpan(base)!.from;
+    expect(eventLight({ ...base, declinedAt: start - 10 * 86_400_000 }, start - 5 * 86_400_000).light).toBe("replace");
+    expect(eventLight({ ...base, declinedAt: start - 10 * 86_400_000, acceptedAt: 1 }, start - 3_600_000).light).toBe("replace");
+    expect(eventLight({ ...base, declinedAt: 1 }, start + 60_000).light).toBe("live");
+    expect(LIGHT_ORDER[0]).toBe("replace");
   });
 });

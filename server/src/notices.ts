@@ -4,9 +4,14 @@
  * запрос по QR, расчёт или пересланное сообщение из Telegram — и клиенты, которые ждут ответа в Telegram больше 30 минут.
  * Отдельной таблицы уведомлений нет: их собирает сервер из истории клиентов (`client_contacts`) и `tg_chats`; помним
  * только, когда человек последний раз открывал колокольчик (`notice_seen`). В журнал — только действие.
+ * Колокольчик ведущего (решение владельца 6 ноября 2026): каждому активному человеку команды — его мероприятия
+ * (назначено, изменено, снято, отменено) из `host_notices`; без имени, телефона и адреса клиента. Там же (12 ноября 2026):
+ * владельцу — «предоплата отмечена» и «верните предоплату», менеджеру, запросившему возврат, — «предоплата возвращена».
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
+import { randomBytes } from "node:crypto";
+import { dayTitle, rangeLabel } from "../../src/core/calendar";
 import { SOURCE_TITLES, type ClientSource } from "../../src/core/clients";
 import * as permissions from "../../src/data/permissions";
 import type { Notice } from "../../src/data/types";
@@ -21,6 +26,84 @@ const NOTICE_DAYS = 30;
 /** Колокольчик ещё ни разу не открывали — новыми считаем обращения за последние сутки. */
 const FIRST_UNREAD_HOURS = 24;
 const WAIT_MINUTES = 30;
+
+/** Что случилось с мероприятием человека — вид записи колокольчика ведущего. */
+export type HostNoticeKind =
+  | "created"
+  | "changed"
+  | "removed"
+  | "cancelled"
+  | "prepaid"
+  | "refund"
+  | "refunded"
+  | "accepted"
+  | "unaccepted"
+  | "declined"
+  | "held"
+  | "debt"
+  | "call"
+  | "noplace"
+  | "taken";
+export const HOST_NOTICE_TITLES: Record<HostNoticeKind, string> = {
+  created: "📅 Вам назначено мероприятие",
+  changed: "✏️ Мероприятие изменено",
+  removed: "↩️ Мероприятие снято с вас",
+  cancelled: "✖️ Мероприятие отменено",
+  // Предоплата (решение владельца 12 ноября 2026): владельцу — отметка менеджера и просьба вернуть, менеджеру — «вернули».
+  prepaid: "💰 Предоплата 2 000 ₽ отмечена — проверьте, что деньги пришли",
+  refund: "💸 Верните предоплату 2 000 ₽ — клиент отказался",
+  refunded: "✅ Предоплата возвращена клиенту",
+  // Путь клиента (12 ноября 2026): тому, кто ведёт заявку, — что сделал ведущий; за 3 дня — созвон и адрес.
+  accepted: "✅ Ведущий принял мероприятие",
+  unaccepted: "⏳ Ведущий ещё не подтвердил мероприятие",
+  declined: "🚨 Ведущий не сможет провести — нужна замена",
+  held: "🎉 Проведено — попросите у клиента отзыв",
+  debt: "💰 Остаток на месте получен не полностью",
+  call: "📞 Через 3 дня мероприятие — созвонитесь с клиентом",
+  noplace: "📍 Нет адреса — уточните у клиента",
+  taken: "↪️ Мероприятие забрали себе",
+};
+function isHostNoticeKind(value: string): value is HostNoticeKind {
+  return Object.prototype.hasOwnProperty.call(HOST_NOTICE_TITLES, value);
+}
+
+/**
+ * Записать уведомление тому, кого касается мероприятие. Что и когда — на момент записи (потом мероприятие могут
+ * изменить, а строка «снято с вас» должна говорить о прежнем). Назначил сам себя — записи нет.
+ */
+export async function recordHostNotice(
+  sql: Sql,
+  input: { kind: HostNoticeKind; userId: string; event: { id: string; title: string; day: string; start: number; end: number }; by: { id: string; name: string } },
+): Promise<void> {
+  const { kind, userId, event, by } = input;
+  if (!userId || userId === by.id) return;
+  await sql`insert into host_notices (id, user_id, event_id, kind, title, day, start_min, end_min, by_name)
+    values (${randomBytes(12).toString("base64url")}, ${userId}, ${event.id}, ${kind}, ${event.title.slice(0, 200)}, ${event.day},
+      ${event.start}, ${event.end}, ${by.name.slice(0, 120)})`;
+}
+
+/** Уведомления ведущих старше 90 дней не нужны (показываем 30) — ночная уборка их удаляет. */
+export const HOST_NOTICE_KEEP_DAYS = 90;
+export async function cleanupHostNotices(sql: Sql, now: number = Date.now()): Promise<number> {
+  const rows = await sql`delete from host_notices where created_at < ${new Date(now - HOST_NOTICE_KEEP_DAYS * 86_400_000)} returning id`;
+  const staff = await sql`delete from staff_notices where created_at < ${new Date(now - HOST_NOTICE_KEEP_DAYS * 86_400_000)} returning id`;
+  return rows.length + staff.length;
+}
+
+/** Уведомление о клиенте (не о мероприятии): «клиента забрал себе …». Без имени и телефона клиента. Себе — не пишем. */
+export async function recordStaffNotice(
+  sql: Sql,
+  input: { userId: string; clientId: string | null; kind: string; title: string; line: string; by: { id: string } },
+): Promise<void> {
+  if (!input.userId || input.userId === input.by.id) return;
+  await sql`insert into staff_notices (id, user_id, client_id, kind, title, line)
+    values (${randomBytes(12).toString("base64url")}, ${input.userId}, ${input.clientId}, ${input.kind}, ${input.title.slice(0, 200)}, ${input.line.slice(0, 200)})`;
+}
+
+/** Строка мероприятия в колокольчике: «Свадьба — пятница, 20 ноября, 18:00–23:00». */
+export function hostNoticeName(title: string, day: string, start: number, end: number): string {
+  return `${title || "Мероприятие"} — ${dayTitle(day)}, ${rangeLabel(start, end)}`;
+}
 
 /** Первая строка обращения — коротко для списка. */
 export function noticeLine(summary: string): string {
@@ -38,25 +121,71 @@ export function registerNotices(app: FastifyInstance, options: NoticesOptions): 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
 
-    async function member(request: FastifyRequest, reply: FastifyReply): Promise<string | null> {
+    async function member(request: FastifyRequest, reply: FastifyReply): Promise<{ id: string; clients: boolean } | null> {
       const user = await sessionUser(sql, request, reply);
       if (!user) {
         reply.code(401).send({ error: "unauthenticated" });
         return null;
       }
-      if (!permissions.canManageClients(actorOf(user))) {
+      if (!permissions.canSeeNotices(actorOf(user))) {
         reply.code(403).send({ error: "permission-denied" });
         return null;
       }
-      return user.id;
+      return { id: user.id, clients: permissions.canManageClients(actorOf(user)) };
     }
 
     api.get("/api/notices", async (request, reply) => {
-      const uid = await member(request, reply);
-      if (!uid) return reply;
+      const who = await member(request, reply);
+      if (!who) return reply;
+      const uid = who.id;
       reply.header("cache-control", "no-store");
       const [seen] = await sql<{ seen_at: Date }[]>`select seen_at from notice_seen where user_id = ${uid}`;
       const since = seen?.seen_at ?? new Date(Date.now() - FIRST_UNREAD_HOURS * 3_600_000);
+      const mine = await sql<{ id: string; event_id: string; kind: string; title: string; day: string; start_min: number; end_min: number; by_name: string; created_at: Date }[]>`
+        select id, event_id, kind, title, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, by_name, created_at
+        from host_notices where user_id = ${uid} and created_at > now() - make_interval(days => ${NOTICE_DAYS})
+        order by created_at desc limit ${NOTICE_LIMIT}`;
+      const events: Notice[] = mine.map(
+        (r): Notice => ({
+          id: `ev-${r.id}`,
+          clientId: "",
+          eventId: r.event_id,
+          kind: "event",
+          title: isHostNoticeKind(r.kind) ? HOST_NOTICE_TITLES[r.kind] : "Мероприятие",
+          name: hostNoticeName(r.title, r.day, r.start_min, r.end_min),
+          line: r.by_name
+            ? r.kind === "created"
+              ? `Назначил(а): ${r.by_name}`
+              : r.kind === "prepaid"
+                ? `Отметил(а): ${r.by_name}`
+                : r.kind === "refund"
+                  ? `Запросил(а): ${r.by_name}`
+                  : r.kind === "refunded"
+                    ? `Вернул(а): ${r.by_name}`
+                    : r.kind === "accepted" || r.kind === "unaccepted" || r.kind === "declined" || r.kind === "debt"
+                      ? `Ведущий: ${r.by_name}`
+                      : r.kind === "held"
+                        ? `Отметил(а): ${r.by_name}`
+                        : r.kind === "call" || r.kind === "noplace"
+                          ? ""
+                          : `Кто: ${r.by_name}`
+            : "",
+          at: r.created_at.getTime(),
+          unread: r.created_at > since,
+        }),
+      );
+      // «Клиента забрал себе …» (кто взял — тот и ведёт): своя таблица, ссылка — на карточку клиента.
+      const staff = await sql<{ id: string; client_id: string | null; kind: string; title: string; line: string; created_at: Date }[]>`
+        select id, client_id, kind, title, line, created_at from staff_notices
+        where user_id = ${uid} and created_at > now() - make_interval(days => ${NOTICE_DAYS})
+        order by created_at desc limit ${NOTICE_LIMIT}`;
+      for (const r of staff) {
+        events.push({ id: `st-${r.id}`, clientId: r.client_id ?? "", kind: "client", title: r.title, name: "", line: r.line, at: r.created_at.getTime(), unread: r.created_at > since });
+      }
+      events.sort((a, b) => b.at - a.at);
+      if (!who.clients) {
+        return { unread: events.filter((i) => i.unread).length, items: events.slice(0, NOTICE_LIMIT) };
+      }
       const rows = await sql<{ id: string; client_id: string; source: string; summary: string; created_at: Date; name: string; phone: string }[]>`
         select h.id, h.client_id, h.source, h.summary, h.created_at, c.name, c.phone
         from client_contacts h join clients c on c.id = h.client_id
@@ -95,14 +224,16 @@ export function registerNotices(app: FastifyInstance, options: NoticesOptions): 
           }),
         ),
       ];
-      return { unread: items.filter((i) => i.unread).length, items };
+      // Свои мероприятия — вместе с обращениями, по времени (ждущие ответа — сверху, как раньше).
+      const merged = [...items.filter((i) => i.kind === "waiting"), ...[...items.filter((i) => i.kind !== "waiting"), ...events].sort((a, b) => b.at - a.at).slice(0, NOTICE_LIMIT)];
+      return { unread: merged.filter((i) => i.unread).length, items: merged };
     });
 
     // Открыл колокольчик — всё, что пришло до этого, прочитано (ждущие ответа остаются, пока им не ответят).
     api.post("/api/notices/seen", { bodyLimit: 1024 }, async (request, reply) => {
-      const uid = await member(request, reply);
-      if (!uid) return reply;
-      await sql`insert into notice_seen (user_id, seen_at) values (${uid}, now())
+      const who = await member(request, reply);
+      if (!who) return reply;
+      await sql`insert into notice_seen (user_id, seen_at) values (${who.id}, now())
         on conflict (user_id) do update set seen_at = now()`;
       request.log.info({ notices: "seen" }, "notices");
       return { ok: true };

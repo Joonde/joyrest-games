@@ -36,7 +36,7 @@ export interface ScreenProps {
   /** Сессия уже завершена (комната ответит «finished»): без вида — «Игра окончена». */
   sessionFinished?: boolean;
   /** Итоги платформы — если комнаты уже нет (перезагрузили экран после завершения). */
-  fallbackBoard?: ReadonlyArray<{ id: string; name: string; score: number }>;
+  fallbackBoard?: ReadonlyArray<{ id: string; name: string; score: number; place?: number }>;
   fallbackTheme?: Theme;
   /** Часы для стенда (по умолчанию — монотонные `localNow`). */
   now?: () => number;

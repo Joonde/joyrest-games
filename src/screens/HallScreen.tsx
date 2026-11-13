@@ -241,12 +241,14 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.
   const slide = session.state.slide ?? null;
   const standalone = Boolean(mechanic?.standalone);
-  const shownSlide = slide && !standalone && !(slide.kind === "join" && phase === "finished") ? slide : null;
+  // Самостоятельная игра с общим финалом («Бубликатор»): после игры — слайд «Спасибо» с QR поверх своего финала.
+  const ownFinale = standalone && Boolean(mechanic?.standalone?.finale) && phase === "finished";
+  const shownSlide = slide && (!standalone || ownFinale) && !(slide.kind === "join" && phase === "finished") ? slide : null;
 
   return (
     <div className={idle ? "hall is-idle" : "hall"}>
       {/* У самостоятельной игры свой фон — общий живой фон темы не рисуем. */}
-      {!standalone && <Scene themeId={session.themeId} />}
+      {(!standalone || shownSlide !== null) && <Scene themeId={session.themeId} />}
       {/* После игры «В студию» — отдельная кнопка слева сверху, здесь её не дублируем. */}
       <ScreenControls
         toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null}

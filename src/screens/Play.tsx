@@ -591,7 +591,9 @@ function InGame({
   }
 
   // Самостоятельная игра («Олимп»): свой телефон на всех этапах — лобби, игра, награждение, финал.
-  if (mechanic?.standalone && PlayerView && content !== null) {
+  // «Бубликатор» после игры — как остальные игры: итог и дела по шагам (`FinalCard`), а не свой телефон.
+  const ownFinale = Boolean(mechanic?.standalone?.finale) && phase === "finished";
+  if (mechanic?.standalone && PlayerView && content !== null && !ownFinale) {
     return (
       <main className="page--standalone">
         <PlayerView session={session} content={content} participant={me} pid={pid} role={role} myAnswer={myAnswer} sending={sending} onAnswer={(value) => void answer(value)} />
@@ -678,7 +680,9 @@ function forgetAnswer(sessionId: string, slot: string): void {
 
 function FinalCard({ session, pid }: { session: Session; pid: string }) {
   const place = placeOf(session.leaderboard, pid);
-  const entry = session.leaderboard[pid];
+  const own = session.leaderboard[pid];
+  // Команда в группе (влита в экипаж «Бубликатора») — имя и место экипажа: «голова» группы (решение владельца 13 ноября 2026).
+  const entry = own?.group !== undefined && own.group !== pid ? (session.leaderboard[own.group] ?? own) : own;
   // Карточка для сторис — у каждого своя: имя, место, игра и дата (рисует телефон, `StoryCard.tsx`).
   const story = useMemo(() => {
     if (!place || !entry) return null;

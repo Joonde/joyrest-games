@@ -117,6 +117,24 @@ export function rankedLeaderboard(leaderboard: Leaderboard): Array<LeaderboardEn
   });
 }
 
+/**
+ * Одна строка на группу (экипаж «Бубликатора»: «голова» — команда экипажа; влитые команды с тем же счётом не повторяются), с
+ * местом по группам. Без групп — все записи.
+ */
+export function crewBoard(leaderboard: Leaderboard): Array<{ id: string; name: string; score: number; place: number }> {
+  return rankedLeaderboard(leaderboard)
+    .filter((e) => isGroupHead(leaderboard, e.id))
+    .map((e) => ({ id: e.id, name: e.name, score: e.score, place: e.place }));
+}
+
+/** Запись — «голова» своей группы (или без группы). Группа без «головы» в таблице — первой считается любая её запись. */
+export function isGroupHead(leaderboard: Leaderboard, id: string): boolean {
+  const group = leaderboard[id]?.group;
+  if (group === undefined || group === id) return true;
+  if (leaderboard[group]) return false;
+  return Object.keys(leaderboard).find((k) => leaderboard[k]?.group === group) === id;
+}
+
 /** Место участника и сколько всего мест (групп); null — участника нет в таблице. */
 export function placeOf(leaderboard: Leaderboard, pid: string): { place: number; total: number } | null {
   const ranked = rankedLeaderboard(leaderboard);

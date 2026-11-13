@@ -945,7 +945,7 @@ export function InfoBoard({ title, text, children, theme }: { title: string; tex
   );
 }
 
-export function OverBoard({ theme, board }: { theme: Theme; board: ReadonlyArray<{ id: string; name: string; score: number }> }) {
+export function OverBoard({ theme, board }: { theme: Theme; board: ReadonlyArray<{ id: string; name: string; score: number; place?: number }> }) {
   const top = board.slice(0, 10);
   return (
     <InfoBoard theme={theme} title="Игра окончена" text={top.length > 0 ? "Спасибо, что летали с нами! Итоговый счёт экипажей:" : "Спасибо, что летали с нами!"}>
@@ -953,7 +953,7 @@ export function OverBoard({ theme, board }: { theme: Theme; board: ReadonlyArray
         <ol className="bks-panel bks-over">
           {top.map((r, i) => (
             <li key={r.id}>
-              <span className="bks-place">{i + 1}</span>
+              <span className="bks-place">{r.place ?? i + 1}</span>
               <b className="bks-name">{q(r.name)}</b>
               <span>{num(r.score)}</span>
             </li>

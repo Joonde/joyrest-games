@@ -16,7 +16,8 @@ export const bublikator: Mechanic<BubContent, never> = {
   id: BUBLIKATOR,
   title: GAME_TITLE,
   supports: BUBLIKATOR_SUPPORTS,
-  standalone: { themeId: "joyrest" },
+  // После игры — общие дела гостя (сторис, отзыв, чаевые, канал) и «Спасибо» с QR на экране (решение владельца 13 ноября 2026).
+  standalone: { themeId: "joyrest", finale: true },
   // Игровая комната — только на своём сервере: на Firebase её нет в выборе формата и шаблонах.
   room: true,
   ownAward: true,

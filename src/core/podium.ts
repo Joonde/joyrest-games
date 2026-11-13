@@ -3,7 +3,7 @@
 // механик; сколько мест открыто — `state.result.podium` (остальное в `result` не трогаем,
 // чтобы «Назад» вернул таблицу и ответ шага как были).
 import type { Leaderboard, LeaderboardEntry, Session, SessionChange, SessionState, StepStage } from "../data/types";
-import { rankedLeaderboard } from "./leaderboard";
+import { isGroupHead, rankedLeaderboard } from "./leaderboard";
 
 export type PodiumPlaceNumber = 1 | 2 | 3;
 
@@ -13,11 +13,14 @@ export interface PodiumPlace {
   score: number;
 }
 
-/** Места 1–3 у кого есть очки; при равных очках — все на одной ступени. Пустые места пропущены. */
+/**
+ * Места 1–3 у кого есть очки; при равных очках — все на одной ступени. Пустые места пропущены. Группа (экипаж «Бубликатора» из
+ * нескольких команд) — одно имя на ступени: «голова» группы, без повторов (решение владельца 13 ноября 2026).
+ */
 export function podiumPlaces(leaderboard: Leaderboard): PodiumPlace[] {
   const places: PodiumPlace[] = [];
   for (const entry of rankedLeaderboard(leaderboard)) {
-    if (entry.place > 3 || entry.score <= 0) continue;
+    if (entry.place > 3 || entry.score <= 0 || !isGroupHead(leaderboard, entry.id)) continue;
     const place = entry.place as PodiumPlaceNumber;
     const existing = places.find((p) => p.place === place);
     const { place: _omit, ...rest } = entry;

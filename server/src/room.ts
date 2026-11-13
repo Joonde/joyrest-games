@@ -260,7 +260,7 @@ export class RoomManager {
     this.stopDevices = hub.subscribe(DEVICES_CHANNEL, (event) => {
       if (isRecord(event) && event.type === "moved" && typeof event.pid === "string") this.forgetDevice(event.pid);
     });
-    // «Завершить игру»: перед баллами ведущему — последние отметки «играл в раунде» в базу (проверка 2d, №3).
+    // «Завершить игру»: перед баллами ведущему — последние отметки «играл в раунде» и снимок комнаты в базу (проверка 2d, №3).
     this.stopFlush = hub.onFlush((id) => this.flushPlayed(id));
     const loopMs = options.loopMs ?? 100;
     if (loopMs > 0) {
@@ -743,15 +743,15 @@ export class RoomManager {
   }
 
   /**
-   * Все отметки «играл в раунде» комнаты — в базу сейчас: комната выгружается (сессия завершена) — дождаться её записи; ещё
-   * в памяти — записать (идущая запись взяла старые отметки, вторая — пришедшие за это время).
+   * Перед итогами игры: все отметки «играл в раунде» и снимок комнаты — в базу сейчас (по ним баллы ведущему: телефоны и «игра
+   * сыграна до конца»). Комната выгружается (сессия завершена) — дождаться её записи; ещё в памяти — записать (идущая запись
+   * взяла старые отметки, вторая — пришедшие за это время).
    */
   async flushPlayed(id: string): Promise<void> {
     await this.unloading.get(id)?.catch(() => undefined);
     const entry = this.rooms.get(id);
     if (!entry) return;
-    await this.savePlayed(entry);
-    await this.savePlayed(entry);
+    await Promise.all([this.save(entry), this.savePlayed(entry).then(() => this.savePlayed(entry))]);
   }
 
   /** Отметки «телефон играл в раунде» — в `room_play` (повтор — ничего); не записались — вернутся к следующей попытке. */

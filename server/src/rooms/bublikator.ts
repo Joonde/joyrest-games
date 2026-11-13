@@ -4,7 +4,7 @@
  * `Env` правил (время сервера, кто на связи, случайность из зерна, личные события, контрольные точки).
  */
 import { BATCH_MS, BUBLIKATOR, MOVES_PER_SECOND, OFFLINE_MS, TAPS_PER_SECOND } from "../../../src/mechanics/bublikator/rules/constants";
-import { command, createState, input, join, moment, pause, restore, resume, snapshot, tick, type InEvent } from "../../../src/mechanics/bublikator/rules/game";
+import { command, createState, input, join, moment, pause, playedToEnd, restore, resume, snapshot, tick, type InEvent } from "../../../src/mechanics/bublikator/rules/game";
 import { flushPersonal, hostView, personalSnapshot, screenView } from "../../../src/mechanics/bublikator/rules/views";
 import type { BubState } from "../../../src/mechanics/bublikator/rules/types";
 import type { RoomContext, RoomGame } from "./engine";
@@ -37,6 +37,8 @@ export const bublikator: RoomGame<BubState> = {
   // Баллы ведущему: телефон «играл в перелёте N», если игра приняла из его пачки игровое действие в полёте (решение владельца
   // 13 ноября 2026; тренировка, взлёт, привал и голосование — не перелёт; мусор и «я на связи» — не в счёт).
   playUnit: (state) => (state.phase === "leg" && state.leg?.stage === "fly" ? state.legIndex : null),
+  // И игра сыграна до конца: все перелёты по плану и пьедестал (решение владельца 13 ноября 2026; вместо «40 минут»).
+  playedToEnd: (state) => playedToEnd(state),
   tick(state, ctx) {
     tick(state, ctx);
     flushPersonal(state, ctx);

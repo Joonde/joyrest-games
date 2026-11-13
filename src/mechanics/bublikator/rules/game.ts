@@ -1574,6 +1574,15 @@ function dirtyAll(s: BubState): void {
   for (const pid of Object.keys(s.members)) s.rt.dirty.add(pid);
 }
 
+/**
+ * Игра сыграна до конца (баллы ведущему, решение владельца 13 ноября 2026): сыграны все перелёты по плану и игра дошла до
+ * пьедестала. «Сразу к награждению» раньше последнего перелёта и «Завершить игру досрочно» посреди игры — нет. «Назад» с
+ * последнего перелёта возвращает его в игру — до нового пьедестала снова «нет».
+ */
+export function playedToEnd(s: BubState): boolean {
+  return (s.phase === "podium" || s.phase === "finished") && s.leg !== null && s.legIndex + 1 >= s.content.legs;
+}
+
 function toPodium(s: BubState, env: Env, t: number): void {
   s.phase = "podium";
   s.podiumAt = t;

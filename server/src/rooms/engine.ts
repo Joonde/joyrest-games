@@ -117,6 +117,11 @@ export interface RoomGame<S> {
    * «играл в раунде N». null — сейчас не раунд (лобби, тренировка, привал). Нет метода — игра баллов по раундам не считает.
    */
   playUnit?(state: S): number | null;
+  /**
+   * Игра сыграна до конца (по состоянию комнаты): баллы ведущему — вместо «не меньше 40 минут» (решение владельца 13 ноября 2026).
+   * Нет метода — баллы по минутам, как у остальных игр.
+   */
+  playedToEnd?(state: S): boolean;
   screen(state: S, view: RoomView): unknown;
   personal(state: S, pid: string, view: RoomView): unknown;
   host(state: S, view: RoomView): unknown;

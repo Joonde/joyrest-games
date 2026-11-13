@@ -31,7 +31,7 @@ import {
 } from "./constants";
 import { defaultTasks, parseContent } from "./content";
 import { activeMembers, crewCountFor, crewMembers, crewPlayers, roster, rosterFresh } from "./crews";
-import { cardStats, chooseControl, crewTotal, gameNow, impulse, orderDamage, orderSeconds, places, restore, resume, scheduleEvents, snapshot, tallyVote, voteCandidates, voteVoters } from "./game";
+import { cardStats, chooseControl, crewTotal, gameNow, impulse, orderDamage, orderSeconds, places, playedToEnd, restore, resume, scheduleEvents, snapshot, tallyVote, voteCandidates, voteVoters } from "./game";
 import { closer, CREW_NAMES, distance, ENDINGS, isBlocked, isRudeName, joinName, KIDS_ITEMS, kidsTinted, nameCandidates, norm, ROOTS, rootClashes, THEME_ROOTS } from "./names";
 import { cleanState, controlsPerPlayer, dealPanels, orderText, randomTarget, STATES } from "./panels";
 import type { Control, Crew, HostView, Member } from "./types";
@@ -2356,5 +2356,57 @@ describe("команда, появившаяся после «Собрать э�
       m1: { name: "Без телефона", kind: "team" as const, score: 30 },
     };
     expect(leaderboardChange(v, board)).toEqual({ t9: { name: "Опоздавшие", kind: "team", score: 0 } });
+  });
+});
+
+describe("«сыграна до конца» для баллов ведущему (решение владельца 13 ноября 2026)", () => {
+  function endLeg(w: World): void {
+    const leg = w.s.leg;
+    if (leg) {
+      leg.event = null;
+      leg.schedule = [];
+      leg.flight = leg.duration;
+    }
+    w.advance(500);
+  }
+  it("все перелёты и пьедестал — да; «Сразу к награждению» раньше, посреди перелёта, «Назад» с последнего — нет", () => {
+    const w = new World({ players: 6, content: { ...NOEV, legs: 3, saboteur: false } });
+    expect(playedToEnd(w.s)).toBe(false);
+    w.toFlight();
+    expect(playedToEnd(w.s)).toBe(false);
+    endLeg(w);
+    // «Сразу к награждению» после 1-го из 3 — пьедестал есть, но не до конца.
+    const early = new World({ players: 6, content: { ...NOEV, legs: 3, saboteur: false } });
+    early.toFlight();
+    endLeg(early);
+    early.ok("podium");
+    expect(early.s.phase).toBe("podium");
+    expect(playedToEnd(early.s)).toBe(false);
+    for (let i = 1; i < 3; i += 1) {
+      w.ok("next");
+      w.advance(5100);
+      expect(playedToEnd(w.s)).toBe(false);
+      endLeg(w);
+    }
+    // Привал последнего перелёта — ещё не пьедестал.
+    expect(playedToEnd(w.s)).toBe(false);
+    w.ok("next");
+    expect(w.s.phase).toBe("podium");
+    expect(playedToEnd(w.s)).toBe(true);
+    w.ok("finish");
+    expect(playedToEnd(w.s)).toBe(true);
+    // Через снимок (так решает сервер) — то же.
+    const back = restore(snapshot(w.s));
+    expect(back !== null && playedToEnd(back)).toBe(true);
+  });
+  it("2 перелёта (детская): «Сразу к награждению» на привале последнего — до конца", () => {
+    const w = new World({ players: 6, content: { ...NOEV, legs: 2, difficulty: "kids" } });
+    w.toFlight();
+    endLeg(w);
+    w.ok("next");
+    w.advance(5100);
+    endLeg(w);
+    w.ok("podium");
+    expect(playedToEnd(w.s)).toBe(true);
   });
 });

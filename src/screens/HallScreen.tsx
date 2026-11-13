@@ -314,8 +314,9 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
       ) : (
         <>
           {standalone && mechanic && (
-            // Самостоятельная игра («Олимп») рисует все этапы сама: лобби, игру, награждение, финал.
-            <main className="quiz-stage">
+            // Самостоятельная игра («Олимп») рисует все этапы сама: лобби, игру, награждение, финал. После игры сверху слева —
+            // выход: игра отодвигает от него свою шапку (`quiz-stage--exit`, проверка 2d, №6).
+            <main className={phase === "finished" ? "quiz-stage quiz-stage--exit" : "quiz-stage"}>
               <StandaloneScreen session={session} />
             </main>
           )}

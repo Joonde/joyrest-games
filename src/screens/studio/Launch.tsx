@@ -7,6 +7,7 @@ import {
   gamesRepo,
   isPermanentError,
   permissions,
+  roomsAvailable,
   sessionsRepo,
   useLoad,
   type Game,
@@ -18,7 +19,7 @@ import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../../components/Status";
 import { TopBar } from "../../components/TopBar";
-import { getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
+import { getMechanic, launchBlocked, mechanicTitle, validateGame } from "../../mechanics/registry";
 import { EVENING_MECHANIC } from "../../core/program";
 import { NOT_IN_EVENING, parseEvening } from "../../mechanics/evening/content";
 import { getTheme, THEME_HINTS, themesForRating, themeStyle } from "../../themes/registry";
@@ -73,6 +74,22 @@ function LaunchLoader({ gameId, profile }: { gameId: string; profile: UserProfil
         <p>Возможно, её удалили.</p>
         <div className="actions">
           <Link className="btn btn--block" to="/studio">
+            В студию
+          </Link>
+        </div>
+      </Message>
+    );
+  }
+  const blocked = launchBlocked(game.mechanic, roomsAvailable);
+  if (blocked) {
+    return (
+      <Message title="Игру здесь не запустить">
+        <p>{blocked}. Репетиция без гостей работает и здесь.</p>
+        <div className="actions">
+          <Link className="btn btn--block" to={`/studio/rehearsal/${game.id}`}>
+            Репетиция без гостей
+          </Link>
+          <Link className="btn btn--secondary btn--block" to="/studio">
             В студию
           </Link>
         </div>

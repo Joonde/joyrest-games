@@ -108,6 +108,17 @@ export function selectableNow(opts: { rooms: boolean; program: boolean }): typeo
   return selectableMechanics.filter((m) => (m.id !== "evening" || opts.program) && (opts.rooms || !getMechanic(m.id)?.room));
 }
 
+/** Почему игру нельзя провести здесь: игра в игровой комнате, а комнат нет (откат на Firebase). */
+export const ROOM_ONLY_TEXT = "Эта игра работает только на своём сервере JoyRest";
+
+/**
+ * Запуск недоступен: «Бубликатор», уже добавленный в «Библиотеку» или «Мои игры», после отката на Firebase (комнат нет) —
+ * карточка показывает его недоступным, запуск — с понятным текстом (проверка 2d, №5). null — запускать можно.
+ */
+export function launchBlocked(mechanic: string | null, rooms: boolean): string | null {
+  return !rooms && mechanic !== null && getMechanic(mechanic)?.room === true ? ROOM_ONLY_TEXT : null;
+}
+
 export function mechanicTitle(id: string | null): string {
   if (!id) return "Без игры";
   return getMechanic(id)?.title ?? id;

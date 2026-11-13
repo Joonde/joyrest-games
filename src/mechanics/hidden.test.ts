@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HIDDEN_MECHANICS } from "./hidden";
-import { allDemoGames, demoGames, demoGamesNow, getMechanic, selectableMechanics, selectableNow } from "./registry";
+import { allDemoGames, demoGames, demoGamesNow, getMechanic, launchBlocked, selectableMechanics, selectableNow } from "./registry";
 
 describe("скрытые форматы («Держи пари», «Винное казино» — решение владельца 14 октября 2026)", () => {
   it("зарегистрированы, но их нет в выборе формата и в шаблонах библиотеки", () => {
@@ -26,6 +26,14 @@ describe("игры в игровой комнате без своего серв
     expect(demoGamesNow(false).length).toBe(demoGames.filter((d) => d.mechanic !== "bublikator").length);
     // Игры в комнате — только с флагом `room` (сейчас одна).
     expect(selectableMechanics.filter((m) => getMechanic(m.id)?.room).map((m) => m.id)).toEqual(["bublikator"]);
+  });
+  it("уже добавленный «Бубликатор» без комнат не запускается: карточка и запуск — «только на своём сервере» (проверка 2d, №5)", () => {
+    expect(launchBlocked("bublikator", false)).toBe("Эта игра работает только на своём сервере JoyRest");
+    expect(launchBlocked("bublikator", true)).toBeNull();
+    expect(launchBlocked("quiz", false)).toBeNull();
+    expect(launchBlocked(null, false)).toBeNull();
+    // Остальные игры без комнат запускаются как раньше.
+    expect(selectableMechanics.filter((m) => launchBlocked(m.id, false) !== null).map((m) => m.id)).toEqual(["bublikator"]);
   });
 });
 

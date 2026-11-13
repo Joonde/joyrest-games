@@ -18,7 +18,7 @@ import { adjustBoard, MAX_SCORE_DELTA, meetsExpect } from "../../src/core/sessio
 import { compactBoard } from "../../src/core/results";
 import { breakStats, parseBreaks, trackBreaks } from "../../src/core/eventTime";
 import { retentionCutoff } from "../../src/core/retention";
-import { EVENING_MECHANIC, moveProgram, newProgram, parseProgram, PROGRAM_LIMITS, publicProgram, storedSnapshots, type ProgramAction, type StoredProgram } from "../../src/core/program";
+import { EVENING_MECHANIC, moveProgram, newProgram, NOT_IN_EVENING, parseProgram, PROGRAM_LIMITS, publicProgram, storedSnapshots, type ProgramAction, type StoredProgram } from "../../src/core/program";
 import { parseCue, parseMix, parseMusic, parsePeek, parseScreenReport, parseSlide, parseTeams, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
 import type { ChangeExpect, Leaderboard, LeaderboardEntry, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
@@ -738,6 +738,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const blocks = (Array.isArray(raw.blocks) ? raw.blocks : []).filter(isRecord);
         const valid = blocks.every((b) => typeof b.mechanic === "string" && b.mechanic.length > 0 && b.mechanic.length <= 40 && isRecord(b.snapshot));
         if (!valid || blocks.length < PROGRAM_LIMITS.minBlocks || blocks.length > PROGRAM_LIMITS.maxBlocks) return fail(reply, 400, "invalid-argument");
+        // «Олимп», «Бубликатор» и сам вечер блоком не ставятся (студия их не предлагает; здесь — на случай старой вкладки).
+        if (blocks.some((b) => NOT_IN_EVENING.has(b.mechanic as string))) return fail(reply, 400, "invalid-argument");
         program = newProgram(
           text(raw.title, PROGRAM_LIMITS.title) || text(body.gameTitle, PROGRAM_LIMITS.title),
           blocks.map((b) => ({

@@ -172,6 +172,11 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
    * предпросмотр и репетиция с комнатой в памяти (правила те же, что на сервере), экран зала, телефон и пульт — настоящие.
    */
   roomPreview?: ComponentType<RoomPreviewProps<Content>>;
+  /**
+   * Игра идёт в игровой комнате быстрого канала (только свой сервер). Без комнат (откат на Firebase) её нет в выборе формата
+   * и в шаблонах библиотеки (`selectableNow`, `demoGamesNow` в реестре; аудит 2d, №12).
+   */
+  room?: boolean;
 }
 
 /**

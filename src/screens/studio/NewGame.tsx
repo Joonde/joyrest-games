@@ -1,14 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { cleanGameTitle, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
-import { gamesRepo, permissions, sessionsRepo, type AuthUser, type GameScope, type UserProfile } from "../../data";
+import { gamesRepo, permissions, roomsAvailable, sessionsRepo, type AuthUser, type GameScope, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Message } from "../../components/Status";
 import { Fold } from "../../components/Fold";
 import { TopBar } from "../../components/TopBar";
 import { CATEGORIES, categoryOf } from "../../mechanics/categories";
-import { newContent, selectableMechanics, supportedPlayMode } from "../../mechanics/registry";
+import { newContent, selectableNow, supportedPlayMode } from "../../mechanics/registry";
 import { DEFAULT_THEME_ID } from "../../themes/registry";
 
 export function NewGame() {
@@ -24,7 +24,8 @@ function NewGameForm({ profile }: { user: AuthUser; profile: UserProfile }) {
   const [params] = useSearchParams();
   const scope: GameScope = params.get("scope") === "agency" ? "agency" : "personal";
   const [title, setTitle] = useState("");
-  const [mechanic, setMechanic] = useState(selectableMechanics[0]?.id ?? "quiz");
+  const selectable = selectableNow({ rooms: roomsAvailable, program: Boolean(sessionsRepo.program) });
+  const [mechanic, setMechanic] = useState(selectable[0]?.id ?? "quiz");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,10 +80,10 @@ function NewGameForm({ profile }: { user: AuthUser; profile: UserProfile }) {
         </label>
         <fieldset>
           <legend>Формат игры</legend>
-          <p className="muted small">Выбрано: {selectableMechanics.find((m) => m.id === mechanic)?.title}. Форматы собраны по разделам — коснитесь раздела.</p>
+          <p className="muted small">Выбрано: {selectable.find((m) => m.id === mechanic)?.title}. Форматы собраны по разделам — коснитесь раздела.</p>
           {CATEGORIES.map((c) => {
-            // «Мероприятие из блоков» — только на своём сервере (переключение блоков делает сервер).
-            const list = selectableMechanics.filter((m) => categoryOf({ mechanic: m.id, content: null }) === c.id && (m.id !== "evening" || Boolean(sessionsRepo.program)));
+            // «Мероприятие из блоков» и игры в игровой комнате — только на своём сервере.
+            const list = selectable.filter((m) => categoryOf({ mechanic: m.id, content: null }) === c.id);
             if (list.length === 0) return null;
             const chosen = list.find((m) => m.id === mechanic);
             return (

@@ -14,6 +14,13 @@ export const EVENING_MECHANIC = "evening";
 /** `results` — строк в итогах блока: все участники, чтобы в конце вечера у каждого были очки по блокам. */
 export const PROGRAM_LIMITS = { minBlocks: 1, maxBlocks: 5, title: 80, results: 200 } as const;
 
+/**
+ * Игры, которые нельзя ставить блоком вечера: сам вечер, «Олимп» (целый вечер сам по себе) и «Бубликатор» (игровая комната со
+ * своим ходом и итогами — пока проводится отдельно, решение владельца 13 ноября 2026). Проверяют студия (выбор игр, проверка
+ * вечера, запуск) и сервер (`POST /api/sessions` с программой — 400).
+ */
+export const NOT_IN_EVENING: ReadonlySet<string> = new Set(["evening", "olymp", "bublikator"]);
+
 /** Блок вечера в студии: ссылка на игру и запомненные название и механика (для списка). */
 export interface ProgramBlockRef {
   gameId: string;

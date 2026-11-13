@@ -2,6 +2,8 @@
 // игры (id) и запомненные название и механика — для списка; при запуске каждая игра копируется в снимок.
 import { PROGRAM_LIMITS, type ProgramBlockRef } from "../../core/program";
 
+export { NOT_IN_EVENING } from "../../core/program";
+
 export interface EveningContent {
   blocks: ProgramBlockRef[];
 }
@@ -29,5 +31,3 @@ export function parseEvening(raw: unknown): EveningContent {
   };
 }
 
-/** Игры, которые нельзя ставить блоком: сам вечер и игры со своим видом («Олимп» — целый вечер сам по себе). */
-export const NOT_IN_EVENING = new Set(["evening", "olymp"]);

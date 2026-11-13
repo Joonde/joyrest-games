@@ -99,6 +99,15 @@ export const selectableMechanics: Array<{ id: string; title: string; hint: strin
   hint: HINTS[m.id] ?? "",
 }));
 
+/**
+ * Форматы, которые можно выбрать сейчас: без «Мероприятия из блоков», если сервер его не держит (`program`), и без игр в игровой
+ * комнате, если комнат нет (`rooms` — свой сервер; на Firebase «Бубликатор» в выборе был бы, а играть в него нельзя — аудит 2d,
+ * №12).
+ */
+export function selectableNow(opts: { rooms: boolean; program: boolean }): typeof selectableMechanics {
+  return selectableMechanics.filter((m) => (m.id !== "evening" || opts.program) && (opts.rooms || !getMechanic(m.id)?.room));
+}
+
 export function mechanicTitle(id: string | null): string {
   if (!id) return "Без игры";
   return getMechanic(id)?.title ?? id;
@@ -239,6 +248,11 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
 
 /** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой (без скрытых форматов). */
 export const demoGames = allDemoGames.filter((d) => !HIDDEN_MECHANICS.has(d.mechanic));
+
+/** Шаблоны библиотеки сейчас: без игр в игровой комнате, если комнат нет (Firebase; аудит 2d, №12). */
+export function demoGamesNow(rooms: boolean): typeof demoGames {
+  return rooms ? demoGames : demoGames.filter((d) => !getMechanic(d.mechanic)?.room);
+}
 
 /** «8 вопросов» или «28 песен» — смотря какая игра. */
 export function stepsLabel(mechanicId: string, content: unknown): string {

@@ -17,6 +17,8 @@ export const bublikator: Mechanic<BubContent, never> = {
   title: GAME_TITLE,
   supports: BUBLIKATOR_SUPPORTS,
   standalone: { themeId: "joyrest" },
+  // Игровая комната — только на своём сервере: на Firebase её нет в выборе формата и шаблонах.
+  room: true,
   ownAward: true,
   ownAnswered: true,
   // Музыка полёта — своя, по сводке комнаты (экран, `flightMusicOf`): только в полёте, на паузе встаёт (решение владельца

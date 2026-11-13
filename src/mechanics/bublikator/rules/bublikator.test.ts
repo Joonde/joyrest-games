@@ -3,6 +3,7 @@
  * обратно. Комната — понарошку (`world.test-kit.ts`), время двигаем сами.
  */
 import { describe, expect, it } from "vitest";
+import { fitNames, fitTasks } from "../editor/validate";
 import {
   DRILL_MS,
   EVENT_EDGE_END_MS,
@@ -2205,5 +2206,30 @@ describe("повторное ревью 6 ноября 2026", () => {
     expect(card?.legs).toBe(1);
     expect(card?.bestShield).toBe(40);
     expect(cardStats(b)).toEqual({ orders: ra.done + rb.done, firsts: 1, legs: 1, shield: 40 });
+  });
+});
+
+describe("конструктор: поля по строкам (аудит 2d, №10 — молча не обрезаем)", () => {
+  it("названия: короткие не берём, длинные — с объяснением, больше 400 — с объяснением", () => {
+    const ok = fitNames(["Тёщемер", "Салатоскоп"]);
+    expect(ok).toEqual({ kept: ["Тёщемер", "Салатоскоп"], notes: [] });
+    const bad = fitNames(["Ж", "Очень-очень длинное название прибора", "Чихометр"]);
+    expect(bad.kept).toEqual(["Очень-очень длинное названи".slice(0, 24), "Чихометр"]);
+    expect(bad.notes.length).toBe(2);
+    expect(bad.notes[0]).toContain("«Ж»");
+    expect(bad.notes[1]).toContain("24");
+    const many = fitNames(Array.from({ length: 405 }, (_, i) => `Прибор ${i}`));
+    expect(many.kept).toHaveLength(400);
+    expect(many.notes.join(" ")).toContain("не войдут последние 5");
+  });
+  it("задания: 31-е и длиннее 120 знаков — с объяснением", () => {
+    const tasks = Array.from({ length: 31 }, (_, i) => `Задание ${i + 1}`);
+    const r = fitTasks(tasks);
+    expect(r.kept).toHaveLength(30);
+    expect(r.notes.join(" ")).toContain("«Задание 31»");
+    const long = fitTasks(["А".repeat(130)]);
+    expect(long.kept[0]).toHaveLength(120);
+    expect(long.notes[0]).toContain("120");
+    expect(fitTasks(["Встаньте по росту!"]).notes).toEqual([]);
   });
 });

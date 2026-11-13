@@ -116,3 +116,9 @@ export const TAPS_BURST = 30;
 export const BATCH_MS = 2000;
 /** Своё задание «Все на палубу!» — до стольких знаков. */
 export const TASK_MAX = 120;
+/** Заданий «Все на палубу!» в игре — не больше. */
+export const TASKS_MAX = 30;
+/** Своё название прибора: от 2 до 24 знаков, до 400 названий. */
+export const NAME_MIN = 2;
+export const NAME_MAX = 24;
+export const NAMES_MAX = 400;

@@ -8,10 +8,10 @@ import { ClampedNumber } from "../../../components/ClampedNumber";
 import { useDebouncedCommit } from "../../../components/useDebouncedCommit";
 import type { EditorProps } from "../../types";
 import { wordsOf } from "../lexicon";
-import { CREW_SIZE_DEFAULT, EVENT_MS, ORDER_SECONDS, TASK_MAX } from "../rules/constants";
-import { cleanTask, defaultTasks, DIFFICULTIES, EVENT_KINDS, THEMES } from "../rules/content";
+import { CREW_SIZE_DEFAULT, EVENT_MS, NAME_MAX, NAME_MIN, NAMES_MAX, ORDER_SECONDS, TASK_MAX, TASKS_MAX } from "../rules/constants";
+import { defaultTasks, DIFFICULTIES, EVENT_KINDS, THEMES } from "../rules/content";
 import type { BubContent, Difficulty, EventKind } from "../rules/types";
-import { gameMinutes, linesOf, validateBublikator } from "./validate";
+import { fitNames, fitTasks, gameMinutes, linesOf, validateBublikator, type LinesFit } from "./validate";
 
 const DIFFICULTY_TEXT: Record<Difficulty, { title: string; hint: string }> = {
   kids: { title: "Детская", hint: "Кнопка, тумблер и рычаг с картинками (лягушка, банан, ракета), всегда 3 прибора, без диверсанта. Метеоритный дождь без урона." },
@@ -26,36 +26,50 @@ const EVENT_TEXT: Record<EventKind, { title: string; hint: string }> = {
   captain: { title: "Все на палубу!", hint: `${EVENT_MS.captain / 1000} секунд: ваше задание на экране, приказы стоят; потом вы ставите экипажам звёзды. Только вручную.` },
 };
 
-/** Поле «по одному на строку»: правка уходит в игру через 0,4 с и при уходе из поля, чужая правка (отмена) — подтягивается. */
-function LinesField({ label, hint, value, rows, disabled, onCommit, invalid }: { label: string; hint: string; value: string[]; rows: number; disabled: boolean; onCommit: (lines: string[]) => void; invalid?: boolean }) {
+/**
+ * Поле «по одному на строку»: правка уходит в игру через 0,4 с и при уходе из поля, чужая правка (отмена) — подтягивается.
+ * `fit` решает, что войдёт в игру, и объясняет остальное — молча ничего не обрезаем (аудит 2d, №10): ведущий видит свой текст
+ * как набрал и под полем — что не вошло и почему.
+ */
+function LinesField({ label, hint, value, rows, disabled, onCommit, fit, invalid }: { label: string; hint: string; value: string[]; rows: number; disabled: boolean; onCommit: (lines: string[]) => void; fit: (lines: string[]) => LinesFit; invalid?: boolean }) {
   const [draft, setDraft] = useState(value.join("\n"));
   const focused = useRef(false);
-  const { schedule, flush } = useDebouncedCommit<string>((text) => onCommit(linesOf(text)));
+  const { schedule, flush } = useDebouncedCommit<string>((text) => onCommit(fit(linesOf(text)).kept));
   const joined = value.join("\n");
   useEffect(() => {
-    if (!focused.current) setDraft(joined);
+    // Своё же обрезанное (то, что ушло в игру из этого текста) текст ведущего не заменяет — только чужая правка или отмена.
+    if (!focused.current && fit(linesOf(draft)).kept.join("\n") !== joined) setDraft(joined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- сверяем только при новом значении игры
   }, [joined]);
   useEffect(() => flush, [flush]);
+  const notes = fit(linesOf(draft)).notes;
   return (
-    <label className={invalid ? "field edit-issue" : "field"}>
-      {label}
-      <textarea
-        rows={rows}
-        value={draft}
-        disabled={disabled}
-        aria-invalid={invalid || undefined}
-        onFocus={() => (focused.current = true)}
-        onBlur={() => {
-          focused.current = false;
-          flush();
-        }}
-        onChange={(e) => {
-          setDraft(e.target.value);
-          schedule(e.target.value);
-        }}
-      />
-      <span className="muted small">{hint}</span>
-    </label>
+    <div className="stack stack--tight">
+      <label className={invalid || notes.length > 0 ? "field edit-issue" : "field"}>
+        {label}
+        <textarea
+          rows={rows}
+          value={draft}
+          disabled={disabled}
+          aria-invalid={invalid || notes.length > 0 || undefined}
+          onFocus={() => (focused.current = true)}
+          onBlur={() => {
+            focused.current = false;
+            flush();
+          }}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            schedule(e.target.value);
+          }}
+        />
+        <span className="muted small">{hint}</span>
+      </label>
+      {notes.map((n) => (
+        <p key={n} className="error small import-note" role="status">
+          {n}
+        </p>
+      ))}
+    </div>
   );
 }
 
@@ -150,11 +164,12 @@ export function BublikatorEditorView({ content, onChange, editable }: EditorProp
           <>
             <LinesField
               label="Задания «Все на палубу!» — по одному на строку"
-              hint={`До 30 заданий, каждое до ${TASK_MAX} знаков. На пульте выбираете одно из них или пишете своё.`}
+              hint={`До ${TASKS_MAX} заданий, каждое до ${TASK_MAX} знаков. На пульте выбираете одно из них или пишете своё.`}
               value={content.captainTasks}
               rows={6}
               disabled={!editable}
-              onCommit={(lines) => set({ captainTasks: lines.map(cleanTask).filter((t) => t !== "").slice(0, 30) })}
+              fit={fitTasks}
+              onCommit={(lines) => set({ captainTasks: lines })}
             />
             {ownTasks && (
               <button type="button" className="btn btn--quiet btn--block" disabled={!editable} onClick={() => set({ captainTasks: defaultTasks(content.theme) })}>
@@ -201,13 +216,14 @@ export function BublikatorEditorView({ content, onChange, editable }: EditorProp
           hint={
             kids
               ? "В детской сложности приборы — картинки предметов, свои названия не используются."
-              : "От 2 до 24 знаков, до 400 названий. Игра смешает их с названиями темы и раздаст так, чтобы в экипаже они не были похожи. Например: «Тёщемер», «Салатоскоп»."
+              : `От ${NAME_MIN} до ${NAME_MAX} знаков, до ${NAMES_MAX} названий. Игра смешает их с названиями темы и раздаст так, чтобы в экипаже они не были похожи. Например: «Тёщемер», «Салатоскоп».`
           }
           value={content.names}
           rows={5}
           disabled={!editable}
           invalid={nameErrors.length > 0}
-          onCommit={(lines) => set({ names: lines.map((l) => l.slice(0, 24)).filter((l) => l.length >= 2).slice(0, 400) })}
+          fit={fitNames}
+          onCommit={(lines) => set({ names: lines })}
         />
         {nameErrors.map((e, i) => (
           <p key={i} className="error" role="alert">

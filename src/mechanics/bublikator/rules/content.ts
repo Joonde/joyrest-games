@@ -1,5 +1,5 @@
 /** Содержимое игры из конструктора: разбор без исключений, значения по умолчанию — ТЗ, таблица «Конструктор». */
-import { CREW_SIZE_DEFAULT, TASK_MAX } from "./constants";
+import { CREW_SIZE_DEFAULT, NAME_MAX, NAME_MIN, NAMES_MAX, TASK_MAX, TASKS_MAX } from "./constants";
 import type { BubContent, Difficulty, EventKind, Theme } from "./types";
 
 export const THEMES: readonly Theme[] = ["space", "pirates", "newyear", "submarine", "wedding"];
@@ -50,12 +50,12 @@ export function parseContent(raw: unknown): BubContent {
   const minutes = int(r.legMinutes, 3, 5, 4) as 3 | 4 | 5;
   const ev = typeof r.events === "object" && r.events !== null ? (r.events as Record<string, unknown>) : {};
   const events = Object.fromEntries(EVENT_KINDS.map((k) => [k, ev[k] !== false])) as Record<EventKind, boolean>;
-  const tasks = Array.isArray(r.captainTasks) ? r.captainTasks.map(cleanTask).filter((t) => t !== "").slice(0, 30) : [];
+  const tasks = Array.isArray(r.captainTasks) ? r.captainTasks.map(cleanTask).filter((t) => t !== "").slice(0, TASKS_MAX) : [];
   const size = typeof r.crewSize === "object" && r.crewSize !== null ? (r.crewSize as Record<string, unknown>) : {};
   const min = int(size.min, 1, CREW_SIZE_DEFAULT.max, CREW_SIZE_DEFAULT.min);
   const max = Math.max(min, int(size.max, 1, CREW_SIZE_DEFAULT.max, CREW_SIZE_DEFAULT.max));
   const names = Array.isArray(r.names)
-    ? [...new Set(r.names.filter((n): n is string => typeof n === "string").map((n) => n.replace(/\s+/g, " ").trim().slice(0, 24)).filter((n) => n.length >= 2))].slice(0, 400)
+    ? [...new Set(r.names.filter((n): n is string => typeof n === "string").map((n) => n.replace(/\s+/g, " ").trim().slice(0, NAME_MAX)).filter((n) => n.length >= NAME_MIN))].slice(0, NAMES_MAX)
     : [];
   return {
     theme,

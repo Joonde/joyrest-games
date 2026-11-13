@@ -96,7 +96,11 @@ export interface RoomGame<S> {
   /** Как часто телефон шлёт пачку при таком числе игроков, мс. */
   batchMs(players: number): number;
   create(input: { snapshot: unknown; playMode: "solo" | "teams"; now: number }, ctx: RoomContext): S;
-  onInput(state: S, player: RoomPlayer, events: RoomEvent[], ctx: RoomContext): void;
+  /**
+   * Пачка телефона. true — в ней было игровое действие, которое игра приняла: только тогда пачка отмечает «играл в раунде»
+   * (`playUnit`). Игре без раундов отвечать не нужно.
+   */
+  onInput(state: S, player: RoomPlayer, events: RoomEvent[], ctx: RoomContext): boolean | void;
   onCommand(state: S, cmd: string, args: unknown, ctx: RoomContext): CommandOutcome;
   /**
    * Этап игры для команд пульта (`expect`): шаг или фаза, а не счётчик нажатий. Команда с другим этапом —
@@ -686,8 +690,9 @@ export class Room {
     // Раунд — на момент прихода пачки (до того, как игра её обработала).
     const unit = this.game.playUnit?.(this.state) ?? null;
     let failed = false;
+    let played = false;
     try {
-      this.game.onInput(this.state, { pid: player.pid, name: player.name, team: player.team }, events, this.context(now));
+      played = this.game.onInput(this.state, { pid: player.pid, name: player.name, team: player.team }, events, this.context(now)) === true;
     } catch (error) {
       failed = true;
       this.onError("input", error);
@@ -695,7 +700,8 @@ export class Room {
     // Номер учтён и при ошибке игры: повтор той же пачки упал бы так же; события — в `dropped`, телефон узнает.
     window.commit(input.seq, now);
     if (failed) return { ...reply, dropped: input.events.length };
-    if (unit !== null) this.markPlayed(player.pid, unit);
+    // «Играл в раунде» — только если игра приняла в пачке игровое действие (мусор `{ t: "zzz" }` не в счёт; проверка 2d, №4).
+    if (unit !== null && played) this.markPlayed(player.pid, unit);
     this.activity(now);
     return { ...reply, dropped, active: true };
   }

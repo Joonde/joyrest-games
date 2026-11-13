@@ -766,3 +766,48 @@ function playFull(N: number, log: boolean) {
   if (log) console.log(`Бубликатор, ${N} гостей:`, JSON.stringify({ ...m, cmds: cmds.map((c) => `${c.name} ${c.ms.toFixed(1)}`) }));
   return m;
 }
+
+describe("«играл в перелёте» (баллы ведущему) — только принятые игрой действия (проверка 2d, №4)", () => {
+  it("мусор, чужой прибор, то же положение, «роль увидел», тап без ремонта — не отметка; сдвинутый свой прибор — отметка", () => {
+    let now = 1_000_000;
+    const r = room(6, { events: { meteor: false, pull: false, sos: false, captain: false }, legMinutes: 3 });
+    const tick = (ms: number) => {
+      for (let t = 0; t < ms; t += 100) {
+        now += 100;
+        for (const pid of Object.keys(state(r).members)) {
+          const p = parseInput({ stream: `a-${pid}`, events: [] });
+          if (p) r.input(pid, p, now);
+        }
+        r.tick(now);
+      }
+    };
+    const send = (pid: string, seq: number, events: Array<Record<string, unknown>>) => {
+      const p = parseInput({ stream: `s-${pid}`, seq, events: events.map((e) => ({ ago: 0, ...e })) });
+      if (!p) throw new Error("пачка не разобралась");
+      return r.input(pid, p, now);
+    };
+    r.command("gather", null, null, now);
+    r.command("start", null, null, now);
+    tick(LAUNCH_MS + 500);
+    const s = state(r);
+    expect(s.leg?.stage).toBe("fly");
+    r.takePlayed();
+    const own = (pid: string) => Object.values(s.controls).find((c) => c.owner === pid && c.type !== "button");
+    const foreign = (pid: string) => Object.values(s.controls).find((c) => c.owner !== pid && s.members[c.owner]?.crew === s.members[pid]?.crew);
+    // b0 — мусор; b1 — чужой прибор; b2 — то же положение; b3 — «роль увидел»; b4 — тап без ремонта и дождя.
+    expect(send("b0", 1, [{ t: "zzz" }, { t: "zzz" }])).toMatchObject({ ok: true });
+    const f = foreign("b1");
+    if (f) send("b1", 1, [{ t: "move", c: f.id, s: f.type === "button" ? 0 : f.state === 0 ? 1 : 0 }]);
+    const same = own("b2");
+    if (same) send("b2", 1, [{ t: "move", c: same.id, s: same.state }]);
+    send("b3", 1, [{ t: "role-ok" }]);
+    send("b4", 1, [{ t: "tap", n: 3 }]);
+    expect(r.takePlayed()).toEqual([]);
+    // b5 сдвинул свой прибор — отметка «играл в перелёте 0».
+    const mine = Object.values(s.controls).find((c) => c.owner === "b5");
+    if (!mine) throw new Error("нет прибора у b5");
+    const target = mine.type === "button" ? mine.state : mine.state === 0 ? 1 : 0;
+    send("b5", 1, [{ t: "zzz" }, { t: "move", c: mine.id, s: target }]);
+    expect(r.takePlayed()).toEqual([{ pid: "b5", unit: 0 }]);
+  });
+});

@@ -1136,20 +1136,27 @@ function sameCrewEvent(s: BubState, m: Member): EventState | null {
   return ev;
 }
 
-export function input(s: BubState, pid: string, events: InEvent[], env: Env): void {
+/**
+ * Пачка телефона. Ответ — было ли в ней игровое действие, которое игра приняла (прибор сдвинут, тап ремонта или дождя, тряска,
+ * «Тяга», нажатие SOS, голос, выбор экипажа, салют): по нему комната отмечает «телефон играл в перелёте» (`room_play`, баллы
+ * ведущему). Мусор (`{ t: "zzz" }`), чужой прибор, то же положение, тап без ремонта и дождя, «роль увидел» — не в счёт
+ * (проверка 2d, №4).
+ */
+export function input(s: BubState, pid: string, events: InEvent[], env: Env): boolean {
   const m = s.members[pid];
-  if (!m || m.gone) return;
+  if (!m || m.gone) return false;
+  let played = false;
   for (const e of events) {
     const at = eventTime(s, env, e);
     switch (e.t) {
       case "crew":
-        chooseCrew(s, env, m, e.crew);
+        if (chooseCrew(s, env, m, e.crew)) played = true;
         break;
       case "move":
-        moveControl(s, m, e, at, claimedTime(s, env, e));
+        if (moveControl(s, m, e, at, claimedTime(s, env, e))) played = true;
         break;
       case "tap":
-        tapEvent(s, env, m, e, at);
+        if (tapEvent(s, m, e, at)) played = true;
         break;
       case "shake": {
         const ev = sameCrewEvent(s, m);
@@ -1161,6 +1168,7 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
         // Сводка тряски — накопленная за событие: берём наибольшую.
         ev.power[m.pid] = { shake: Math.max(prev.shake, p), taps: prev.taps };
         s.rt.dirty.add(m.pid);
+        if (p > 0) played = true;
         break;
       }
       case "hold": {
@@ -1170,22 +1178,25 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
         if (prev && at < prev.at) break;
         ev.holds[m.pid] = { on: e.on === true, at };
         markCrew(s, m.crew ?? -1);
+        played = true;
         break;
       }
       case "sos":
-        sosInput(s, env, m, e, at);
+        if (sosInput(s, env, m, e, at)) played = true;
         break;
       case "vote":
-        castVote(s, m, e.pid);
+        if (castVote(s, m, e.pid)) played = true;
         break;
       case "salute": {
         const crew = s.crews.find((c) => c.id === m.crew);
         if (!crew || crew.finishedAt === null || s.phase !== "leg") break;
         const n = bucketTake(s.rt.taps, m.pid, TAPS_BURST, TAPS_PER_SECOND, at, count(e.n));
         crew.salutes += n;
+        if (n > 0) played = true;
         break;
       }
       case "role-ok":
+        // «Роль увидел» — не игровое действие.
         m.roleSeen = true;
         s.rt.dirty.add(m.pid);
         break;
@@ -1194,6 +1205,7 @@ export function input(s: BubState, pid: string, events: InEvent[], env: Env): vo
     }
   }
   env.changed();
+  return played;
 }
 
 function now(s: BubState, env: Pick<Env, "now" | "paused">): number {
@@ -1204,45 +1216,46 @@ function count(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(TAPS_BURST, Math.floor(value))) : 1;
 }
 
-function chooseCrew(s: BubState, env: Env, m: Member, crew: unknown): void {
+function chooseCrew(s: BubState, env: Env, m: Member, crew: unknown): boolean {
   // Командная сессия: экипаж — это команда, выбирают её на платформе.
-  if (s.phase !== "lobby" || s.teamsMode) return;
+  if (s.phase !== "lobby" || s.teamsMode) return false;
   if (crew === null) {
     m.crew = null;
     rosterChanged(s);
     s.rt.dirty.add(m.pid);
-    return;
+    return true;
   }
-  if (typeof crew !== "number" || !Number.isInteger(crew) || crew < 0 || crew >= lobbyCrewCount(s)) return;
+  if (typeof crew !== "number" || !Number.isInteger(crew) || crew < 0 || crew >= lobbyCrewCount(s)) return false;
   const taken = activeMembers(s).filter((x) => x.crew === crew && x.pid !== m.pid).length;
   if (taken >= s.content.crewSize.max) {
     env.send(m.pid, { t: "full", crew });
-    return;
+    return false;
   }
   m.crew = crew;
   rosterChanged(s);
   s.rt.dirty.add(m.pid);
+  return true;
 }
 
-function moveControl(s: BubState, m: Member, e: InEvent, at: number, claim: number): void {
+function moveControl(s: BubState, m: Member, e: InEvent, at: number, claim: number): boolean {
   const stage = s.leg?.stage;
-  if (!(s.phase === "drill" || (s.phase === "leg" && stage === "fly"))) return;
+  if (!(s.phase === "drill" || (s.phase === "leg" && stage === "fly"))) return false;
   const id = typeof e.c === "string" ? e.c : "";
   const ctl = s.controls[id];
-  if (!ctl) return;
+  if (!ctl) return false;
   const allowed = ctl.owner === m.pid || (m.role === "double" && m.doubleOf === ctl.owner);
-  if (!allowed) return;
+  if (!allowed) return false;
   // С одного телефона — не больше 5 движений в секунду.
-  if (bucketTake(s.rt.moves, m.pid, MOVES_PER_SECOND, MOVES_PER_SECOND, at, 1) === 0) return;
+  if (bucketTake(s.rt.moves, m.pid, MOVES_PER_SECOND, MOVES_PER_SECOND, at, 1) === 0) return false;
   // Свежее движение решается по заявленному времени события: старое (пришло повтором после обрыва, `delayed`) не затирает
   // свежее; два дублёра почти разом — побеждает более позднее по часам сервера.
-  if (claim < (ctl.claim ?? -1)) return;
+  if (claim < (ctl.claim ?? -1)) return false;
   if (ctl.type === "button") {
     ctl.state += 1;
   } else {
     const next = cleanState(ctl.type, e.s);
     // То же положение второй раз — не движение (удержание в нужном положении не сбрасывается).
-    if (next === null || next === ctl.state) return;
+    if (next === null || next === ctl.state) return false;
     ctl.state = next;
   }
   ctl.claim = claim;
@@ -1251,27 +1264,29 @@ function moveControl(s: BubState, m: Member, e: InEvent, at: number, claim: numb
   ctl.by = m.pid;
   s.rt.dirty.add(ctl.owner);
   for (const d of activeMembers(s)) if (d.doubleOf === ctl.owner) s.rt.dirty.add(d.pid);
+  return true;
 }
 
-function tapEvent(s: BubState, env: Env, m: Member, e: InEvent, at: number): void {
-  if (s.phase !== "leg" || s.leg?.stage !== "fly") return;
+function tapEvent(s: BubState, m: Member, e: InEvent, at: number): boolean {
+  if (s.phase !== "leg" || s.leg?.stage !== "fly") return false;
   const crew = s.crews.find((c) => c.id === m.crew);
-  if (!crew || m.role === "out") return;
+  if (!crew || m.role === "out") return false;
   const n = bucketTake(s.rt.taps, m.pid, TAPS_BURST, TAPS_PER_SECOND, at, count(e.n));
-  if (n === 0) return;
+  if (n === 0) return false;
   if (crew.repair) {
     crew.repair.taps += n;
     crew.repair.by[m.pid] = (crew.repair.by[m.pid] ?? 0) + n;
     markCrew(s, crew.id);
-    return;
+    return true;
   }
   const ev = s.leg.event;
   if (ev && ev.started && ev.kind === "meteor" && ev.crews.includes(crew.id) && ev.power) {
     const prev = ev.power[m.pid] ?? { shake: 0, taps: 0 };
     ev.power[m.pid] = { shake: prev.shake, taps: prev.taps + n };
     s.rt.dirty.add(m.pid);
+    return true;
   }
-  void env;
+  return false;
 }
 
 /**
@@ -1281,29 +1296,32 @@ function tapEvent(s: BubState, env: Env, m: Member, e: InEvent, at: number): voi
  * считаются (аудит 2b, №14).
  * Старый формат — один цвет (`color`).
  */
-function sosInput(s: BubState, env: Env, m: Member, e: Record<string, unknown>, at: number): void {
+function sosInput(s: BubState, env: Env, m: Member, e: Record<string, unknown>, at: number): boolean {
   if (!Array.isArray(e.seq)) return sosPress(s, env, m, e.color, at);
   const crew = s.crews.find((c) => c.id === m.crew);
   const sos = crew?.sos;
-  if (!sos || sos.done) return;
-  if (typeof e.b === "number" && e.b !== (sos.attempt ?? 0)) return;
+  if (!sos || sos.done) return false;
+  if (typeof e.b === "number" && e.b !== (sos.attempt ?? 0)) return false;
   const entered = e.seq.slice(0, SOS_COLORS * 4);
+  let pressed = false;
   for (let i = sos.progress; i < entered.length; i += 1) {
-    sosPress(s, env, m, entered[i], at);
+    if (sosPress(s, env, m, entered[i], at)) pressed = true;
     // Ошибка (набор сброшен) или нажатие не принято — дальше этого набора не идём.
     if (sos.progress !== i + 1 || sos.done) break;
   }
+  return pressed;
 }
 
-function sosPress(s: BubState, env: Env, m: Member, color: unknown, at: number): void {
+/** Нажатие цвета SOS; true — принято (верный цвет или ошибка со сбросом). */
+function sosPress(s: BubState, env: Env, m: Member, color: unknown, at: number): boolean {
   const ev = sameCrewEvent(s, m);
-  if (!ev || ev.kind !== "sos" || !ev.started || m.crew === null || !ev.crews.includes(m.crew)) return;
+  if (!ev || ev.kind !== "sos" || !ev.started || m.crew === null || !ev.crews.includes(m.crew)) return false;
   const crew = s.crews.find((c) => c.id === m.crew);
   const sos = crew?.sos;
-  if (!crew || !sos || sos.done) return;
-  if (captainOf(s, crew.id, (pid: string) => env.online(pid))?.pid !== m.pid) return;
-  if (at < sos.blockedUntil) return;
-  if (typeof color !== "number" || !Number.isInteger(color) || color < 0 || color >= SOS_COLORS) return;
+  if (!crew || !sos || sos.done) return false;
+  if (captainOf(s, crew.id, (pid: string) => env.online(pid))?.pid !== m.pid) return false;
+  if (at < sos.blockedUntil) return false;
+  if (typeof color !== "number" || !Number.isInteger(color) || color < 0 || color >= SOS_COLORS) return false;
   const seq = ev.seq ?? [];
   if (seq[sos.progress] === color) {
     sos.progress += 1;
@@ -1319,22 +1337,24 @@ function sosPress(s: BubState, env: Env, m: Member, color: unknown, at: number):
     sos.attempt = (sos.attempt ?? 0) + 1;
   }
   markCrew(s, crew.id);
+  return true;
 }
 
-function castVote(s: BubState, m: Member, target: unknown): void {
+function castVote(s: BubState, m: Member, target: unknown): boolean {
   const own = voteCrewOf(s, m);
-  if (s.phase !== "leg" || s.leg?.stage !== "vote" || own === null) return;
+  if (s.phase !== "leg" || s.leg?.stage !== "vote" || own === null) return false;
   const crew = s.crews.find((c) => c.id === own);
-  if (!crew || crew.saboteur === null) return;
+  if (!crew || crew.saboteur === null) return false;
   if (target === null) {
     m.vote = null;
   } else {
-    if (typeof target !== "string" || target === m.pid) return;
-    if (!voteCandidates(s, crew.id).some((c) => c.pid === target)) return;
-    if (m.role === "out") return;
+    if (typeof target !== "string" || target === m.pid) return false;
+    if (!voteCandidates(s, crew.id).some((c) => c.pid === target)) return false;
+    if (m.role === "out") return false;
     m.vote = target;
   }
   s.rt.dirty.add(m.pid);
+  return true;
 }
 
 // ------------------------------------------------------------------ команды пульта

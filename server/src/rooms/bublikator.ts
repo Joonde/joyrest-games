@@ -24,8 +24,9 @@ export const bublikator: RoomGame<BubState> = {
   create: (init, ctx: RoomContext) => createState(contentOf(init.snapshot), init.playMode === "teams", ctx),
   onJoin: (state, player, ctx) => join(state, player, ctx),
   onInput(state, player, events, ctx) {
-    input(state, player.pid, events as InEvent[], ctx);
+    const played = input(state, player.pid, events as InEvent[], ctx);
     flushPersonal(state, ctx);
+    return played;
   },
   onCommand(state, cmd, args, ctx) {
     const outcome = command(state, cmd, args, ctx);
@@ -33,8 +34,8 @@ export const bublikator: RoomGame<BubState> = {
     return outcome;
   },
   moment: (state) => moment(state),
-  // Баллы ведущему: телефон «играл в перелёте N», если его пачка с событиями дошла до игры в полёте (решение владельца
-  // 13 ноября 2026; тренировка, взлёт, привал и голосование — не перелёт).
+  // Баллы ведущему: телефон «играл в перелёте N», если игра приняла из его пачки игровое действие в полёте (решение владельца
+  // 13 ноября 2026; тренировка, взлёт, привал и голосование — не перелёт; мусор и «я на связи» — не в счёт).
   playUnit: (state) => (state.phase === "leg" && state.leg?.stage === "fly" ? state.legIndex : null),
   tick(state, ctx) {
     tick(state, ctx);

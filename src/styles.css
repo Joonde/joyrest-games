@@ -26496,15 +26496,15 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .orders-table {
-  --orders-cols: 104px minmax(150px, 1.5fr) 104px 124px 112px 108px 96px 104px 104px 108px minmax(140px, 1.2fr);
+  --orders-cols: 104px minmax(150px, 1.5fr) 104px 124px 112px 108px 96px 100px 100px 100px minmax(132px, 1.2fr);
   display: grid;
   gap: 0;
-  min-width: 1338px;
+  min-width: 1318px;
 }
 
 .orders-table--no-agency {
-  --orders-cols: 104px minmax(150px, 1.5fr) 104px 124px 112px 108px 96px 104px 104px minmax(140px, 1.2fr);
-  min-width: 1224px;
+  --orders-cols: 104px minmax(150px, 1.5fr) 104px 124px 112px 108px 96px 100px 100px minmax(132px, 1.2fr);
+  min-width: 1210px;
 }
 
 .orders-row {

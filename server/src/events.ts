@@ -772,6 +772,74 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       return (await one(id)) ?? fail(reply, 404, "not-found");
     });
 
+    // «Активные заказы» (решение владельца 12–13 ноября 2026; логика — docs/active-orders.md): владельцу и менеджеру по продажам
+    // одним ответом — мероприятия впереди, прошедшие незакрытые (30 дней), отменённые (7 дней и все ждущие возврата) с клиентом
+    // из истории, и клиенты в переговорах («Новый», «В работе» без мероприятия впереди).
+    api.get("/api/orders", async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canManageClients(actorOf(u)));
+      if (!user) return reply;
+      const at = new Date(now());
+      const month = new Date(at.getTime() - 30 * 86_400_000);
+      const week = new Date(at.getTime() - 7 * 86_400_000);
+      const ahead = await sql<Row[]>`${select} where e.cancelled_at is null and e.ends_at > ${at} order by e.starts_at limit ${LIST_MAX}`;
+      const past = await sql<Row[]>`${select} where e.cancelled_at is null and e.ends_at <= ${at} and e.ends_at > ${month}
+        and e.held is distinct from false and not (e.held is true and e.rest_paid = 'yes' and e.review <> '')
+        order by e.starts_at desc limit ${LIST_MAX}`;
+      const off = await sql<Row[]>`${select} where e.cancelled_at is not null
+        and ((e.refund_at is not null and e.refund_done_at is null) or e.updated_at > ${week})
+        order by e.updated_at desc limit ${LIST_MAX}`;
+      const events = [...ahead, ...past, ...off].map(eventOf);
+      type Link = { event_id: string; id: string; status: string; owner_name: string | null; next_step: string; next_at: string | null };
+      const links = events.length
+        ? await sql<Link[]>`
+            select h.ref as event_id, c.id, c.status, c.next_step, to_char(c.next_at, 'YYYY-MM-DD') as next_at,
+              (select u.name from users u where u.id = c.owner_id and u.active) as owner_name
+            from client_contacts h join clients c on c.id = h.client_id
+            where h.source = 'event' and h.ref in ${sql(events.map((e) => e.id))}`
+        : [];
+      const byEvent = new Map(links.map((l) => [l.event_id, l]));
+      type Talk = {
+        id: string; name: string; phone: string; status: string; notes: string; origin: string | null; next_step: string; next_at: string | null;
+        owner_name: string | null; new_since: Date | null; last_contact_at: Date; tg_waiting: Date | null; calc: string | null;
+      };
+      const talks = await sql<Talk[]>`
+        select c.id, c.name, c.phone, c.status, c.notes, c.origin, c.next_step, to_char(c.next_at, 'YYYY-MM-DD') as next_at,
+          (select u.name from users u where u.id = c.owner_id and u.active) as owner_name, c.new_since, c.last_contact_at,
+          (select min(t.waiting_since) from tg_chats t where t.client_id = c.id) as tg_waiting,
+          (select h.summary from client_contacts h where h.client_id = c.id and h.source <> 'status' and h.created_at > ${new Date(at.getTime() - 60 * 86_400_000)}
+             and (h.summary like '%Расчёт%' or h.summary like '%расчёт%' or h.summary like '%Цена:%') order by h.created_at desc limit 1) as calc
+        from clients c
+        where c.archived_at is null and c.status in ('new', 'work')
+          and not exists (select 1 from client_contacts h join events e on e.id = h.ref
+            where h.client_id = c.id and h.source = 'event' and e.cancelled_at is null and e.ends_at > ${at})
+        order by c.last_contact_at desc limit ${LIST_MAX}`;
+      reply.header("Cache-Control", "no-store");
+      return {
+        now: at.getTime(),
+        events: events.map((e) => {
+          const l = byEvent.get(e.id);
+          return l
+            ? { ...e, clientId: l.id, clientStatus: l.status, ...(l.owner_name ? { clientOwnerName: l.owner_name } : {}), ...(l.next_step ? { nextStep: l.next_step } : {}), ...(l.next_at ? { nextAt: l.next_at } : {}) }
+            : e;
+        }),
+        talks: talks.map((t) => ({
+          id: t.id,
+          name: t.name,
+          phone: t.phone,
+          status: t.status === "work" ? "work" : "new",
+          ownerName: t.owner_name ?? "",
+          nextStep: t.next_step ?? "",
+          nextAt: t.next_at ?? "",
+          notes: t.notes ?? "",
+          calc: t.calc ?? "",
+          origin: t.origin ?? "",
+          newSince: t.new_since ? t.new_since.getTime() : null,
+          tgWaitingSince: t.tg_waiting ? t.tg_waiting.getTime() : null,
+          lastContactAt: t.last_contact_at.getTime(),
+        })),
+      };
+    });
+
     // История мероприятия — владельцу, менеджеру и ведущему этого мероприятия.
     api.get<{ Params: { id: string } }>("/api/events/:id/log", async (request, reply) => {
       const user = await requireUser(request, reply, canSee);

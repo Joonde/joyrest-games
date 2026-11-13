@@ -2,7 +2,7 @@
 import type { EventsRepository } from "../contracts";
 import type { AgencyEvent } from "../types";
 import { api, asRecord, asText } from "./api";
-import type { EventLogLine } from "../types";
+import type { EventLogLine, OrderEvent, OrdersBoard, OrderTalk } from "../types";
 import { cleanProgram } from "../../core/eventProgram";
 
 export function parseEvent(value: unknown): AgencyEvent {
@@ -69,6 +69,43 @@ export const serverEventsRepository: EventsRepository = {
   },
   async overtime(id, amount) {
     return parseEvent(await api("POST", `/api/events/${encodeURIComponent(id)}/overtime`, { amount }));
+  },
+  async orders(): Promise<OrdersBoard> {
+    const d = asRecord(await api("GET", "/api/orders"));
+    const status = (v: unknown): OrderEvent["clientStatus"] | undefined =>
+      v === "new" || v === "work" || v === "client" || v === "held" || v === "lost" ? v : undefined;
+    const events = (Array.isArray(d.events) ? d.events : []).map((raw): OrderEvent => {
+      const x = asRecord(raw);
+      const st = status(x.clientStatus);
+      return {
+        ...parseEvent(raw),
+        ...(asText(x.clientId) ? { clientId: asText(x.clientId) } : {}),
+        ...(st ? { clientStatus: st } : {}),
+        ...(asText(x.clientOwnerName) ? { clientOwnerName: asText(x.clientOwnerName) } : {}),
+        ...(asText(x.nextStep) ? { nextStep: asText(x.nextStep) } : {}),
+        ...(asText(x.nextAt) ? { nextAt: asText(x.nextAt) } : {}),
+      };
+    });
+    const talks = (Array.isArray(d.talks) ? d.talks : []).map((raw): OrderTalk => {
+      const x = asRecord(raw);
+      const num = (v: unknown) => (typeof v === "number" ? v : null);
+      return {
+        id: asText(x.id),
+        name: asText(x.name),
+        phone: asText(x.phone),
+        status: x.status === "work" ? "work" : "new",
+        ownerName: asText(x.ownerName),
+        nextStep: asText(x.nextStep),
+        nextAt: asText(x.nextAt),
+        notes: asText(x.notes),
+        calc: asText(x.calc),
+        origin: asText(x.origin),
+        newSince: num(x.newSince),
+        tgWaitingSince: num(x.tgWaitingSince),
+        lastContactAt: num(x.lastContactAt) ?? 0,
+      };
+    });
+    return { now: typeof d.now === "number" ? d.now : Date.now(), events, talks };
   },
   async log(id) {
     const d = asRecord(await api("GET", `/api/events/${encodeURIComponent(id)}/log`));

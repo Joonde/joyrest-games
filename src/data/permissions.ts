@@ -346,6 +346,11 @@ export function canViewEventStats(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
+/** «Активные заказы»: колонка и итог «Агентству» — только владелец (решение владельца 12 ноября 2026). */
+export function canSeeAgencyShare(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
 /** Инструкция менеджера по продажам в студии — менеджеру и владельцу (проверять работу). */
 export function canReadSalesGuide(actor: Actor): boolean {
   return isAdmin(actor) || isSalesManager(actor);

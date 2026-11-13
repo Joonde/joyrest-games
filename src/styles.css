@@ -26295,3 +26295,517 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border-radius: var(--radius-md);
   font-weight: 600;
 }
+
+/*
+ * «Активные заказы» (вкладка «Клиентов», решения владельца 12–13 ноября 2026; логика — docs/active-orders.md). Цвета — только
+ * токены темы: студия бывает вечерней и дневной. От 1024 px — таблица по группам, уже — карточки.
+ */
+.orders {
+  --orders-booked: var(--color-success);
+  --orders-talk: var(--color-highlight);
+  --orders-close: var(--color-link);
+  --orders-off: var(--color-text-muted);
+}
+
+.orders-sum {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .orders-sum {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+  }
+}
+
+.orders-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 16px);
+  background: var(--color-surface);
+}
+
+.orders-tile__title,
+.orders-tile__sub {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.orders-tile__value {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 30px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.orders-tile--gold .orders-tile__value {
+  color: var(--color-highlight);
+}
+
+.orders-tile--bad {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+}
+
+.orders-tile--bad .orders-tile__value {
+  color: var(--color-danger);
+}
+
+.orders-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.orders-chip {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 22px;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.orders-chip.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.orders-chip:focus-visible,
+.orders-line:focus-visible,
+.orders-card:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.orders-tools {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 1024px) {
+  .orders-tools {
+    grid-template-columns: minmax(240px, 1.4fr) repeat(3, minmax(0, 1fr));
+    align-items: end;
+  }
+}
+
+.orders-select {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.orders-select select {
+  min-height: 52px;
+  padding: 0 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.orders-reset {
+  min-height: 44px;
+  text-decoration: underline;
+}
+
+/* Группы: блоки со своим цветом и итогом справа. */
+.orders-group {
+  --orders-accent: var(--orders-booked);
+}
+.orders-group--talk {
+  --orders-accent: var(--orders-talk);
+}
+.orders-group--close {
+  --orders-accent: var(--orders-close);
+}
+.orders-group--off {
+  --orders-accent: var(--orders-off);
+}
+
+.orders-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 12px 14px;
+  border-top: 3px solid var(--orders-accent);
+  border-radius: 14px 14px 0 0;
+  background: var(--color-surface-alt);
+}
+
+.orders-group__head h3 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--orders-accent);
+}
+
+.orders-group__head h3 i {
+  align-self: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  background: var(--orders-accent);
+}
+
+.orders-group__head h3 small {
+  font-family: Jost, system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.orders-group__head > span {
+  font-weight: 600;
+}
+
+/* Таблица (от 1024 px). Широкая — прокрутка вбок внутри блока, страница не едет. */
+.orders-scroll {
+  overflow-x: auto;
+  margin: 0 -4px;
+  padding: 0 4px 4px;
+}
+
+.orders-table {
+  --orders-cols: 112px minmax(160px, 1.5fr) 108px 84px 124px 116px 96px 120px 104px 108px minmax(150px, 1.2fr);
+  display: grid;
+  gap: 0;
+  min-width: 1340px;
+}
+
+.orders-table--no-agency {
+  --orders-cols: 112px minmax(160px, 1.5fr) 108px 84px 124px 116px 96px 120px 104px minmax(150px, 1.2fr);
+  min-width: 1220px;
+}
+
+.orders-row {
+  display: grid;
+  grid-template-columns: var(--orders-cols);
+  column-gap: 8px;
+  padding: 0 12px;
+}
+
+.orders-head {
+  padding-bottom: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.orders-head--top {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-highlight);
+}
+
+.orders-span-client {
+  grid-column: 1 / span 3;
+}
+.orders-span-host {
+  grid-column: 4 / span 3;
+}
+.orders-span-money {
+  grid-column: 7 / span 4;
+}
+.orders-table--no-agency .orders-span-money {
+  grid-column: 7 / span 3;
+}
+
+.orders-sep {
+  padding-left: 10px;
+  border-left: 1px solid var(--color-border);
+}
+
+.orders-group + .orders-group {
+  margin-top: 22px;
+}
+
+.orders-line {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.orders-line:last-child {
+  border-radius: 0 0 14px 14px;
+}
+
+.orders-line > [role="cell"] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+
+.orders-line:hover {
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-text));
+}
+
+.orders-line.is-alert,
+.orders-card.is-alert {
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+}
+
+.orders-sub {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.orders-sub.is-bad,
+.orders-card .is-bad {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.orders-sub.is-warn,
+[role="cell"].is-warn {
+  color: var(--color-highlight);
+}
+
+.orders-st {
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-team-text);
+  background: var(--team-color, #b3aadd);
+}
+.orders-st--new {
+  --team-color: #e3c68c;
+}
+.orders-st--work {
+  --team-color: #b3aadd;
+}
+.orders-st--client {
+  --team-color: #a3c2aa;
+}
+.orders-st--held {
+  --team-color: #d2a0ac;
+}
+.orders-st--lost {
+  --team-color: #e3aa9c;
+}
+
+.orders-mark__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+
+.orders-mark--late .orders-mark__label,
+.orders-mark--replace .orders-mark__label {
+  color: var(--color-danger);
+}
+.orders-mark--ok .orders-mark__label,
+.orders-mark--held .orders-mark__label {
+  color: var(--color-success);
+}
+.orders-mark--off .orders-mark__label,
+.orders-mark--failed .orders-mark__label,
+.orders-mark--none .orders-mark__label {
+  color: var(--color-text-muted);
+}
+
+/* Кружки — те же цвета, что у цветных кружков планировщика (`plan-light`). */
+.orders-dot--replace { --light: #d0122f; }
+.orders-dot--over { --light: #c45ce8; }
+.orders-dot--late { --light: #ef3b3b; }
+.orders-dot--live { --light: #ff8a1f; }
+.orders-dot--wait { --light: #f2c81c; }
+.orders-dot--ok { --light: #2fb855; }
+.orders-dot--held { --light: #2f8cf0; }
+.orders-dot--failed,
+.orders-dot--off { --light: #6f6863; }
+.orders-dot--check {
+  --light: transparent;
+  box-shadow: inset 0 0 0 2px var(--color-text);
+}
+
+.orders-money b {
+  font-weight: 600;
+}
+.orders-money--ok b {
+  color: var(--color-success);
+}
+.orders-money--warn b,
+.orders-money--warn .orders-sub {
+  color: var(--color-highlight);
+}
+.orders-money--bad b,
+.orders-money--bad .orders-sub {
+  color: var(--color-danger);
+}
+.orders-money--muted b {
+  color: var(--color-text-muted);
+}
+
+.orders-agency b {
+  color: var(--color-highlight);
+}
+
+.orders-struck {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.orders-muted {
+  color: var(--color-text-muted);
+}
+
+.orders-step {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.orders-step--alert {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.orders-step--muted {
+  color: var(--color-text-muted);
+}
+
+/* Карточки (уже 1024 px). */
+.orders-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.orders-cards .orders-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orders-cards .orders-group__head {
+  border-radius: 12px;
+}
+
+.orders-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.orders-card.is-alert {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+}
+
+.orders-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.orders-card__top > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.orders-card__date {
+  font-size: 17px;
+}
+
+.orders-card__price {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 24px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.orders-card__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 8px;
+}
+
+.orders-card__marks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.orders-card__marks > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+}
+
+.orders-card__money {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.orders-card__money--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.orders-card__money > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.orders-card .orders-step {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.orders-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.orders-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}

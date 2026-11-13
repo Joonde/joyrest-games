@@ -26489,21 +26489,22 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 /* Вкладка «Активные заказы» на компьютере — страница шире обычной (таблица целиком помещается на ноутбуке 1366 px). */
 @media (min-width: 1024px) {
-  .page:has(.orders-table) {
+  /* Специфичность выше общего правила страниц студии (`.page:has(> .topbar):not(…):not(…)`). */
+  .page:has(> .topbar):has(.orders-table):not(.page--pult):not(.page--wide) {
     max-width: calc(1480px + var(--gutter) * 2);
   }
 }
 
 .orders-table {
-  --orders-cols: 104px minmax(150px, 1.5fr) 104px 104px 112px 108px 96px 104px 104px 108px minmax(140px, 1.2fr);
+  --orders-cols: 104px minmax(150px, 1.5fr) 104px 124px 112px 108px 96px 104px 104px 108px minmax(140px, 1.2fr);
   display: grid;
   gap: 0;
-  min-width: 1318px;
+  min-width: 1338px;
 }
 
 .orders-table--no-agency {
-  --orders-cols: 104px minmax(150px, 1.5fr) 104px 104px 112px 108px 96px 104px 104px minmax(140px, 1.2fr);
-  min-width: 1204px;
+  --orders-cols: 104px minmax(150px, 1.5fr) 104px 124px 112px 108px 96px 104px 104px minmax(140px, 1.2fr);
+  min-width: 1224px;
 }
 
 .orders-row {

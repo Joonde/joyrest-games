@@ -29,7 +29,7 @@ import {
 import { defaultTasks, parseContent } from "./content";
 import { activeMembers, crewCountFor, crewMembers, crewPlayers, roster, rosterFresh } from "./crews";
 import { cardStats, chooseControl, crewTotal, gameNow, impulse, orderDamage, orderSeconds, places, restore, resume, scheduleEvents, snapshot, tallyVote, voteCandidates, voteVoters } from "./game";
-import { closer, CREW_NAMES, distance, ENDINGS, isBlocked, joinName, KIDS_ITEMS, kidsTinted, nameCandidates, norm, ROOTS, rootClashes, THEME_ROOTS } from "./names";
+import { closer, CREW_NAMES, distance, ENDINGS, isBlocked, isRudeName, joinName, KIDS_ITEMS, kidsTinted, nameCandidates, norm, ROOTS, rootClashes, THEME_ROOTS } from "./names";
 import { cleanState, controlsPerPlayer, dealPanels, orderText, randomTarget, STATES } from "./panels";
 import type { Control, Crew, Member } from "./types";
 import { hostView, personalSnapshot, personalView, screenView } from "./views";
@@ -120,6 +120,19 @@ describe("генератор названий приборов", () => {
     expect(joinName("Бублико", "атор")).toBe("Бубликатор");
     expect(joinName("Бублико", "атрон")).toBe("Бубликатрон");
     expect(joinName("Чихо", "метр")).toBe("Чихометр");
+  });
+  it("свои названия (аудит 2d, №3): безобидные со «страшным» куском внутри — можно, грубые и их варианты — нельзя", () => {
+    const harmless = ["Секстант", "Анализатор", "Каналоскоп", "Гейзерометр", "Ребусометр", "Попкорнометр", "Хлебатор", "Плохометр", "Блохомер", "Сабля", "Мочалкомер", "Наркозометр"];
+    expect(harmless.filter((n) => isRudeName(n))).toEqual([]);
+    // И то, что генератор отсекает как кусок, а в своём названии — обычное слово.
+    expect(["Сугробометр", "Страхометр", "Подводкомер", "Спидометр", "Чмокофон", "Трахеоскоп", "Лохматор", "Команда", "Веб-камера", "Тёщемер", "Салатоскоп"].filter((n) => isRudeName(n))).toEqual([]);
+    const rude = [
+      "Хуйометр", "ХУЕМЕТР", "хуёвина", "Пиздатор", "Распиздяй", "Ебатор", "Заебатор", "Уебанометр", "Долбоёб", "Ёбометр", "Съебатор",
+      "Бля", "Блядометр", "Жопомёт", "Говнометр", "Сукатор", "Членомер", "Дрочитель", "Сексометр", "Пидорометр", "Мудакометр",
+      "Гандонометр", "Залупатор", "Пукатор", "Пердун", "Сракометр", "Анальный зонд", "Наркотестер", "Водкомер", "Пьянометр",
+      "Трахатор", "Попкатор", "Лохометр", "Гейметр", "Мочеметр", "Х у й", "Х.у.й-метр", "xуйметр", "ПиZдатор", "Супер жопа", "Хрюкодуй",
+    ];
+    expect(rude.filter((n) => !isRudeName(n))).toEqual([]);
   });
   it("стоп-лист: грубое не выдаётся, ни одно сочетание темы его не содержит", () => {
     expect(isBlocked("Хуеметр")).toBe(true);

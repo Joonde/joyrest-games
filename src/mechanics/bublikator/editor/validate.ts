@@ -1,15 +1,15 @@
 /**
  * Проверка игры «Бубликатор» перед запуском (Блок 2d). Почти всё содержимое `parseContent` приводит к допустимому сам (числа —
- * в пределы, непонятное — по умолчанию), поэтому запуск останавливают только свои названия приборов: грубое слово (стоп-лист
- * генератора — такое название игра всё равно пропустит) и повтор. Остальное — подсказки конструктора, не ошибки.
+ * в пределы, непонятное — по умолчанию), поэтому запуск останавливают только свои названия приборов: грубое слово (`isRudeName` —
+ * такое название игра всё равно пропустит при раздаче) и повтор. Остальное — подсказки конструктора, не ошибки.
  */
 import type { ValidationError } from "../../types";
-import { isBlocked, norm } from "../rules/names";
+import { isRudeName, norm } from "../rules/names";
 import type { BubContent } from "../rules/types";
 
 export function validateBublikator(c: BubContent): ValidationError[] {
   const errors: ValidationError[] = [];
-  const blocked = c.names.filter((n) => isBlocked(n));
+  const blocked = c.names.filter((n) => isRudeName(n));
   if (blocked.length > 0) {
     errors.push({ path: "names", message: `Уберите из своих названий приборов: ${blocked.map((n) => `«${n}»`).join(", ")} — такие слова игра не покажет гостям.` });
   }

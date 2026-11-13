@@ -4,7 +4,7 @@
  * повторяют корни названий экипажей. Детская сложность — кнопка, тумблер и рычаг с картинками, 3 прибора, без близнецов;
  * предметы уникальны на весь зал (дальше 20 — тот же предмет с цветом).
  */
-import { closer, isBlocked, joinName, KIDS_ITEMS, KIDS_TINTS, kidsTinted, nameCandidates, norm, shuffle, TWIN_ENDINGS } from "./names";
+import { closer, isBlocked, isRudeName, joinName, KIDS_ITEMS, KIDS_TINTS, kidsTinted, nameCandidates, norm, shuffle, TWIN_ENDINGS } from "./names";
 import type { Control, ControlType, Difficulty, Theme } from "./types";
 
 export const NORMAL_TYPES: readonly ControlType[] = ["button", "toggle", "slider", "lever", "dial"];
@@ -91,11 +91,11 @@ export function dealPanels(input: DealInput): DealResult {
   const pool: Candidate[] = [];
   const add = (name: string, root: string, check: boolean) => {
     const key = norm(name);
-    if (seen.has(key) || (check && isBlocked(name))) return;
+    if (seen.has(key) || (check && isRudeName(name))) return;
     seen.add(key);
     pool.push({ name, key, root });
   };
-  // Свои названия ведущего проверяются стоп-листом здесь, сочетания темы — уже проверены.
+  // Свои названия ведущего проверяются здесь тем же `isRudeName`, что и в конструкторе; сочетания темы — уже проверены (`isBlocked`).
   for (const n of shuffle(input.customNames, rand)) add(n, "", true);
   for (const c of nameCandidates(input.theme, input.crewNames, rand)) add(c.name, c.root, false);
   const hallUsed = new Set<string>();

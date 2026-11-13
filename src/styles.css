@@ -26575,6 +26575,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   hyphens: auto;
 }
 
+/* Имя ведущего — помельче и целым словом («Администратор» помещается в колонку). */
+.orders-line > [role="cell"].orders-host {
+  font-size: 14px;
+  overflow-wrap: normal;
+}
+
 /* Метка и сумма — подпись всегда своей строкой («Отменено» / «не состоится», «2 000 ₽» / «внесена»). */
 .orders-mark,
 .orders-money {

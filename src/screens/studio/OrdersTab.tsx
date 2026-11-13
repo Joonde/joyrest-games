@@ -366,6 +366,9 @@ function GroupHead({ group, rows }: { group: OrderGroup; rows: OrderRow[] }) {
   );
 }
 
+/** Сумма не рвётся посередине: «2 000 ₽», «≈ 25 900 ₽» — неразрывными пробелами (переносится только перед числом). */
+const keep = (s: string) => s.replace(/(\d) (?=\d)/g, "$1\u00a0").replace(/ ₽/g, "\u00a0₽").replace(/≈ /g, "≈\u00a0");
+
 function Dot({ mark }: { mark: Mark }) {
   return (
     <div className={`orders-mark orders-mark--${mark.tone}`}>
@@ -381,15 +384,15 @@ function Dot({ mark }: { mark: Mark }) {
 function Cash({ money }: { money: Money }) {
   return (
     <div className={`orders-money orders-money--${money.tone}`}>
-      <b>{money.text}</b>
-      {money.sub && <span className="orders-sub">{money.sub}</span>}
+      <b>{keep(money.text)}</b>
+      {money.sub && <span className="orders-sub">{keep(money.sub)}</span>}
     </div>
   );
 }
 
 function agencyText(r: OrderRow): string {
   if (r.agency === null) return "—";
-  return `${r.approx ? "≈ " : ""}${rub(r.agency)}`;
+  return keep(`${r.approx ? "≈ " : ""}${rub(r.agency)}`);
 }
 
 function TableRow({ row: r, owner, open }: { row: OrderRow; owner: boolean; open: () => void }) {
@@ -420,11 +423,11 @@ function TableRow({ row: r, owner, open }: { row: OrderRow; owner: boolean; open
         {r.status ? <span className={`orders-st orders-st--${r.status.tone}`}>{r.status.label}</span> : <span className="orders-sub">нет в «Клиентах»</span>}
         <span className="orders-sub">{r.who}</span>
       </div>
-      <div role="cell" className={r.hostWarn ? "orders-sep is-warn" : "orders-sep"}>{r.host}</div>
+      <div role="cell" className={r.hostWarn ? "orders-sep orders-host is-warn" : "orders-sep orders-host"}>{r.host}</div>
       <div role="cell"><Dot mark={r.accepted} /></div>
       <div role="cell"><Dot mark={r.held} /></div>
       <div role="cell" className="orders-sep">
-        <b className={r.priceStruck ? "orders-struck" : r.price === null ? "orders-muted" : undefined}>{r.priceText}</b>
+        <b className={r.priceStruck ? "orders-struck" : r.price === null ? "orders-muted" : undefined}>{keep(r.priceText)}</b>
         {r.priceSub && <span className="orders-sub">{r.priceSub}</span>}
       </div>
       <div role="cell"><Cash money={r.prepay} /></div>
@@ -432,7 +435,7 @@ function TableRow({ row: r, owner, open }: { row: OrderRow; owner: boolean; open
       {owner && (
         <div role="cell" className="orders-agency">
           <b>{agencyText(r)}</b>
-          {r.hostPay !== null && <span className="orders-sub">ведущему {r.approx ? "≈ " : ""}{rub(r.hostPay)}</span>}
+          {r.hostPay !== null && <span className="orders-sub">{keep(`ведущему ${r.approx ? "≈ " : ""}${rub(r.hostPay)}`)}</span>}
         </div>
       )}
       <div role="cell" className={`orders-sep orders-step orders-step--${r.stepTone}`}>{r.step}</div>
@@ -451,7 +454,7 @@ function Card({ row: r, owner }: { row: OrderRow; owner: boolean }) {
             {r.when && <> · <span className={r.whenAlert ? "is-bad" : undefined}>{r.when}</span></>}
           </span>
         </div>
-        <b className={r.priceStruck ? "orders-card__price orders-struck" : "orders-card__price"}>{r.priceText}</b>
+        <b className={r.priceStruck ? "orders-card__price orders-struck" : "orders-card__price"}>{keep(r.priceText)}</b>
       </div>
       <b>{r.client}</b>
       <span>{r.what}</span>
@@ -488,7 +491,7 @@ function Card({ row: r, owner }: { row: OrderRow; owner: boolean }) {
           <div className="orders-agency">
             <span className="orders-sub">Агентству</span>
             <b>{agencyText(r)}</b>
-            {r.hostPay !== null && <span className="orders-sub">ведущему {r.approx ? "≈ " : ""}{rub(r.hostPay)}</span>}
+            {r.hostPay !== null && <span className="orders-sub">{keep(`ведущему ${r.approx ? "≈ " : ""}${rub(r.hostPay)}`)}</span>}
           </div>
         )}
       </div>

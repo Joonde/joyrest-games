@@ -4929,9 +4929,10 @@ kbd {
   max-width: none;
 }
 
+/* Слева снизу, как монограмма экрана зала во время игры: справа снизу — круглый значок звука (проверка 2d, №10). */
 .slide__mark {
   position: absolute;
-  right: 4cqw;
+  left: 4cqw;
   bottom: 4cqh;
   width: 8cqh;
   color: var(--color-logo);

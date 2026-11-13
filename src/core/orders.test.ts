@@ -206,3 +206,44 @@ describe("«Активные заказы»: подписи", () => {
     expect(relative(NOW + 12 * 60_000, NOW)).toBe("через 12 мин");
   });
 });
+
+describe("«Активные заказы»: края (независимая проверка 13 ноября 2026)", () => {
+  it("деньги: 45 гостей — 55%, 46 — 20 000; дешевле 5 000 — всё ведущему; округление до рубля", () => {
+    expect(hostShare(40_000, 45)).toBe(22_000);
+    expect(hostShare(40_000, 46)).toBe(20_000);
+    expect(agencyShare(4_500, 10)).toBe(0);
+    expect(hostShare(29_999, 30)).toBe(16_499);
+    expect(agencyShare(29_999, 30)).toBe(13_500);
+  });
+  it("остаток — только со стоимостью и предоплатой; проведено без них — сразу «Попросить отзыв»", () => {
+    const noPrepay = eventRow(ev({ prepaidAt: null }), NOW);
+    expect(noPrepay.due).toMatchObject({ text: "—", sub: "после предоплаты" });
+    expect(eventRow(ev({ day: "2026-11-10", held: true, price: null }), NOW)).toMatchObject({ alert: false, step: "Попросить отзыв" });
+    expect(eventRow(ev({ day: "2026-11-10", held: true, prepaidAt: null }), NOW)).toMatchObject({ alert: false, step: "Попросить отзыв" });
+  });
+  it("отменено без клиента в «Клиентах» — «Отменено», «Закрыто», с датой отмены", () => {
+    const r = eventRow(ev({ cancelled: true }), NOW);
+    expect(r.held.label).toBe("Отменено");
+    expect(r).toMatchObject({ alert: false, step: "Закрыто", when: "отменено 10 ноя" });
+  });
+  it("перенос — красным; с возвратом — «отказ» и вернуть", () => {
+    expect(eventRow(ev({ cancelled: true, clientStatus: "client" }), NOW)).toMatchObject({ alert: true, step: "Согласовать новую дату" });
+    const refund = eventRow(ev({ cancelled: true, clientStatus: "client", refundAt: NOW - 30 * H }), NOW);
+    expect(refund.held.label).toBe("Отменено");
+    expect(refund.when).toBe("отказ 11 ноя");
+  });
+  it("идёт сейчас; без ведущего — «не назначен» и шаг без имени; отключённый — с пометкой", () => {
+    expect(eventRow(ev({ day: "2026-11-12", start: 19 * 60, end: 22 * 60 }), NOW).when).toBe("идёт сейчас");
+    const none = eventRow(ev({ day: "2026-11-10", hostName: "" }), NOW);
+    expect(none).toMatchObject({ host: "не назначен", step: "Узнать у ведущего, как прошло" });
+    expect(eventRow(ev({ hostOff: true }), NOW).host).toBe("Борис · ⚠ отключён");
+  });
+  it("в строке нет лишних «·», когда гостей и места нет", () => {
+    expect(eventRow(ev({ cancelled: true, guests: null, place: "" }), NOW).details).toBe("гостей не указано");
+  });
+  it("переговоры: «Новый» без таймера — отсчёт от последнего обращения; цена из заметки", () => {
+    expect(talkRow(talk({ status: "new", newSince: null, lastContactAt: NOW - 45 * 60_000 }), NOW)).toMatchObject({ alert: true, step: "Ответить клиенту" });
+    const fromNotes = talkRow(talk({ notes: "Дата: 11.12.2026\n✅ Опытный: 25 900 ₽ — выбран" }), NOW);
+    expect(fromNotes).toMatchObject({ price: 25_900, priceText: "≈ 25 900 ₽" });
+  });
+});

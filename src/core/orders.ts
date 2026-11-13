@@ -166,7 +166,9 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
   const prepaid = Boolean(e.prepaidAt);
   const price = typeof e.price === "number" ? e.price : null;
   const refundWaiting = off && Boolean(e.refundAt) && !e.refundDoneAt;
-  const lost = e.clientStatus === "lost" || Boolean(e.refundAt);
+  // Перенос — только когда клиент остался «Клиентом» и возврата не было; без клиента в истории — просто «Отменено».
+  const moved = e.clientStatus === "client" && !e.refundAt;
+  const lost = !moved;
 
   // Подтвердил
   let accepted: Mark;
@@ -198,7 +200,8 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
   } else if (prepaid) prepay = { text: rub(PREPAY_RUB), sub: "внесена", tone: "ok" };
   else prepay = { text: "Не отмечена", sub: "ждём 2 000 ₽", tone: "warn" };
 
-  const dueSum = off ? null : dueOnSite(price, prepaid);
+  // Остаток — только у мероприятия со стоимостью и предоплатой (docs/active-orders.md, раздел 4).
+  const dueSum = off || !prepaid ? null : dueOnSite(price, prepaid);
   let due: Money;
   if (dueSum === null) due = { text: "—", sub: off ? "" : price === null ? "нет стоимости" : "после предоплаты", tone: "muted" };
   else if (e.held === true) {
@@ -225,9 +228,10 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
   let step = "";
   let alert = true;
   if (refundWaiting) step = `Вернуть ${rub(PREPAY_RUB)} клиенту и отметить`;
+  else if (off && moved) step = "Согласовать новую дату";
   else if (off) {
     alert = false;
-    step = !lost ? "Согласовать новую дату" : "Закрыто";
+    step = "Закрыто";
   } else if (!started && e.declinedAt) step = "Назначить другого ведущего";
   else if (e.hostOff && !ended) step = "Передать мероприятие другому ведущему";
   else if (!started && light.light === "late") step = `Позвонить ведущему сегодня${e.hostName ? ` (${firstName})` : ""}`;
@@ -245,7 +249,13 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
     else step = "Напоминание придёт за 3 дня";
   }
 
-  const when = off ? (e.refundAt ? `отказ ${stamp(e.refundAt).split(",")[0]}` : "отменено") : relative(from, now);
+  const when = off
+    ? e.refundAt
+      ? `отказ ${stamp(e.refundAt).split(",")[0]}`
+      : `отменено ${stamp(e.updatedAt || from).split(",")[0]}`
+    : started && !ended
+      ? "идёт сейчас"
+      : relative(from, now);
   const placeWarn = !off && emptyPlace(e.place);
   return {
     key: `e-${e.id}`,
@@ -257,12 +267,12 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
     whenAlert: !off && !started && light.light === "late",
     client: e.clientName || "Клиент не указан",
     what: e.title || "Мероприятие",
-    details: `${guestsText(e.guests)} · ${placeWarn ? "место уточняется" : e.place.trim()}`,
+    details: [guestsText(e.guests), placeWarn ? "место уточняется" : e.place.trim()].filter(Boolean).join(" · "),
     placeWarn,
     status: e.clientStatus ? { label: CLIENT_STATUS_TITLES[e.clientStatus], tone: e.clientStatus } : null,
     who: e.clientOwnerName ? `ведёт ${e.clientOwnerName}` : e.ownerName ? `ведёт ${e.ownerName}` : "никто не взял",
     ownerName: e.clientOwnerName || e.ownerName || "",
-    host: e.hostOff ? `${host} · отключён` : host,
+    host: e.hostOff ? `${host} · ⚠ отключён` : host,
     hostWarn: Boolean(e.hostOff) && !off,
     accepted,
     held,
@@ -278,7 +288,7 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
     step,
     stepTone: alert ? "alert" : step === "Закрыто" || step.startsWith("Отзыв ") ? "muted" : "plain",
     alert,
-    sortAt: group === "off" ? e.updatedAt ?? from : from,
+    sortAt: group === "off" ? e.updatedAt || from : from,
     refundWaiting,
     prepaid,
     search: [e.clientName, e.clientPhone, e.hostName, e.title, e.place, e.ownerName ?? "", e.clientOwnerName ?? ""],
@@ -291,8 +301,10 @@ export function talkRow(t: OrderTalk, now: number): OrderRow {
   const wish = wishFromText(t.notes, today, true);
   const day = dayIndex(wish.day);
   const guests = /^\d+$/.test(wish.guests) ? Number(wish.guests) : null;
-  const price = t.calc ? priceFromCalc(t.calc) : null;
-  const since = [t.status === "new" ? t.newSince : null, t.tgWaitingSince].filter((x): x is number => typeof x === "number");
+  // Расчёт — из последнего обращения, иначе из заметки (менеджер вставляет туда присланный расчёт).
+  const price = (t.calc ? priceFromCalc(t.calc) : null) ?? (t.notes ? priceFromCalc(t.notes) : null);
+  // У старых карточек «Новый» без таймера отсчёт — от последнего обращения (как в «Клиентах»).
+  const since = [t.status === "new" ? t.newSince ?? t.lastContactAt : null, t.tgWaitingSince].filter((x): x is number => typeof x === "number");
   const waited = since.length ? now - Math.min(...since) : 0;
   const waiting = waited > ANSWER_WAIT_MS;
   const clientStep = t.nextStep ? `📌 ${t.nextStep}${t.nextAt ? ` · ${shortDay(t.nextAt)}` : ""}` : "";
@@ -375,7 +387,7 @@ export function filterRows(rows: OrderRow[], view: OrderView): OrderRow[] {
   return rows.filter(
     (r) =>
       (view.filter === "all" || (view.filter === "alert" ? r.alert : r.group === view.filter)) &&
-      (!view.host || r.host.replace(/ · отключён$/, "") === view.host) &&
+      (!view.host || r.host.replace(/ · ⚠ отключён$/, "") === view.host) &&
       (!view.owner || (view.owner === "—" ? !r.ownerName : r.ownerName === view.owner)) &&
       (!view.query.trim() || matchesSearch([r.client, r.what, r.host, ...r.search], view.query)),
   );

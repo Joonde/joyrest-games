@@ -51,12 +51,12 @@ function readView(): SavedView {
     const raw = JSON.parse(localStorage.getItem(VIEW_KEY) ?? "null") as Partial<SavedView> | null;
     if (!raw || typeof raw !== "object") return EMPTY_VIEW;
     return {
-      filter: raw.filter && raw.filter in FILTER_TITLES ? raw.filter : "all",
+      filter: raw.filter && Object.prototype.hasOwnProperty.call(FILTER_TITLES, raw.filter) ? raw.filter : "all",
       host: typeof raw.host === "string" ? raw.host : "",
       owner: typeof raw.owner === "string" ? raw.owner : "",
       // Поиск не запоминаем: в нём может быть имя или телефон клиента.
       query: "",
-      sort: raw.sort && raw.sort in SORT_TITLES ? raw.sort : "date",
+      sort: raw.sort && Object.prototype.hasOwnProperty.call(SORT_TITLES, raw.sort) ? raw.sort : "date",
     };
   } catch {
     return EMPTY_VIEW;
@@ -77,13 +77,18 @@ function useWide(): boolean {
     const m = window.matchMedia?.(query);
     if (!m) return;
     const on = () => setWide(m.matches);
-    m.addEventListener("change", on);
-    return () => m.removeEventListener("change", on);
+    // Старые Safari (iOS < 14) знают только addListener.
+    if (typeof m.addEventListener === "function") {
+      m.addEventListener("change", on);
+      return () => m.removeEventListener("change", on);
+    }
+    m.addListener(on);
+    return () => m.removeListener(on);
   }, []);
   return wide;
 }
 
-type Load = { status: "loading" } | { status: "error" } | { status: "ready"; board: OrdersBoard; offset: number };
+type Load = { status: "loading" } | { status: "error" } | { status: "ready"; board: OrdersBoard; offset: number; failed: boolean };
 
 /** Ответ сервера и сдвиг часов: время строк — по часам сервера (неверные часы телефона не перекрашивают строки). */
 function useOrders(): [Load, () => void] {
@@ -93,14 +98,23 @@ function useOrders(): [Load, () => void] {
     if (!eventsRepo) return;
     const repo = eventsRepo;
     let alive = true;
+    // Номер запроса: поздний ответ старого запроса не затирает свежий.
+    let seq = 0;
+    let shown = 0;
     const fetchNow = (first: boolean) => {
       if (!first && document.visibilityState !== "visible") return;
+      const n = ++seq;
       repo
         .orders()
-        .then((board) => alive && setLoad({ status: "ready", board, offset: board.now - Date.now() }))
+        .then((board) => {
+          if (!alive || n < shown) return;
+          shown = n;
+          setLoad({ status: "ready", board, offset: board.now - Date.now(), failed: false });
+        })
         .catch(() => {
-          // Обновление не удалось — прежние строки остаются на экране.
-          if (alive && first) setLoad((prev) => (prev.status === "ready" ? prev : { status: "error" }));
+          // Обновление не удалось — прежние строки остаются на экране с пометкой «не обновилось».
+          if (!alive || n < shown) return;
+          setLoad((prev) => (prev.status === "ready" ? { ...prev, failed: true } : first ? { status: "error" } : prev));
         });
     };
     fetchNow(true);
@@ -137,10 +151,10 @@ export function OrdersTab({ profile }: { profile: UserProfile }) {
   if (!eventsRepo) return <p className="muted">«Активные заказы» доступны на своём сервере JoyRest.</p>;
   if (load.status === "loading") return <ListSkeleton />;
   if (load.status === "error") return <LoadFailedInline onRetry={retry} />;
-  return <OrdersBoardView board={load.board} offset={load.offset} owner={permissions.canSeeAgencyShare(profile)} />;
+  return <OrdersBoardView board={load.board} offset={load.offset} failed={load.failed} owner={permissions.canSeeAgencyShare(profile)} />;
 }
 
-function OrdersBoardView({ board, offset, owner }: { board: OrdersBoard; offset: number; owner: boolean }) {
+function OrdersBoardView({ board, offset, owner, failed }: { board: OrdersBoard; offset: number; owner: boolean; failed: boolean }) {
   const now = useServerNow(offset);
   const wide = useWide();
   const navigate = useNavigate();
@@ -155,9 +169,15 @@ function OrdersBoardView({ board, offset, owner }: { board: OrdersBoard; offset:
   const rows = useMemo(() => orderRows(board, now, view.sort), [board, now, view.sort]);
   const counts = useMemo(() => filterCounts(rows), [rows]);
   const summary = useMemo(() => summaryOf(rows, board, now), [rows, board, now]);
-  const hosts = useMemo(() => [...new Set(rows.map((r) => r.host.replace(/ · отключён$/, "")).filter((h) => h && h !== "—" && h !== "не назначен"))].sort(), [rows]);
+  const hosts = useMemo(() => [...new Set(rows.map((r) => r.host.replace(/ · ⚠ отключён$/, "")).filter((h) => h && h !== "—" && h !== "не назначен"))].sort(), [rows]);
   const owners = useMemo(() => [...new Set(rows.map((r) => r.ownerName).filter(Boolean))].sort(), [rows]);
-  const shown = useMemo(() => filterRows(rows, view), [rows, view]);
+  // Сохранённый ведущий или «кто ведёт», которого больше нет в строках, — не прячем строки невидимым фильтром.
+  const active: SavedView = {
+    ...view,
+    host: view.host && !hosts.includes(view.host) ? "" : view.host,
+    owner: view.owner && view.owner !== "—" && !owners.includes(view.owner) ? "" : view.owner,
+  };
+  const shown = filterRows(rows, active);
   const groups = ORDER_GROUPS.map((g) => ({ group: g, rows: shown.filter((r) => r.group === g) })).filter((g) => g.rows.length > 0);
 
   if (rows.length === 0) {
@@ -172,6 +192,11 @@ function OrdersBoardView({ board, offset, owner }: { board: OrdersBoard; offset:
 
   return (
     <div className="stack orders">
+      {failed && (
+        <p className="orders-stale" role="status">
+          Не удалось обновить — показываем последние данные. Повторим через 30 секунд.
+        </p>
+      )}
       <p className="muted small">
         Все, кого сейчас ведём: забронировали, договариваемся, прошло и ещё не закрыто, или отменено. Касание строки — карточка мероприятия
         или клиента. Обновляется само раз в 30 секунд.
@@ -209,7 +234,7 @@ function OrdersBoardView({ board, offset, owner }: { board: OrdersBoard; offset:
         />
         <label className="orders-select">
           <span>Ведущий</span>
-          <select value={view.host} onChange={(e) => change({ host: e.target.value })}>
+          <select value={active.host} onChange={(e) => change({ host: e.target.value })}>
             <option value="">Все</option>
             {hosts.map((h) => (
               <option key={h} value={h}>{h}</option>
@@ -218,7 +243,7 @@ function OrdersBoardView({ board, offset, owner }: { board: OrdersBoard; offset:
         </label>
         <label className="orders-select">
           <span>Кто ведёт клиента</span>
-          <select value={view.owner} onChange={(e) => change({ owner: e.target.value })}>
+          <select value={active.owner} onChange={(e) => change({ owner: e.target.value })}>
             <option value="">Все</option>
             {owners.map((o) => (
               <option key={o} value={o}>{o}</option>
@@ -242,9 +267,9 @@ function OrdersBoardView({ board, offset, owner }: { board: OrdersBoard; offset:
         <div className="orders-scroll">
           <div className={owner ? "orders-table" : "orders-table orders-table--no-agency"} role="table" aria-label="Активные заказы">
             <div className="orders-row orders-head orders-head--top" role="row">
-              <span role="columnheader" className="orders-span-client">Клиент</span>
-              <span role="columnheader" className="orders-span-host orders-sep">Ведущий</span>
-              <span role="columnheader" className="orders-span-money orders-sep">Деньги</span>
+              <span role="columnheader" aria-colspan={3} className="orders-span-client">Клиент</span>
+              <span role="columnheader" aria-colspan={3} className="orders-span-host orders-sep">Ведущий</span>
+              <span role="columnheader" aria-colspan={owner ? 4 : 3} className="orders-span-money orders-sep">Деньги</span>
               <span role="columnheader" className="orders-sep">Что делать</span>
             </div>
             <div className="orders-row orders-head" role="row">
@@ -262,7 +287,11 @@ function OrdersBoardView({ board, offset, owner }: { board: OrdersBoard; offset:
             </div>
             {groups.map(({ group, rows: list }) => (
               <div key={group} className={`orders-group orders-group--${group}`} role="rowgroup">
-                <GroupHead group={group} rows={list} />
+                <div role="row" className="orders-group__row">
+                  <div role="cell" aria-colspan={owner ? 11 : 10}>
+                    <GroupHead group={group} rows={list} />
+                  </div>
+                </div>
                 {list.map((r) => (
                   <TableRow key={r.key} row={r} owner={owner} open={() => navigate(r.href)} />
                 ))}
@@ -358,7 +387,6 @@ function TableRow({ row: r, owner, open }: { row: OrderRow; owner: boolean; open
           open();
         }
       }}
-      aria-label={`${r.client}, ${r.date}${r.alert ? " — требует внимания" : ""}`}
     >
       <div role="cell">
         <b>{r.date}</b>

@@ -26569,7 +26569,13 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .orders-line.is-alert,
 .orders-card.is-alert {
-  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+}
+
+/* Подписи и предупреждения: в дневной теме золото и серый на светлой подложке бледнее 4.5 — подмешиваем основной текст. */
+.orders-line.is-alert .orders-sub,
+.orders-card.is-alert .orders-sub {
+  color: color-mix(in srgb, var(--color-text-muted) 75%, var(--color-text));
 }
 
 .orders-sub {
@@ -26583,9 +26589,15 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   font-weight: 600;
 }
 
+.orders {
+  --orders-warn: color-mix(in srgb, var(--color-highlight) 70%, var(--color-text));
+}
+
 .orders-sub.is-warn,
-[role="cell"].is-warn {
-  color: var(--color-highlight);
+[role="cell"].is-warn,
+.orders-line.is-alert .orders-sub.is-warn,
+.orders-card.is-alert .orders-sub.is-warn {
+  color: var(--orders-warn);
 }
 
 .orders-st {
@@ -26656,8 +26668,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   color: var(--color-success);
 }
 .orders-money--warn b,
-.orders-money--warn .orders-sub {
-  color: var(--color-highlight);
+.orders-money--warn .orders-sub,
+.orders .is-alert .orders-money--warn .orders-sub {
+  color: var(--orders-warn);
 }
 .orders-money--bad b,
 .orders-money--bad .orders-sub {
@@ -26668,7 +26681,24 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .orders-agency b {
-  color: var(--color-highlight);
+  color: var(--orders-warn);
+}
+
+.orders-stale {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  font-size: 14px;
+}
+
+.orders-group__row {
+  display: block;
+}
+
+.orders-group__row > [role="cell"] {
+  display: block;
 }
 
 .orders-struck {

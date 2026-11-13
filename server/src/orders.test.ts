@@ -72,6 +72,16 @@ describe.skipIf(!url)("«Активные заказы»: GET /api/orders на P
     await sql`update events set updated_at = now() - interval '20 days' where id = 'off-old'`;
     await event("off-refund", 72, { cancelled_at: new Date(Date.now() - 20 * 86_400_000), refund_at: new Date(Date.now() - 20 * 86_400_000) });
     await sql`update events set updated_at = now() - interval '20 days' where id = 'off-refund'`;
+    // Без стоимости остаток не спросить: проведено + отзыв — закрыто.
+    await event("past-noprice", -50, { held: true, review: "asked" });
+    await sql`update events set price = null where id = 'past-noprice'`;
+    // Перенос: отменено 20 дней назад, предоплата у агентства, клиент остался «Клиентом» — держим 30 дней. Отказ — нет.
+    for (const [id, status] of [["off-moved", "client"], ["off-lost", "lost"]] as const) {
+      await event(id, 72, { cancelled_at: new Date(Date.now() - 20 * 86_400_000) });
+      const c = await upsertClient(sql, { name: `Клиент ${id}`, phone: id === "off-moved" ? "+79990000011" : "+79990000012", source: "event", summary: "Корпоратив", ref: id, promote: true });
+      await sql`update clients set status = ${status} where id = ${c}`;
+      await sql`update events set updated_at = now() - interval '20 days' where id = ${id}`;
+    }
 
     // Клиенты: один связан с мероприятием впереди (не в переговорах), один в работе с расчётом, один новый, один «Клиент».
     const booked = await upsertClient(sql, { name: "Ольга", phone: "+79990000001", source: "event", summary: "Корпоратив", ref: "ahead", promote: true });
@@ -83,6 +93,8 @@ describe.skipIf(!url)("«Активные заказы»: GET /api/orders на P
     await sql`update clients set status = 'client' where id = ${done}`;
     const gone = await upsertClient(sql, { name: "Архив", phone: "+79990000005", source: "site", summary: "Квиз" });
     await sql`update clients set archived_at = now() where id = ${gone}`;
+    // Заявка с сайта без расчёта: «Цена:» в комментарии клиента — не расчёт.
+    await upsertClient(sql, { name: "Глеб", phone: "+79990000006", source: "site", summary: "Телешоу, 20 гостей\nРасчёта нет — попросите прислать\nКомментарий: Цена: 24 900 ₽ устроит?" });
   });
 
   afterAll(async () => {
@@ -101,10 +113,10 @@ describe.skipIf(!url)("«Активные заказы»: GET /api/orders на P
     expect((await get("/api/orders", owner)).statusCode).toBe(200);
   });
 
-  it("мероприятия: впереди, прошедшие незакрытые за 30 дней, отмены за 7 дней и ждущие возврата", async () => {
+  it("мероприятия: впереди, прошедшие незакрытые за 30 дней, отмены за 7 дней, ждущие возврата и перенос за 30 дней", async () => {
     const board = (await get("/api/orders", owner)).json() as { now: number; events: Array<{ id: string }> };
     const ids = board.events.map((e) => e.id).sort();
-    expect(ids).toEqual(["ahead", "off-fresh", "off-refund", "past-held-rest", "past-open"]);
+    expect(ids).toEqual(["ahead", "off-fresh", "off-moved", "off-refund", "past-held-rest", "past-open"]);
     expect(Math.abs(board.now - Date.now())).toBeLessThan(10_000);
   });
 
@@ -120,7 +132,8 @@ describe.skipIf(!url)("«Активные заказы»: GET /api/orders на P
   it("переговоры: «Новый» и «В работе» без мероприятия впереди, без архива; расчёт — последний с ценой", async () => {
     const board = (await get("/api/orders", manager)).json() as { talks: Array<Record<string, unknown>> };
     const names = board.talks.map((t) => t.name).sort();
-    expect(names).toEqual(["Ирина", "Пётр"]);
+    expect(names).toEqual(["Глеб", "Ирина", "Пётр"]);
+    expect(board.talks.find((t) => t.name === "Глеб")).toMatchObject({ calc: "" });
     const irina = board.talks.find((t) => t.name === "Ирина");
     expect(irina).toMatchObject({ status: "work", notes: "Дата: 11.12.2026" });
     expect(String(irina?.calc)).toContain("25 900 ₽");

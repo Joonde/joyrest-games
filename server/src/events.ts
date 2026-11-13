@@ -783,10 +783,13 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const week = new Date(at.getTime() - 7 * 86_400_000);
       const ahead = await sql<Row[]>`${select} where e.cancelled_at is null and e.ends_at > ${at} order by e.starts_at limit ${LIST_MAX}`;
       const past = await sql<Row[]>`${select} where e.cancelled_at is null and e.ends_at <= ${at} and e.ends_at > ${month}
-        and e.held is distinct from false and not (e.held is true and e.rest_paid = 'yes' and e.review <> '')
+        and e.held is distinct from false and not (e.held is true and (e.rest_paid = 'yes' or e.price is null) and e.review <> '')
         order by e.starts_at desc limit ${LIST_MAX}`;
+      // Перенос (клиент остался «Клиентом», предоплата у агентства) держим 30 дней — его надо довести до новой даты.
       const off = await sql<Row[]>`${select} where e.cancelled_at is not null
-        and ((e.refund_at is not null and e.refund_done_at is null) or e.updated_at > ${week})
+        and ((e.refund_at is not null and e.refund_done_at is null) or e.updated_at > ${week}
+          or (e.prepaid_at is not null and e.refund_at is null and e.updated_at > ${month} and exists (select 1 from client_contacts h
+            join clients c on c.id = h.client_id where h.source = 'event' and h.ref = e.id and c.status = 'client' and c.archived_at is null)))
         order by e.updated_at desc limit ${LIST_MAX}`;
       const events = [...ahead, ...past, ...off].map(eventOf);
       type Link = { event_id: string; id: string; status: string; owner_name: string | null; next_step: string; next_at: string | null };
@@ -807,7 +810,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           (select u.name from users u where u.id = c.owner_id and u.active) as owner_name, c.new_since, c.last_contact_at,
           (select min(t.waiting_since) from tg_chats t where t.client_id = c.id) as tg_waiting,
           (select h.summary from client_contacts h where h.client_id = c.id and h.source <> 'status' and h.created_at > ${new Date(at.getTime() - 60 * 86_400_000)}
-             and (h.summary like '%Расчёт%' or h.summary like '%расчёт%' or h.summary like '%Цена:%') order by h.created_at desc limit 1) as calc
+             and h.summary ~ '(🧮|[Рр]асч[её]т JoyRest|✅|[Цц]ена:)' and h.summary !~ '[Рр]асч[её]та нет' order by h.created_at desc limit 1) as calc
         from clients c
         where c.archived_at is null and c.status in ('new', 'work')
           and not exists (select 1 from client_contacts h join events e on e.id = h.ref

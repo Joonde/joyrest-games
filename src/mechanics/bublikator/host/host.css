@@ -189,9 +189,15 @@
 }
 .bkh-stars .seg {
   display: grid;
-  /* 6 кнопок всегда в один ряд (аудит 2d, №9: на 360 px было две строки по три — 10 экипажей не помещались в экран). */
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* На телефоне — две строки по три (каждая кнопка ≥ 44 px: проверка 2d, №8 — в один ряд на 360 px было 33 px); с 440 px —
+     все шесть в ряд (≥ 46 px). */
+  grid-template-columns: repeat(3, minmax(44px, 1fr));
   gap: 4px;
+}
+@media (min-width: 440px) {
+  .bkh-stars .seg {
+    grid-template-columns: repeat(6, minmax(44px, 1fr));
+  }
 }
 .bkh-stars .seg__btn {
   min-height: 44px;

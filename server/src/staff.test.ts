@@ -137,6 +137,8 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
     await playRoomGame("bub-short", 30, 30, 3);
     const rows = await sql<{ session_id: string; points: string }[]>`select session_id, points::text as points from host_points where host_id = ${annaId} and session_id like 'bub-%'`;
     expect(rows).toEqual([{ session_id: "bub-ok", points: "1.0" }]);
+    // Следующая проверка считает сумму баллов Анны — этот балл ей не нужен.
+    await sql`delete from host_points where session_id like 'bub-%'`;
   });
 
   it("баллы видит только владелец; ручные — шаг 0,5 и комментарий", async () => {

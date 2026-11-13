@@ -28,3 +28,10 @@ describe("игры в игровой комнате без своего серв
     expect(selectableMechanics.filter((m) => getMechanic(m.id)?.room).map((m) => m.id)).toEqual(["bublikator"]);
   });
 });
+
+describe("общий финал после игры у самостоятельных игр (решение владельца 13 ноября 2026)", () => {
+  it("«Бубликатор» — с общими делами гостя и «Спасибо» с QR; «Олимп» — свой финал целиком", () => {
+    expect(getMechanic("bublikator")?.standalone?.finale).toBe(true);
+    expect(getMechanic("olymp")?.standalone?.finale).toBeFalsy();
+  });
+});

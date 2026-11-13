@@ -678,7 +678,8 @@ function forgetAnswer(sessionId: string, slot: string): void {
   }
 }
 
-function FinalCard({ session, pid }: { session: Session; pid: string }) {
+/** Итог и дела гостя после игры (экспорт — и для стенда телефона после игры). */
+export function FinalCard({ session, pid }: { session: Session; pid: string }) {
   const place = placeOf(session.leaderboard, pid);
   const own = session.leaderboard[pid];
   // Команда в группе (влита в экипаж «Бубликатора») — имя и место экипажа: «голова» группы (решение владельца 13 ноября 2026).

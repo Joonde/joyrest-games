@@ -63,6 +63,24 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
     expect((await post(`/api/sessions/${id}/finish`, anna, { participantsCount: 999 })).statusCode).toBe(200);
   }
 
+  /** Игра в игровой комнате («Бубликатор»): phones телефонов; rounds — в скольких перелётах пачки каждого дошли до игры. */
+  async function playRoomGame(id: string, phones: number, minutes: number, rounds: number, answered = 0) {
+    expect((await post("/api/sessions", anna, { id, gameTitle: "Бубликатор", mechanic: "bublikator", playMode: "solo" })).statusCode).toBe(200);
+    for (let i = 0; i < phones; i++) {
+      const device = await post("/api/auth/device", "", {});
+      const cookie = cookieOf(device);
+      const uid = device.json().uid as string;
+      expect((await post(`/api/sessions/${id}/participants/${uid}/join`, cookie, { name: `Гость ${i}` })).statusCode).toBe(200);
+      // Так пишет комната (`room_play`): одна строка на телефон и перелёт.
+      for (let unit = 0; unit < rounds; unit++) await sql`insert into room_play (session_id, pid, unit) values (${id}, ${uid}, ${unit}) on conflict do nothing`;
+      // Ответы «шагов» у игры в комнате не в счёт (их там и не бывает).
+      for (let step = 0; step < answered; step++) await sql`insert into answers (session_id, step, pid, uid, value) values (${id}, ${step}, ${uid}, ${uid}, ${sql.json(0)})`;
+    }
+    expect((await post(`/api/sessions/${id}/apply`, anna, { state: { phase: "playing", step: 0, stage: "ready" }, expect: { phase: "lobby" } })).statusCode).toBe(200);
+    clock += minutes * MINUTE;
+    expect((await post(`/api/sessions/${id}/finish`, anna, { participantsCount: 999 })).statusCode).toBe(200);
+  }
+
   beforeAll(async () => {
     await admin.unsafe(`drop schema if exists ${SCHEMA} cascade`);
     await admin.unsafe(`create schema ${SCHEMA}`);
@@ -106,6 +124,19 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
     await post("/api/sessions/ok/finish", anna, {});
     const rows = await sql<{ session_id: string; points: string }[]>`select session_id, points::text as points from host_points where host_id = ${annaId}`;
     expect(rows).toEqual([{ session_id: "ok", points: "1.0" }]);
+  });
+
+  it("баллы за «Бубликатор» (решение владельца 13 ноября 2026): телефон играл хотя бы в 2 перелётах; ответы не в счёт", async () => {
+    // 11 телефонов играли в двух перелётах, 45 минут — балл.
+    await playRoomGame("bub-ok", 11, 45, 2);
+    // 30 телефонов, но каждый — только в одном перелёте: не засчитывается.
+    await playRoomGame("bub-one", 30, 60, 1);
+    // Ответы «вопросов» у игры в комнате не считаются: без перелётов — нет балла.
+    await playRoomGame("bub-answers", 30, 60, 0, 3);
+    // Мало времени.
+    await playRoomGame("bub-short", 30, 30, 3);
+    const rows = await sql<{ session_id: string; points: string }[]>`select session_id, points::text as points from host_points where host_id = ${annaId} and session_id like 'bub-%'`;
+    expect(rows).toEqual([{ session_id: "bub-ok", points: "1.0" }]);
   });
 
   it("баллы видит только владелец; ручные — шаг 0,5 и комментарий", async () => {

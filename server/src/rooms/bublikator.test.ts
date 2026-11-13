@@ -433,6 +433,15 @@ describe("«Бубликатор» в игровой комнате", () => {
     cmd("finish");
     expect(s().phase).toBe("finished");
     expect(legsDone).toEqual([0, 1, 2]);
+    // Баллы ведущему (решение владельца 13 ноября 2026): «телефон играл в перелёте N» — только по пачкам с событиями в полёте
+    // (тренировка, привал, «я на связи» — нет), без повторов; забираются один раз.
+    const marks = r.takePlayed();
+    expect([...new Set(marks.map((m) => m.unit))].sort()).toEqual([0, 1, 2]);
+    expect(new Set(marks.map((m) => `${m.pid}:${m.unit}`)).size).toBe(marks.length);
+    const rounds = new Map<string, number>();
+    for (const m of marks) rounds.set(m.pid, (rounds.get(m.pid) ?? 0) + 1);
+    expect([...rounds.values()].filter((n) => n >= 2).length).toBeGreaterThan(N / 2);
+    expect(r.takePlayed()).toEqual([]);
   });
 
   it("режим платформы — команды (ТЗ): комната в командной сессии работает, команды платформы — экипажи в лобби", () => {

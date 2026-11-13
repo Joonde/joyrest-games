@@ -5,9 +5,13 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
-import { gamePoints, isValidManualPoints, MIN_ANSWERED_STEPS } from "../../src/core/points";
+import { gamePoints, isValidManualPoints, MIN_ANSWERED_STEPS, MIN_PLAYED_ROUNDS } from "../../src/core/points";
 import * as permissions from "../../src/data/permissions";
 import { actorOf, apiGuard, levelOf, sessionUser, type SessionRow } from "./auth";
+import { roomGames } from "./rooms/registry";
+
+/** Механики игровой комнаты (с проверочной `room-check`): баллы — по раундам, а не по ответам. */
+const ROOM_MECHANICS: ReadonlySet<string> = new Set(roomGames({ check: true }).keys());
 
 export interface StaffOptions {
   sql: Sql;
@@ -20,24 +24,33 @@ const REASON_MAX = 200;
 const HISTORY_LIMIT = 200;
 
 /**
- * Баллы за завершённую игру: не меньше 40 минут от «Начать игру» и больше 10 телефонов
- * (участники-игроки по данным сервера, ответившие хотя бы на 3 вопроса). Одна запись на сессию — повтор ничего не добавит.
- * Возвращает начисленные баллы (0 — игра не засчитана).
+ * Баллы за завершённую игру: не меньше 40 минут от «Начать игру» и больше 10 телефонов (участники-игроки по данным сервера).
+ * Телефон засчитывается, если играл: в играх шагами — ответил хотя бы на 3 вопроса (сам или его команда); в играх игровой
+ * комнаты (`roomMechanics`: «Бубликатор») — его пачки с событиями дошли до игры хотя бы в 2 разных раундах (`room_play`).
+ * Одна запись на сессию — повтор ничего не добавит. Возвращает начисленные баллы (0 — игра не засчитана).
  */
-export async function awardGamePoints(sql: Sql, sessionId: string, now: number): Promise<number> {
-  const [session] = await sql<{ host_id: string; game_title: string; started_at: Date | null }[]>`
-    select host_id, game_title, started_at from sessions where id = ${sessionId}`;
+export async function awardGamePoints(sql: Sql, sessionId: string, now: number, roomMechanics: ReadonlySet<string> = ROOM_MECHANICS): Promise<number> {
+  const [session] = await sql<{ host_id: string; game_title: string; started_at: Date | null; mechanic: string | null }[]>`
+    select host_id, game_title, started_at, mechanic from sessions where id = ${sessionId}`;
   if (!session?.started_at) return 0;
-  // Телефон считается, если он сам (или его команда — отвечает капитан) ответил на MIN_ANSWERED_STEPS
-  // вопросов: пустые подключения скриптом баллы не дают.
-  const [row] = await sql<{ count: number }[]>`
-    with active as (
-      select pid from answers where session_id = ${sessionId}
-      group by pid having count(distinct step) >= ${MIN_ANSWERED_STEPS}
-    )
-    select count(*)::int as count from participants p
-    where p.session_id = ${sessionId} and p.kind = 'player'
-      and (p.id in (select pid from active) or p.team_id in (select pid from active))`;
+  const room = session.mechanic !== null && roomMechanics.has(session.mechanic);
+  // Пустые подключения скриптом баллы не дают: телефон должен был играть.
+  const [row] = room
+    ? await sql<{ count: number }[]>`
+        with played as (
+          select pid from room_play where session_id = ${sessionId}
+          group by pid having count(distinct unit) >= ${MIN_PLAYED_ROUNDS}
+        )
+        select count(*)::int as count from participants p
+        where p.session_id = ${sessionId} and p.kind = 'player' and p.id in (select pid from played)`
+    : await sql<{ count: number }[]>`
+        with active as (
+          select pid from answers where session_id = ${sessionId}
+          group by pid having count(distinct step) >= ${MIN_ANSWERED_STEPS}
+        )
+        select count(*)::int as count from participants p
+        where p.session_id = ${sessionId} and p.kind = 'player'
+          and (p.id in (select pid from active) or p.team_id in (select pid from active))`;
   const phones = row?.count ?? 0;
   const minutes = Math.floor((now - session.started_at.getTime()) / 60_000);
   const points = gamePoints(phones, minutes);

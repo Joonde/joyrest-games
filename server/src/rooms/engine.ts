@@ -108,6 +108,11 @@ export interface RoomGame<S> {
   /** Пауза кончилась: `pausedMs` — сколько стояли (сдвинуть свои назначенные моменты). */
   onResume?(state: S, pausedMs: number, ctx: RoomContext): void;
   onJoin?(state: S, player: RoomPlayer, ctx: RoomContext): void;
+  /**
+   * Раунд игры для баллов ведущему (`room_play`): пачка с событиями, дошедшая до игры в этом раунде, отмечает телефон
+   * «играл в раунде N». null — сейчас не раунд (лобби, тренировка, привал). Нет метода — игра баллов по раундам не считает.
+   */
+  playUnit?(state: S): number | null;
   screen(state: S, view: RoomView): unknown;
   personal(state: S, pid: string, view: RoomView): unknown;
   host(state: S, view: RoomView): unknown;
@@ -399,6 +404,9 @@ export class Room {
    * забытая на 12 часов комната закрывается (`abandoned`), и переподключение экрана её не продлевает.
    */
   activeAt: number;
+  /** «Телефон играл в раунде» (`playUnit`): ещё не записанные в базу и все уже отмеченные (без повторов). */
+  private playedNew: Array<{ pid: string; unit: number }> = [];
+  private playedSeen = new Set<string>();
   /** Номер изменения, записанный в последний снимок. */
   savedVersion = -1;
   /** Ждёт контрольная точка (запись снимка вне очереди 10 с). */
@@ -675,6 +683,8 @@ export class Room {
       newestAt: window.newestArrival(),
     });
     const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now, maxAgo, delayed));
+    // Раунд — на момент прихода пачки (до того, как игра её обработала).
+    const unit = this.game.playUnit?.(this.state) ?? null;
     let failed = false;
     try {
       this.game.onInput(this.state, { pid: player.pid, name: player.name, team: player.team }, events, this.context(now));
@@ -685,8 +695,28 @@ export class Room {
     // Номер учтён и при ошибке игры: повтор той же пачки упал бы так же; события — в `dropped`, телефон узнает.
     window.commit(input.seq, now);
     if (failed) return { ...reply, dropped: input.events.length };
+    if (unit !== null) this.markPlayed(player.pid, unit);
     this.activity(now);
     return { ...reply, dropped, active: true };
+  }
+
+  private markPlayed(pid: string, unit: number): void {
+    const key = `${pid}:${unit}`;
+    if (this.playedSeen.has(key)) return;
+    this.playedSeen.add(key);
+    this.playedNew.push({ pid, unit });
+  }
+
+  /** Новые отметки «играл в раунде» для базы (`room_play`); забираются один раз. Не записались — `returnPlayed`. */
+  takePlayed(): Array<{ pid: string; unit: number }> {
+    const out = this.playedNew;
+    this.playedNew = [];
+    return out;
+  }
+
+  /** Запись не удалась — отметки вернутся к следующей попытке. */
+  returnPlayed(marks: Array<{ pid: string; unit: number }>): void {
+    this.playedNew.push(...marks);
   }
 
   /** Действие пульта по сессии (запись состояния, смена фазы): игра жива — комната не «забытая». Активностью для выкладки не считается (пульт сам обновляет `updated_at`). */

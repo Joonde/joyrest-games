@@ -33,6 +33,9 @@ export const bublikator: RoomGame<BubState> = {
     return outcome;
   },
   moment: (state) => moment(state),
+  // Баллы ведущему: телефон «играл в перелёте N», если его пачка с событиями дошла до игры в полёте (решение владельца
+  // 13 ноября 2026; тренировка, взлёт, привал и голосование — не перелёт).
+  playUnit: (state) => (state.phase === "leg" && state.leg?.stage === "fly" ? state.legIndex : null),
   tick(state, ctx) {
     tick(state, ctx);
     flushPersonal(state, ctx);

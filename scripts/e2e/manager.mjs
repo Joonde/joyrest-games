@@ -16,6 +16,9 @@
 //  8. «По цвету»: порядок «сначала срочное», фильтр по цвету, счётчики; «Рабочее место» показывает, что требует внимания.
 //  9. Вставка расчёта прямо в новую форму: заполняет только пустые поля; «Создать похожее»; права менеджера и ведущего.
 // 12. Владелец: «Мои контакты» → «Таблица Excel» — шаблон на странице и файлом, своя таблица CSV, клиент без номера, повтор.
+// 13. «Активные заказы» (13 ноября 2026): заказы на все случаи → группы, шаги, суммы; владелец — таблица с «Агентству»,
+//     менеджер — карточки без неё, ведущему — 403; из карточки клиента «← Активные заказы» возвращает обратно.
+//     E2E_ONLY=orders — только этот раздел (~3 минуты).
 // Снимки каждого шага — в E2E_SHOTS (workflow кладёт их в ветку e2e-shots, папка manager/). Всё созданное — убирается.
 import { createServer } from "node:http";
 import { appendFileSync, mkdirSync, readFileSync, existsSync, statSync } from "node:fs";
@@ -32,6 +35,7 @@ const SHOTS = process.env.E2E_SHOTS ?? "manager-shots";
 const SALES_EMAIL = "sales-check@joy-rest.ru";
 const WAIT = 20_000;
 const TAG = "Проверка Менеджер";
+const ONLY = (process.env.E2E_ONLY ?? "all").trim();
 
 const report = [];
 const problems = [];
@@ -292,6 +296,98 @@ async function apiEvent(cookie, id) {
   return ((await api("GET", `/api/events?from=${from}&to=${to}`, cookie)).data?.events ?? []).find((e) => e.id === id) ?? null;
 }
 
+// ================= 13. «Активные заказы» =================
+async function ordersSection() {
+  section("13. «Активные заказы»: группы, шаги, деньги, права, возврат из карточки");
+  const n = Date.now() % 100000;
+  const t = String(n).padStart(5, "0");
+  const who = admin.profile.uid;
+  const prog = { formats: ["Квиз"], extension: "", addons: [], duration: "" };
+  const mkOrder = async (key, day, start, end, extra = {}) => {
+    const body = { id: `e2eord${"abcdef"["АБВГДЕ".indexOf(key)]}${n}`, hostId: who, day, start, end, title: `Заказ ${key}, проверка менеджера`, clientName: `Заказ ${key} ${TAG}`, clientPhone: "", clientContact: "call", place: "Москва, Тверская 1", guests: 30, note: "", program: prog, price: 29900, prepaid: true, ...extra };
+    const r = await api("POST", "/api/events", sales.cookie, body);
+    if (r.status !== 200) bad(`Заказ ${key}: не записан — ${r.status} ${JSON.stringify(r.data).slice(0, 160)}`);
+    return body.id;
+  };
+  const soonSlot = slot(20 * 3_600_000, 60);
+  const ids = {
+    А: await mkOrder("А", addDays(TODAY, 30), 720, 840),
+    Б: await mkOrder("Б", soonSlot.day, soonSlot.start, soonSlot.end),
+    В: await mkOrder("В", addDays(TODAY, -2), 600, 660),
+    Г: await mkOrder("Г", addDays(TODAY, -2), 720, 780),
+    Д: await mkOrder("Д", addDays(TODAY, 21), 720, 840),
+    Е: await mkOrder("Е", addDays(TODAY, 22), 720, 840, { clientPhone: `+7 916 3${t.slice(0, 2)}-${t.slice(2, 4)}-${t.slice(4)}1` }),
+  };
+  check((await api("POST", `/api/events/${ids.Г}/held`, sales.cookie, { held: true })).status === 200, "Заказ Г: отмечено «Проведено»");
+  check((await api("POST", `/api/events/${ids.Д}/refund`, sales.cookie, {})).status === 200, "Заказ Д: «Вернуть предоплату» — закрыт с возвратом");
+  check((await api("POST", `/api/events/${ids.Е}/cancel`, sales.cookie, {})).status === 200, "Заказ Е: отменён как перенос (клиент остаётся «Клиент»)");
+  const talkId = `e2eordtalk${n}`;
+  const talk = await api("POST", "/api/clients", sales.cookie, { id: talkId, name: `Заказ Ж ${TAG}`, phone: `+7 916 4${t.slice(0, 2)}-${t.slice(2, 4)}-${t.slice(4)}2`, links: [], status: "work", marketing: "unknown", notes: `Дата: ${addDays(TODAY, 40).split("-").reverse().join(".")}\nГостей: 25\nПрограмма: Квиз\n✅ Опытный: 25 900 ₽ — выбран` });
+  check(talk.status === 200, "Заказ Ж: клиент «В работе» с расчётом в заметке", `Клиент: ${talk.status} ${JSON.stringify(talk.data).slice(0, 160)}`);
+
+  // API: права и наборы.
+  check((await api("GET", "/api/orders", host.cookie)).status === 403, "API: ведущему «Активные заказы» не отдаются (403)");
+  const board = (await api("GET", "/api/orders", sales.cookie)).data ?? {};
+  const got = new Set((board.events ?? []).map((e) => e.id));
+  check(Object.values(ids).every((id) => got.has(id)), "API: все шесть заказов на странице (впереди, прошли, отказ с возвратом, перенос)", `API: нет ${Object.entries(ids).filter(([, id]) => !got.has(id)).map(([k]) => k).join(", ")}`);
+  const moved = (board.events ?? []).find((e) => e.id === ids.Е);
+  check(moved?.clientStatus === "client" && typeof moved?.cancelledAt === "number", "API: перенос — клиент «Клиент», есть дата отмены", `API: ${JSON.stringify(moved ? { clientStatus: moved.clientStatus, cancelledAt: moved.cancelledAt } : null)}`);
+  check((board.talks ?? []).some((c) => c.id === talkId), "API: клиент «В работе» без брони — в «Переговорах»");
+  check(!JSON.stringify(board).includes("agency"), "API: в ответе нет доли агентства — её считает только экран владельца");
+
+  // Владелец — компьютер: таблица.
+  const op = await newPage(browser, admin.token, "Владелец · заказы");
+  await op.setViewportSize({ width: 1366, height: 900 });
+  await op.goto(`${BASE}/studio/clients?tab=orders`);
+  await until(async () => (await op.locator('[role="table"]').count()) > 0, WAIT, "таблица заказов");
+  await op.getByRole("combobox", { name: "Поиск" }).fill(TAG);
+  const rowOf = (key) => op.locator('[role="row"].orders-line', { hasText: `Заказ ${key} ${TAG}` });
+  await until(async () => (await rowOf("Ж").count()) > 0, WAIT, "строки проверки");
+  const text = async (loc) => ((await loc.count()) ? ((await loc.first().textContent()) ?? "") : "").replace(/\s+/g, " ");
+  const expectRow = async (key, parts, what) => {
+    const s = await text(rowOf(key));
+    check(parts.every((x) => s.includes(x)), `Таблица, заказ ${key}: ${what}`, `Таблица, заказ ${key}: нет «${parts.filter((x) => !s.includes(x)).join("», «")}» — «${s.slice(0, 260)}»`);
+  };
+  await expectRow("А", ["29 900 ₽", "Ждёт ведущего", "Напоминание придёт за 3 дня"], "29 900 ₽, «Ждёт ведущего», спокойный шаг");
+  await expectRow("Б", ["Не подтвердил", "Позвонить ведущему сегодня"], "меньше суток — «Позвонить ведущему сегодня»");
+  await expectRow("В", ["Не отмечено", "Узнать у ведущего, как прошло"], "прошло без отметки");
+  await expectRow("Г", ["Проведено", "Остаток: уточнить у ведущего"], "проведено — уточнить остаток");
+  await expectRow("Д", ["Вернуть 2 000 ₽", "отказ"], "отказ — вернуть 2 000 ₽");
+  await expectRow("Е", ["Перенос", "Согласовать новую дату"], "перенос — согласовать новую дату");
+  await expectRow("Ж", ["≈ 25 900 ₽", "Договориться о брони"], "переговоры — цена из расчёта и шаг");
+  const head = await text(op.locator('[role="table"]'));
+  check(head.includes("Агентству"), "Владелец: колонка «Агентству» есть");
+  check(((await op.locator(".orders-sum").textContent()) ?? "").includes("Агентству"), "Владелец: плитка «Агентству» есть");
+  const order = await op.locator('[role="row"].orders-line').evaluateAll((els) => els.map((e) => (e.textContent ?? "").match(/Заказ (.) /)?.[1] ?? ""));
+  const at = (k) => order.indexOf(k);
+  check(at("Б") < at("А") && at("А") < at("Ж") && at("Ж") < at("В") && at("Г") < at("Д") && at("Д") < at("Е"), "Порядок групп: Забронированы → Переговоры → Прошли → Отменены (ждущий возврата — выше переноса)", `Порядок: ${order.join(" ")}`);
+  await shot(op, "заказы-владелец-таблица");
+  await op.getByRole("group", { name: "Какие заказы" }).getByRole("button", { name: /Требуют внимания/ }).click();
+  const alertRows = await op.locator('[role="row"].orders-line').evaluateAll((els) => els.map((e) => (e.textContent ?? "").match(/Заказ (.) /)?.[1] ?? ""));
+  check(!alertRows.includes("А") && !alertRows.includes("Ж") && ["Б", "В", "Г", "Д", "Е"].every((k) => alertRows.includes(k)), "Фильтр «Требуют внимания»: Б, В, Г, Д, Е — да; А и Ж — нет", `Фильтр: ${alertRows.join(" ")}`);
+  await shot(op, "заказы-требуют-внимания");
+
+  // Менеджер — телефон: карточки без «Агентству», переход в карточку клиента и назад.
+  const sp = await newPage(browser, sales.token, "Менеджер · заказы");
+  await sp.goto(`${BASE}/studio/clients?tab=orders`);
+  await until(async () => (await sp.locator(".orders-cards").count()) > 0, WAIT, "карточки заказов");
+  await sp.getByRole("combobox", { name: "Поиск" }).fill(TAG);
+  await until(async () => (await sp.locator(".orders-card", { hasText: `Заказ Ж ${TAG}` }).count()) > 0, WAIT, "карточки проверки");
+  const main = ((await sp.locator("main").textContent()) ?? "").replace(/\s+/g, " ");
+  check(!main.includes("Агентству"), "Менеджер: «Агентству» нигде нет — ни в плитках, ни в карточках");
+  check((await sp.locator(".orders-card", { hasText: TAG }).count()) >= 7, "Менеджер: на телефоне — карточки всех семи заказов");
+  await shot(sp, "заказы-менеджер-телефон");
+  await sp.locator(".orders-card", { hasText: `Заказ Ж ${TAG}` }).click();
+  await until(async () => sp.url().includes("from=orders"), WAIT, "карточка клиента");
+  const backBtn = sp.getByRole("button", { name: "← Активные заказы" });
+  check(await soft(async () => (await backBtn.count()) > 0, WAIT, "кнопка назад"), "Карточка клиента из заказов: кнопка «← Активные заказы»");
+  await shot(sp, "заказы-карточка-клиента");
+  await backBtn.click();
+  check(await soft(async () => sp.url().includes("tab=orders") && (await sp.locator(".orders-card").count()) > 0, 1500, "сразу назад"), "«← Активные заказы» возвращает на вкладку, карточки видны сразу (без загрузки)");
+  await sp.setViewportSize({ width: 360, height: 780 });
+  await shot(sp, "заказы-менеджер-360");
+}
+
 const liveSessions = [];
 let admin;
 let host;
@@ -305,6 +401,9 @@ try {
   sales = await salesManager(admin);
   const hostName = host.profile?.name ?? "";
   say(`ℹ️ Менеджер: ${SALES_EMAIL} (роль «Менеджер по продажам»), ведущий: ${hostName}, праздник клиента: ${D_EVENT}`);
+
+  full: {
+  if (ONLY === "orders") break full;
 
   // «Сверх плана» ждёт, пока пройдёт «до» (кратно 15 минутам), — заводим его в начале, проверяем в конце.
   const overSlot = (() => {
@@ -925,6 +1024,9 @@ try {
   check(twin.status === 409, "API: тот же ник другим регистром — 409, двойник не создаётся", `API: ${twin.status}`);
   await ap.setViewportSize({ width: 360, height: 780 });
   await shot(ap, "excel-360");
+  } // full
+
+  await ordersSection();
 } catch (e) {
   bad(`Проверка остановилась: ${String(e?.message ?? e).slice(0, 300)}`);
   for (const [who, page] of pages) await shot(page, `ошибка-${who}`).catch(() => undefined);

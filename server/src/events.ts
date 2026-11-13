@@ -11,6 +11,7 @@ import type { Sql } from "postgres";
 import { bookingId, bookingNote, contactLinks, eventLink, eventSpan, parseContact, parseEventInput, type EventInput } from "../../src/core/events";
 import { PREPAY_RUB, prepaidOwnerText, refundOpen, refundOwnerText, rub } from "../../src/core/prepay";
 import { cleanProgram, sameProgram } from "../../src/core/eventProgram";
+import { talkPrice } from "../../src/core/orders";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
 import { addDays, availabilityOf, dayTitle, rangeLabel } from "../../src/core/calendar";
@@ -770,6 +771,99 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         await logEvent(sql, id, user.name, amount === null ? "Снял(а) отметку о продлении" : amount === 0 ? "Продления не было" : `Доплата за продление получена: ${rub(amount)}`);
       }
       return (await one(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // «Активные заказы» (решение владельца 12–13 ноября 2026; логика — docs/active-orders.md): владельцу и менеджеру по продажам
+    // одним ответом — мероприятия впереди, прошедшие незакрытые (30 дней), отменённые (7 дней и все ждущие возврата) с клиентом
+    // из истории, и клиенты в переговорах («Новый», «В работе» без мероприятия впереди).
+    api.get("/api/orders", async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canManageClients(actorOf(u)));
+      if (!user) return reply;
+      const at = new Date(now());
+      const month = new Date(at.getTime() - 30 * 86_400_000);
+      const week = new Date(at.getTime() - 7 * 86_400_000);
+      const ahead = await sql<Row[]>`${select} where e.cancelled_at is null and e.ends_at > ${at} order by e.starts_at limit ${LIST_MAX}`;
+      const past = await sql<Row[]>`${select} where e.cancelled_at is null and e.ends_at <= ${at} and e.ends_at > ${month}
+        and e.held is distinct from false and not (e.held is true and (e.rest_paid = 'yes' or e.price is null or e.prepaid_at is null) and e.review <> '')
+        order by e.starts_at desc limit ${LIST_MAX}`;
+      // Окна отмен — от `cancelled_at` (поздние правки отменённого их не продлевают). Перенос (клиент остался «Клиентом»,
+      // предоплата у агентства, новой брони ещё нет) держим 30 дней — его надо довести до новой даты.
+      const off = await sql<Row[]>`${select} where e.cancelled_at is not null
+        and ((e.refund_at is not null and e.refund_done_at is null) or e.cancelled_at > ${week}
+          or (e.prepaid_at is not null and e.refund_at is null and e.cancelled_at > ${month} and exists (select 1 from client_contacts h
+            join clients c on c.id = h.client_id where h.source = 'event' and h.ref = e.id and c.status = 'client' and c.archived_at is null
+              and not exists (select 1 from client_contacts h2 join events e2 on e2.id = h2.ref where h2.client_id = c.id
+                and h2.source = 'event' and e2.cancelled_at is null and e2.ends_at > ${at}))))
+        order by e.cancelled_at desc limit ${LIST_MAX}`;
+      const events = [...ahead, ...past, ...off].map(eventOf);
+      const ids = events.map((e) => e.id);
+      const cancelledAt = new Map(
+        ids.length
+          ? (await sql<{ id: string; cancelled_at: Date }[]>`select id, cancelled_at from events where id in ${sql(ids)} and cancelled_at is not null`).map(
+              (r) => [r.id, r.cancelled_at.getTime()] as const,
+            )
+          : [],
+      );
+      type Link = {
+        event_id: string; id: string; status: string; owner_name: string | null; next_step: string; next_at: string | null; ahead: boolean; archived: boolean;
+      };
+      const links = ids.length
+        ? await sql<Link[]>`
+            select h.ref as event_id, c.id, c.status, c.next_step, to_char(c.next_at, 'YYYY-MM-DD') as next_at, (c.archived_at is not null) as archived,
+              (select u.name from users u where u.id = c.owner_id and u.active) as owner_name,
+              exists (select 1 from client_contacts h2 join events e2 on e2.id = h2.ref where h2.client_id = c.id and h2.source = 'event'
+                and h2.ref <> h.ref and e2.cancelled_at is null and e2.ends_at > ${at}) as ahead
+            from client_contacts h join clients c on c.id = h.client_id
+            where h.source = 'event' and h.ref in ${sql(ids)}`
+        : [];
+      const byEvent = new Map(links.map((l) => [l.event_id, l]));
+      type Talk = {
+        id: string; name: string; phone: string; status: string; notes: string; origin: string | null; next_step: string; next_at: string | null;
+        owner_name: string | null; new_since: Date | null; last_contact_at: Date; tg_waiting: Date | null; calcs: string[] | null;
+      };
+      const talks = await sql<Talk[]>`
+        select c.id, c.name, c.phone, c.status, c.notes, c.origin, c.next_step, to_char(c.next_at, 'YYYY-MM-DD') as next_at,
+          (select u.name from users u where u.id = c.owner_id and u.active) as owner_name, c.new_since, c.last_contact_at,
+          (select min(t.waiting_since) from tg_chats t where t.client_id = c.id) as tg_waiting,
+          array(select h.summary from client_contacts h where h.client_id = c.id and h.source <> 'status' and h.created_at > ${new Date(at.getTime() - 60 * 86_400_000)}
+             and h.summary ~ '(🧮|[Рр]асч[её]т JoyRest|✅|[Цц]ена:)' and h.summary !~ '[Рр]асч[её]та нет' order by h.created_at desc limit 5) as calcs
+        from clients c
+        where c.archived_at is null and c.status in ('new', 'work')
+          and not exists (select 1 from client_contacts h join events e on e.id = h.ref
+            where h.client_id = c.id and h.source = 'event' and e.cancelled_at is null and e.ends_at > ${at})
+        order by c.last_contact_at desc limit ${LIST_MAX}`;
+      reply.header("Cache-Control", "no-store");
+      return {
+        now: at.getTime(),
+        events: events.map((e) => {
+          const l = byEvent.get(e.id);
+          const at2 = cancelledAt.get(e.id);
+          const base = at2 === undefined ? e : { ...e, cancelledAt: at2 };
+          return l
+            ? {
+                ...base, clientId: l.id, clientStatus: l.status, ...(l.owner_name ? { clientOwnerName: l.owner_name } : {}),
+                ...(l.next_step ? { nextStep: l.next_step } : {}), ...(l.next_at ? { nextAt: l.next_at } : {}),
+                ...(l.ahead ? { clientAhead: true } : {}), ...(l.archived ? { clientArchived: true } : {}),
+              }
+            : base;
+        }),
+        talks: talks.map((t) => ({
+          id: t.id,
+          name: t.name,
+          phone: t.phone,
+          status: t.status === "work" ? "work" : "new",
+          ownerName: t.owner_name ?? "",
+          nextStep: t.next_step ?? "",
+          nextAt: t.next_at ?? "",
+          notes: t.notes ?? "",
+          // Расчёт — последний, из которого читается цена; нет такого — просто последний (подпись «по расчёту»).
+          calc: (t.calcs ?? []).find((c) => talkPrice(c) !== null) ?? t.calcs?.[0] ?? "",
+          origin: t.origin ?? "",
+          newSince: t.new_since ? t.new_since.getTime() : null,
+          tgWaitingSince: t.tg_waiting ? t.tg_waiting.getTime() : null,
+          lastContactAt: t.last_contact_at.getTime(),
+        })),
+      };
     });
 
     // История мероприятия — владельцу, менеджеру и ведущему этого мероприятия.

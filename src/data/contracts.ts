@@ -15,6 +15,7 @@ import type {
   CalendarMember,
   AgencyEvent,
   EventLogLine,
+  OrdersBoard,
   ClientDetails,
   OutreachMark,
   ClientResponse,
@@ -330,6 +331,8 @@ export interface EventsRepository {
   overtime(id: string, amount: number | null): Promise<AgencyEvent>;
   /** История мероприятия: кто и когда что сделал, новые сверху. */
   log(id: string): Promise<EventLogLine[]>;
+  /** «Активные заказы» (владелец и менеджер по продажам): мероприятия и клиенты в переговорах одним ответом. */
+  orders(): Promise<OrdersBoard>;
   /** «Вернуть предоплату»: клиент отказался не позже чем за 48 часов — мероприятие закрыто, владельцу — вернуть 2 000 ₽. */
   refund(id: string): Promise<AgencyEvent>;
   /** «Отметить: вернул» — владелец вернул предоплату клиенту. */

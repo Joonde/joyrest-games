@@ -804,6 +804,51 @@ export interface EventLogLine {
   text: string;
 }
 
+/**
+ * «Активные заказы» (решение владельца 12–13 ноября 2026, логика — docs/active-orders.md): мероприятие с клиентом из
+ * истории (`client_contacts`, `source = event`). Нет записи истории — поля клиента пустые.
+ */
+export interface OrderEvent extends AgencyEvent {
+  clientId?: string;
+  clientStatus?: ClientRecord["status"];
+  /** Кто ведёт клиента (только активный человек). */
+  clientOwnerName?: string;
+  nextStep?: string;
+  nextAt?: string;
+  /** У клиента есть другое мероприятие впереди (перенос уже записан). */
+  clientAhead?: boolean;
+  /** Клиент в архиве. */
+  clientArchived?: boolean;
+  /** Когда отменили (`cancelled_at`), мс. */
+  cancelledAt?: number;
+}
+
+/** Клиент в переговорах: «Новый» или «В работе», мероприятия впереди нет. */
+export interface OrderTalk {
+  id: string;
+  name: string;
+  phone: string;
+  status: "new" | "work";
+  ownerName: string;
+  nextStep: string;
+  nextAt: string;
+  /** Анкета «Что хочет клиент» (строки «Дата: …», «Гостей: …», «Программа: …»). */
+  notes: string;
+  /** Текст последнего обращения с расчётом (≤ 60 дней), пусто — нет. */
+  calc: string;
+  origin: string;
+  newSince: number | null;
+  tgWaitingSince: number | null;
+  lastContactAt: number;
+}
+
+/** Ответ `GET /api/orders`: время сервера и строки страницы. */
+export interface OrdersBoard {
+  now: number;
+  events: OrderEvent[];
+  talks: OrderTalk[];
+}
+
 /** «Данные по номеру»: всё, что есть в базе по телефону, нику или почте человека (только владелец). */
 /** Уведомление колокольчика студии: новое обращение клиента или клиент ждёт ответа в Telegram. */
 export interface Notice {

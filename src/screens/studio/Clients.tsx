@@ -63,6 +63,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { Tabs } from "../../components/Tabs";
 import { TopBar } from "../../components/TopBar";
 import { ContactsTab } from "./ContactsTab";
+import { OrdersTab } from "./OrdersTab";
 import { brand } from "../../themes/brand";
 import { newId, Pill, useLastReady } from "./calendarParts";
 import { studioActions } from "./Studio";
@@ -186,26 +187,32 @@ export function Clients() {
   );
 }
 
-/** Вкладки «Клиентов»: база и (только владельцу) «Мои контакты» — прежние клиенты из контактов телефона. */
+/**
+ * Вкладки «Клиентов»: база, «Активные заказы» (владелец и менеджер, 13 ноября 2026 — docs/active-orders.md) и (только
+ * владельцу) «Мои контакты» — прежние клиенты из контактов телефона.
+ */
+type ClientsTab = "base" | "orders" | "contacts";
 function ClientsTabs({ profile }: { profile: UserProfile }) {
   const [params, setParams] = useSearchParams();
   const own = permissions.canExportClients(profile);
-  const tab = own && params.get("tab") === "contacts" ? "contacts" : "base";
-  if (!own) return <ClientBase profile={profile} />;
+  const asked = params.get("tab");
+  // Колокольчик открывает одного клиента (?id=) — это база.
+  const tab: ClientsTab = params.get("id") ? "base" : asked === "orders" ? "orders" : own && asked === "contacts" ? "contacts" : "base";
   return (
     <>
-      <Tabs
+      <Tabs<ClientsTab>
         idPrefix="clients"
         label="Клиенты"
         value={tab}
-        onChange={(next) => setParams(next === "contacts" ? { tab: "contacts" } : {}, { replace: true })}
+        onChange={(next) => setParams(next === "base" ? {} : { tab: next }, { replace: true })}
         items={[
           { id: "base", label: "База клиентов" },
-          { id: "contacts", label: "Мои контакты" },
+          { id: "orders", label: "Активные заказы" },
+          ...(own ? [{ id: "contacts" as const, label: "Мои контакты" }] : []),
         ]}
       />
       <div id={`clients-panel-${tab}`} role="tabpanel" className="stack">
-        {tab === "contacts" ? <ContactsTab /> : <ClientBase profile={profile} />}
+        {tab === "contacts" ? <ContactsTab /> : tab === "orders" ? <OrdersTab profile={profile} /> : <ClientBase profile={profile} />}
       </div>
     </>
   );
@@ -416,10 +423,15 @@ function ClientBase({ profile }: { profile: UserProfile }) {
               onClick={() => {
                 const next = new URLSearchParams(params);
                 next.delete("id");
+                // Пришли из «Активных заказов» — туда и возвращаемся.
+                if (next.get("from") === "orders") {
+                  next.delete("from");
+                  next.set("tab", "orders");
+                }
                 setParams(next, { replace: true });
               }}
             >
-              ← Все клиенты
+              {params.get("from") === "orders" ? "← Активные заказы" : "← Все клиенты"}
             </button>
           ) : (
             <p className="small muted" aria-live="polite">

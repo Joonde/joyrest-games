@@ -34,3 +34,10 @@ export const MECHANICS = {
 export const SKIPPED = {
   bublikator: "игровая комната быстрого канала — свои стенды bublikator-phone/-screen/-host",
 };
+
+/** Строки журнала о пропущенных играх: все (без выбора игр) или только выбранные (`only` — список из поля «games»). */
+export function skippedLines(only) {
+  return Object.entries(SKIPPED)
+    .filter(([m]) => !only || only.includes(m))
+    .map(([m, why]) => `Пропуск: ${m} — ${why}`);
+}

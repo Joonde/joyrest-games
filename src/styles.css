@@ -26496,14 +26496,14 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .orders-table {
-  --orders-cols: 104px minmax(150px, 1.5fr) 104px 124px 112px 108px 96px 100px 100px 100px minmax(132px, 1.2fr);
+  --orders-cols: 104px minmax(142px, 1.5fr) 104px 124px 112px 108px 112px 100px 100px 100px minmax(124px, 1.2fr);
   display: grid;
   gap: 0;
   min-width: 1318px;
 }
 
 .orders-table--no-agency {
-  --orders-cols: 104px minmax(150px, 1.5fr) 104px 124px 112px 108px 96px 100px 100px minmax(132px, 1.2fr);
+  --orders-cols: 104px minmax(142px, 1.5fr) 104px 124px 112px 108px 112px 100px 100px minmax(124px, 1.2fr);
   min-width: 1210px;
 }
 
@@ -26578,6 +26578,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 /* Имя ведущего — помельче и целым словом («Администратор» помещается в колонку). */
 .orders-line > [role="cell"].orders-host {
   font-size: 14px;
+  overflow-wrap: normal;
+}
+
+/* Суммы целиком (в «Итого» помещается «≈ 25 900 ₽»). */
+.orders-line > [role="cell"] > b,
+.orders-line .orders-money > b {
   overflow-wrap: normal;
 }
 

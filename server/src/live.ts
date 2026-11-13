@@ -100,6 +100,7 @@ export const DEVICES_CHANNEL = "devices";
 /** Подписчики по каналам: session:<id>, participants:<id>, answers:<id>. Один процесс app. */
 export class Hub {
   private readonly channels = new Map<string, Set<Listener>>();
+  private readonly flushers = new Set<(sessionId: string) => Promise<void>>();
 
   subscribe(channel: string, listener: Listener): () => void {
     let set = this.channels.get(channel);
@@ -125,6 +126,19 @@ export class Hub {
 
   count(channel: string): number {
     return this.channels.get(channel)?.size ?? 0;
+  }
+
+  /**
+   * Перед итогами игры («Завершить игру»): дописать в базу то, что ещё в памяти (игровые комнаты — отметки «играл в раунде»,
+   * `room_play`). Иначе баллы ведущему считались бы без последних отметок (проверка 2d, №3).
+   */
+  onFlush(flusher: (sessionId: string) => Promise<void>): () => void {
+    this.flushers.add(flusher);
+    return () => this.flushers.delete(flusher);
+  }
+
+  async flush(sessionId: string): Promise<void> {
+    await Promise.all([...this.flushers].map((f) => f(sessionId).catch(() => undefined)));
   }
 }
 
@@ -990,6 +1004,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (row && !(wasLobby && Object.keys(normalizeBoard(row.leaderboard)).length === 0)) {
         await saveResult(sql, row, participantsCount, true, now());
         const end = Math.min(now(), (last?.updated_at.getTime() ?? now()) + 15 * 60_000);
+        // Игровая комната дописывает последние отметки «играл в раунде» до подсчёта баллов.
+        await hub.flush(row.id);
         await awardGamePoints(sql, row.id, end);
       }
       return { ok: true };

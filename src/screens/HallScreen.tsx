@@ -41,7 +41,7 @@ import { QrCode } from "../components/QrCode";
 import { ScreenSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { joinHint, playUrl } from "../components/links";
-import { getMechanic } from "../mechanics/registry";
+import { finaleSlides, getMechanic } from "../mechanics/registry";
 import { getTheme, teamColorVar, useTheme } from "../themes/registry";
 
 export function HallScreen() {
@@ -242,7 +242,7 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   const slide = session.state.slide ?? null;
   const standalone = Boolean(mechanic?.standalone);
   // Самостоятельная игра с общим финалом («Бубликатор»): после игры — слайд «Спасибо» с QR поверх своего финала.
-  const ownFinale = standalone && Boolean(mechanic?.standalone?.finale) && phase === "finished";
+  const ownFinale = standalone && finaleSlides(session.mechanic) && phase === "finished";
   const shownSlide = slide && (!standalone || ownFinale) && !(slide.kind === "join" && phase === "finished") ? slide : null;
 
   return (

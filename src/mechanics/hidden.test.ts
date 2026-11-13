@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HIDDEN_MECHANICS } from "./hidden";
-import { allDemoGames, demoGames, demoGamesNow, getMechanic, launchBlocked, selectableMechanics, selectableNow } from "./registry";
+import { allDemoGames, demoGames, demoGamesNow, finaleSlides, getMechanic, launchBlocked, selectableMechanics, selectableNow } from "./registry";
 
 describe("скрытые форматы («Держи пари», «Винное казино» — решение владельца 14 октября 2026)", () => {
   it("зарегистрированы, но их нет в выборе формата и в шаблонах библиотеки", () => {
@@ -41,5 +41,13 @@ describe("общий финал после игры у самостоятель�
   it("«Бубликатор» — с общими делами гостя и «Спасибо» с QR; «Олимп» — свой финал целиком", () => {
     expect(getMechanic("bublikator")?.standalone?.finale).toBe(true);
     expect(getMechanic("olymp")?.standalone?.finale).toBeFalsy();
+  });
+  it("«Спасибо» после игры: пульт ставит и показывает кнопку, только если экран его нарисует (проверка 2d, №11)", () => {
+    expect(finaleSlides("bublikator")).toBe(true);
+    expect(finaleSlides("olymp")).toBe(false);
+    expect(finaleSlides("quiz")).toBe(true);
+    expect(finaleSlides(null)).toBe(true);
+    // Самостоятельные игры без общего финала — только «Олимп».
+    expect(selectableMechanics.filter((m) => !finaleSlides(m.id)).map((m) => m.id)).toEqual(["olymp"]);
   });
 });

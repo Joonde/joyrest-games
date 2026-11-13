@@ -108,6 +108,15 @@ export function selectableNow(opts: { rooms: boolean; program: boolean }): typeo
   return selectableMechanics.filter((m) => (m.id !== "evening" || opts.program) && (opts.rooms || !getMechanic(m.id)?.room));
 }
 
+/**
+ * Рисует ли экран зала слайды платформы после игры («Спасибо» с QR): обычные игры — да; самостоятельные — только с общим финалом
+ * («Бубликатор», решение B). «Олимп» рисует всё сам — пульт не ставит ему «Спасибо» и не показывает кнопку (проверка 2d, №11).
+ */
+export function finaleSlides(mechanic: string | null): boolean {
+  const m = mechanic === null ? undefined : getMechanic(mechanic);
+  return !m?.standalone || m.standalone.finale === true;
+}
+
 /** Почему игру нельзя провести здесь: игра в игровой комнате, а комнат нет (откат на Firebase). */
 export const ROOM_ONLY_TEXT = "Эта игра работает только на своём сервере JoyRest";
 

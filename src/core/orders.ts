@@ -281,7 +281,7 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
     sortAt: group === "off" ? e.updatedAt ?? from : from,
     refundWaiting,
     prepaid,
-    search: [e.clientName, e.clientPhone, e.hostName, e.title, e.place, e.ownerName, e.clientOwnerName],
+    search: [e.clientName, e.clientPhone, e.hostName, e.title, e.place, e.ownerName ?? "", e.clientOwnerName ?? ""],
   };
 }
 

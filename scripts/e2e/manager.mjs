@@ -304,7 +304,7 @@ async function ordersSection() {
   const who = admin.profile.uid;
   const prog = { formats: ["Квиз"], extension: "", addons: [], duration: "" };
   const mkOrder = async (key, day, start, end, extra = {}) => {
-    const body = { id: `e2eord${key}${n}`, hostId: who, day, start, end, title: `Заказ ${key}, проверка менеджера`, clientName: `Заказ ${key} ${TAG}`, clientPhone: "", clientContact: "call", place: "Москва, Тверская 1", guests: 30, note: "", program: prog, price: 29900, prepaid: true, ...extra };
+    const body = { id: `e2eord${"abcdef"["АБВГДЕ".indexOf(key)]}${n}`, hostId: who, day, start, end, title: `Заказ ${key}, проверка менеджера`, clientName: `Заказ ${key} ${TAG}`, clientPhone: "", clientContact: "call", place: "Москва, Тверская 1", guests: 30, note: "", program: prog, price: 29900, prepaid: true, ...extra };
     const r = await api("POST", "/api/events", sales.cookie, body);
     if (r.status !== 200) bad(`Заказ ${key}: не записан — ${r.status} ${JSON.stringify(r.data).slice(0, 160)}`);
     return body.id;
@@ -343,7 +343,7 @@ async function ordersSection() {
   await op.getByRole("combobox", { name: "Поиск" }).fill(TAG);
   const rowOf = (key) => op.locator('[role="row"].orders-line', { hasText: `Заказ ${key} ${TAG}` });
   await until(async () => (await rowOf("Ж").count()) > 0, WAIT, "строки проверки");
-  const text = async (loc) => ((await loc.first().textContent()) ?? "").replace(/\s+/g, " ");
+  const text = async (loc) => ((await loc.count()) ? ((await loc.first().textContent()) ?? "") : "").replace(/\s+/g, " ");
   const expectRow = async (key, parts, what) => {
     const s = await text(rowOf(key));
     check(parts.every((x) => s.includes(x)), `Таблица, заказ ${key}: ${what}`, `Таблица, заказ ${key}: нет «${parts.filter((x) => !s.includes(x)).join("», «")}» — «${s.slice(0, 260)}»`);

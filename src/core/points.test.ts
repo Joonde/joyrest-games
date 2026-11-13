@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { experienceLabel } from "./levels";
-import { gamePoints, isValidManualPoints, pointsLabel, venueEarnsPoints } from "./points";
+import { gamePoints, isValidManualPoints, pointsLabel, roomGamePoints, venueEarnsPoints } from "./points";
 
 describe("баллы за игру", () => {
   it("засчитывается: больше 10 телефонов и не меньше 40 минут", () => {
@@ -17,6 +17,14 @@ describe("баллы за игру", () => {
     expect(gamePoints(30, 60)).toBe(2);
     expect(gamePoints(40, 60)).toBe(3);
     expect(gamePoints(500, 60)).toBe(49);
+  });
+
+  it("игра в комнате (решение владельца 13 ноября 2026): вместо 40 минут — сыграна до конца, телефоны — как у всех", () => {
+    expect(roomGamePoints(11, true)).toBe(1);
+    expect(roomGamePoints(11, false)).toBe(0);
+    expect(roomGamePoints(10, true)).toBe(0);
+    expect(roomGamePoints(30, true)).toBe(gamePoints(30, 60));
+    expect(roomGamePoints(Number.NaN, true)).toBe(0);
   });
 
   it("ручные баллы: шаг 0,5, не ноль, до 100 по модулю", () => {

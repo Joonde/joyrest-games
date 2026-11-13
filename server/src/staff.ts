@@ -5,9 +5,31 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
-import { gamePoints, isValidManualPoints, MIN_ANSWERED_STEPS } from "../../src/core/points";
+import { gamePoints, isValidManualPoints, MIN_ANSWERED_STEPS, MIN_PLAYED_ROUNDS, roomGamePoints } from "../../src/core/points";
 import * as permissions from "../../src/data/permissions";
 import { actorOf, apiGuard, levelOf, sessionUser, type SessionRow } from "./auth";
+import { parseSnapshotData, type RoomGame } from "./rooms/engine";
+import { roomGames } from "./rooms/registry";
+
+/** Игры игровой комнаты (с проверочной `room-check`): баллы — по раундам, а не по ответам. */
+const ROOM_GAMES: ReadonlyMap<string, RoomGame<unknown>> = roomGames({ check: true });
+
+/**
+ * Сыграна ли игра комнаты до конца — по её последнему снимку в базе (сервер, не браузер). «Завершить игру» перед этим просит
+ * комнату записать снимок (`Hub.flush`). Снимка нет или он не читается — «нет».
+ */
+async function roomPlayedToEnd(sql: Sql, sessionId: string, game: RoomGame<unknown>): Promise<boolean> {
+  if (!game.playedToEnd) return false;
+  const [row] = await sql<{ data: unknown }[]>`select data from room_snapshots where session_id = ${sessionId}`;
+  const data = parseSnapshotData(row?.data);
+  if (!data || data.game !== game.id) return false;
+  try {
+    const state = game.restore(data.state);
+    return state !== null && game.playedToEnd(state);
+  } catch {
+    return false;
+  }
+}
 
 export interface StaffOptions {
   sql: Sql;
@@ -20,29 +42,44 @@ const REASON_MAX = 200;
 const HISTORY_LIMIT = 200;
 
 /**
- * Баллы за завершённую игру: не меньше 40 минут от «Начать игру» и больше 10 телефонов
- * (участники-игроки по данным сервера, ответившие хотя бы на 3 вопроса). Одна запись на сессию — повтор ничего не добавит.
+ * Баллы за завершённую игру: не меньше 40 минут от «Начать игру» и больше 10 телефонов (участники-игроки по данным сервера).
+ * Телефон засчитывается, если играл: в играх шагами — ответил хотя бы на 3 вопроса (сам или его команда); в играх игровой
+ * комнаты (`roomGames`: «Бубликатор») — игра приняла его действия хотя бы в 2 разных раундах (`room_play`). У игры комнаты,
+ * которая знает «сыграна до конца» (`RoomGame.playedToEnd`), вместо 40 минут — игра сыграна до конца: все перелёты и пьедестал,
+ * по снимку комнаты на сервере (решение владельца 13 ноября 2026). Одна запись на сессию — повтор ничего не добавит.
  * Возвращает начисленные баллы (0 — игра не засчитана).
  */
-export async function awardGamePoints(sql: Sql, sessionId: string, now: number): Promise<number> {
-  const [session] = await sql<{ host_id: string; game_title: string; started_at: Date | null }[]>`
-    select host_id, game_title, started_at from sessions where id = ${sessionId}`;
-  if (!session?.started_at) return 0;
-  // Телефон считается, если он сам (или его команда — отвечает капитан) ответил на MIN_ANSWERED_STEPS
-  // вопросов: пустые подключения скриптом баллы не дают.
-  const [row] = await sql<{ count: number }[]>`
-    with active as (
-      select pid from answers where session_id = ${sessionId}
-      group by pid having count(distinct step) >= ${MIN_ANSWERED_STEPS}
-    )
-    select count(*)::int as count from participants p
-    where p.session_id = ${sessionId} and p.kind = 'player'
-      and (p.id in (select pid from active) or p.team_id in (select pid from active))`;
+export async function awardGamePoints(sql: Sql, sessionId: string, now: number, games: ReadonlyMap<string, RoomGame<unknown>> = ROOM_GAMES): Promise<number> {
+  const [session] = await sql<{ host_id: string; game_title: string; started_at: Date | null; mechanic: string | null }[]>`
+    select host_id, game_title, started_at, mechanic from sessions where id = ${sessionId}`;
+  if (!session) return 0;
+  const game = session.mechanic !== null ? games.get(session.mechanic) : undefined;
+  const room = game !== undefined;
+  const toEnd = game?.playedToEnd !== undefined;
+  // Игры без «сыграна до конца» — от «Начать игру», как раньше.
+  if (!toEnd && !session.started_at) return 0;
+  // Пустые подключения скриптом баллы не дают: телефон должен был играть.
+  const [row] = room
+    ? await sql<{ count: number }[]>`
+        with played as (
+          select pid from room_play where session_id = ${sessionId}
+          group by pid having count(distinct unit) >= ${MIN_PLAYED_ROUNDS}
+        )
+        select count(*)::int as count from participants p
+        where p.session_id = ${sessionId} and p.kind = 'player' and p.id in (select pid from played)`
+    : await sql<{ count: number }[]>`
+        with active as (
+          select pid from answers where session_id = ${sessionId}
+          group by pid having count(distinct step) >= ${MIN_ANSWERED_STEPS}
+        )
+        select count(*)::int as count from participants p
+        where p.session_id = ${sessionId} and p.kind = 'player'
+          and (p.id in (select pid from active) or p.team_id in (select pid from active))`;
   const phones = row?.count ?? 0;
-  const minutes = Math.floor((now - session.started_at.getTime()) / 60_000);
-  const points = gamePoints(phones, minutes);
+  const minutes = session.started_at ? Math.floor((now - session.started_at.getTime()) / 60_000) : 0;
+  const points = toEnd && game ? roomGamePoints(phones, await roomPlayedToEnd(sql, sessionId, game)) : gamePoints(phones, minutes);
   if (points <= 0) return 0;
-  const reason = `«${session.game_title.slice(0, 80)}»: ${phones} тел., ${minutes} мин`;
+  const reason = toEnd ? `«${session.game_title.slice(0, 80)}»: ${phones} тел., сыграна до конца` : `«${session.game_title.slice(0, 80)}»: ${phones} тел., ${minutes} мин`;
   const added = await sql`
     insert into host_points (id, host_id, points, kind, reason, session_id)
     values (${`game-${sessionId}`}, ${session.host_id}, ${points}, 'game', ${reason}, ${sessionId})

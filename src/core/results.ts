@@ -7,17 +7,25 @@ export function compactBoard(leaderboard: Leaderboard): ResultRow[] {
   return sortedLeaderboard(leaderboard).map((entry) => {
     const row: ResultRow = { name: entry.name, score: entry.score };
     if (entry.colorIndex !== undefined) row.colorIndex = entry.colorIndex;
+    if (entry.group !== undefined) row.group = entry.group;
     return row;
   });
 }
 
-/** Места с учётом равных очков: 10, 10, 7 → 1, 1, 3. */
+/**
+ * Места с учётом равных очков: 10, 10, 7 → 1, 1, 3. Строки одной группы (`group`: команды одного экипажа «Бубликатора») — одно
+ * место и считаются за одного: экипаж 1200 из двух команд и экипаж 800 → 1, 1, 2.
+ */
 export function places(board: ResultRow[]): number[] {
-  return board.map((row, i) => {
-    let first = i;
-    while (first > 0 && board[first - 1]?.score === row.score) first--;
-    return first + 1;
-  });
+  return groupPlaces(board.map((row, i) => ({ score: row.score, group: row.group ?? `#${i}` })));
+}
+
+/** Место = 1 + сколько разных групп набрали больше. Без групп — обычные общие места (10, 10, 7 → 1, 1, 3). */
+export function groupPlaces(rows: ReadonlyArray<{ score: number; group: string }>): number[] {
+  const higher = new Map<string, number>();
+  for (const r of rows) higher.set(r.group, Math.max(higher.get(r.group) ?? -Infinity, r.score));
+  const best = [...higher.entries()];
+  return rows.map((row) => best.filter(([group, score]) => group !== row.group && score > row.score).length + 1);
 }
 
 /** Сколько строк итогов попадает в текст, чтобы сообщение не было бесконечным. */

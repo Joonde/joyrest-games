@@ -40,6 +40,7 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   dragon: "adventure",
   olymp: "olymp",
   dance: "active",
+  bublikator: "active",
   stage: "active",
   mafia: "cards",
   spy: "cards",

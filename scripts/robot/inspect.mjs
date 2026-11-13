@@ -10,7 +10,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { chromium } from "playwright";
-import { MECHANICS } from "./games.mjs";
+import { MECHANICS, SKIPPED, skippedLines } from "./games.mjs";
 
 const site = path.resolve(process.argv[2] ?? "build/robot");
 const out = path.resolve(process.argv[3] ?? "build/inspect");
@@ -47,6 +47,8 @@ await new Promise((r) => server.listen(0, r));
 const port = server.address().port;
 
 const jobs = [];
+// Игры, которые Ревизор не проводит, — в журнал и в отчёт с причиной (а не молча «нет»).
+for (const line of skippedLines(only)) console.log(line);
 for (const [m, cfg] of Object.entries(MECHANICS)) {
   if (only && !only.includes(m)) continue;
   for (let demo = 0; demo < cfg.demos; demo++)
@@ -168,6 +170,8 @@ fs.writeFileSync(path.join(out, "findings.json"), JSON.stringify({ runs, finding
 const esc = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
 let md = `# Ревизор — что видят ведущий и гости\n\nПрогонов: ${runs.length} · видов игры проверено: ${runs.reduce((a, r) => a + r.views, 0)} · разных находок: ${all.length}\n\n`;
 md += `Размеры: ${wanted.map((p) => `${PROFILES[p].title} (${PROFILES[p].hall})`).join("; ")}.\n\n`;
+for (const line of skippedLines(only)) md += `- ${line}\n`;
+if (Object.keys(SKIPPED).length > 0) md += "\n";
 for (const [title, list] of sections) {
   md += `## ${title} — ${list.length}\n\n`;
   for (const f of list) {

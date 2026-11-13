@@ -95,6 +95,8 @@ export const resultsRepo: ResultsRepository = server ? serverResultsRepository :
 export const clock: ClockService = server ? serverClock : firestoreClock;
 /** Быстрый канал (игровые комнаты) — только свой сервер; у Firebase — `unimplemented`. */
 export const roomsRepo: RoomsRepository = server ? serverRoomsRepository : firebaseRoomsRepository;
+/** Игровые комнаты есть (свой сервер): без них игры в комнате («Бубликатор») не предлагаются. */
+export const roomsAvailable: boolean = server;
 
 /** Предложения в библиотеку — только на своём сервере. */
 export const proposalsRepo: ProposalsRepository | null = agency ? serverProposalsRepository : null;

@@ -8,8 +8,11 @@ const WITHOUT = new Set(["olymp", "evening"]);
 
 describe("предпросмотр игры", () => {
   it("есть у всех игр", () => {
-    const missing = mechanics.filter((m) => !WITHOUT.has(m.id) && !m.preview).map((m) => m.id);
+    // Игра в игровой комнате («Бубликатор») шагов сессии не имеет: у неё свой предпросмотр с комнатой в памяти (`roomPreview`,
+    // проверяет `bublikator/sim/room.test.ts`), а не водитель шагов.
+    const missing = mechanics.filter((m) => !WITHOUT.has(m.id) && !m.preview && !m.roomPreview).map((m) => m.id);
     expect(missing).toEqual([]);
+    expect(mechanics.find((m) => m.id === "bublikator")?.roomPreview).toBeDefined();
   });
 
   it("картинки берутся из своей игры: в сценах номер настоящей игры, а не заглушка", () => {
@@ -21,7 +24,7 @@ describe("предпросмотр игры", () => {
     for (const scene of scenes) expect(scene.session.gameId).toBe("game-42");
   });
 
-  for (const demo of allDemoGames.filter((d) => !WITHOUT.has(d.mechanic))) {
+  for (const demo of allDemoGames.filter((d) => !WITHOUT.has(d.mechanic) && d.mechanic !== "bublikator")) {
     it(`${demo.title}: от начала до итогов`, () => {
       const mechanic = mechanics.find((m) => m.id === demo.mechanic);
       if (!mechanic?.preview) return;

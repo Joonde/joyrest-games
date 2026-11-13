@@ -40,7 +40,21 @@ interface Props {
  * Предпросмотр игры: она проходит сама с тестовыми командами, ведущий листает моменты «Назад / Дальше»
  * и смотрит, что в этот момент на экране зала, на телефоне любой команды и на пульте.
  */
-export function GamePreview({ open, onClose, mechanic, gameId, content, playMode: wanted, themeId }: Props) {
+export function GamePreview(props: Props) {
+  const { open, onClose, mechanic, content } = props;
+  // Игра в игровой комнате («Бубликатор»): своя комната в памяти с тестовыми гостями — экран, телефон и пульт настоящие.
+  const RoomPreview = mechanic.roomPreview;
+  if (RoomPreview) {
+    return (
+      <Sheet open={open} title="Предпросмотр игры" onClose={onClose}>
+        {open && <RoomPreview content={mechanic.parse(content)} mode="preview" />}
+      </Sheet>
+    );
+  }
+  return <StepPreview {...props} />;
+}
+
+function StepPreview({ open, onClose, mechanic, gameId, content, playMode: wanted, themeId }: Props) {
   // Режим, который механика поддерживает (как при запуске): «Шашки» — команды, «Мафия» — каждый сам.
   const playMode: PlayMode = mechanic.supports[wanted] ? wanted : wanted === "solo" ? "teams" : "solo";
   const [view, setView] = useState<View>("screen");

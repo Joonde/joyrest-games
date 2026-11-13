@@ -1621,6 +1621,46 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     expect(await settle(async () => rooms().loaded("r11") === null)).toBe(true);
   });
 
+  it("«Завершить игру»: отметки «играл в раунде» из памяти комнаты — в базе до подсчёта баллов (проверка 2d, №3)", async () => {
+    let own: RoomManager | null = null;
+    // Проверочная игра с раундом: каждая пачка с принятым действием — «играл в раунде 7».
+    const played: RoomGame<unknown> = {
+      ...game,
+      playUnit: () => 7,
+      onInput(st, p, ev, ctx) {
+        game.onInput(st, p, ev, ctx);
+        return true;
+      },
+    };
+    const target = buildApp({
+      version: "t",
+      publicDir: null,
+      checkDatabase: async () => true,
+      sql,
+      mediaDir: media,
+      auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } },
+      live: { now: () => clock, keepAliveMs: 60_000 },
+      rooms: { now: () => clock, loopMs: 0, keepAliveMs: 60_000, onManager: (m) => (own = m), games: new Map([[game.id, played]]) },
+    });
+    await newSession("r30", "room-check", target);
+    const anya = await guestIn("r30", "Аня", target);
+    expect((await input("r30", anya.cookie, [{ t: "tap", n: 1 }], target)).statusCode).toBe(200);
+    const rows = () => sql<{ pid: string; unit: number }[]>`select pid, unit from room_play where session_id = 'r30'`;
+    // Цикла нет (loopMs: 0) — отметка пока только в памяти комнаты.
+    expect(await rows()).toEqual([]);
+    const manager = own as RoomManager | null;
+    if (!manager) throw new Error("нет комнат");
+    await manager.hub.flush("r30");
+    expect(await rows()).toEqual([{ pid: anya.uid, unit: 7 }]);
+    // Повтор — ничего лишнего; комнату выгружают (сессия завершена) — дождёмся её записи.
+    expect((await input("r30", anya.cookie, [{ t: "tap", n: 1 }], target)).statusCode).toBe(200);
+    const unloading = manager.unload("r30", "finished");
+    await manager.hub.flush("r30");
+    await unloading;
+    expect(await rows()).toEqual([{ pid: anya.uid, unit: 7 }]);
+    await target.close();
+  });
+
   it("на основной версии проверочной игры нет: сессия room-check — без комнаты (404)", async () => {
     const prod = make(() => undefined, false);
     await newSession("r12", "room-check", prod);
@@ -1653,7 +1693,14 @@ describe.skipIf(!url)("быстрый канал на PostgreSQL", () => {
     expect(await me.next()).toMatchObject({ type: "event", data: { t: "pong", id: "m1" } });
     clock += 300;
     rooms().step(clock);
-    expect(await screen.next()).toMatchObject({ type: "screen", data: { total: 3 } });
+    const change = await screen.next();
+    expect(change).toMatchObject({ type: "screen", data: { total: 3 } });
+    // Без перемен — та же сводка раз в секунду: экран по непрерывности отличает живой поток от снимка после обрыва (аудит 2c).
+    clock += 1000;
+    rooms().step(clock);
+    const alive = await screen.next();
+    expect(alive).toMatchObject({ type: "screen", data: { total: 3 } });
+    expect((alive as { at: number }).at - (change as { at: number }).at).toBe(1000);
     me.controller.abort();
     screen.controller.abort();
   });

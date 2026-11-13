@@ -41,7 +41,7 @@ import { QrCode } from "../components/QrCode";
 import { ScreenSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { joinHint, playUrl } from "../components/links";
-import { getMechanic } from "../mechanics/registry";
+import { finaleSlides, getMechanic } from "../mechanics/registry";
 import { getTheme, teamColorVar, useTheme } from "../themes/registry";
 
 export function HallScreen() {
@@ -204,7 +204,9 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   // Пока идёт таймер вопроса — раз в секунду пересчитать музыку момента («Миллион на кону» стихает за 10 секунд до конца).
   useServerNow(1000, session.state.stage === "question" && session.state.timeLimit !== null);
   const moment = mechanic?.music && content !== null ? mechanic.music(session, content) : null;
-  const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtinMusicOf(session, moment));
+  // Механика со своей музыкой (`ownMusic`) — без встроенной музыки платформы.
+  const builtin = mechanic?.ownMusic ? null : builtinMusicOf(session, moment);
+  const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtin);
   const soundReady = useSoundReady();
   const muted = useMuted();
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.
@@ -227,7 +229,7 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   // Занят и тогда, когда звук уже разрешён и что-то звучит или видно: музыка ведущего, встроенная музыка момента
   // (лобби, перерыв), слайд. Сам обновится только в тишине — или пока звук ещё не разрешали (терять нечего).
   const playingNow = phase === "playing" && session.mechanic !== EVENING_MECHANIC;
-  const builtinNow = builtinMusicOf(session, moment) !== null;
+  const builtinNow = builtin !== null;
   const soundingNow = Boolean(session.state.music?.playing) || builtinNow || Boolean(session.state.slide);
   const hallBusy = playingNow || (soundReady && soundingNow);
   useEffect(() => {
@@ -239,12 +241,14 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.
   const slide = session.state.slide ?? null;
   const standalone = Boolean(mechanic?.standalone);
-  const shownSlide = slide && !standalone && !(slide.kind === "join" && phase === "finished") ? slide : null;
+  // Самостоятельная игра с общим финалом («Бубликатор»): после игры — слайд «Спасибо» с QR поверх своего финала.
+  const ownFinale = standalone && finaleSlides(session.mechanic) && phase === "finished";
+  const shownSlide = slide && (!standalone || ownFinale) && !(slide.kind === "join" && phase === "finished") ? slide : null;
 
   return (
     <div className={idle ? "hall is-idle" : "hall"}>
       {/* У самостоятельной игры свой фон — общий живой фон темы не рисуем. */}
-      {!standalone && <Scene themeId={session.themeId} />}
+      {(!standalone || shownSlide !== null) && <Scene themeId={session.themeId} />}
       {/* После игры «В студию» — отдельная кнопка слева сверху, здесь её не дублируем. */}
       <ScreenControls
         toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null}
@@ -317,8 +321,9 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
       ) : (
         <>
           {standalone && mechanic && (
-            // Самостоятельная игра («Олимп») рисует все этапы сама: лобби, игру, награждение, финал.
-            <main className="quiz-stage">
+            // Самостоятельная игра («Олимп») рисует все этапы сама: лобби, игру, награждение, финал. После игры сверху слева —
+            // выход: игра отодвигает от него свою шапку (`quiz-stage--exit`, проверка 2d, №6).
+            <main className={phase === "finished" ? "quiz-stage quiz-stage--exit" : "quiz-stage"}>
               <StandaloneScreen session={session} />
             </main>
           )}

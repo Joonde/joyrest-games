@@ -53,7 +53,7 @@ import { TopBar } from "../components/TopBar";
 import { joinHost, playUrl, playUrlHint } from "../components/links";
 import { Icon, type IconName } from "../components/Icon";
 import { NameText } from "../components/NameText";
-import { getMechanic } from "../mechanics/registry";
+import { finaleSlides, getMechanic } from "../mechanics/registry";
 import type { SessionControl } from "../mechanics/types";
 import { teamColorVar, useTheme } from "../themes/registry";
 
@@ -273,8 +273,9 @@ function Console({ session }: { session: Session }) {
       setConfirmFinish(false);
       // После награждения — «Спасибо»: чаевые ведущему, отзыв и канал (решение владельца 15 октября 2026).
       // Ведущий может убрать слайд — под ним итоги игры.
-      // Закрыли в лобби без игроков — благодарить не за что, слайда нет.
-      if (Object.keys(latest.current.leaderboard).length > 0) {
+      // Закрыли в лобби без игроков — благодарить не за что, слайда нет. Экран игры без слайдов платформы («Олимп») его не
+      // покажет — не ставим.
+      if (Object.keys(latest.current.leaderboard).length > 0 && finaleSlides(latest.current.mechanic)) {
         void sessionsRepo.apply(session.id, { state: { slide: thanksSlide(slideId(), edition() === "lite") } }).catch(() => undefined);
       }
     } catch {
@@ -537,7 +538,7 @@ function Console({ session }: { session: Session }) {
                     В студию
                   </Link>
                 </div>
-                {withScreen && Object.keys(session.leaderboard).length > 0 && (
+                {withScreen && Object.keys(session.leaderboard).length > 0 && finaleSlides(session.mechanic) && (
                   <button
                     type="button"
                     className="btn btn--quiet btn--block"

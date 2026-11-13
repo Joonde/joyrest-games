@@ -57,6 +57,7 @@ function parseLeaderboard(value: unknown): Leaderboard {
     if (typeof entry.roundBase === "number") board[id].roundBase = entry.roundBase;
     if (typeof entry.race === "number") board[id].race = entry.race;
     if (typeof entry.move === "number") board[id].move = entry.move;
+    if (typeof entry.group === "string" && entry.group !== "") board[id].group = entry.group;
   }
   return board;
 }

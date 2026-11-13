@@ -4,7 +4,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { chromium } from "playwright";
-import { MECHANICS } from "./games.mjs";
+import { MECHANICS, skippedLines } from "./games.mjs";
 
 const site = path.resolve(process.argv[2] ?? "build/robot");
 const out = process.argv[3] ?? path.join(site, "report.json");
@@ -30,6 +30,8 @@ const port = server.address().port;
 const browser = await chromium.launch({ ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}), args: ["--no-sandbox"] });
 const reports = [];
 const jobs = [];
+// Игры, которые робот не проводит, — в журнал с причиной (а не молча «нет»).
+for (const line of skippedLines(only)) console.log(line);
 for (const [m, cfg] of Object.entries(MECHANICS)) {
   if (only && !only.includes(m)) continue;
   for (let demo = 0; demo < cfg.demos; demo++)

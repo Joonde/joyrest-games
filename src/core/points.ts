@@ -10,10 +10,27 @@ export const MIN_MINUTES = 40;
 /** Телефон — настоящий игрок, если он (или его команда) ответил хотя бы на столько вопросов. */
 export const MIN_ANSWERED_STEPS = 3;
 
+/**
+ * Игры в игровой комнате («Бубликатор», решение владельца 13 ноября 2026): вопросов там нет, поэтому телефон засчитывается, если
+ * его пачки с событиями дошли до игры хотя бы в стольких разных раундах (перелётах). Пишет сервер сам (`room_play`), по своим
+ * данным о настоящих нажатиях, а не по «на связи».
+ */
+export const MIN_PLAYED_ROUNDS = 2;
+
 /** 0 — игра не засчитана; иначе 1 балл до 20 телефонов и +0,5 за каждые полные следующие 5. */
 export function gamePoints(phones: number, minutes: number): number {
   if (!Number.isFinite(phones) || !Number.isFinite(minutes)) return 0;
   if (phones <= MIN_PHONES || minutes < MIN_MINUTES) return 0;
+  return 1 + 0.5 * Math.floor(Math.max(0, phones - 20) / 5);
+}
+
+/**
+ * Игры в игровой комнате, которые знают «сыграна до конца» («Бубликатор», решение владельца 13 ноября 2026): вместо «не меньше
+ * 40 минут» — игра сыграна до конца (все перелёты и пьедестал; считает сервер по своему состоянию комнаты). Остальное — как у
+ * всех: больше 10 телефонов, 1 балл до 20 и +0,5 за каждые полные следующие 5.
+ */
+export function roomGamePoints(phones: number, playedToEnd: boolean): number {
+  if (!playedToEnd || !Number.isFinite(phones) || phones <= MIN_PHONES) return 0;
   return 1 + 0.5 * Math.floor(Math.max(0, phones - 20) / 5);
 }
 

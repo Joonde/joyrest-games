@@ -4,6 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { migrate } from "./migrate";
+import { snapshot as bubSnapshot0 } from "../../src/mechanics/bublikator/rules/game";
+import { World } from "../../src/mechanics/bublikator/rules/world.test-kit";
+import type { RoomManager } from "./room";
 import { cleanText } from "./staff";
 
 describe("комментарий к баллам", () => {
@@ -24,6 +27,7 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
   const sql = postgres(url ?? "", { max: 3, onnotice: () => {}, connection: { search_path: SCHEMA } });
   const HOST = "games.test";
   let clock = Date.parse("2026-10-07T12:00:00Z");
+  let manager: RoomManager | null = null;
   const app = buildApp({
     version: "t",
     publicDir: null,
@@ -31,6 +35,7 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
     sql,
     auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } },
     live: { now: () => clock, keepAliveMs: 60_000 },
+    rooms: { now: () => clock, loopMs: 0, onManager: (m) => (manager = m) },
   });
   let owner = "";
   let anna = "";
@@ -61,6 +66,72 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
     expect((await post(`/api/sessions/${id}/apply`, anna, { state: { phase: "playing", step: 0, stage: "ready" }, expect: { phase: "lobby" } })).statusCode).toBe(200);
     clock += minutes * MINUTE;
     expect((await post(`/api/sessions/${id}/finish`, anna, { participantsCount: 999 })).statusCode).toBe(200);
+  }
+
+  /** Снимок комнаты «Бубликатора» из 3 перелётов: до конца и пьедестал / «Сразу к награждению» после 1-го / посреди 1-го. */
+  function bubSnapshot(end: "end" | "skip" | "mid"): object {
+    const w = new World({ players: 6, content: { legs: 3, saboteur: false, events: { meteor: false, pull: false, sos: false, captain: false } } });
+    w.toFlight();
+    const finishLeg = () => {
+      const leg = w.s.leg;
+      if (leg) {
+        leg.event = null;
+        leg.schedule = [];
+        leg.flight = leg.duration;
+      }
+      w.advance(500);
+    };
+    if (end !== "mid") {
+      finishLeg();
+      if (end === "skip") w.ok("podium");
+      else {
+        for (let i = 1; i < 3; i++) {
+          w.ok("next");
+          w.advance(5100);
+          finishLeg();
+        }
+        w.ok("next");
+      }
+    }
+    expect(w.s.phase).toBe(end === "mid" ? "leg" : "podium");
+    return { v: 1, game: "bublikator", key: "bublikator", seed: "s", state: bubSnapshot0(w.s), savedAt: 0, version: 1 };
+  }
+
+  /**
+   * Игра в игровой комнате («Бубликатор»): phones телефонов; rounds — в скольких перелётах игра приняла действия каждого; end —
+   * как кончилась игра (снимок комнаты; null — снимка нет). `inMemory` — отметки и снимок ещё в памяти комнаты: в базу они
+   * попадают, только когда «Завершить игру» попросит комнату дописать их.
+   */
+  async function playRoomGame(id: string, o: { phones: number; minutes: number; rounds: number; answered?: number; end?: "end" | "skip" | "mid" | null; inMemory?: boolean }) {
+    const { phones, minutes, rounds, answered = 0, end = "end", inMemory = false } = o;
+    const pending: string[] = [];
+    expect((await post("/api/sessions", anna, { id, gameTitle: "Бубликатор", mechanic: "bublikator", playMode: "solo" })).statusCode).toBe(200);
+    for (let i = 0; i < phones; i++) {
+      const device = await post("/api/auth/device", "", {});
+      const cookie = cookieOf(device);
+      const uid = device.json().uid as string;
+      expect((await post(`/api/sessions/${id}/participants/${uid}/join`, cookie, { name: `Гость ${i}` })).statusCode).toBe(200);
+      // Так пишет комната (`room_play`): одна строка на телефон и перелёт.
+      if (inMemory) pending.push(uid);
+      else for (let unit = 0; unit < rounds; unit++) await sql`insert into room_play (session_id, pid, unit) values (${id}, ${uid}, ${unit}) on conflict do nothing`;
+      // Ответы «шагов» у игры в комнате не в счёт (их там и не бывает).
+      for (let step = 0; step < answered; step++) await sql`insert into answers (session_id, step, pid, uid, value) values (${id}, ${step}, ${uid}, ${uid}, ${sql.json(0)})`;
+    }
+    const writeSnapshot = async () => {
+      if (end !== null) await sql`insert into room_snapshots (session_id, data, version) values (${id}, ${sql.json(bubSnapshot(end) as never)}, 1) on conflict (session_id) do update set data = excluded.data`;
+    };
+    if (!inMemory) await writeSnapshot();
+    expect((await post(`/api/sessions/${id}/apply`, anna, { state: { phase: "playing", step: 0, stage: "ready" }, expect: { phase: "lobby" } })).statusCode).toBe(200);
+    clock += minutes * MINUTE;
+    // Комната пишет отметки и снимок из памяти не сразу (раз в 5–10 с и при выгрузке) — здесь с задержкой, как медленная база.
+    const stop = manager?.hub.onFlush(async (sessionId) => {
+      if (sessionId !== id || !inMemory) return;
+      await new Promise((r) => setTimeout(r, 30));
+      for (const uid of pending) for (let unit = 0; unit < rounds; unit++) await sql`insert into room_play (session_id, pid, unit) values (${id}, ${uid}, ${unit}) on conflict do nothing`;
+      await writeSnapshot();
+    });
+    expect((await post(`/api/sessions/${id}/finish`, anna, { participantsCount: 999 })).statusCode).toBe(200);
+    stop?.();
   }
 
   beforeAll(async () => {
@@ -106,6 +177,36 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
     await post("/api/sessions/ok/finish", anna, {});
     const rows = await sql<{ session_id: string; points: string }[]>`select session_id, points::text as points from host_points where host_id = ${annaId}`;
     expect(rows).toEqual([{ session_id: "ok", points: "1.0" }]);
+  });
+
+  it("баллы за «Бубликатор» (решения владельца 13 ноября 2026): сыграна до конца вместо 40 минут; телефон играл хотя бы в 2 перелётах", async () => {
+    // 11 телефонов играли в двух перелётах, все 3 перелёта и пьедестал — балл.
+    await playRoomGame("bub-ok", { phones: 11, minutes: 45, rounds: 2 });
+    // Сыграна до конца за 25 минут — тоже балл: 40 минут для игры комнаты не нужны.
+    await playRoomGame("bub-fast", { phones: 30, minutes: 25, rounds: 3 });
+    // «Сразу к награждению» после 1-го перелёта из 3 — нет балла, сколько бы ни шла игра.
+    await playRoomGame("bub-skip", { phones: 30, minutes: 90, rounds: 2, end: "skip" });
+    // «Завершить игру досрочно» посреди перелёта — нет.
+    await playRoomGame("bub-mid", { phones: 30, minutes: 90, rounds: 2, end: "mid" });
+    // Снимка комнаты нет (комната не поднималась) — нет: сервер решает только по своим данным.
+    await playRoomGame("bub-none", { phones: 30, minutes: 90, rounds: 3, end: null });
+    // 30 телефонов, но каждый — только в одном перелёте: не засчитывается.
+    await playRoomGame("bub-one", { phones: 30, minutes: 60, rounds: 1 });
+    // Ответы «вопросов» у игры в комнате не считаются: без перелётов — нет балла.
+    await playRoomGame("bub-answers", { phones: 30, minutes: 60, rounds: 0, answered: 3 });
+    // 10 телефонов — мало.
+    await playRoomGame("bub-ten", { phones: 10, minutes: 60, rounds: 3 });
+    // Отметки и снимок ещё в памяти комнаты: «Завершить игру» дожидается, пока она их допишет, и только потом считает баллы
+    // (проверка 2d, №3).
+    await playRoomGame("bub-late", { phones: 11, minutes: 45, rounds: 2, inMemory: true });
+    const rows = await sql<{ session_id: string; points: string }[]>`select session_id, points::text as points from host_points where host_id = ${annaId} and session_id like 'bub-%' order by session_id`;
+    expect(rows).toEqual([
+      { session_id: "bub-fast", points: "2.0" },
+      { session_id: "bub-late", points: "1.0" },
+      { session_id: "bub-ok", points: "1.0" },
+    ]);
+    // Следующая проверка считает сумму баллов Анны — этот балл ей не нужен.
+    await sql`delete from host_points where session_id like 'bub-%'`;
   });
 
   it("баллы видит только владелец; ручные — шаг 0,5 и комментарий", async () => {

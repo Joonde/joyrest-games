@@ -56,6 +56,7 @@ function parseEntry(value: unknown): LeaderboardEntry {
   if (typeof e.roundBase === "number") entry.roundBase = e.roundBase;
   if (typeof e.move === "number") entry.move = e.move;
   if (typeof e.race === "number") entry.race = e.race;
+  if (typeof e.group === "string" && e.group !== "") entry.group = e.group;
   return entry;
 }
 

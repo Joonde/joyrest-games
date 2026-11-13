@@ -4,7 +4,7 @@
  * Страница только показывает: касание строки — карточка мероприятия в планировщике или карточка клиента.
  * От 1024 px — таблица, уже — карточки. «Агентству» — только владелец.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   filterCounts,
@@ -90,9 +90,22 @@ function useWide(): boolean {
 
 type Load = { status: "loading" } | { status: "error" } | { status: "ready"; board: OrdersBoard; offset: number; failed: boolean };
 
+// Последний ответ — на время жизни вкладки браузера и только для того же человека: возврат из карточки показывает прежние
+// строки сразу, без каркаса загрузки (дальше они тихо обновляются).
+let lastLoad: { uid: string; load: Load } | null = null;
+
 /** Ответ сервера и сдвиг часов: время строк — по часам сервера (неверные часы телефона не перекрашивают строки). */
-function useOrders(): [Load, () => void] {
-  const [load, setLoad] = useState<Load>({ status: "loading" });
+function useOrders(uid: string): [Load, () => void] {
+  const [load, setLoadState] = useState<Load>(() => (lastLoad && lastLoad.uid === uid ? lastLoad.load : { status: "loading" }));
+  const setLoad = useCallback(
+    (next: Load | ((prev: Load) => Load)) =>
+      setLoadState((prev) => {
+        const value = typeof next === "function" ? next(prev) : next;
+        if (value.status === "ready") lastLoad = { uid, load: value };
+        return value;
+      }),
+    [uid],
+  );
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!eventsRepo) return;
@@ -126,7 +139,7 @@ function useOrders(): [Load, () => void] {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [attempt]);
+  }, [attempt, setLoad]);
   return [
     load,
     () => {
@@ -147,7 +160,7 @@ function useServerNow(offset: number): number {
 }
 
 export function OrdersTab({ profile }: { profile: UserProfile }) {
-  const [load, retry] = useOrders();
+  const [load, retry] = useOrders(profile.uid);
   if (!eventsRepo) return <p className="muted">«Активные заказы» доступны на своём сервере JoyRest.</p>;
   if (load.status === "loading") return <ListSkeleton />;
   if (load.status === "error") return <LoadFailedInline onRetry={retry} />;
@@ -169,8 +182,13 @@ function OrdersBoardView({ board, offset, owner, failed }: { board: OrdersBoard;
   const rows = useMemo(() => orderRows(board, now, view.sort), [board, now, view.sort]);
   const counts = useMemo(() => filterCounts(rows), [rows]);
   const summary = useMemo(() => summaryOf(rows, board, now), [rows, board, now]);
-  const hosts = useMemo(() => [...new Set(rows.map((r) => r.host.replace(/ · ⚠ отключён$/, "")).filter((h) => h && h !== "—" && h !== "не назначен"))].sort(), [rows]);
-  const owners = useMemo(() => [...new Set(rows.map((r) => r.ownerName).filter(Boolean))].sort(), [rows]);
+  const byName = (a: string, b: string) => a.localeCompare(b, "ru");
+  // «не назначен» — тоже пункт фильтра (последним): такие мероприятия надо находить.
+  const hosts = useMemo(() => {
+    const names = [...new Set(rows.map((r) => r.host.replace(/ · ⚠ отключён$/, "")).filter((h) => h && h !== "—"))];
+    return [...names.filter((h) => h !== "не назначен").sort(byName), ...names.filter((h) => h === "не назначен")];
+  }, [rows]);
+  const owners = useMemo(() => [...new Set(rows.map((r) => r.ownerName).filter(Boolean))].sort(byName), [rows]);
   // Сохранённый ведущий или «кто ведёт», которого больше нет в строках, — не прячем строки невидимым фильтром.
   const active: SavedView = {
     ...view,

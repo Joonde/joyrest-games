@@ -145,6 +145,24 @@ export function agencyShare(price: number, guests: number | null): number {
   return Math.max(0, price - hostShare(price, guests));
 }
 
+/**
+ * Цена из присланного расчёта: «✅ … — выбран» или «Цена:» (`priceFromCalc`), иначе строка заявки сайта
+ * «… Итого: Опытный — 29 900 ₽, Новые лица — 23 900 ₽, …» — выбранный формат по строке «Ведущий: …», без неё — первый.
+ */
+export function talkPrice(text: string): number | null {
+  const direct = priceFromCalc(text);
+  if (direct !== null) return direct;
+  const total = /Итого[^:\n]*:\s*([^\n]+)/.exec(text)?.[1] ?? "";
+  const pairs = [...total.matchAll(/([А-ЯЁа-яё][А-ЯЁа-яё ]*?)\s+—\s+([\d\s\u00a0\u202f]{1,12})₽/g)].map((m) => ({
+    name: (m[1] ?? "").trim(),
+    price: Number((m[2] ?? "").replace(/\D/g, "")),
+  }));
+  if (!pairs.length) return null;
+  const level = /^Ведущий:\s*(.+)$/m.exec(text)?.[1]?.trim() ?? "";
+  const pick = (level && pairs.find((p) => level.startsWith(p.name))) || pairs[0];
+  return pick && pick.price > 0 ? pick.price : null;
+}
+
 const emptyPlace = (place: string) => !place.trim() || place.trim() === PLACE_TBD;
 
 function guestsText(n: number | null | undefined): string {
@@ -166,8 +184,10 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
   const prepaid = Boolean(e.prepaidAt);
   const price = typeof e.price === "number" ? e.price : null;
   const refundWaiting = off && Boolean(e.refundAt) && !e.refundDoneAt;
-  // Перенос — только когда клиент остался «Клиентом» и возврата не было; без клиента в истории — просто «Отменено».
-  const moved = e.clientStatus === "client" && !e.refundAt;
+  // Перенос — клиент остался «Клиентом» (не в архиве), предоплата у агентства, возврата нет (как в SQL, docs раздел 2).
+  // Новую дату уже записали (`clientAhead`) — перенос сделан; иначе (отказ, возврат, клиента нет) — просто «Отменено».
+  const moved = off && e.clientStatus === "client" && !e.clientArchived && prepaid && !e.refundAt;
+  const rebooked = moved && Boolean(e.clientAhead);
   const lost = !moved;
 
   // Подтвердил
@@ -182,7 +202,9 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
 
   // Провёл
   let held: Mark;
-  if (off) held = lost ? { label: "Отменено", sub: "не состоится", tone: "off" } : { label: "Перенос", sub: "новой даты нет", tone: "off" };
+  if (off) held = lost
+      ? { label: "Отменено", sub: "не состоится", tone: "off" }
+      : { label: "Перенос", sub: rebooked ? "новая дата записана" : "новой даты нет", tone: "off" };
   else if (e.held === true) held = { label: "Проведено", sub: "", tone: "held" };
   else if (e.held === false) held = { label: "Не состоялось", sub: "", tone: "failed" };
   else if (light.light === "over") held = { label: "Сверх плана", sub: light.label.replace("Сверх плана · ", ""), tone: "over" };
@@ -213,7 +235,7 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
 
   let agency: number | null = null;
   let hostPay: number | null = null;
-  if (off) agency = prepaid && !e.refundAt ? PREPAY_RUB : e.refundAt ? 0 : null;
+  if (off) agency = prepaid && !e.refundAt ? PREPAY_RUB : null;
   else if (price !== null) {
     hostPay = hostShare(price, e.guests);
     agency = agencyShare(price, e.guests);
@@ -228,10 +250,10 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
   let step = "";
   let alert = true;
   if (refundWaiting) step = `Вернуть ${rub(PREPAY_RUB)} клиенту и отметить`;
-  else if (off && moved) step = "Согласовать новую дату";
+  else if (off && moved && !rebooked) step = "Согласовать новую дату";
   else if (off) {
     alert = false;
-    step = "Закрыто";
+    step = rebooked ? "Новая дата записана" : "Закрыто";
   } else if (!started && e.declinedAt) step = "Назначить другого ведущего";
   else if (e.hostOff && !ended) step = "Передать мероприятие другому ведущему";
   else if (!started && light.light === "late") step = `Позвонить ведущему сегодня${e.hostName ? ` (${firstName})` : ""}`;
@@ -245,6 +267,7 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
     if (e.held === true && !e.review) step = "Попросить отзыв";
     else if (e.held === true) step = e.review === "got" ? "Отзыв получен" : "Отзыв попросили";
     else if (clientStep) step = clientStep;
+    else if (started && !ended) step = "Идёт — отметить «Проведено» после конца";
     else if (e.calledAt && soon) step = "Созвонились — ждём вечера";
     else step = "Напоминание придёт за 3 дня";
   }
@@ -252,7 +275,7 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
   const when = off
     ? e.refundAt
       ? `отказ ${stamp(e.refundAt).split(",")[0]}`
-      : `отменено ${stamp(e.updatedAt || from).split(",")[0]}`
+      : `отменено ${stamp(e.cancelledAt || e.updatedAt || from).split(",")[0]}`
     : started && !ended
       ? "идёт сейчас"
       : relative(from, now);
@@ -286,9 +309,9 @@ export function eventRow(e: OrderEvent, now: number): OrderRow {
     hostPay,
     approx: false,
     step,
-    stepTone: alert ? "alert" : step === "Закрыто" || step.startsWith("Отзыв ") ? "muted" : "plain",
+    stepTone: alert ? "alert" : step === "Закрыто" || step === "Новая дата записана" || step.startsWith("Отзыв ") ? "muted" : "plain",
     alert,
-    sortAt: group === "off" ? e.updatedAt || from : from,
+    sortAt: group === "off" ? e.cancelledAt || e.updatedAt || from : from,
     refundWaiting,
     prepaid,
     search: [e.clientName, e.clientPhone, e.hostName, e.title, e.place, e.ownerName ?? "", e.clientOwnerName ?? ""],
@@ -302,7 +325,7 @@ export function talkRow(t: OrderTalk, now: number): OrderRow {
   const day = dayIndex(wish.day);
   const guests = /^\d+$/.test(wish.guests) ? Number(wish.guests) : null;
   // Расчёт — из последнего обращения, иначе из заметки (менеджер вставляет туда присланный расчёт).
-  const price = (t.calc ? priceFromCalc(t.calc) : null) ?? (t.notes ? priceFromCalc(t.notes) : null);
+  const price = (t.calc ? talkPrice(t.calc) : null) ?? (t.notes ? talkPrice(t.notes) : null);
   // У старых карточек «Новый» без таймера отсчёт — от последнего обращения (как в «Клиентах»).
   const since = [t.status === "new" ? t.newSince ?? t.lastContactAt : null, t.tgWaitingSince].filter((x): x is number => typeof x === "number");
   const waited = since.length ? now - Math.min(...since) : 0;
@@ -321,7 +344,7 @@ export function talkRow(t: OrderTalk, now: number): OrderRow {
   return {
     key: `c-${t.id}`,
     group: "talk",
-    href: `/studio/clients?id=${encodeURIComponent(t.id)}`,
+    href: `/studio/clients?id=${encodeURIComponent(t.id)}&from=orders`,
     date: day !== null ? shortDay(wish.day) : "дата не выбрана",
     time: wish.time ? `с ${wish.time}` : "время не выбрано",
     when: since.length ? `ждёт ответа ${waitText(waited)}` : day !== null ? relative(day * DAY_MS + 9 * HOUR_MS, now) : "",
@@ -339,7 +362,7 @@ export function talkRow(t: OrderTalk, now: number): OrderRow {
     held: { label: "—", sub: "после брони", tone: "none" },
     price,
     priceText: price !== null ? `≈ ${rub(price)}` : "—",
-    priceSub: price !== null ? "по расчёту" : "расчёта нет",
+    priceSub: price !== null ? "по расчёту" : t.calc ? "в расчёте нет цены" : "расчёта нет",
     priceStruck: false,
     prepay: { text: "Не внесена", sub: "ждём 2 000 ₽", tone: "warn" },
     due: { text: "—", sub: "", tone: "muted" },

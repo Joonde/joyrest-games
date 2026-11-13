@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OrderEvent, OrdersBoard, OrderTalk } from "../data/types";
-import { agencyShare, eventRow, filterCounts, filterRows, groupMeta, hostShare, orderRows, relative, shortDay, summaryOf, talkRow } from "./orders";
+import { agencyShare, eventRow, talkPrice, filterCounts, filterRows, groupMeta, hostShare, orderRows, relative, shortDay, summaryOf, talkRow } from "./orders";
 
 // 12 ноября 2026, 20:00 по Москве.
 const NOW = Date.UTC(2026, 10, 12, 17, 0);
@@ -110,7 +110,7 @@ describe("«Активные заказы»: группы и колонки", ()
   });
   it("отменённые: вернуть, возвращена, остаётся, перенос", () => {
     const refund = eventRow(ev({ cancelled: true, refundAt: NOW - H, clientStatus: "lost" }), NOW);
-    expect(refund).toMatchObject({ refundWaiting: true, alert: true, priceStruck: true, agency: 0 });
+    expect(refund).toMatchObject({ refundWaiting: true, alert: true, priceStruck: true, agency: null });
     expect(refund.prepay).toMatchObject({ text: "Вернуть 2 000 ₽", tone: "bad" });
     const done = eventRow(ev({ cancelled: true, refundAt: NOW - 30 * H, refundDoneAt: NOW - H, clientStatus: "lost" }), NOW);
     expect(done).toMatchObject({ refundWaiting: false, alert: false, step: "Закрыто" });
@@ -245,5 +245,29 @@ describe("«Активные заказы»: края (независимая п
     expect(talkRow(talk({ status: "new", newSince: null, lastContactAt: NOW - 45 * 60_000 }), NOW)).toMatchObject({ alert: true, step: "Ответить клиенту" });
     const fromNotes = talkRow(talk({ notes: "Дата: 11.12.2026\n✅ Опытный: 25 900 ₽ — выбран" }), NOW);
     expect(fromNotes).toMatchObject({ price: 25_900, priceText: "≈ 25 900 ₽" });
+  });
+});
+
+describe("«Активные заказы»: второй круг проверки", () => {
+  it("перенос — как на сервере: без предоплаты или клиент в архиве — «Отменено»; новая дата записана — не красным", () => {
+    expect(eventRow(ev({ cancelled: true, clientStatus: "client", prepaidAt: null }), NOW)).toMatchObject({ alert: false, step: "Закрыто" });
+    expect(eventRow(ev({ cancelled: true, clientStatus: "client", clientArchived: true }), NOW).held.label).toBe("Отменено");
+    const done = eventRow(ev({ cancelled: true, clientStatus: "client", clientAhead: true }), NOW);
+    expect(done).toMatchObject({ alert: false, step: "Новая дата записана", stepTone: "muted" });
+    expect(done.held).toMatchObject({ label: "Перенос", sub: "новая дата записана" });
+  });
+  it("дата отмены — от cancelledAt, а не от поздней правки", () => {
+    expect(eventRow(ev({ cancelled: true, cancelledAt: NOW - 72 * H, updatedAt: NOW - H }), NOW).when).toBe("отменено 9 ноя");
+  });
+  it("идёт сейчас — свой шаг, не «Напоминание»", () => {
+    expect(eventRow(ev({ day: "2026-11-12", start: 19 * 60, end: 22 * 60, calledAt: NOW - 24 * H }), NOW).step).toBe("Идёт — отметить «Проведено» после конца");
+  });
+  it("цена из заявки сайта: выбранный формат, без него — первый; «индивидуально» — нет цены", () => {
+    const site = "🧮 Расчёт: Квиз, до 25 гостей. Итого: Опытный — 25 900 ₽, Новые лица — 20 800 ₽, Первый старт — 16 900 ₽.";
+    expect(talkPrice(site)).toBe(25_900);
+    expect(talkPrice(`Квиз\nВедущий: Новые лица (−20%)\n${site}`)).toBe(20_800);
+    expect(talkPrice(`Ведущий: Первый старт (−35%)\n${site}`)).toBe(16_900);
+    expect(talkPrice("🧮 Расчёт: Квиз. Итого: обсудим индивидуально.")).toBeNull();
+    expect(talkRow(talk({ calc: "🧮 Расчёт: Квиз. Итого: обсудим индивидуально." }), NOW)).toMatchObject({ priceText: "—", priceSub: "в расчёте нет цены" });
   });
 });

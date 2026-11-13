@@ -423,10 +423,15 @@ function ClientBase({ profile }: { profile: UserProfile }) {
               onClick={() => {
                 const next = new URLSearchParams(params);
                 next.delete("id");
+                // Пришли из «Активных заказов» — туда и возвращаемся.
+                if (next.get("from") === "orders") {
+                  next.delete("from");
+                  next.set("tab", "orders");
+                }
                 setParams(next, { replace: true });
               }}
             >
-              ← Все клиенты
+              {params.get("from") === "orders" ? "← Активные заказы" : "← Все клиенты"}
             </button>
           ) : (
             <p className="small muted" aria-live="polite">

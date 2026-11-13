@@ -815,6 +815,12 @@ export interface OrderEvent extends AgencyEvent {
   clientOwnerName?: string;
   nextStep?: string;
   nextAt?: string;
+  /** У клиента есть другое мероприятие впереди (перенос уже записан). */
+  clientAhead?: boolean;
+  /** Клиент в архиве. */
+  clientArchived?: boolean;
+  /** Когда отменили (`cancelled_at`), мс. */
+  cancelledAt?: number;
 }
 
 /** Клиент в переговорах: «Новый» или «В работе», мероприятия впереди нет. */

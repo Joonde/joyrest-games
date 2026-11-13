@@ -75,6 +75,17 @@ describe.skipIf(!url)("«Активные заказы»: GET /api/orders на P
     // Без стоимости остаток не спросить: проведено + отзыв — закрыто.
     await event("past-noprice", -50, { held: true, review: "asked" });
     await sql`update events set price = null where id = 'past-noprice'`;
+    // Проведено с отзывом, но без предоплаты — остаток не спросить, закрыто.
+    await event("past-noprepay", -50, { held: true, review: "got" });
+    await sql`update events set prepaid_at = null where id = 'past-noprepay'`;
+    // Перенос, у которого новая дата уже записана, — со страницы уходит, клиент виден в «Забронированы».
+    await event("off-rebooked", 72, { cancelled_at: new Date(Date.now() - 20 * 86_400_000) });
+    await event("ahead2", 96);
+    let nina: string | null = null;
+    for (const ref of ["off-rebooked", "ahead2"]) {
+      nina = await upsertClient(sql, { name: "Нина", phone: "+79990000013", source: "event", summary: "Корпоратив", ref, promote: true });
+    }
+    await sql`update clients set status = 'client' where id = ${nina}`;
     // Перенос: отменено 20 дней назад, предоплата у агентства, клиент остался «Клиентом» — держим 30 дней. Отказ — нет.
     for (const [id, status] of [["off-moved", "client"], ["off-lost", "lost"]] as const) {
       await event(id, 72, { cancelled_at: new Date(Date.now() - 20 * 86_400_000) });
@@ -94,6 +105,11 @@ describe.skipIf(!url)("«Активные заказы»: GET /api/orders на P
     const gone = await upsertClient(sql, { name: "Архив", phone: "+79990000005", source: "site", summary: "Квиз" });
     await sql`update clients set archived_at = now() where id = ${gone}`;
     // Заявка с сайта без расчёта: «Цена:» в комментарии клиента — не расчёт.
+    // Новая заявка сайта без цены не заслоняет прошлый расчёт с ценой; заявка сайта с «Итого» и форматом — читается.
+    const vera = await upsertClient(sql, { name: "Вера", phone: "+79990000007", source: "telegram", summary: "🧮 Расчёт JoyRest\n✅ Опытный: 25 900 ₽ — выбран" });
+    await sql`update client_contacts set created_at = now() - interval '1 day' where client_id = ${vera}`;
+    await upsertClient(sql, { name: "Вера", phone: "+79990000007", source: "site", summary: "Квиз\n🧮 Расчёт: Квиз, 90+ гостей. Итого: обсудим индивидуально." });
+    await upsertClient(sql, { name: "Лев", phone: "+79990000008", source: "site", summary: "Квиз, 25 гостей\nВедущий: Новые лица (−20%)\n🧮 Расчёт: Квиз, до 25 гостей. Итого: Опытный — 25 900 ₽, Новые лица — 20 800 ₽, Первый старт — 16 900 ₽." });
     await upsertClient(sql, { name: "Глеб", phone: "+79990000006", source: "site", summary: "Телешоу, 20 гостей\nРасчёта нет — попросите прислать\nКомментарий: Цена: 24 900 ₽ устроит?" });
   });
 
@@ -113,10 +129,10 @@ describe.skipIf(!url)("«Активные заказы»: GET /api/orders на P
     expect((await get("/api/orders", owner)).statusCode).toBe(200);
   });
 
-  it("мероприятия: впереди, прошедшие незакрытые за 30 дней, отмены за 7 дней, ждущие возврата и перенос за 30 дней", async () => {
+  it("мероприятия: впереди, прошедшие незакрытые за 30 дней, отмены за 7 дней, ждущие возврата и перенос за 30 дней (без новой брони)", async () => {
     const board = (await get("/api/orders", owner)).json() as { now: number; events: Array<{ id: string }> };
     const ids = board.events.map((e) => e.id).sort();
-    expect(ids).toEqual(["ahead", "off-fresh", "off-moved", "off-refund", "past-held-rest", "past-open"]);
+    expect(ids).toEqual(["ahead", "ahead2", "off-fresh", "off-moved", "off-refund", "past-held-rest", "past-open"]);
     expect(Math.abs(board.now - Date.now())).toBeLessThan(10_000);
   });
 
@@ -132,7 +148,9 @@ describe.skipIf(!url)("«Активные заказы»: GET /api/orders на P
   it("переговоры: «Новый» и «В работе» без мероприятия впереди, без архива; расчёт — последний с ценой", async () => {
     const board = (await get("/api/orders", manager)).json() as { talks: Array<Record<string, unknown>> };
     const names = board.talks.map((t) => t.name).sort();
-    expect(names).toEqual(["Глеб", "Ирина", "Пётр"]);
+    expect(names).toEqual(["Вера", "Глеб", "Ирина", "Лев", "Пётр"]);
+    expect(String(board.talks.find((t) => t.name === "Вера")?.calc)).toContain("25 900 ₽ — выбран");
+    expect(String(board.talks.find((t) => t.name === "Лев")?.calc)).toContain("Новые лица — 20 800 ₽");
     expect(board.talks.find((t) => t.name === "Глеб")).toMatchObject({ calc: "" });
     const irina = board.talks.find((t) => t.name === "Ирина");
     expect(irina).toMatchObject({ status: "work", notes: "Дата: 11.12.2026" });

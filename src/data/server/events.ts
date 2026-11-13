@@ -84,6 +84,9 @@ export const serverEventsRepository: EventsRepository = {
         ...(asText(x.clientOwnerName) ? { clientOwnerName: asText(x.clientOwnerName) } : {}),
         ...(asText(x.nextStep) ? { nextStep: asText(x.nextStep) } : {}),
         ...(asText(x.nextAt) ? { nextAt: asText(x.nextAt) } : {}),
+        ...(x.clientAhead === true ? { clientAhead: true } : {}),
+        ...(x.clientArchived === true ? { clientArchived: true } : {}),
+        ...(typeof x.cancelledAt === "number" ? { cancelledAt: x.cancelledAt } : {}),
       };
     });
     const talks = (Array.isArray(d.talks) ? d.talks : []).map((raw): OrderTalk => {

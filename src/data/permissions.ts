@@ -337,7 +337,17 @@ export function canDeleteEvent(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
+/** «Отметить: вернул» — предоплату клиенту возвращает только владелец (решение 12 ноября 2026). */
+export function canConfirmRefund(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
 export function canViewEventStats(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** «Активные заказы»: колонка и итог «Агентству» — только владелец (решение владельца 12 ноября 2026). */
+export function canSeeAgencyShare(actor: Actor): boolean {
   return isAdmin(actor);
 }
 

@@ -95,6 +95,30 @@ async function login(email, password) {
 }
 
 /** Убрать свои записи ведущего и закреплённые владельцем в окне проверки. */
+/**
+ * Помощники для «одновременных» мероприятий (12 ноября 2026: занятого ведущего записать нельзя — у каждого из пяти
+ * одновременных свой ведущий). Создаются один раз, в конце проверки отключаются.
+ */
+const EXTRA = [1, 2, 3, 4].map((i) => ({ email: `calendar-check-${i}@joy-rest.ru`, name: `Помощник ${i} Проверка` }));
+async function extraHosts(admin) {
+  const users = (await api("GET", "/api/users", admin.cookie)).data ?? [];
+  const out = [];
+  for (const x of EXTRA) {
+    let user = (Array.isArray(users) ? users : users.users ?? []).find((u) => u.email === x.email);
+    if (!user) user = (await api("POST", "/api/users", admin.cookie, { email: x.email, name: x.name })).data?.account;
+    if (!user?.uid) continue;
+    if (user.active === false) await api("POST", `/api/users/${user.uid}/active`, admin.cookie, { active: true });
+    out.push(user.uid);
+  }
+  return out;
+}
+async function offExtraHosts(admin) {
+  const users = (await api("GET", "/api/users", admin.cookie)).data ?? [];
+  for (const u of Array.isArray(users) ? users : users.users ?? []) {
+    if (EXTRA.some((x) => x.email === u.email) && u.active) await api("POST", `/api/users/${u.uid}/active`, admin.cookie, { active: false });
+  }
+}
+
 async function cleanup(host, admin) {
   const to = addDays(D2, 7 * 4 + 1);
   const mine = await api("GET", `/api/calendar?from=${D1}&to=${to}`, host.cookie);
@@ -105,7 +129,9 @@ async function cleanup(host, admin) {
   // Клиенты проверки — в архив (из базы клиентов ничего не стирается).
   const clients = await api("GET", "/api/clients", admin.cookie);
   for (const c of clients.data?.clients ?? []) {
-    if (/Проверка/.test(c.name)) await api("POST", `/api/clients/${c.id}/archive`, admin.cookie, {});
+    if (!/Проверка/.test(c.name)) continue;
+    if (c.ownerId && c.ownerId !== admin.profile?.uid) continue; // чужие клиенты проверки (менеджера) — не наши
+    await api("POST", `/api/clients/${c.id}/archive`, admin.cookie, {});
   }
   // Мероприятия проверки: отменить и удалить навсегда.
   const events = await api("GET", `/api/events?from=${TODAY}&to=${D3}`, admin.cookie);
@@ -212,6 +238,9 @@ async function fillEvent(scope, o) {
   if (o.place !== undefined) await scope.getByPlaceholder("Ресторан «Север», Тверская 7").fill(o.place);
   if (o.guests !== undefined) await scope.getByPlaceholder("Например, 37").fill(String(o.guests));
   if (o.note !== undefined) await scope.getByPlaceholder("Пожелания, особенности зала, что взять с собой").fill(o.note);
+  // Оплата (12 ноября 2026): без стоимости и галочки «Предоплата внесена» новое мероприятие не записать.
+  if (o.price !== undefined) await scope.getByPlaceholder("Например, 24 900").fill(String(o.price));
+  if (o.prepaid) await scope.getByRole("checkbox", { name: /Предоплата 2 000 ₽ внесена/ }).check();
 }
 
 /** Мой календарь: листаем месяц до нужного дня и касаемся его. */
@@ -368,9 +397,9 @@ try {
   const hostOption = ((await row.locator("label.plan-host", { hasText: hostName }).first().textContent()) ?? "").replace(/\s+/g, " ");
   check(hostOption.includes("Может"), "Владелец: у ведущего в форме — «Может»", `Владелец: в форме у ведущего «${hostOption}»`);
   // «Закрепить это время» — дата и время уже стоят: «Когда» заполнено.
-  check(((await row.locator(".plan-progress").textContent()) ?? "").includes("Заполнено 2 из 8"), "Владелец: «Закрепить» — в форме уже есть время и ведущий (2 из 8)", `Владелец: «${(await row.locator(".plan-progress").textContent())?.slice(0, 120)}»`);
+  check(((await row.locator(".plan-progress").textContent()) ?? "").includes("Заполнено 2 из 10"), "Владелец: «Закрепить» — в форме уже есть время и ведущий (2 из 10)", `Владелец: «${(await row.locator(".plan-progress").textContent())?.slice(0, 120)}»`);
   check(await row.getByRole("button", { name: "Записать мероприятие" }).isDisabled(), "Владелец: пока обязательное не заполнено — «Записать» недоступна");
-  await fillEvent(row, { title: "Корпоратив, проверка", name: "Клиент Проверка", phone: "+7 900 000-00-00", contact: "WhatsApp", formats: ["Квиз", "Танцевальный"], place: "Ресторан проверки", guests: 45, note: "Квиз и танцы, проверка" });
+  await fillEvent(row, { title: "Корпоратив, проверка", name: "Клиент Проверка", phone: "+7 900 000-00-00", contact: "WhatsApp", formats: ["Квиз", "Танцевальный"], place: "Ресторан проверки", guests: 45, note: "Квиз и танцы, проверка", price: 24900, prepaid: true });
   await shot(ap, "владелец-форма-мероприятия");
   await noSideScroll(ap, "Владелец, форма в «Кто может»");
   await row.locator("summary", { hasText: "Вставить расчёт или заявку" }).click();
@@ -429,15 +458,19 @@ try {
   await shot(ap, "владелец-день-по-часам");
   await noSideScroll(ap, "Владелец, день по часам");
 
-  // Второе мероприятие в то же время — предупреждение «занято» и две колонки на таймлайне.
+  // Второе мероприятие в то же время: занятого ведущего выбрать нельзя (12 ноября 2026) — записываем владельцу,
+  // на таймлайне две колонки.
   await ap.getByRole("button", { name: "+ Мероприятие в этот день" }).click();
   await fillEvent(ap, { start: 1140, end: 1320 });
   const busyRadio = ap.getByRole("radio", { name: new RegExp(hostName) });
   await until(async () => /Занят/.test((await ap.locator("label.plan-host", { hasText: hostName }).first().textContent()) ?? ""), WAIT, "ведущий занят в списке");
-  await busyRadio.check();
-  check((await ap.locator(".plan-warn", { hasText: "У выбранного ведущего это время занято" }).count()) === 1, "Владелец: форма предупреждает, что у ведущего время занято");
+  check(await busyRadio.isDisabled(), "Владелец: занятого ведущего в форме выбрать нельзя");
+  const ownerName = admin.profile?.name ?? "";
+  await ap.getByRole("radio", { name: new RegExp(ownerName) }).first().check();
+  const busyApi = await api("POST", "/api/events", admin.cookie, { id: `e2ebusy${Date.now() % 100000}`, hostId: host.profile.uid, day: D1, start: 1140, end: 1320, title: "Занят, проверка", price: 19900, prepaid: true });
+  check(busyApi.status === 409 && busyApi.data?.reason === "host-busy", "API: занятого ведущего записать нельзя (409)", `API: ${busyApi.status} ${JSON.stringify(busyApi.data)}`);
   await ap.getByRole("button", { name: "Корпоратив", exact: true }).click();
-  await fillEvent(ap, { title: "Квиз-вечер, проверка", name: "Второй Проверка", phone: "+7 900 000-00-01", contact: "Звонок", formats: ["Квиз"], place: "Где-то, проверка" });
+  await fillEvent(ap, { title: "Квиз-вечер, проверка", name: "Второй Проверка", phone: "+7 900 000-00-01", contact: "Звонок", formats: ["Квиз"], place: "Где-то, проверка", price: 19900, prepaid: true });
   await ap.getByRole("button", { name: "Записать мероприятие" }).click();
   await until(async () => (await ap.locator(".plan-event").count()) === 2, WAIT, "два мероприятия на таймлайне");
   const quizSaved = ((await api("GET", `/api/events?from=${D1}&to=${D1}`, admin.cookie)).data?.events ?? []).find((e) => e.title === "Квиз-вечер, проверка");
@@ -448,8 +481,10 @@ try {
   await shot(ap, "владелец-два-мероприятия");
 
   // Пять и больше в одно время: на телефоне — одна плашка «Одновременно: N», касание — все карточки.
+  const helpers = await extraHosts(admin);
   for (let i = 1; i <= 4; i++) {
-    await api("POST", "/api/events", admin.cookie, { id: `e2emany${i}${Date.now() % 100000}`, hostId: host.profile.uid, day: D1, start: 1080 + i * 15, end: 1380, title: `Банкет ${i}, проверка` });
+    const r = await api("POST", "/api/events", admin.cookie, { id: `e2emany${i}${Date.now() % 100000}`, hostId: helpers[i - 1] ?? host.profile.uid, day: D1, start: 1080 + i * 15, end: 1380, title: `Банкет ${i}, проверка` });
+    if (r.status !== 200) bad(`API: «Банкет ${i}» не записан — ${r.status}`);
   }
   await ap.reload();
   await until(async () => (await ap.locator(".plan-lights").count()) > 0, WAIT, "список после перезагрузки");
@@ -749,6 +784,7 @@ try {
   for (const [who, page] of pages) await shot(page, `ошибка-${who}`).catch(() => undefined);
 } finally {
   if (host && admin) await cleanup(host, admin).catch(() => undefined);
+  if (admin) await offExtraHosts(admin).catch(() => undefined);
   await browser.close();
 }
 say(problems.length === 0 ? "Календарь работает с обеих сторон." : `Замечаний: ${problems.length}`);

@@ -8,11 +8,13 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
-import { bookingId, bookingNote, contactLinks, eventSpan, parseContact, parseEventInput, type EventInput } from "../../src/core/events";
+import { bookingId, bookingNote, contactLinks, eventLink, eventSpan, parseContact, parseEventInput, type EventInput } from "../../src/core/events";
+import { PREPAY_RUB, prepaidOwnerText, refundOpen, refundOwnerText, rub } from "../../src/core/prepay";
 import { cleanProgram, sameProgram } from "../../src/core/eventProgram";
+import { talkPrice } from "../../src/core/orders";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
-import { dayTitle } from "../../src/core/calendar";
+import { addDays, availabilityOf, dayTitle, rangeLabel } from "../../src/core/calendar";
 import { icsCalendar, icsFileName } from "../../src/core/ics";
 import { actorOf, apiGuard, sessionUser, type SessionRow, type UserRow } from "./auth";
 import { rangeOf } from "./calendar";
@@ -40,6 +42,8 @@ interface Row {
   id: string;
   host_id: string;
   host_name: string | null;
+  /** Ведущий отключён владельцем (false) — мероприятие надо передать другому. В запросах без этого поля — нет. */
+  host_active?: boolean | null;
   day: string;
   start_min: number;
   end_min: number;
@@ -57,6 +61,22 @@ interface Row {
   accept_rev?: number;
   client_contact?: string;
   live?: boolean;
+  price?: number | null;
+  prepaid_at?: Date | null;
+  prepaid_by_name?: string | null;
+  refund_at?: Date | null;
+  refund_by_name?: string | null;
+  refund_done_at?: Date | null;
+  owner_id?: string | null;
+  owner_name?: string | null;
+  declined_at?: Date | null;
+  declined_reason?: string | null;
+  rest_paid?: string | null;
+  rest_amount?: number | null;
+  called_at?: Date | null;
+  called_by_name?: string | null;
+  review?: string | null;
+  overtime_paid?: number | null;
 }
 
 /** Окно итогов: from ≤ to, не больше 370 дней (год с запасом), с прошлым днём (вечер за полночь). */
@@ -90,7 +110,32 @@ export function eventOf(row: Row): AgencyEvent {
     acceptedAt: row.accepted_at ? row.accepted_at.getTime() : null,
     acceptRev: row.accept_rev ?? 0,
     live: row.live === true,
+    ...(row.host_active === false ? { hostOff: true } : {}),
+    // Предоплата (12 ноября 2026): поля есть только у мероприятий со стоимостью или отметками.
+    ...(row.price != null ? { price: row.price } : {}),
+    ...(row.prepaid_at ? { prepaidAt: row.prepaid_at.getTime(), ...(row.prepaid_by_name ? { prepaidBy: row.prepaid_by_name } : {}) } : {}),
+    ...(row.refund_at ? { refundAt: row.refund_at.getTime(), ...(row.refund_by_name ? { refundBy: row.refund_by_name } : {}) } : {}),
+    ...(row.refund_done_at ? { refundDoneAt: row.refund_done_at.getTime() } : {}),
+    // Кто ведёт заявку (12 ноября 2026): только действующий человек — отключённый никого не держит.
+    ...(row.owner_id && row.owner_name ? { ownerId: row.owner_id, ownerName: row.owner_name } : {}),
+    ...(row.declined_at ? { declinedAt: row.declined_at.getTime(), declinedReason: row.declined_reason ?? "" } : {}),
+    ...(row.rest_paid === "yes" || row.rest_paid === "no" || row.rest_paid === "part" ? { restPaid: row.rest_paid, restAmount: row.rest_amount ?? null } : {}),
+    ...(row.called_at ? { calledAt: row.called_at.getTime(), calledBy: row.called_by_name ?? "" } : {}),
+    ...(row.review === "asked" || row.review === "got" ? { review: row.review } : {}),
+    ...(row.overtime_paid != null ? { overtimePaid: row.overtime_paid } : {}),
   };
+}
+
+/**
+ * История мероприятия (решение владельца 12 ноября 2026): кто и когда записал, изменил, отметил предоплату, принял,
+ * отказался, провёл. Только действие и имя сотрудника — без имени, телефона и адреса клиента. Не записалась — не беда.
+ */
+export async function logEvent(sql: Sql, eventId: string, byName: string, text: string): Promise<void> {
+  try {
+    await sql`insert into event_log (id, event_id, by_name, text) values (${`l${randomBytes(12).toString("base64url")}`}, ${eventId}, ${byName.slice(0, 80)}, ${text.slice(0, 300)})`;
+  } catch {
+    /* история — подсказка, а не учёт: ошибка не мешает действию */
+  }
 }
 
 export function registerEvents(app: FastifyInstance, options: EventsOptions): void {
@@ -140,9 +185,15 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
     }
 
     const select = sql`
-      select e.id, e.host_id, u.name as host_name, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
+      select e.id, e.host_id, u.name as host_name, u.active as host_active, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
         e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held, e.updated_at,
         e.program, e.accepted_at, e.accept_rev, e.client_contact,
+        e.price, e.prepaid_at, e.refund_at, e.refund_done_at,
+        (select pu.name from users pu where pu.id = e.prepaid_by) as prepaid_by_name,
+        (select ru.name from users ru where ru.id = e.refund_by) as refund_by_name,
+        e.created_by as owner_id, (select ou.name from users ou where ou.id = e.created_by and ou.active) as owner_name,
+        e.declined_at, e.declined_reason, e.rest_paid, e.rest_amount,
+        e.called_at, (select cu.name from users cu where cu.id = e.called_by) as called_by_name, e.review, e.overtime_paid,
         -- Игра этого вечера открыта у ведущего (как в «Мероприятие идёт дольше плана»): кружок «Идёт» / «Сверх плана».
         (e.cancelled_at is null and exists (select 1 from sessions s where s.host_id = e.host_id and s.phase in ('lobby', 'playing')
           and s.hidden_at is null and s.created_at between e.starts_at - interval '3 hours' and e.ends_at
@@ -153,6 +204,90 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const [row] = await sql<Row[]>`${select} where e.id = ${id}`;
       return row ? eventOf(row) : null;
     }
+
+    /**
+     * Владельцу агентства — колокольчик и Telegram о предоплате (решение владельца 12 ноября 2026): менеджер отметил
+     * «Предоплата внесена» или нажал «Вернуть предоплату». Без имени, телефона и адреса клиента; сам себе — не пишем.
+     */
+    async function tellOwners(request: FastifyRequest, kind: "prepaid" | "refund", event: AgencyEvent, by: { id: string; name: string }) {
+      const what = `${event.title || "Мероприятие"}${event.guests ? ` · ${event.guests} гостей` : ""}`;
+      const when = `${dayTitle(event.day)}, ${rangeLabel(event.start, event.end)}`;
+      const link = eventLink(platformOf(request), event.id);
+      const text = kind === "prepaid" ? prepaidOwnerText(what, when, event.price ?? null, by.name, link) : refundOwnerText(what, when, by.name, link);
+      const owners = await sql<{ id: string }[]>`select id from users where role = 'admin' and active`;
+      for (const o of owners) {
+        await bell(request, kind, o.id, event, by);
+        if (!bot || o.id === by.id) continue;
+        queue = queue
+          .then(() => bot.sendTo(o.id, text))
+          .then(() => undefined)
+          .catch(() => request.log.warn({ events: "owner-notice" }, "events: уведомление владельцу не отправилось"));
+      }
+    }
+
+    /**
+     * Клиент мероприятия в «Клиентах»: по телефону, без телефона — по нику Telegram из «Связи», а если в мероприятии
+     * потом сменили и телефон, и ник — по записи истории этого мероприятия. Строка блокируется до конца транзакции.
+     */
+    type FoundClient = { id: string; status: string };
+    async function clientOfEvent(t: Sql, ev: AgencyEvent): Promise<FoundClient | null> {
+      const key = phoneKey(ev.clientPhone);
+      const links = contactLinks(ev.clientContact ?? "");
+      let [client] = key
+        ? await t<FoundClient[]>`select id, status from clients where phone_key in ${t(phoneKeyVariants(key))}
+            order by (phone_key = ${key}) desc limit 1 for update`
+        : [];
+      if (!client && links.length > 0) {
+        [client] = await t<FoundClient[]>`select id, status from clients where links ?| ${t.array(links)} order by created_at limit 1 for update`;
+      }
+      if (!client) {
+        [client] = await t<FoundClient[]>`select c.id, c.status from clients c
+          join client_contacts h on h.client_id = c.id and h.source = 'event' and h.ref = ${ev.id} limit 1 for update of c`;
+      }
+      return client ?? null;
+    }
+
+    /**
+     * «Кто взял — тот и ведёт» (решение владельца 12 ноября 2026): мероприятие правит, отменяет и закрывает с возвратом
+     * только тот, кто его ведёт (записал или «Забрал себе»). Остальным — 409 `owned` с именем, кнопка «Забрать себе».
+     */
+    function owned(reply: FastifyReply, event: AgencyEvent | null, user: SessionRow): boolean {
+      if (!event?.ownerId || event.ownerId === user.id) return false;
+      reply.code(409).send({ error: "failed-precondition", reason: "owned", by: event.ownerName ?? "" });
+      return true;
+    }
+
+    /**
+     * Ведущий занят в это время (решение владельца 12 ноября 2026): уже записан на другое мероприятие, закреплён или сам
+     * отметил «занят» — записать его нельзя. «Свободен» и «не отметил» — можно. Возвращает, чем занят, или null.
+     */
+    async function hostBusy(hostId: string, eventId: string, day: string, start: number, end: number): Promise<string | null> {
+      const rows = await sql<{ id: string; day: string; start_min: number; end_min: number; kind: string; note: string }[]>`
+        select id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, kind, note from availability
+        where user_id = ${hostId} and day in (${day}, ${addDays(day, -1)}) and id <> ${bookingId(eventId)}`;
+      const info = availabilityOf(
+        rows.map((r) => ({ id: r.id, uid: hostId, day: r.day, start: r.start_min, end: r.end_min, kind: r.kind === "free" ? "free" : r.kind === "booked" ? "booked" : "busy", note: r.note })),
+        day,
+        start,
+        end,
+      );
+      if (info.status !== "busy") return null;
+      return info.busy.map((b) => `${rangeLabel(b.start, b.end)}${b.note ? ` — ${b.note}` : ""}`).join("; ") || "занят";
+    }
+
+    /** Колокольчик и (по желанию) Telegram нескольким людям сразу — без повторов; себе не пишем. */
+    async function tell(request: FastifyRequest, userIds: Array<string | null | undefined>, kind: Parameters<typeof recordHostNotice>[1]["kind"], event: AgencyEvent, by: { id: string; name: string }, telegram?: string) {
+      for (const uid of new Set(userIds.filter((u): u is string => Boolean(u)))) {
+        if (uid === by.id) continue;
+        await bell(request, kind, uid, event, by);
+        if (!bot || !telegram) continue;
+        queue = queue
+          .then(() => bot.sendTo(uid, telegram))
+          .then(() => undefined)
+          .catch(() => request.log.warn({ events: "tell" }, "events: уведомление не отправилось"));
+      }
+    }
+    const admins = async () => (await sql<{ id: string }[]>`select id from users where role = 'admin' and active`).map((r) => r.id);
 
     /** Ведущему — только свои. */
     const own = (user: SessionRow) => (permissions.canManageEvents(actorOf(user)) ? sql`true` : sql`e.host_id = ${user.id}`);
@@ -207,15 +342,33 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!span) return fail(reply, 400, "invalid-argument");
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${input.hostId}`;
       if (!host?.active) return fail(reply, 404, "not-found");
-      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date; program: unknown; client_contact: string }[]>`
-        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at, program, client_contact
+      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date; program: unknown; client_contact: string; price: number | null; prepaid: boolean; place: string; note: string; client_name: string; client_phone: string }[]>`
+        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at, program, client_contact,
+          price, (prepaid_at is not null) as prepaid, place, note, client_name, client_phone
         from events where id = ${input.id}`;
       if (existing?.cancelled) return fail(reply, 409, "failed-precondition");
+      if (existing && owned(reply, await one(input.id), user)) return reply;
+      // Занятого ведущего не записать: новое мероприятие или сменили ведущего, дату или время (старую двойную запись,
+      // которую не трогают, правка не ломает).
+      if (!existing || existing.host_id !== input.hostId || existing.day !== input.day || existing.start_min !== input.start || existing.end_min !== input.end) {
+        const busy = await hostBusy(input.hostId, input.id, input.day, input.start, input.end);
+        if (busy) return reply.code(409).send({ error: "failed-precondition", reason: "host-busy", what: busy.slice(0, 300) });
+      }
       // Владелец и менеджер правят одно мероприятие: форма шлёт `expect` — версию, с которой её открыли.
       const expect = (request.body as Record<string, unknown> | null)?.expect;
       if (existing && typeof expect === "number" && Math.floor(existing.updated_at.getTime()) !== expect) {
         return reply.code(409).send({ error: "changed" });
       }
+      // Предоплата (решение владельца 12 ноября 2026): новое мероприятие записывается ведущему только с галочкой
+      // «Предоплата внесена» и стоимостью по расчёту. Форма без этих полей (вкладка, открытая до обновления) — как раньше.
+      // Отметка ставится один раз и не снимается; стоимость у отмеченного мероприятия стереть нельзя.
+      const wasPrepaid = existing?.prepaid === true;
+      const markPrepaid = input.prepaid === true && !wasPrepaid;
+      const newPrice = input.price !== undefined ? input.price : (existing?.price ?? null);
+      if (!existing && input.prepaid === false) return reply.code(400).send({ error: "invalid-argument", reason: "prepay" });
+      if ((markPrepaid || wasPrepaid) && newPrice === null) return reply.code(400).send({ error: "invalid-argument", reason: "price" });
+      // Сумма «к оплате на месте» поменялась (стоимость или новая отметка предоплаты) — ведущему «Изменено».
+      const dueChanged = Boolean(existing) && ((existing?.price ?? null) !== newPrice || markPrepaid);
       // Программа: форма её не прислала (старая страница) — остаётся прежняя.
       const given = input.program !== undefined;
       const oldProgram = existing ? cleanProgram(existing.program) : null;
@@ -231,22 +384,31 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           existing?.start_min !== input.start ||
           existing?.end_min !== input.end ||
           existing?.title !== input.title ||
-          existing?.guests !== input.guests);
+          existing?.guests !== input.guests ||
+          dueChanged);
       const programJson = newProgram ? sql.json(newProgram as never) : null;
       // Связь с клиентом: форма её не прислала (старая страница) — остаётся прежняя.
       const contact = input.clientContact ?? existing?.client_contact ?? "";
       // Двойное касание «Сохранить»: два одинаковых запроса почти одновременно. «Назначено» в Telegram — только тому,
       // чей запрос действительно создал запись (`xmax = 0` — вставка, а не правка), иначе ведущему пришло бы два.
+      const prepaidAt = markPrepaid ? new Date(now()) : null;
       const inserted = await sql.begin(async (tx) => {
         const t = tx as unknown as Sql;
         const [row] = await t<{ inserted: boolean }[]>`
-          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, client_contact, title, place, guests, note, program, accept_rev, created_by)
+          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, client_contact, title, place, guests, note, program, accept_rev, created_by,
+            price, prepaid_at, prepaid_by)
           values (${input.id}, ${input.hostId}, ${input.day}, ${input.start}, ${input.end}, ${new Date(span.from)}, ${new Date(span.to)},
-            ${input.clientName}, ${input.clientPhone}, ${contact}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${programJson}, 1, ${user.id})
+            ${input.clientName}, ${input.clientPhone}, ${contact}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${programJson}, 1, ${user.id},
+            ${newPrice}, ${prepaidAt}, ${markPrepaid ? user.id : null})
           on conflict (id) do update set host_id = excluded.host_id, day = excluded.day, start_min = excluded.start_min,
             end_min = excluded.end_min, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
             client_name = excluded.client_name, client_phone = excluded.client_phone, client_contact = excluded.client_contact, title = excluded.title,
             place = excluded.place, guests = excluded.guests, note = excluded.note, program = excluded.program,
+            price = excluded.price,
+            declined_reason = case when events.host_id <> excluded.host_id then '' else events.declined_reason end,
+            declined_at = case when events.host_id <> excluded.host_id then null else events.declined_at end,
+            prepaid_by = case when events.prepaid_at is null then excluded.prepaid_by else events.prepaid_by end,
+            prepaid_at = coalesce(events.prepaid_at, excluded.prepaid_at),
             accepted_at = case when ${reaccept} then null else events.accepted_at end,
             accept_rev = events.accept_rev + case when ${reaccept} then 1 else 0 end, updated_at = now()
           returning (xmax = 0) as inserted`;
@@ -257,6 +419,24 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const saved = await one(input.id);
       if (!saved) return fail(reply, 500, "internal");
       const by = { id: user.id, name: user.name };
+      // История: что сделали (без данных клиента — только какие поля поменяли).
+      if (!existing) {
+        if (inserted) await logEvent(sql, saved.id, user.name, `Записал(а) мероприятие · ведущий ${saved.hostName}${markPrepaid ? ` · предоплата ${rub(PREPAY_RUB)} отмечена` : ""}`);
+      } else {
+        const what = [
+          existing.host_id !== saved.hostId ? `ведущий → ${saved.hostName}` : "",
+          existing.day !== saved.day || existing.start_min !== saved.start || existing.end_min !== saved.end ? `дата и время → ${dayTitle(saved.day)}, ${rangeLabel(saved.start, saved.end)}` : "",
+          existing.title !== saved.title ? "повод" : "",
+          existing.guests !== saved.guests ? "гости" : "",
+          programChanged ? "программа" : "",
+          (existing.price ?? null) !== (saved.price ?? null) ? `стоимость → ${saved.price != null ? rub(saved.price) : "—"}` : "",
+          existing.place !== saved.place ? "адрес" : "",
+          existing.note !== saved.note ? "комментарий" : "",
+          existing.client_name !== saved.clientName || existing.client_phone !== saved.clientPhone || existing.client_contact !== (saved.clientContact ?? "") ? "клиент и связь" : "",
+          markPrepaid ? `предоплата ${rub(PREPAY_RUB)} отмечена` : "",
+        ].filter(Boolean);
+        if (what.length) await logEvent(sql, saved.id, user.name, `Изменил(а): ${what.join(", ")}`);
+      }
       if (!existing) {
         if (inserted) {
           notice(request, "created", saved.hostId, saved);
@@ -274,11 +454,14 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         existing.end_min !== saved.end ||
         existing.title !== saved.title ||
         existing.guests !== saved.guests ||
-        programChanged
+        programChanged ||
+        dueChanged
       ) {
         notice(request, "changed", saved.hostId, saved);
         await bell(request, "changed", saved.hostId, saved, by);
       }
+      // Предоплату отметили (при записи или позже, у мероприятия без отметки) — владельцу: колокольчик и Telegram.
+      if (markPrepaid && (existing || inserted)) await tellOwners(request, "prepaid", saved, by);
       // Клиент мероприятия — в базу клиентов (по телефону; повтор не дублирует историю). Ждём записи и при сбое
       // повторяем (17 октября 2026: раньше запись шла без ожидания — клиент мог молча не попасть в «Клиентов»).
       // Не записался и после повторов — мероприятие всё равно сохранено, а форма говорит добавить клиента вручную.
@@ -289,7 +472,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           phone: saved.clientPhone,
           links,
           source: "event",
-          summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}`,
+          summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}${saved.prepaidAt ? ` · предоплата ${rub(PREPAY_RUB)} внесена` : ""}`,
           ref: saved.id,
           promote: !saved.cancelled,
           by: { id: user.id, name: user.name },
@@ -329,6 +512,9 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const id = request.params.id;
       if (!ID.test(id)) return fail(reply, 404, "not-found");
       const before = await one(id);
+      if (owned(reply, before, user)) return reply;
+      // Что с клиентом (решение владельца 12 ноября 2026): «lost» — отказался (клиент — «Отказ»), иначе — перенос, остаётся «Клиент».
+      const clientLost = (request.body as Record<string, unknown> | null)?.client === "lost";
       await sql.begin(async (tx) => {
         await tx`update events set cancelled_at = coalesce(cancelled_at, now()), updated_at = now() where id = ${id}`;
         await tx`delete from availability where id = ${bookingId(id)}`;
@@ -337,8 +523,19 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!event) return fail(reply, 404, "not-found");
       request.log.info({ events: "cancel" }, "events");
       if (before && !before.cancelled) {
+        await logEvent(sql, id, user.name, clientLost ? "Отменил(а) · клиент отказался" : "Отменил(а) · перенос, клиент остаётся");
         notice(request, "cancelled", event.hostId, event);
         await bell(request, "cancelled", event.hostId, event, { id: user.id, name: user.name });
+        if (clientLost) {
+          await sql
+            .begin(async (tx) => {
+              const t = tx as unknown as Sql;
+              const client = await clientOfEvent(t, event);
+              if (!client || client.status === "lost" || client.status === "held") return;
+              await changeStatus(t, client.id, client.status, "lost", { id: user.id, name: user.name }, `Отказ · мероприятие отменено · ${event.title || "Мероприятие"}, ${dayTitle(event.day)} · ${user.name}`);
+            })
+            .catch(() => request.log.warn({ events: "client-cancel" }, "events: статус клиента не обновлён"));
+        }
       }
       return event;
     });
@@ -351,6 +548,13 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!ID.test(id)) return fail(reply, 404, "not-found");
       const event = await one(id);
       if (!event) return fail(reply, 404, "not-found");
+      // Закрыто кнопкой «Вернуть предоплату»: брони больше нет. Клиент передумал — новое мероприятие с новой предоплатой.
+      if (event.cancelled && event.refundAt) return reply.code(409).send({ error: "failed-precondition", reason: "refunded" });
+      if (owned(reply, event, user)) return reply;
+      if (event.cancelled) {
+        const busy = await hostBusy(event.hostId, id, event.day, event.start, event.end);
+        if (busy) return reply.code(409).send({ error: "failed-precondition", reason: "host-busy", what: busy.slice(0, 300) });
+      }
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${event.hostId}`;
       if (!host?.active) return fail(reply, 409, "failed-precondition");
       await sql.begin(async (tx) => {
@@ -361,6 +565,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         await book(tx as unknown as Sql, { ...event, id, guests: event.guests }, user.id);
       });
       request.log.info({ events: "restore" }, "events");
+      if (event.cancelled) await logEvent(sql, id, user.name, "Вернул(а) мероприятие");
       const restored = await one(id);
       if (!restored) return fail(reply, 500, "internal");
       if (event.cancelled) {
@@ -368,6 +573,309 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         await bell(request, "created", restored.hostId, restored, { id: user.id, name: user.name });
       }
       return restored;
+    });
+
+    // «Вернуть предоплату» (решение владельца 12 ноября 2026): клиент отказался не позже чем за 48 часов до начала.
+    // Мероприятие закрывается у ведущего и у менеджера (уходит в «Отменённые», время ведущего свободно, ему — «Отменено»),
+    // клиент становится «Отказ», владельцу — колокольчик и Telegram «верните предоплату». Меньше 48 часов — 409 `late`:
+    // предоплата не возвращается. Повтор — успех без новых сообщений.
+    api.post<{ Params: { id: string } }>("/api/events/:id/refund", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canManageEvents(actorOf(u)));
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const [row] = await sql<{ starts_at: Date; held: boolean | null; prepaid: boolean; refund: boolean }[]>`
+        select starts_at, held, (prepaid_at is not null) as prepaid, (refund_at is not null) as refund from events where id = ${id}`;
+      if (!row) return fail(reply, 404, "not-found");
+      if (!row.prepaid) return reply.code(409).send({ error: "failed-precondition", reason: "not-prepaid" });
+      if (row.refund) return (await one(id)) ?? fail(reply, 404, "not-found");
+      if (row.held === true) return reply.code(409).send({ error: "failed-precondition", reason: "held" });
+      if (!refundOpen(row.starts_at.getTime(), now())) return reply.code(409).send({ error: "failed-precondition", reason: "late" });
+      const before = await one(id);
+      if (owned(reply, before, user)) return reply;
+      const at = new Date(now());
+      const by = { id: user.id, name: user.name };
+      const done = await sql.begin(async (tx) => {
+        const marked = await tx`update events set refund_at = ${at}, refund_by = ${user.id}, cancelled_at = coalesce(cancelled_at, now()), updated_at = now()
+          where id = ${id} and refund_at is null and prepaid_at is not null returning 1`;
+        await tx`delete from availability where id = ${bookingId(id)}`;
+        return marked.length > 0;
+      });
+      const event = await one(id);
+      if (!event) return fail(reply, 404, "not-found");
+      request.log.info({ events: "refund" }, "events");
+      if (!done) return event;
+      await logEvent(sql, id, user.name, `Вернуть предоплату ${rub(PREPAY_RUB)} · заказ закрыт`);
+      if (before && !before.cancelled) {
+        notice(request, "cancelled", event.hostId, event);
+        await bell(request, "cancelled", event.hostId, event, by);
+      }
+      await tellOwners(request, "refund", event, by);
+      // Клиент отказался — в «Клиентах» он «Отказ», в истории видно, что предоплату нужно вернуть.
+      await sql
+        .begin(async (tx) => {
+          const t = tx as unknown as Sql;
+          const client = await clientOfEvent(t, event);
+          // «Провели» — у клиента уже был праздник с нами: он остаётся прежним клиентом, отказ — только от этого заказа.
+          if (!client || client.status === "lost" || client.status === "held") return;
+          await changeStatus(t, client.id, client.status, "lost", by, `Отказ · вернуть предоплату ${rub(PREPAY_RUB)} · ${event.title || "Мероприятие"}, ${dayTitle(event.day)} · ${user.name}`);
+        })
+        .catch(() => request.log.warn({ events: "client-refund" }, "events: статус клиента не обновлён"));
+      return event;
+    });
+
+    // «Отметить: вернул» — владелец вернул предоплату клиенту. Менеджеру, который запросил возврат, — в колокольчик.
+    api.post<{ Params: { id: string } }>("/api/events/:id/refund-done", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canConfirmRefund(actorOf(u)));
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const [row] = await sql<{ refund: boolean; refund_by: string | null }[]>`select (refund_at is not null) as refund, refund_by from events where id = ${id}`;
+      if (!row) return fail(reply, 404, "not-found");
+      if (!row.refund) return reply.code(409).send({ error: "failed-precondition", reason: "no-refund" });
+      const marked = await sql`update events set refund_done_at = ${new Date(now())}, updated_at = now() where id = ${id} and refund_done_at is null returning 1`;
+      const event = await one(id);
+      if (!event) return fail(reply, 404, "not-found");
+      request.log.info({ events: "refund-done" }, "events");
+      if (marked.length > 0) await logEvent(sql, id, user.name, `Предоплата возвращена клиенту`);
+      if (marked.length > 0 && row.refund_by) await bell(request, "refunded", row.refund_by, event, { id: user.id, name: user.name });
+      return event;
+    });
+
+    // «Забрать себе» (решение владельца 12 ноября 2026): владелец или менеджер берёт мероприятие — дальше правит он,
+    // прежнему — в колокольчик. Повтор — успех.
+    api.post<{ Params: { id: string } }>("/api/events/:id/take", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canManageEvents(actorOf(u)));
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const before = await one(id);
+      if (!before) return fail(reply, 404, "not-found");
+      if (before.ownerId !== user.id) {
+        const moved = await sql`update events set created_by = ${user.id}, updated_at = now() where id = ${id} and created_by is distinct from ${user.id} returning 1`;
+        if (moved.length === 0) return (await one(id)) ?? before;
+        request.log.info({ events: "take" }, "events");
+        await logEvent(sql, id, user.name, `Забрал(а) себе${before.ownerName ? ` у ${before.ownerName}` : ""}`);
+        const event = (await one(id)) ?? before;
+        await tell(request, [before.ownerId], "taken", event, { id: user.id, name: user.name });
+        return event;
+      }
+      return before;
+    });
+
+    // «Не смогу провести» (решение владельца 12 ноября 2026): ведущий этого мероприятия отказывается — тому, кто ведёт
+    // заявку, и владельцу срочно (колокольчик и Telegram без клиента и без текста причины), кружок — «Нужна замена».
+    // Сменили ведущего — отметка снимается сама. Повтор — успех без новых сообщений.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/events/:id/decline", { bodyLimit: 2048 }, async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const before = await one(id);
+      if (!before) return fail(reply, 404, "not-found");
+      if (before.hostId !== user.id || !permissions.canAcceptEvent(actorOf(user), { hostId: before.hostId })) return fail(reply, 403, "permission-denied");
+      const span = eventSpan(before);
+      if (before.cancelled || !span || span.to <= now()) return fail(reply, 409, "failed-precondition");
+      const raw = (request.body as Record<string, unknown> | null)?.reason;
+      const reason = typeof raw === "string" ? raw.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300) : "";
+      const marked = await sql`update events set declined_at = ${new Date(now())}, declined_reason = ${reason}, accepted_at = null, accept_rev = accept_rev + 1, updated_at = now()
+        where id = ${id} and declined_at is null and cancelled_at is null returning 1`;
+      const event = (await one(id)) ?? before;
+      request.log.info({ events: "decline" }, "events");
+      if (marked.length > 0) {
+        await logEvent(sql, id, user.name, `Не сможет провести${reason ? ` · ${reason}` : ""}`);
+        if (bot?.declineMarked) void bot.declineMarked(id).catch(() => undefined);
+        const what = `${event.title || "Мероприятие"}${event.guests ? ` · ${event.guests} гостей` : ""}`;
+        const text = `🚨 Ведущий не сможет провести — нужна замена\n\n${what}\n${dayTitle(event.day)}, ${rangeLabel(event.start, event.end)}\nВедущий: ${user.name}\n\nНайдите замену и поменяйте ведущего в мероприятии:\n${eventLink(platformOf(request), id)}`;
+        await tell(request, [event.ownerId, ...(await admins())], "declined", event, { id: user.id, name: user.name }, text);
+      }
+      return event;
+    });
+
+    // «Остаток получен» после «Проведено» (решение владельца 12 ноября 2026): yes / no / part (+ сумма). Не получил или
+    // не весь — владельцу и тому, кто ведёт заявку, в колокольчик.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/events/:id/rest", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      const rest = b.rest === "yes" || b.rest === "no" || b.rest === "part" ? b.rest : null;
+      const amount = rest === "part" && typeof b.amount === "number" && Number.isInteger(b.amount) && b.amount >= 0 && b.amount <= 3_000_000 ? b.amount : null;
+      if (!rest) return fail(reply, 400, "invalid-argument");
+      const before = await one(id);
+      if (!before) return fail(reply, 404, "not-found");
+      if (!permissions.canMarkEventHeld(actorOf(user), { hostId: before.hostId })) return fail(reply, 403, "permission-denied");
+      if (before.held !== true) return fail(reply, 409, "failed-precondition");
+      await sql`update events set rest_paid = ${rest}, rest_amount = ${amount}, updated_at = now() where id = ${id}`;
+      const event = (await one(id)) ?? before;
+      request.log.info({ events: "rest", rest }, "events");
+      if (before.restPaid !== rest || before.restAmount !== amount) {
+        await logEvent(sql, id, user.name, rest === "yes" ? "Остаток на месте получен" : rest === "no" ? "Остаток на месте не получен" : `Остаток получен частично${amount != null ? `: ${rub(amount)}` : ""}`);
+      }
+      if (rest !== "yes" && (before.restPaid !== rest || before.restAmount !== amount)) {
+        await tell(request, [event.ownerId, ...(await admins())], "debt", event, { id: user.id, name: user.name });
+      }
+      return event;
+    });
+
+    // «Созвонились с клиентом» (решение владельца 12 ноября 2026): тот, кто ведёт заявку, отмечает созвон перед
+    // мероприятием — напоминание «за 3 дня» больше не приходит, владелец видит, что созвон был. `called: false` — снять.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/events/:id/called", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canManageEvents(actorOf(u)));
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const before = await one(id);
+      if (!before) return fail(reply, 404, "not-found");
+      if (owned(reply, before, user)) return reply;
+      const on = (request.body as Record<string, unknown> | null)?.called !== false;
+      await sql`update events set called_at = ${on ? new Date(now()) : null}, called_by = ${on ? user.id : null}, updated_at = now() where id = ${id}`;
+      if (on !== Boolean(before.calledAt)) await logEvent(sql, id, user.name, on ? "Созвонился(ась) с клиентом" : "Снял(а) отметку о созвоне");
+      return (await one(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // Отзыв после «Проведено»: попросили (asked) / получен (got) / снять (''). Владелец видит, у кого ещё не попросили.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/events/:id/review", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canManageEvents(actorOf(u)));
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const raw = (request.body as Record<string, unknown> | null)?.review;
+      const review = raw === "asked" || raw === "got" || raw === "" ? raw : null;
+      if (review === null) return fail(reply, 400, "invalid-argument");
+      const before = await one(id);
+      if (!before) return fail(reply, 404, "not-found");
+      if (before.held !== true) return fail(reply, 409, "failed-precondition");
+      if (owned(reply, before, user)) return reply;
+      await sql`update events set review = ${review}, updated_at = now() where id = ${id}`;
+      if ((before.review ?? "") !== review) await logEvent(sql, id, user.name, review === "asked" ? "Попросил(а) отзыв" : review === "got" ? "Отзыв получен" : "Снял(а) отметку об отзыве");
+      return (await one(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // Доплата за продление (после «Проведено»): сколько получили, 0 — продления не было, null — снять.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/events/:id/overtime", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const raw = (request.body as Record<string, unknown> | null)?.amount;
+      const amount = raw === null ? null : typeof raw === "number" && Number.isInteger(raw) && raw >= 0 && raw <= 3_000_000 ? raw : undefined;
+      if (amount === undefined) return fail(reply, 400, "invalid-argument");
+      const before = await one(id);
+      if (!before) return fail(reply, 404, "not-found");
+      if (!permissions.canMarkEventHeld(actorOf(user), { hostId: before.hostId })) return fail(reply, 403, "permission-denied");
+      if (before.held !== true) return fail(reply, 409, "failed-precondition");
+      await sql`update events set overtime_paid = ${amount}, updated_at = now() where id = ${id}`;
+      if ((before.overtimePaid ?? null) !== amount) {
+        await logEvent(sql, id, user.name, amount === null ? "Снял(а) отметку о продлении" : amount === 0 ? "Продления не было" : `Доплата за продление получена: ${rub(amount)}`);
+      }
+      return (await one(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // «Активные заказы» (решение владельца 12–13 ноября 2026; логика — docs/active-orders.md): владельцу и менеджеру по продажам
+    // одним ответом — мероприятия впереди, прошедшие незакрытые (30 дней), отменённые (7 дней и все ждущие возврата) с клиентом
+    // из истории, и клиенты в переговорах («Новый», «В работе» без мероприятия впереди).
+    api.get("/api/orders", async (request, reply) => {
+      const user = await requireUser(request, reply, (u) => permissions.canManageClients(actorOf(u)));
+      if (!user) return reply;
+      const at = new Date(now());
+      const month = new Date(at.getTime() - 30 * 86_400_000);
+      const week = new Date(at.getTime() - 7 * 86_400_000);
+      const ahead = await sql<Row[]>`${select} where e.cancelled_at is null and e.ends_at > ${at} order by e.starts_at limit ${LIST_MAX}`;
+      const past = await sql<Row[]>`${select} where e.cancelled_at is null and e.ends_at <= ${at} and e.ends_at > ${month}
+        and e.held is distinct from false and not (e.held is true and (e.rest_paid = 'yes' or e.price is null or e.prepaid_at is null) and e.review <> '')
+        order by e.starts_at desc limit ${LIST_MAX}`;
+      // Окна отмен — от `cancelled_at` (поздние правки отменённого их не продлевают). Перенос (клиент остался «Клиентом»,
+      // предоплата у агентства, новой брони ещё нет) держим 30 дней — его надо довести до новой даты.
+      const off = await sql<Row[]>`${select} where e.cancelled_at is not null
+        and ((e.refund_at is not null and e.refund_done_at is null) or e.cancelled_at > ${week}
+          or (e.prepaid_at is not null and e.refund_at is null and e.cancelled_at > ${month} and exists (select 1 from client_contacts h
+            join clients c on c.id = h.client_id where h.source = 'event' and h.ref = e.id and c.status = 'client' and c.archived_at is null
+              and not exists (select 1 from client_contacts h2 join events e2 on e2.id = h2.ref where h2.client_id = c.id
+                and h2.source = 'event' and e2.cancelled_at is null and e2.ends_at > ${at}))))
+        order by e.cancelled_at desc limit ${LIST_MAX}`;
+      const events = [...ahead, ...past, ...off].map(eventOf);
+      const ids = events.map((e) => e.id);
+      const cancelledAt = new Map(
+        ids.length
+          ? (await sql<{ id: string; cancelled_at: Date }[]>`select id, cancelled_at from events where id in ${sql(ids)} and cancelled_at is not null`).map(
+              (r) => [r.id, r.cancelled_at.getTime()] as const,
+            )
+          : [],
+      );
+      type Link = {
+        event_id: string; id: string; status: string; owner_name: string | null; next_step: string; next_at: string | null; ahead: boolean; archived: boolean;
+      };
+      const links = ids.length
+        ? await sql<Link[]>`
+            select h.ref as event_id, c.id, c.status, c.next_step, to_char(c.next_at, 'YYYY-MM-DD') as next_at, (c.archived_at is not null) as archived,
+              (select u.name from users u where u.id = c.owner_id and u.active) as owner_name,
+              exists (select 1 from client_contacts h2 join events e2 on e2.id = h2.ref where h2.client_id = c.id and h2.source = 'event'
+                and h2.ref <> h.ref and e2.cancelled_at is null and e2.ends_at > ${at}) as ahead
+            from client_contacts h join clients c on c.id = h.client_id
+            where h.source = 'event' and h.ref in ${sql(ids)}`
+        : [];
+      const byEvent = new Map(links.map((l) => [l.event_id, l]));
+      type Talk = {
+        id: string; name: string; phone: string; status: string; notes: string; origin: string | null; next_step: string; next_at: string | null;
+        owner_name: string | null; new_since: Date | null; last_contact_at: Date; tg_waiting: Date | null; calcs: string[] | null;
+      };
+      const talks = await sql<Talk[]>`
+        select c.id, c.name, c.phone, c.status, c.notes, c.origin, c.next_step, to_char(c.next_at, 'YYYY-MM-DD') as next_at,
+          (select u.name from users u where u.id = c.owner_id and u.active) as owner_name, c.new_since, c.last_contact_at,
+          (select min(t.waiting_since) from tg_chats t where t.client_id = c.id) as tg_waiting,
+          array(select h.summary from client_contacts h where h.client_id = c.id and h.source <> 'status' and h.created_at > ${new Date(at.getTime() - 60 * 86_400_000)}
+             and h.summary ~ '(🧮|[Рр]асч[её]т JoyRest|✅|[Цц]ена:)' and h.summary !~ '[Рр]асч[её]та нет' order by h.created_at desc limit 5) as calcs
+        from clients c
+        where c.archived_at is null and c.status in ('new', 'work')
+          and not exists (select 1 from client_contacts h join events e on e.id = h.ref
+            where h.client_id = c.id and h.source = 'event' and e.cancelled_at is null and e.ends_at > ${at})
+        order by c.last_contact_at desc limit ${LIST_MAX}`;
+      reply.header("Cache-Control", "no-store");
+      return {
+        now: at.getTime(),
+        events: events.map((e) => {
+          const l = byEvent.get(e.id);
+          const at2 = cancelledAt.get(e.id);
+          const base = at2 === undefined ? e : { ...e, cancelledAt: at2 };
+          return l
+            ? {
+                ...base, clientId: l.id, clientStatus: l.status, ...(l.owner_name ? { clientOwnerName: l.owner_name } : {}),
+                ...(l.next_step ? { nextStep: l.next_step } : {}), ...(l.next_at ? { nextAt: l.next_at } : {}),
+                ...(l.ahead ? { clientAhead: true } : {}), ...(l.archived ? { clientArchived: true } : {}),
+              }
+            : base;
+        }),
+        talks: talks.map((t) => ({
+          id: t.id,
+          name: t.name,
+          phone: t.phone,
+          status: t.status === "work" ? "work" : "new",
+          ownerName: t.owner_name ?? "",
+          nextStep: t.next_step ?? "",
+          nextAt: t.next_at ?? "",
+          notes: t.notes ?? "",
+          // Расчёт — последний, из которого читается цена; нет такого — просто последний (подпись «по расчёту»).
+          calc: (t.calcs ?? []).find((c) => talkPrice(c) !== null) ?? t.calcs?.[0] ?? "",
+          origin: t.origin ?? "",
+          newSince: t.new_since ? t.new_since.getTime() : null,
+          tgWaitingSince: t.tg_waiting ? t.tg_waiting.getTime() : null,
+          lastContactAt: t.last_contact_at.getTime(),
+        })),
+      };
+    });
+
+    // История мероприятия — владельцу, менеджеру и ведущему этого мероприятия.
+    api.get<{ Params: { id: string } }>("/api/events/:id/log", async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const event = ID.test(request.params.id) ? await one(request.params.id) : null;
+      if (!event || !permissions.canViewEvent(actorOf(user), event)) return fail(reply, 404, "not-found");
+      const rows = await sql<{ at: Date; by_name: string; text: string }[]>`
+        select at, by_name, text from event_log where event_id = ${event.id} order by at desc limit 100`;
+      reply.header("Cache-Control", "no-store");
+      return { log: rows.map((r) => ({ at: r.at.getTime(), by: r.by_name, text: r.text })) };
     });
 
     // «Принял, готовлюсь» — ведущий этого мероприятия (из студии; из Telegram — кнопкой бота). Повтор — успех, время — первое.
@@ -399,31 +907,38 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const body = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
       const held = body.held === true ? true : body.held === false ? false : body.held === null ? null : undefined;
       if (held === undefined) return fail(reply, 400, "invalid-argument");
-      const [row] = await sql<{ host_id: string; started: boolean; cancelled: boolean }[]>`
-        select host_id, starts_at <= ${new Date(now())} as started, (cancelled_at is not null) as cancelled from events where id = ${id}`;
+      const [row] = await sql<{ host_id: string; started: boolean; cancelled: boolean; held: boolean | null }[]>`
+        select host_id, starts_at <= ${new Date(now())} as started, (cancelled_at is not null) as cancelled, held from events where id = ${id}`;
       if (!row) return fail(reply, 404, "not-found");
       if (!permissions.canMarkEventHeld(actorOf(user), { hostId: row.host_id })) return fail(reply, 403, "permission-denied");
       if (!row.started || row.cancelled) return fail(reply, 409, "failed-precondition");
       await sql`update events set held = ${held}, held_at = ${held === null ? null : new Date(now())}, held_by = ${held === null ? null : user.id}, updated_at = now()
+        ${held === true ? sql`` : sql`, rest_paid = '', rest_amount = null, review = '', overtime_paid = null`}
         where id = ${id}`;
       request.log.info({ events: "held", held }, "events");
+      if (row.held !== held) await logEvent(sql, id, user.name, held === true ? "Проведено" : held === false ? "Не состоялось" : "Снял(а) отметку «Проведено»");
       // «Проведено» — клиент мероприятия сам становится «Провели» (менеджер просит отзыв и предлагает следующий праздник);
       // отметку сняли или «Не состоялось» — обратно «Клиент». Сразу видно в «Клиентах» (обновляются раз в 30 с).
+      // Клиент ищется так же, как при записи мероприятия: по телефону, без телефона — по нику Telegram из «Связи»
+      // (диагностика 12 ноября 2026: клиент, записанный только по нику, оставался «Клиентом» — отзыв у него не просили),
+      // а если в мероприятии потом сменили и телефон, и ник — по записи истории этого мероприятия.
       const ev = await one(id);
-      const key = ev ? phoneKey(ev.clientPhone) : "";
-      if (ev && key) {
-        await sql.begin(async (tx) => {
-          const t = tx as unknown as Sql;
-          const [client] = await t<{ id: string; status: string }[]>`select id, status from clients where phone_key in ${t(phoneKeyVariants(key))}
-            order by (phone_key = ${key}) desc limit 1 for update`;
-          if (!client) return;
-          const what = `${ev.title || "Мероприятие"}, ${dayTitle(ev.day)}`;
-          if (held === true && client.status !== "held") {
-            await changeStatus(t, client.id, client.status, "held", { id: user.id, name: user.name }, `Провели · ${what} · ${user.name}`);
-          } else if (held !== true && client.status === "held") {
-            await changeStatus(t, client.id, client.status, "client", { id: user.id, name: user.name }, `Клиент · ${held === false ? "мероприятие не состоялось" : "отметку «Проведено» сняли"} · ${user.name}`);
-          }
-        }).catch(() => request.log.warn({ events: "client-held" }, "events: статус клиента не обновлён"));
+      // «Проведено» — тому, кто ведёт заявку: попросить у клиента отзыв (12 ноября 2026).
+      if (ev && held === true && row.held !== true) await tell(request, [ev.ownerId], "held", ev, { id: user.id, name: user.name });
+      if (ev) {
+        await sql
+          .begin(async (tx) => {
+            const t = tx as unknown as Sql;
+            const client = await clientOfEvent(t, ev);
+            if (!client) return;
+            const what = `${ev.title || "Мероприятие"}, ${dayTitle(ev.day)}`;
+            if (held === true && client.status !== "held") {
+              await changeStatus(t, client.id, client.status, "held", { id: user.id, name: user.name }, `Провели · ${what} · ${user.name}`);
+            } else if (held !== true && client.status === "held") {
+              await changeStatus(t, client.id, client.status, "client", { id: user.id, name: user.name }, `Клиент · ${held === false ? "мероприятие не состоялось" : "отметку «Проведено» сняли"} · ${user.name}`);
+            }
+          })
+          .catch(() => request.log.warn({ events: "client-held" }, "events: статус клиента не обновлён"));
       }
       return (await one(id)) ?? fail(reply, 404, "not-found");
     });
@@ -529,7 +1044,21 @@ export async function acceptEvent(sql: Sql, id: string, userId: string, rev: num
   if (row.past) return "past";
   if (row.accepted) return "already";
   // Программу поменяли между чтением и записью — отметка не ставится, ведущему придёт новое сообщение.
-  const done = await sql`update events set accepted_at = coalesce(accepted_at, now())
+  const done = await sql`update events set accepted_at = coalesce(accepted_at, now()), declined_at = null, declined_reason = ''
     where id = ${id} and accept_rev = ${row.accept_rev} and cancelled_at is null returning 1`;
-  return done.length > 0 ? "ok" : "changed";
+  if (done.length === 0) return "changed";
+  const [who] = await sql<{ name: string }[]>`select name from users where id = ${userId}`;
+  await logEvent(sql, id, who?.name ?? "", "Принял, готовится");
+  // Ведущий принял — тому, кто ведёт заявку, в колокольчик (12 ноября 2026): не нужно заходить и смотреть цвет кружка.
+  try {
+    const [e] = await sql<{ created_by: string | null; title: string; day: string; start_min: number; end_min: number; host_name: string | null; owner_active: boolean | null }[]>`
+      select e.created_by, e.title, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, h.name as host_name, o.active as owner_active
+      from events e left join users h on h.id = e.host_id left join users o on o.id = e.created_by where e.id = ${id}`;
+    if (e?.created_by && e.owner_active) {
+      await recordHostNotice(sql, { kind: "accepted", userId: e.created_by, event: { id, title: e.title, day: e.day, start: e.start_min, end: e.end_min }, by: { id: userId, name: e.host_name ?? "" } });
+    }
+  } catch {
+    // Колокольчик не записался — отметка «Принял» всё равно стоит.
+  }
+  return "ok";
 }

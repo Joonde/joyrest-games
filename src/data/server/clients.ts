@@ -1,6 +1,6 @@
 /** База клиентов на своём сервере: `/api/clients...` (CLAUDE.md, раздел 3, «База клиентов»). */
 import type { ClientsRepository } from "../contracts";
-import type { ClientContact, ClientDetails, ClientRecord, ClientResponse, ContactMatches } from "../types";
+import type { ClientContact, ClientDetails, ClientEventLine, ClientRecord, ClientResponse, ContactMatches } from "../types";
 import { api, asRecord, asText } from "./api";
 
 const num = (v: unknown) => (typeof v === "number" ? v : 0);
@@ -35,6 +35,9 @@ function parseClient(value: unknown): ClientRecord {
     takenBy: asText(d.takenBy),
     contact: asText(d.contact),
     outreachAt: typeof d.outreachAt === "number" ? d.outreachAt : null,
+    ...(asText(d.ownerId) ? { ownerId: asText(d.ownerId), ownerName: asText(d.ownerName) } : {}),
+    ...(asText(d.nextStep) ? { nextStep: asText(d.nextStep) } : {}),
+    ...(asText(d.nextAt) ? { nextAt: asText(d.nextAt) } : {}),
     outreachFail: Array.isArray(d.outreachFail) ? d.outreachFail.filter((k): k is "telegram" | "whatsapp" => k === "telegram" || k === "whatsapp") : [],
   };
 }
@@ -47,7 +50,25 @@ function parseDetails(value: unknown): ClientDetails {
         return { id: asText(r.id), source: asText(r.source), summary: asText(r.summary), at: num(r.at), ref: typeof r.ref === "string" ? r.ref : null };
       })
     : [];
-  return { ...parseClient(value), history };
+  const events = Array.isArray(d.events)
+    ? d.events.map((e): ClientEventLine => {
+        const r = asRecord(e);
+        return {
+          id: asText(r.id),
+          title: asText(r.title),
+          day: asText(r.day),
+          start: num(r.start),
+          end: num(r.end),
+          hostName: asText(r.hostName),
+          cancelled: r.cancelled === true,
+          held: r.held === true ? true : r.held === false ? false : null,
+          acceptedAt: typeof r.acceptedAt === "number" ? r.acceptedAt : null,
+          acceptRev: num(r.acceptRev),
+          ...(typeof r.declinedAt === "number" ? { declinedAt: r.declinedAt } : {}),
+        };
+      })
+    : [];
+  return { ...parseClient(value), history, events };
 }
 
 function list(value: unknown): Record<string, unknown>[] {
@@ -90,6 +111,12 @@ export const serverClientsRepository: ClientsRepository = {
   },
   async restore(id) {
     await api("POST", `/api/clients/${encodeURIComponent(id)}/restore`, {});
+  },
+  async setNext(id, text, day) {
+    return parseDetails(await api("POST", `/api/clients/${encodeURIComponent(id)}/next`, { text, day }));
+  },
+  async take(id) {
+    return parseDetails(await api("POST", `/api/clients/${encodeURIComponent(id)}/take`, {}));
   },
   exportUrl(all) {
     return `/api/clients/export${all ? "?all=1" : ""}`;

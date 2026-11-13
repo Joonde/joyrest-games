@@ -16,6 +16,9 @@
 //  8. «По цвету»: порядок «сначала срочное», фильтр по цвету, счётчики; «Рабочее место» показывает, что требует внимания.
 //  9. Вставка расчёта прямо в новую форму: заполняет только пустые поля; «Создать похожее»; права менеджера и ведущего.
 // 12. Владелец: «Мои контакты» → «Таблица Excel» — шаблон на странице и файлом, своя таблица CSV, клиент без номера, повтор.
+// 13. «Активные заказы» (13 ноября 2026): заказы на все случаи → группы, шаги, суммы; владелец — таблица с «Агентству»,
+//     менеджер — карточки без неё, ведущему — 403; из карточки клиента «← Активные заказы» возвращает обратно.
+//     E2E_ONLY=orders — только этот раздел (~3 минуты).
 // Снимки каждого шага — в E2E_SHOTS (workflow кладёт их в ветку e2e-shots, папка manager/). Всё созданное — убирается.
 import { createServer } from "node:http";
 import { appendFileSync, mkdirSync, readFileSync, existsSync, statSync } from "node:fs";
@@ -32,6 +35,7 @@ const SHOTS = process.env.E2E_SHOTS ?? "manager-shots";
 const SALES_EMAIL = "sales-check@joy-rest.ru";
 const WAIT = 20_000;
 const TAG = "Проверка Менеджер";
+const ONLY = (process.env.E2E_ONLY ?? "all").trim();
 
 const report = [];
 const problems = [];
@@ -157,11 +161,17 @@ async function cleanup(admin, host) {
   const events = await api("GET", `/api/events?from=${from}&to=${to}`, admin.cookie);
   for (const e of events.data?.events ?? []) {
     if (!/проверка менеджера/i.test(e.title)) continue;
+    // «Кто взял — тот и ведёт» (12 ноября 2026): владелец сначала забирает мероприятие менеджера себе.
+    if (e.ownerId && e.ownerId !== admin.profile?.uid) await api("POST", `/api/events/${e.id}/take`, admin.cookie, {});
     if (!e.cancelled) await api("POST", `/api/events/${e.id}/cancel`, admin.cookie, {});
     await api("DELETE", `/api/events/${e.id}`, admin.cookie);
   }
   const clients = await api("GET", "/api/clients", admin.cookie);
-  for (const c of clients.data?.clients ?? []) if (c.name.includes(TAG)) await api("POST", `/api/clients/${c.id}/archive`, admin.cookie, {});
+  for (const c of clients.data?.clients ?? []) {
+    if (!c.name.includes(TAG)) continue;
+    if (c.ownerId && c.ownerId !== admin.profile?.uid) await api("POST", `/api/clients/${c.id}/take`, admin.cookie, {});
+    await api("POST", `/api/clients/${c.id}/archive`, admin.cookie, {});
+  }
   if (host) for (const id of liveSessions) await api("POST", `/api/sessions/${id}/finish`, host.cookie, {}).catch(() => undefined);
 }
 
@@ -286,6 +296,98 @@ async function apiEvent(cookie, id) {
   return ((await api("GET", `/api/events?from=${from}&to=${to}`, cookie)).data?.events ?? []).find((e) => e.id === id) ?? null;
 }
 
+// ================= 13. «Активные заказы» =================
+async function ordersSection() {
+  section("13. «Активные заказы»: группы, шаги, деньги, права, возврат из карточки");
+  const n = Date.now() % 100000;
+  const t = String(n).padStart(5, "0");
+  const who = admin.profile.uid;
+  const prog = { formats: ["Квиз"], extension: "", addons: [], duration: "" };
+  const mkOrder = async (key, day, start, end, extra = {}) => {
+    const body = { id: `e2eord${"abcdef"["АБВГДЕ".indexOf(key)]}${n}`, hostId: who, day, start, end, title: `Заказ ${key}, проверка менеджера`, clientName: `Заказ ${key} ${TAG}`, clientPhone: "", clientContact: "call", place: "Москва, Тверская 1", guests: 30, note: "", program: prog, price: 29900, prepaid: true, ...extra };
+    const r = await api("POST", "/api/events", sales.cookie, body);
+    if (r.status !== 200) bad(`Заказ ${key}: не записан — ${r.status} ${JSON.stringify(r.data).slice(0, 160)}`);
+    return body.id;
+  };
+  const soonSlot = slot(20 * 3_600_000, 60);
+  const ids = {
+    А: await mkOrder("А", addDays(TODAY, 30), 720, 840),
+    Б: await mkOrder("Б", soonSlot.day, soonSlot.start, soonSlot.end),
+    В: await mkOrder("В", addDays(TODAY, -2), 600, 660),
+    Г: await mkOrder("Г", addDays(TODAY, -2), 720, 780),
+    Д: await mkOrder("Д", addDays(TODAY, 21), 720, 840),
+    Е: await mkOrder("Е", addDays(TODAY, 22), 720, 840, { clientPhone: `+7 916 3${t.slice(0, 2)}-${t.slice(2, 4)}-${t.slice(4)}1` }),
+  };
+  check((await api("POST", `/api/events/${ids.Г}/held`, sales.cookie, { held: true })).status === 200, "Заказ Г: отмечено «Проведено»");
+  check((await api("POST", `/api/events/${ids.Д}/refund`, sales.cookie, {})).status === 200, "Заказ Д: «Вернуть предоплату» — закрыт с возвратом");
+  check((await api("POST", `/api/events/${ids.Е}/cancel`, sales.cookie, {})).status === 200, "Заказ Е: отменён как перенос (клиент остаётся «Клиент»)");
+  const talkId = `e2eordtalk${n}`;
+  const talk = await api("POST", "/api/clients", sales.cookie, { id: talkId, name: `Заказ Ж ${TAG}`, phone: `+7 916 4${t.slice(0, 2)}-${t.slice(2, 4)}-${t.slice(4)}2`, links: [], status: "work", marketing: "unknown", notes: `Дата: ${addDays(TODAY, 40).split("-").reverse().join(".")}\nГостей: 25\nПрограмма: Квиз\n✅ Опытный: 25 900 ₽ — выбран` });
+  check(talk.status === 200, "Заказ Ж: клиент «В работе» с расчётом в заметке", `Клиент: ${talk.status} ${JSON.stringify(talk.data).slice(0, 160)}`);
+
+  // API: права и наборы.
+  check((await api("GET", "/api/orders", host.cookie)).status === 403, "API: ведущему «Активные заказы» не отдаются (403)");
+  const board = (await api("GET", "/api/orders", sales.cookie)).data ?? {};
+  const got = new Set((board.events ?? []).map((e) => e.id));
+  check(Object.values(ids).every((id) => got.has(id)), "API: все шесть заказов на странице (впереди, прошли, отказ с возвратом, перенос)", `API: нет ${Object.entries(ids).filter(([, id]) => !got.has(id)).map(([k]) => k).join(", ")}`);
+  const moved = (board.events ?? []).find((e) => e.id === ids.Е);
+  check(moved?.clientStatus === "client" && typeof moved?.cancelledAt === "number", "API: перенос — клиент «Клиент», есть дата отмены", `API: ${JSON.stringify(moved ? { clientStatus: moved.clientStatus, cancelledAt: moved.cancelledAt } : null)}`);
+  check((board.talks ?? []).some((c) => c.id === talkId), "API: клиент «В работе» без брони — в «Переговорах»");
+  check(!JSON.stringify(board).includes("agency"), "API: в ответе нет доли агентства — её считает только экран владельца");
+
+  // Владелец — компьютер: таблица.
+  const op = await newPage(browser, admin.token, "Владелец · заказы");
+  await op.setViewportSize({ width: 1366, height: 900 });
+  await op.goto(`${BASE}/studio/clients?tab=orders`);
+  await until(async () => (await op.locator('[role="table"]').count()) > 0, WAIT, "таблица заказов");
+  await op.getByRole("combobox", { name: "Поиск" }).fill(TAG);
+  const rowOf = (key) => op.locator('[role="row"].orders-line', { hasText: `Заказ ${key} ${TAG}` });
+  await until(async () => (await rowOf("Ж").count()) > 0, WAIT, "строки проверки");
+  const text = async (loc) => ((await loc.count()) ? ((await loc.first().textContent()) ?? "") : "").replace(/\s+/g, " ");
+  const expectRow = async (key, parts, what) => {
+    const s = await text(rowOf(key));
+    check(parts.every((x) => s.includes(x)), `Таблица, заказ ${key}: ${what}`, `Таблица, заказ ${key}: нет «${parts.filter((x) => !s.includes(x)).join("», «")}» — «${s.slice(0, 260)}»`);
+  };
+  await expectRow("А", ["29 900 ₽", "Ждёт ведущего", "Напоминание придёт за 3 дня"], "29 900 ₽, «Ждёт ведущего», спокойный шаг");
+  await expectRow("Б", ["Не подтвердил", "Позвонить ведущему сегодня"], "меньше суток — «Позвонить ведущему сегодня»");
+  await expectRow("В", ["Не отмечено", "Узнать у ведущего, как прошло"], "прошло без отметки");
+  await expectRow("Г", ["Проведено", "Остаток: уточнить у ведущего"], "проведено — уточнить остаток");
+  await expectRow("Д", ["Вернуть 2 000 ₽", "отказ"], "отказ — вернуть 2 000 ₽");
+  await expectRow("Е", ["Перенос", "Согласовать новую дату"], "перенос — согласовать новую дату");
+  await expectRow("Ж", ["≈ 25 900 ₽", "Договориться о брони"], "переговоры — цена из расчёта и шаг");
+  const head = await text(op.locator('[role="table"]'));
+  check(head.includes("Агентству"), "Владелец: колонка «Агентству» есть");
+  check(((await op.locator(".orders-sum").textContent()) ?? "").includes("Агентству"), "Владелец: плитка «Агентству» есть");
+  const order = await op.locator('[role="row"].orders-line').evaluateAll((els) => els.map((e) => (e.textContent ?? "").match(/Заказ (.) /)?.[1] ?? ""));
+  const at = (k) => order.indexOf(k);
+  check(at("Б") < at("А") && at("А") < at("Ж") && at("Ж") < at("В") && at("Г") < at("Д") && at("Д") < at("Е"), "Порядок групп: Забронированы → Переговоры → Прошли → Отменены (ждущий возврата — выше переноса)", `Порядок: ${order.join(" ")}`);
+  await shot(op, "заказы-владелец-таблица");
+  await op.getByRole("group", { name: "Какие заказы" }).getByRole("button", { name: /Требуют внимания/ }).click();
+  const alertRows = await op.locator('[role="row"].orders-line').evaluateAll((els) => els.map((e) => (e.textContent ?? "").match(/Заказ (.) /)?.[1] ?? ""));
+  check(!alertRows.includes("А") && !alertRows.includes("Ж") && ["Б", "В", "Г", "Д", "Е"].every((k) => alertRows.includes(k)), "Фильтр «Требуют внимания»: Б, В, Г, Д, Е — да; А и Ж — нет", `Фильтр: ${alertRows.join(" ")}`);
+  await shot(op, "заказы-требуют-внимания");
+
+  // Менеджер — телефон: карточки без «Агентству», переход в карточку клиента и назад.
+  const sp = await newPage(browser, sales.token, "Менеджер · заказы");
+  await sp.goto(`${BASE}/studio/clients?tab=orders`);
+  await until(async () => (await sp.locator(".orders-cards").count()) > 0, WAIT, "карточки заказов");
+  await sp.getByRole("combobox", { name: "Поиск" }).fill(TAG);
+  await until(async () => (await sp.locator(".orders-card", { hasText: `Заказ Ж ${TAG}` }).count()) > 0, WAIT, "карточки проверки");
+  const main = ((await sp.locator("main").textContent()) ?? "").replace(/\s+/g, " ");
+  check(!main.includes("Агентству"), "Менеджер: «Агентству» нигде нет — ни в плитках, ни в карточках");
+  check((await sp.locator(".orders-card", { hasText: TAG }).count()) >= 7, "Менеджер: на телефоне — карточки всех семи заказов");
+  await shot(sp, "заказы-менеджер-телефон");
+  await sp.locator(".orders-card", { hasText: `Заказ Ж ${TAG}` }).click();
+  await until(async () => sp.url().includes("from=orders"), WAIT, "карточка клиента");
+  const backBtn = sp.getByRole("button", { name: "← Активные заказы" });
+  check(await soft(async () => (await backBtn.count()) > 0, WAIT, "кнопка назад"), "Карточка клиента из заказов: кнопка «← Активные заказы»");
+  await shot(sp, "заказы-карточка-клиента");
+  await backBtn.click();
+  check(await soft(async () => sp.url().includes("tab=orders") && (await sp.locator(".orders-card").count()) > 0, 1500, "сразу назад"), "«← Активные заказы» возвращает на вкладку, карточки видны сразу (без загрузки)");
+  await sp.setViewportSize({ width: 360, height: 780 });
+  await shot(sp, "заказы-менеджер-360");
+}
+
 const liveSessions = [];
 let admin;
 let host;
@@ -299,6 +401,9 @@ try {
   sales = await salesManager(admin);
   const hostName = host.profile?.name ?? "";
   say(`ℹ️ Менеджер: ${SALES_EMAIL} (роль «Менеджер по продажам»), ведущий: ${hostName}, праздник клиента: ${D_EVENT}`);
+
+  full: {
+  if (ONLY === "orders") break full;
 
   // «Сверх плана» ждёт, пока пройдёт «до» (кратно 15 минутам), — заводим его в начале, проверяем в конце.
   const overSlot = (() => {
@@ -410,7 +515,7 @@ try {
   await until(async () => (await mp.getByPlaceholder("Как обращаться").count()) > 0, WAIT, "форма мероприятия");
   await until(async () => (await mp.getByPlaceholder("Как обращаться").inputValue()) === `Анна ${TAG}`, WAIT, "имя из карточки");
   const p1 = await progressText(mp);
-  check(/Заполнено [0-8] из 8/.test(p1) && p1.includes("связь") && p1.includes("повод") && p1.includes("где") && p1.includes("кто ведёт"), "Форма: «Заполнено N из 8 · осталось: связь, повод, где, кто ведёт»", `Форма: «${p1}»`);
+  check(/Заполнено \d+ из 10/.test(p1) && p1.includes("связь") && p1.includes("повод") && p1.includes("где") && p1.includes("кто ведёт") && p1.includes("стоимость") && p1.includes("предоплата"), "Форма: «Заполнено N из 10 · осталось: связь, повод, где, кто ведёт, стоимость, предоплата»", `Форма: «${p1}»`);
   check(!p1.includes("программа") && !p1.includes("дата и время"), "Форма: программа и время из расчёта уже стоят", `Форма: «${p1}»`);
   check((await mp.locator(".plan-got", { hasText: "из карточки клиента" }).count()) >= 3, "Форма: подставленное отмечено «из карточки клиента»");
   check(await mp.getByRole("button", { name: "Записать мероприятие" }).isDisabled(), "Форма: пока не всё обязательное — «Записать» недоступна");
@@ -443,8 +548,14 @@ try {
   await mp.getByRole("button", { name: "Корпоратив", exact: true }).click();
   await mp.locator('input[list="event-titles"]').fill("Корпоратив, проверка менеджера");
   await mp.getByRole("checkbox", { name: /Место пока уточняется/ }).check();
+  // Стоимость: меньше предоплаты — подсказка; верная — сразу видно, сколько уйдёт ведущему после галочки.
+  await mp.getByPlaceholder("Например, 24 900").fill("150");
+  check(((await mp.locator(".plan-warn").allTextContents()).join(" ")).includes("Стоимость — целыми рублями"), "Ошибка: стоимость меньше предоплаты — подсказка");
+  await mp.getByPlaceholder("Например, 24 900").fill("24 900");
+  const dueBefore = ((await mp.locator(".plan-due").first().textContent()) ?? "").replace(/\s+/g, " ");
+  check(dueBefore.includes("После галочки") && dueBefore.includes("22 900 ₽"), "Оплата: под стоимостью — «После галочки ведущему уйдёт: к оплате на месте 22 900 ₽»", `Оплата: «${dueBefore}»`);
   const p2 = await progressText(mp);
-  check(p2.includes("Заполнено 7 из 8") && p2.includes("кто ведёт"), "Форма: осталось одно — «кто ведёт»", `Форма: «${p2}»`);
+  check(p2.includes("Заполнено 8 из 10") && p2.includes("кто ведёт") && p2.includes("предоплата"), "Форма: осталось «кто ведёт» и «предоплата»", `Форма: «${p2}»`);
   // Касание строки «осталось» — к первому незаполненному.
   await mp.locator(".plan-progress__text").click();
   await mp.waitForTimeout(700);
@@ -470,14 +581,22 @@ try {
     tbd: await mp.getByRole("checkbox", { name: /Место пока уточняется/ }).isChecked(),
     whatsapp: (await mp.getByRole("radio", { name: "WhatsApp", exact: true }).getAttribute("aria-checked")) === "true",
     progress: await progressText(mp),
+    price: (await mp.getByPlaceholder("Например, 24 900").inputValue()).replace(/\s/g, ""),
   };
-  check(resumed.name === `Анна ${TAG}` && resumed.title === "Корпоратив, проверка менеджера" && resumed.tbd && resumed.whatsapp && resumed.progress.includes("7 из 8"), "Черновик: «Продолжить» — всё на месте: имя, повод, связь, «место уточняется», 7 из 8", `Черновик: ${JSON.stringify(resumed)}`);
+  check(resumed.name === `Анна ${TAG}` && resumed.title === "Корпоратив, проверка менеджера" && resumed.tbd && resumed.whatsapp && resumed.price === "24900" && resumed.progress.includes("8 из 10"), "Черновик: «Продолжить» — всё на месте: имя, повод, связь, «место уточняется», стоимость, 8 из 10", `Черновик: ${JSON.stringify(resumed)}`);
   // Ведущий — и «Записать» (двойное касание — одна запись).
   const hostRadio = mp.getByRole("radio", { name: new RegExp(hostName) });
   await until(async () => (await hostRadio.count()) > 0, WAIT, "ведущие в форме");
   const hostLine = ((await mp.locator("label.plan-host", { hasText: hostName }).first().textContent()) ?? "").replace(/\s+/g, " ");
   check(/Может|Не отметил|Свободен частично|Занят/.test(hostLine), `Форма: у ведущего видна занятость на это время («${hostLine.slice(0, 60)}»)`);
   await hostRadio.first().check();
+  // Без галочки «Предоплата внесена» записать нельзя (решение владельца 12 ноября 2026).
+  const p3 = await progressText(mp);
+  check(p3.includes("Заполнено 9 из 10") && p3.includes("предоплата") && (await mp.getByRole("button", { name: "Записать мероприятие" }).isDisabled()), "Предоплата: без галочки — «осталось: предоплата», «Записать» недоступна", `Форма: «${p3}»`);
+  await shot(mp, "форма-без-предоплаты");
+  await mp.getByRole("checkbox", { name: /Предоплата 2 000 ₽ внесена/ }).check();
+  const dueAfter = ((await mp.locator(".plan-due").first().textContent()) ?? "").replace(/\s+/g, " ");
+  check(dueAfter.includes("Ведущему уйдёт: к оплате на месте 22 900 ₽") && dueAfter.includes("24 900 ₽"), "Предоплата: с галочкой — «Ведущему уйдёт: к оплате на месте 22 900 ₽ (стоимость 24 900 ₽ − предоплата 2 000 ₽)»", `Оплата: «${dueAfter}»`);
   check((await progressText(mp)).includes("Всё обязательное заполнено"), "Форма: «✓ Всё обязательное заполнено», «Записать» доступна");
   await shot(mp, "форма-заполнена");
   const save = mp.getByRole("button", { name: "Записать мероприятие" });
@@ -496,6 +615,9 @@ try {
     `API: записано всё — клиент, связь WhatsApp, 19:00–${hhmm(expectEnd)}, «место уточняется», 45 гостей, программа по порядку, ведущий, ещё не принято`,
     `API: ${JSON.stringify(ev ?? null).slice(0, 400)}`,
   );
+  check(ev?.price === 24900 && typeof ev?.prepaidAt === "number" && Boolean(ev?.prepaidBy), "API: стоимость 24 900 ₽, предоплата отмечена — когда и кем", `API: ${JSON.stringify({ price: ev?.price, prepaidAt: ev?.prepaidAt, prepaidBy: ev?.prepaidBy })}`);
+  const ownerBell = ((await api("GET", "/api/notices", admin.cookie)).data?.items ?? []).filter((i) => i.eventId === ev?.id);
+  check(ownerBell.some((i) => String(i.title).includes("Предоплата 2 000 ₽ отмечена")) && ownerBell.every((i) => !`${i.title} ${i.name} ${i.line}`.includes("Анна")), "Владелец: в колокольчике «Предоплата 2 000 ₽ отмечена» — без имени клиента", `Колокольчик владельца: ${JSON.stringify(ownerBell).slice(0, 300)}`);
   const clientAfter = ((await api("GET", "/api/clients", sales.cookie)).data?.clients ?? []).find((c) => c.name === `Анна ${TAG}`);
   check(clientAfter?.status === "client", "Клиент: после «Записать» сам стал «Клиент»", `Клиент: ${clientAfter?.status}`);
   const booked = ((await api("GET", `/api/calendar?from=${D_EVENT}&to=${D_EVENT}`, host.cookie)).data?.entries ?? []).find((e) => e.id === `ev-${ev?.id}`);
@@ -508,6 +630,8 @@ try {
   await openCard(evCard);
   const evText = ((await evCard.textContent()) ?? "").replace(/\s+/g, " ");
   check(evText.includes("WhatsApp по номеру") && evText.includes("Место уточняется") && evText.includes("программа") && evText.includes("30 мин запаса"), "Карточка менеджера: связь, «место уточняется», время с запасом, программа", `Карточка: «${evText.slice(0, 300)}»`);
+  check(evText.includes("Стоимость по расчёту: 24 900 ₽") && evText.includes("Предоплата 2 000 ₽ внесена") && evText.includes("К оплате на месте (ведущему): 22 900 ₽"), "Карточка менеджера: стоимость, предоплата (кто отметил) и остаток ведущему", `Карточка: «${evText.slice(0, 400)}»`);
+  check(await evCard.getByRole("button", { name: "💸 Вернуть предоплату" }).isEnabled(), "Карточка менеджера: «Вернуть предоплату» активна — до начала больше 48 часов");
   check((await evCard.getByRole("button", { name: "Удалить навсегда" }).count()) === 0, "Права: у менеджера нет «Удалить навсегда»");
   check((await mp.getByRole("button", { name: "Итоги", exact: true }).count()) === 0, "Права: у менеджера нет «Итогов»");
   await shot(mp, "менеджер-карточка-ждёт-ведущего");
@@ -525,6 +649,8 @@ try {
   await openCard(hostCard);
   const hostText = ((await hostCard.textContent()) ?? "").replace(/\s+/g, " ");
   check(hostText.includes("1 · Квиз → 2 · Музыкальный") && hostText.includes("Анна") && hostText.includes("WhatsApp по номеру") && hostText.includes(`19:00–${hhmm(expectEnd)}`), "Ведущий: программа по порядку, клиент, связь, время «с … до …»", `Ведущий: «${hostText.slice(0, 300)}»`);
+  check(hostText.includes("К оплате на месте: 22 900 ₽") && hostText.includes("предоплата 2 000 ₽ уже внесена") && !hostText.includes("Стоимость по расчёту"), "Ведущий: видит только остаток — «К оплате на месте: 22 900 ₽ (предоплата 2 000 ₽ уже внесена)»", `Ведущий: «${hostText.slice(0, 400)}»`);
+  check((await hostCard.getByRole("button", { name: "💸 Вернуть предоплату" }).count()) === 0, "Права: у ведущего нет «Вернуть предоплату»");
   check((await hostCard.getByRole("button", { name: "Изменить" }).count()) === 0, "Права: ведущий не правит мероприятие");
   await shot(hp, "ведущий-заявка");
   await hostCard.getByRole("button", { name: "✅ Принял, готовлюсь" }).click();
@@ -562,6 +688,27 @@ try {
   await hostCard.getByRole("button", { name: "✅ Принял, готовлюсь" }).click();
   check(await soft(async () => Boolean((await apiEvent(sales.cookie, ev.id))?.acceptedAt), WAIT, "принято снова"), "Ведущий: принял изменённое — снова 🟢");
 
+  // ================= 6а. Кто ведёт, «Ведущий принял», история, занятый ведущий (12 ноября 2026) =================
+  section("6а. Кто ведёт, «Ведущий принял», история");
+  const bellMgr = ((await api("GET", "/api/notices", sales.cookie)).data?.items ?? []).filter((i) => i.eventId === ev.id);
+  check(bellMgr.some((i) => String(i.title).includes("Ведущий принял")), "Менеджер: в колокольчике «✅ Ведущий принял мероприятие»", `Колокольчик: ${JSON.stringify(bellMgr).slice(0, 300)}`);
+  await mp.reload();
+  await eventsList(mp);
+  await mp.getByRole("combobox", { name: "Поиск" }).fill("Корпоратив, проверка менеджера");
+  check(await soft(async () => (await evCard.locator(".plan-card__accepted").count()) > 0, WAIT, "плашка принял"), "Менеджер: на карточке зелёная плашка «✅ Ведущий принял»");
+  await openCard(evCard);
+  await evCard.getByText("📜 История мероприятия").click();
+  check(await soft(async () => ((await evCard.locator(".plan-history__list").textContent()) ?? "").includes("Записал(а)"), WAIT, "история"), "Карточка: «📜 История мероприятия» — «Записал(а)», «Изменил(а)», «Принял»");
+  const histText = (await evCard.locator(".plan-history__list").textContent().catch(() => "")) ?? "";
+  check(histText.includes("Принял") && histText.includes("Изменил(а)") && !histText.includes(`Анна ${TAG}`), "История: есть «Принял» и что меняли, имени клиента нет", `История: «${histText.slice(0, 300)}»`);
+  await shot(mp, "история-мероприятия");
+  const evNow = await apiEvent(sales.cookie, ev.id);
+  const ownerEdit = await api("POST", "/api/events", admin.cookie, { ...evNow, guests: 77 });
+  check(ownerEdit.status === 409 && ownerEdit.data?.reason === "owned", "Владелец: чужое мероприятие не меняет (409 «ведёт другой») — только «Забрать себе»", `Ответ: ${ownerEdit.status} ${JSON.stringify(ownerEdit.data)}`);
+  const dupId = `e2edup${Date.now() % 100000}`;
+  const dup = await api("POST", "/api/events", sales.cookie, { ...evNow, id: dupId, title: "Дубль, проверка менеджера", price: 19900, prepaid: true });
+  check(dup.status === 409 && dup.data?.reason === "host-busy", "Занятого ведущего не записать: то же время тому же ведущему — отказ", `Ответ: ${dup.status} ${JSON.stringify(dup.data)}`);
+
   // ================= 7. Все цвета =================
   section("7. Кружки на настоящих мероприятиях");
   const mk = async (id, s, title, extra = {}) => {
@@ -574,7 +721,8 @@ try {
   const idPast = `e2epast${Date.now() % 100000}`;
   const idOff = `e2eoff${Date.now() % 100000}`;
   await mk(idLate, slot(10 * 3_600_000, 180), "Скоро, проверка менеджера");
-  await mk(idLive, slot(-30 * 60_000, 180), "Сейчас, проверка менеджера");
+  // Занятого ведущего не записать (12 ноября 2026): «Сейчас» пересекается со «Сверх плана» — ведёт владелец.
+  await mk(idLive, slot(-30 * 60_000, 180), "Сейчас, проверка менеджера", { hostId: admin.profile?.uid });
   const pastSlot = slot(-3 * 3_600_000, 60);
   await mk(idPast, pastSlot, "Прошло, проверка менеджера");
   await mk(idOff, slot(5 * DAY_MS, 120), "Отмена, проверка менеджера");
@@ -673,6 +821,67 @@ try {
   const { clientContact: _c, live: _l, updatedAt: _u, hostName: _h, cancelled: _x, held: _y, acceptedAt: _a, acceptRev: _r, ...oldBody } = (await apiEvent(sales.cookie, ev.id)) ?? {};
   const oldSave = await api("POST", "/api/events", sales.cookie, oldBody);
   check(oldSave.status === 200 && oldSave.data?.clientContact === "whatsapp", "Старая страница без поля «связь» — связь не стирается");
+
+  // ================= 9а. Предоплата: возврат =================
+  section("9а. Предоплата: «Вернуть предоплату» — до 48 часов можно, позже нельзя");
+  {
+    const stamp = Date.now() % 100000;
+    const common = { hostId: host.profile.uid, clientContact: "call", place: "Место уточняется", guests: null, note: "", program: null };
+    // Новое мероприятие с новой страницы: без галочки и без стоимости сервер не записывает.
+    const noTick = await api("POST", "/api/events", sales.cookie, { ...common, id: `e2enp${stamp}`, day: addDays(D_EVENT, -2), start: 600, end: 660, title: "Без галочки, проверка менеджера", clientName: `Нет ${TAG}`, clientPhone: "", price: 19900, prepaid: false });
+    check(noTick.status === 400 && noTick.data?.reason === "prepay", "API: новое мероприятие без галочки «Предоплата внесена» — отказ", `API: ${noTick.status} ${JSON.stringify(noTick.data)}`);
+    const noPrice = await api("POST", "/api/events", sales.cookie, { ...common, id: `e2enp${stamp}`, day: addDays(D_EVENT, -2), start: 600, end: 660, title: "Без стоимости, проверка менеджера", clientName: `Нет ${TAG}`, clientPhone: "", prepaid: true });
+    check(noPrice.status === 400 && noPrice.data?.reason === "price", "API: галочка без стоимости — отказ", `API: ${noPrice.status} ${JSON.stringify(noPrice.data)}`);
+    // Завтра (меньше 48 часов) и через 42 дня.
+    const nearId = `e2enr${stamp}`;
+    const farId = `e2efr${stamp}`;
+    const farPhone = `+7900${1000000 + stamp}`;
+    const near = await api("POST", "/api/events", sales.cookie, { ...common, id: nearId, day: addDays(TODAY, 1), start: 600, end: 660, title: "Поздно возвращать, проверка менеджера", clientName: `Ника ${TAG}`, clientPhone: "", price: 19900, prepaid: true });
+    const far = await api("POST", "/api/events", sales.cookie, { ...common, id: farId, day: addDays(D_EVENT, -2), start: 720, end: 900, title: "Клиент отказался, проверка менеджера", clientName: `Рита ${TAG}`, clientPhone: farPhone, price: 31900, prepaid: true });
+    check(near.status === 200 && far.status === 200, "Менеджер: два мероприятия с предоплатой записаны (завтра и через 42 дня)", `API: ${near.status}, ${far.status}`);
+    await eventsList(mp);
+    await mp.getByRole("combobox", { name: "Поиск" }).fill("Поздно возвращать");
+    const nearCard = cardOf(mp, "Поздно возвращать, проверка менеджера");
+    await nearCard.waitFor({ timeout: WAIT });
+    await openCard(nearCard);
+    const nearText = ((await nearCard.textContent()) ?? "").replace(/\s+/g, " ");
+    check((await nearCard.getByRole("button", { name: "💸 Вернуть предоплату" }).isDisabled()) && nearText.includes("меньше 48 часов"), "Меньше 48 часов: «Вернуть предоплату» неактивна, подпись «предоплата не возвращается»", `Карточка: «${nearText.slice(-260)}»`);
+    const lateTry = await api("POST", `/api/events/${nearId}/refund`, sales.cookie, {});
+    check(lateTry.status === 409 && lateTry.data?.reason === "late" && (await apiEvent(sales.cookie, nearId))?.cancelled === false, "API: возврат меньше чем за 48 часов — отказ, мероприятие на месте", `API: ${lateTry.status} ${JSON.stringify(lateTry.data)}`);
+    await shot(mp, "возврат-поздно");
+    check((await api("POST", `/api/events/${farId}/refund`, host.cookie, {})).status === 403, "API: ведущий предоплату не возвращает (403)");
+    await mp.getByRole("combobox", { name: "Поиск" }).fill("Клиент отказался");
+    const farCard = cardOf(mp, "Клиент отказался, проверка менеджера");
+    await farCard.waitFor({ timeout: WAIT });
+    await openCard(farCard);
+    await shot(mp, "возврат-кнопка-светится");
+    await farCard.getByRole("button", { name: "💸 Вернуть предоплату" }).click();
+    const dialogText = ((await mp.getByRole("dialog").textContent()) ?? "").replace(/\s+/g, " ");
+    check(dialogText.includes("закроется у ведущего") && dialogText.includes("2 000 ₽"), "Окно: «Вернуть предоплату и закрыть?» — объясняет, что закроется у ведущего и что владелец вернёт 2 000 ₽", `Окно: «${dialogText.slice(0, 300)}»`);
+    await mp.getByRole("dialog").getByRole("button", { name: "Вернуть предоплату" }).click();
+    check(await soft(async () => (await apiEvent(sales.cookie, farId))?.cancelled === true, WAIT, "заказ закрыт"), "«Вернуть предоплату»: заказ закрыт (мероприятие в «Отменённых»)");
+    const closed = await apiEvent(sales.cookie, farId);
+    check(typeof closed?.refundAt === "number" && Boolean(closed?.refundBy) && !closed?.refundDoneAt, "API: возврат запрошен — когда и кем, ещё не возвращён", `API: ${JSON.stringify({ refundAt: closed?.refundAt, refundBy: closed?.refundBy, refundDoneAt: closed?.refundDoneAt })}`);
+    const hostBooked = ((await api("GET", `/api/calendar?from=${addDays(D_EVENT, -2)}&to=${addDays(D_EVENT, -2)}`, host.cookie)).data?.entries ?? []).some((e) => e.id === `ev-${farId}`);
+    check(!hostBooked, "Ведущий: время в календаре освободилось");
+    const hostBell = ((await api("GET", "/api/notices", host.cookie)).data?.items ?? []).filter((i) => i.eventId === farId);
+    check(hostBell.some((i) => String(i.title).includes("отменено")), "Ведущий: в колокольчике «Мероприятие отменено»", `Колокольчик ведущего: ${JSON.stringify(hostBell).slice(0, 300)}`);
+    const refundBell = ((await api("GET", "/api/notices", admin.cookie)).data?.items ?? []).filter((i) => i.eventId === farId);
+    check(refundBell.some((i) => String(i.title).includes("Верните предоплату")) && refundBell.every((i) => !`${i.title} ${i.name} ${i.line}`.includes("Рита")), "Владелец: в колокольчике «Верните предоплату 2 000 ₽» — без имени клиента", `Колокольчик владельца: ${JSON.stringify(refundBell).slice(0, 300)}`);
+    const rita = ((await api("GET", "/api/clients", sales.cookie)).data?.clients ?? []).find((c) => c.name === `Рита ${TAG}`);
+    check(rita?.status === "lost", "Клиент: после возврата — «Отказ»", `Клиент: ${rita?.status}`);
+    const back = await api("POST", `/api/events/${farId}/restore`, sales.cookie, {});
+    check(back.status === 409 && back.data?.reason === "refunded", "API: закрытое с возвратом вернуть нельзя — только новое мероприятие", `API: ${back.status} ${JSON.stringify(back.data)}`);
+    check((await api("POST", `/api/events/${farId}/refund-done`, sales.cookie, {})).status === 403, "API: «Отметить: вернул» — не менеджер (403)");
+    const paidBack = await api("POST", `/api/events/${farId}/refund-done`, admin.cookie, {});
+    check(paidBack.status === 200 && typeof paidBack.data?.refundDoneAt === "number", "Владелец: «Отметить: вернул» — отмечено", `API: ${paidBack.status}`);
+    const salesBell = ((await api("GET", "/api/notices", sales.cookie)).data?.items ?? []).filter((i) => i.eventId === farId);
+    check(salesBell.some((i) => String(i.title).includes("Предоплата возвращена")), "Менеджер: в колокольчике «Предоплата возвращена клиенту»", `Колокольчик менеджера: ${JSON.stringify(salesBell).slice(0, 300)}`);
+    await mp.reload();
+    await until(async () => (await mp.locator(".plan-lights").count()) > 0, WAIT, "список");
+    await mp.getByRole("button", { name: /Отменённые/ }).first().click().catch(() => undefined);
+    await shot(mp, "возврат-закрыто");
+  }
 
   // ================= 10. Сверх плана =================
   if (overSlot && liveSessions.length) {
@@ -815,6 +1024,9 @@ try {
   check(twin.status === 409, "API: тот же ник другим регистром — 409, двойник не создаётся", `API: ${twin.status}`);
   await ap.setViewportSize({ width: 360, height: 780 });
   await shot(ap, "excel-360");
+  } // full
+
+  await ordersSection();
 } catch (e) {
   bad(`Проверка остановилась: ${String(e?.message ?? e).slice(0, 300)}`);
   for (const [who, page] of pages) await shot(page, `ошибка-${who}`).catch(() => undefined);

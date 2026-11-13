@@ -100,8 +100,13 @@ export function useConfirm(): [ReactNode, (request: ConfirmRequest) => void] {
           } catch (e) {
             // Постоянная ошибка (нет доступа, уже удалено, уже изменено) — повтор не поможет.
             const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+            const reason = typeof e === "object" && e !== null && "reason" in e ? String((e as { reason: unknown }).reason) : "";
             setError(
-              code === "permission-denied"
+              reason === "owned"
+                ? "Это ведёт другой человек — менять может только он. Закройте окно и нажмите «Забрать себе», если нужно."
+                : reason === "host-busy"
+                  ? "Ведущий в это время уже занят — выберите другого ведущего."
+                  : code === "permission-denied"
                 ? "Нет доступа к этому действию."
                 : code === "not-found"
                   ? "Этого уже нет — возможно, кто-то удалил раньше. Закройте окно и обновите страницу."

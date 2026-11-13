@@ -4,6 +4,7 @@
  * знает: подтвердил ли ведущий («Принял, готовлюсь»), идёт ли время мероприятия, открыта ли у ведущего игра (`live`),
  * отмечено ли «Проведено». Своих данных у кружка нет.
  *
+ *   🟥 replace — ведущий нажал «Не смогу провести»: нужна замена (12 ноября 2026), самое срочное;
  *   🟣 over   — время «до» прошло, а игра у ведущего ещё открыта: продление за доплату;
  *   🔴 late   — ведущий не подтвердил, а до начала меньше суток;
  *   🟠 live   — время мероприятия идёт (или ведущий уже открыл игру);
@@ -17,12 +18,13 @@
 import { eventSpan } from "./events";
 import type { AgencyEvent } from "../data/types";
 
-export type EventLight = "over" | "late" | "live" | "check" | "wait" | "ok" | "held" | "failed" | "off";
+export type EventLight = "replace" | "over" | "late" | "live" | "check" | "wait" | "ok" | "held" | "failed" | "off";
 
 /** Порядок «сначала срочное»: что требует действия — сверху. */
-export const LIGHT_ORDER: EventLight[] = ["over", "late", "live", "check", "wait", "ok", "held", "failed", "off"];
+export const LIGHT_ORDER: EventLight[] = ["replace", "over", "late", "live", "check", "wait", "ok", "held", "failed", "off"];
 
 export const LIGHT_TITLES: Record<EventLight, string> = {
+  replace: "Нужна замена",
   over: "Сверх плана",
   late: "Не подтвердил",
   live: "Идёт",
@@ -36,6 +38,7 @@ export const LIGHT_TITLES: Record<EventLight, string> = {
 
 /** Что делать менеджеру — подсказка к кружку. */
 export const LIGHT_HINTS: Record<EventLight, string> = {
+  replace: "Ведущий не сможет провести — откройте «Изменить» и выберите другого ведущего",
   over: "Время «до» прошло, игра ещё идёт — это продление за доплату",
   late: "До начала меньше суток, а ведущий не подтвердил — позвоните ему",
   live: "Мероприятие идёт",
@@ -58,7 +61,7 @@ export interface LightInfo {
 
 const hhmm = (min: number) => `${String(Math.floor(min / 60) % 24).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 
-type LightEvent = Pick<AgencyEvent, "day" | "start" | "end" | "cancelled" | "held"> & Pick<Partial<AgencyEvent>, "acceptedAt" | "acceptRev" | "live">;
+type LightEvent = Pick<AgencyEvent, "day" | "start" | "end" | "cancelled" | "held"> & Pick<Partial<AgencyEvent>, "acceptedAt" | "acceptRev" | "live" | "declinedAt">;
 
 export function eventLight(e: LightEvent, now: number): LightInfo {
   const make = (light: EventLight, extra = ""): LightInfo => ({ light, label: extra ? `${LIGHT_TITLES[light]} · ${extra}` : LIGHT_TITLES[light] });
@@ -72,6 +75,8 @@ export function eventLight(e: LightEvent, now: number): LightInfo {
     return make("check");
   }
   if (now >= span.from || e.live) return make("live", `до ${hhmm(e.end)}`);
+  // Ведущий отказался («Не смогу провести») — пока не назначили другого, это самое срочное.
+  if (e.declinedAt) return make("replace");
   // Впереди. Мероприятия, записанные до 22 октября 2026 (`acceptRev` = 0), подтверждения не спрашивали — «Принято».
   const asked = (e.acceptRev ?? 0) > 0;
   if (!asked || e.acceptedAt) return make("ok");

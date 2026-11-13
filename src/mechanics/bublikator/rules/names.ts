@@ -88,40 +88,164 @@ export function isBlocked(name: string): boolean {
 /**
  * Свои названия ведущего (конструктор и раздача на сервере): грубое ли. Стоп-лист генератора (`isBlocked`, части слов) здесь не
  * годится: он ловит кусок внутри любого слова и отказывал «Секстанту», «Анализатору», «Гейзерометру», «Хлебатору», «Сабле»
- * (аудит 2d, №3). Поэтому: (1) настоящие матерные корни — опасны и внутри слова, и через пробелы, точки и похожие латинские
- * буквы; (2) остальное грубое — только как начало слова (корень на границе слова) или целым словом, с исключениями для
- * безобидных слов с тем же началом («Секстант», «Попкорн», «Наркоз», «Мочалка», «Лохматый», «Гейзер», «Трахея»).
+ * (аудит 2d, №3). Поэтому (проверка 2d, №2):
+ * 1) текст приводится к русским буквам несколькими способами — похожие латинские буквы («xуй», «Cyka»), транслит («pizda»,
+ *    «zhopa»), цифры и значки вместо букв («Пи3дец», «Ж0па», «6лядь», «п*здец», «бл@дь»); повторы букв сжимаются («Хууй»,
+ *    «Бляяядь»); буквы через пробелы и точки склеиваются («Ж о п а», «Х.у.й»);
+ * 2) настоящие матерные корни опасны где угодно в слове (`OBSCENE`), кроме явных безобидных слов (`HARMLESS_PARTS`: «Страхуй»,
+ *    «Психует», «Скипидар», «Эбонит»);
+ * 3) остальное грубое (`RUDE_START`) — только целым словом или началом слова, с исключениями для безобидных слов с тем же
+ *    началом («Секстант», «Херувим», «Херсон», «Трахома», «Сукияки», «Гробница», «Смертник», «Членистоногий», «Труппа»);
+ * 4) английские ругательства (`EN_ANY`, `EN_START`).
  */
-const OBSCENE_ANYWHERE = [/ху[йяеию]/, /пизд/, /пидо?р/, /пидар/, /бляд/, /блят/, /мудак/, /мудил/, /гандон/, /залуп/, /шлюх/];
+const OBSCENE = [/ху[йяеию]/, /пизд/, /пидо?р/, /пидар/, /бляд/, /блят/, /мудак/, /мудил/, /гандон/, /залуп/, /шлюх/, /манда?вош/];
 /** Матерный «еб» внутри слова — только в начале или после гласной, «ъ», «ь» (заебал, уебан, долбоеб, съебать); после согласной — «хлеб», «ребус», «небо». */
 const OBSCENE_EB = /(^|[аеиоуыэюяъь])еб/;
-const RUDE_WORD_START = [
-  /^хер/, /^жоп/, /^срат/, /^сран/, /^срак/, /^говн/, /^дерьм/, /^перд/, /^пук/, /^(за|на|по|вы|об|от|рас|у)?сса[тлн]/, /^ссык/, /^сук[аиу]/,
-  /^суч(к?а|ар|ий|ье)/, /^манд[ау]$/, /^член/, /^дроч/, /^секс(?!т)/, /^трах(?!е|ей)/, /^сись/, /^сиськ/, /^писю/, /^письк/, /^попк(?!ор)/, /^задниц/,
-  /^анал(?!из|ог|ит|ь?г)/, /^анус/, /^чмо(?!к)/, /^лох(?!м|ан)/, /^дебил/, /^идиот/, /^дура[кч]/, /^урод/, /^тупиц/, /^тупорыл/,
-  /^смерт/, /^убий/, /^убив/, /^труп/, /^гроб/, /^нарк(?!оз)/, /^водк/, /^пьян/, /^гей(?!з|ш|мпад|мер|минг)/, /^сопл/, /^блев/, /^блюв/,
-  /^рвот/, /^понос/, /^какаш/, /^моч(?!ал|ен|ён|к)/, /^бля$/, /^бля[тд]/, /^гнид/, /^твар/, /^сдох/,
+/** Безобидные слова с матерным куском внутри: кусок вырезается до проверки (по сжатому слову). */
+const HARMLESS_PARTS = ["страху", "психу", "скипидар", "ебонит"];
+const RUDE_START = [
+  /^хер(?!увим|ес|сон)/, /^(на|по|ни)хер/, /^хрен/, /^жоп/, /^ср(ат|ан|ак)/, /^г[оа]вн/, /^дерьм/, /^перд/, /^пук(?!л)/,
+  /^(за|на|по|вы|об|от|рас|у)?сса[тлн]/, /^ссык/, /^сук(а|и(?!як)|у)/, /^суч(к?а|ар|ий|ье)/, /^манд[ау]$/, /^член(?!ист|окрут)/,
+  /^дроч/, /^секс(?!т|$)/, /^трах(?!е|ом(?![её]т))/, /^сись/, /^писю/, /^письк/, /^попк(?!ор)/, /^задниц/, /^анал(?!из|ог|ит|ь?г)/,
+  /^анус/, /^чмо(?!к)/, /^лох(?!м|ан)/, /^дебил/, /^идиот/, /^дура(к|ч(ок|ина))?$/, /^урод/, /^тупиц/, /^тупорыл/,
+  /^смерт(?!ник|онос)/, /^труп(?!п)/, /^гроб(?!ниц)/, /^нарк(?!оз)/, /^водк(?!омер)/, /^пьян/, /^гей(?!з|ш|мпад|мер|минг)/,
+  /^блев/, /^блюв/, /^рвот/, /^понос/, /^какаш/, /^моч(?!ал|ен|ён|к|еизг|ил)/, /^бля(?!ш|х)/, /^гнид/, /^твар/, /^сдох/,
+  /^мраз/, /^падл/, /^ублюд/, /^педик(?!юр)/,
 ];
-/** Похожие латинские буквы — в русские (обход стоп-листа «xуй»). */
+const EN_ANY = [/fuck/, /fuk/, /cunt/, /bitch/, /whore/, /slut/, /nigg/, /fagg?ot/, /wank/, /dildo/, /asshole/, /motherf/, /pussy/, /shit(?!ake)/, /dickhead/];
+const EN_START = [/^dick(?!ens|son|ey)/, /^cock(?!pit|tail|ato|roach|ney|erel)/, /^ass(es)?$/, /^arse/, /^bastard/, /^penis/, /^tits?$/, /^boobs?$/, /^prick$/, /^twat/, /^piss/, /^crap/, /^fag$/];
+/** Похожие латинские буквы — в русские (обход стоп-листа «xуй», «Cyka»). */
 const LOOKALIKE: Record<string, string> = { a: "а", c: "с", e: "е", o: "о", p: "р", x: "х", y: "у", k: "к", m: "м", t: "т", h: "н", b: "в", u: "и", z: "з" };
+/** Транслит латиницей («pizda», «zhopa», «blyad») — сначала сочетания. */
+const TRANSLIT_MULTI: ReadonlyArray<readonly [string, string]> = [
+  ["shch", "щ"], ["sch", "щ"], ["zh", "ж"], ["kh", "х"], ["ch", "ч"], ["sh", "ш"], ["ts", "ц"],
+  ["ya", "я"], ["yu", "ю"], ["yo", "е"], ["ye", "е"], ["ja", "я"], ["ju", "ю"], ["jo", "е"],
+];
+const TRANSLIT_ONE: Record<string, string> = {
+  a: "а", b: "б", c: "ц", d: "д", e: "е", f: "ф", g: "г", h: "х", i: "и", j: "й", k: "к", l: "л", m: "м", n: "н", o: "о", p: "п",
+  q: "к", r: "р", s: "с", t: "т", u: "у", v: "в", w: "в", x: "кс", z: "з",
+};
+/** Цифры и значки вместо букв — только рядом с буквой («Ж0па», «6лядь»; «Ракета 2000» не трогаем). */
+const LEET_RU: Record<string, string> = { "0": "о", "1": "и", "3": "з", "4": "ч", "6": "б", "9": "я", $: "с" };
+const LEET_EN: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", $: "s" };
+const LETTER = "a-zа-я";
 
-function cyr(text: string): string {
-  return norm(text).replace(/[a-z]/g, (ch) => LOOKALIKE[ch] ?? ch);
+function leet(text: string, map: Record<string, string>): string {
+  return text.replace(new RegExp(`(?<=[${LETTER}])[0-9$]|[0-9$](?=[${LETTER}])`, "g"), (ch) => map[ch] ?? ch);
+}
+
+/** «*» и «@» между буквами — любая гласная («п*здец», «бл@дь», «х*й»). */
+function wildcards(text: string, vowels: readonly string[]): string[] {
+  const re = new RegExp(`(?<=[${LETTER}])[*@]+(?=[${LETTER}])`, "g");
+  if (!re.test(text)) return [text];
+  return vowels.map((v) => text.replace(re, v));
+}
+
+function lookalike(text: string): string {
+  return text.replace(/[a-z]/g, (ch) => LOOKALIKE[ch] ?? ch);
+}
+
+function translit(text: string): string {
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i] ?? "";
+    if (!/[a-z]/.test(ch)) {
+      out += ch;
+      i += 1;
+      continue;
+    }
+    const multi = TRANSLIT_MULTI.find(([lat]) => text.startsWith(lat, i));
+    if (multi) {
+      out += multi[1];
+      i += multi[0].length;
+      continue;
+    }
+    // «y» после гласной — «й» («huy»), иначе — «ы».
+    if (ch === "y") out += /[aeiouаеиоуыэюя]/.test(text[i - 1] ?? "") ? "й" : "ы";
+    else out += TRANSLIT_ONE[ch] ?? ch;
+    i += 1;
+  }
+  return out;
+}
+
+/** Повторы букв — одной («хууй» → «хуй», «пиздда» → «пизда»): для матерных корней. */
+function squeezeAll(word: string): string {
+  return word.replace(/(.)\1+/g, "$1");
+}
+
+/** Повторы гласных и тройные согласные — одной; двойные согласные остаются («Труппа», «Ссыкло», «Суккулент»). */
+function squeezeSoft(word: string): string {
+  return word.replace(/([аеиоуыэюя])\1+/g, "$1").replace(/(.)\1\1+/g, "$1");
+}
+
+function obscene(word: string): boolean {
+  let w = squeezeAll(word);
+  for (const part of HARMLESS_PARTS) w = w.split(part).join("·");
+  return OBSCENE.some((re) => re.test(w)) || OBSCENE_EB.test(w);
+}
+
+/** Слова текста: куски между любыми знаками, слова между пробелами (без дефисов и точек внутри) и буквы через пробел вместе. */
+function wordsOf(text: string, letters: RegExp, split: RegExp): { words: Set<string>; spaced: string | null } {
+  const pieces = text.split(split).filter((w) => w !== "");
+  const words = new Set<string>(pieces);
+  for (const w of text.split(/\s+/)) {
+    const joined = w.replace(letters, "");
+    if (joined !== "") words.add(joined);
+  }
+  // «Ж о п а», «Супер Ж о п а», «Х.у.й-метр»: подряд идущие кусочки по 1–2 буквы — одним словом, и вместе с соседями.
+  let spaced: string | null = null;
+  if (pieces.length > 1 && pieces.some((p) => p.length <= 2)) {
+    spaced = pieces.join("");
+    for (let i = 0; i < pieces.length; ) {
+      if ((pieces[i]?.length ?? 0) > 2) {
+        i += 1;
+        continue;
+      }
+      let j = i;
+      while (j < pieces.length && (pieces[j]?.length ?? 0) <= 2) j += 1;
+      const run = pieces.slice(i, j).join("");
+      const prev = pieces[i - 1] ?? "";
+      const next = pieces[j] ?? "";
+      for (const w of [run, prev + run, run + next, prev + run + next]) words.add(w);
+      i = j;
+    }
+  }
+  return { words, spaced };
+}
+
+function rudeRussian(text: string): boolean {
+  const letters = text.replace(/[^а-я]/g, "");
+  if (STOP_NAMES.some((n) => norm(n) === letters)) return true;
+  const { words, spaced } = wordsOf(text, /[^а-я]/g, /[^а-я]+/);
+  if (spaced !== null && obscene(spaced)) return true;
+  for (const w of words) {
+    if (obscene(w)) return true;
+    const soft = squeezeSoft(w);
+    if (RUDE_START.some((re) => re.test(soft))) return true;
+  }
+  return false;
+}
+
+function rudeEnglish(text: string): boolean {
+  const { words, spaced } = wordsOf(text, /[^a-z]/g, /[^a-z]+/);
+  if (spaced !== null) words.add(spaced);
+  for (const w of words) {
+    const all = squeezeAll(w);
+    if (EN_ANY.some((re) => re.test(all) || re.test(w))) return true;
+    if (EN_START.some((re) => re.test(w) || re.test(all))) return true;
+  }
+  return false;
 }
 
 export function isRudeName(name: string): boolean {
-  const text = cyr(name);
-  if (STOP_NAMES.some((n) => norm(n) === norm(name))) return true;
-  const words = text.split(/[^а-я]+/).filter((w) => w !== "");
-  // Буквы через пробелы и точки («Х у й», «Х.у.й-метр»): кусочки по 1–2 буквы склеиваем с соседями и проверяем матерные корни.
-  if (words.some((w) => w.length <= 2)) {
-    const letters = words.join("");
-    if (OBSCENE_ANYWHERE.some((re) => re.test(letters)) || OBSCENE_EB.test(letters)) return true;
+  const base = norm(name);
+  for (const wild of wildcards(base, ["а", "е", "и", "о", "у", "я", "ы"])) {
+    for (const digits of [leet(wild, LEET_RU), leet(wild, LEET_EN)]) {
+      if (rudeRussian(lookalike(digits)) || rudeRussian(translit(digits))) return true;
+    }
   }
-  for (const w of words) {
-    if (OBSCENE_ANYWHERE.some((re) => re.test(w)) || OBSCENE_EB.test(w)) return true;
-    if (RUDE_WORD_START.some((re) => re.test(w))) return true;
-  }
+  for (const wild of wildcards(base, ["a", "e", "i", "o", "u"])) if (rudeEnglish(leet(wild, LEET_EN))) return true;
   return false;
 }
 

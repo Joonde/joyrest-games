@@ -62,11 +62,12 @@ a.dl{display:block;text-align:center;padding:14px;border-radius:12px;background:
 </div>
 
 <div class="card" id="c3">
-  <div class="row" style="justify-content:space-between"><b>3. Запись танца (39 с)</b><span class="st" id="st3">—</span></div>
+  <div class="row" style="justify-content:space-between"><b>3. Запись танца (<span id="durTxt">78</span> с)</b><span class="st" id="st3">—</span></div>
   <div class="big" id="dance">—</div>
-  <div class="hint" id="dhint">Телефон сам говорит команды: «вверх», «вниз», «в сторону», «стой» — на экран смотреть не нужно. Сначала проговорит порядок, потом отсчёт, потом 39 секунд под метроном. Включи звук на телефоне.</div>
+  <div class="hint" id="dhint">Телефон сам говорит команды: «вверх», «вниз», «в сторону», «стой» — на экран смотреть не нужно. Сначала проговорит порядок, потом отсчёт, потом танец под метроном. «Медленно» — команда раз в секунду, «Как в игре» — в два раза быстрее. Включи звук на телефоне.</div>
   <div class="bar" style="margin:10px 0"><i id="dbar"></i></div>
   <div class="kv" style="margin:8px 0"><b>наклон руки сейчас</b><span id="tilt">—</span><b>событий записано</b><span id="n">0</span></div>
+  <div class="row" style="gap:8px;margin-bottom:8px"><button class="sec" id="spSlow" style="flex:1">Медленно ✓</button><button class="sec" id="spGame" style="flex:1">Как в игре</button></div>
   <button id="b3" disabled>Начать запись</button>
 </div>
 
@@ -218,24 +219,31 @@ function plan() {                                    // порядок груп�
     const m = ROUTINE[i]; out.push(`${j - i} × «${CUE[m][0]}${CUE[m][1] !== CUE[m][0] ? " – " + CUE[m][1] : ""}»`); i = j; }
   return out;
 }
-const DUR = T0 + ROUTINE.length * 2 * BEAT;          // 39,0 с
+// темп: «медленно» — всё растянуто в K раз (команда раз в ~1 с); анализ сжимает запись обратно к темпу эталона
+let K = 2;
+const durOf = k => k * (T0 + ROUTINE.length * 2 * BEAT);   // 78 с медленно, 39 с как в игре
+let DUR = durOf(K);
+function setSpeed(k) { K = k; DUR = durOf(K); $("durTxt").textContent = Math.round(DUR); $("spSlow").textContent = "Медленно" + (k === 2 ? " ✓" : ""); $("spGame").textContent = "Как в игре" + (k === 1 ? " ✓" : ""); }
+$("spSlow").onclick = () => { if (phase !== "dance") setSpeed(2); };
+$("spGame").onclick = () => { if (phase !== "dance") setSpeed(1); };
 $("b3").onclick = () => {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
   unlockVoice();
   danceEv = []; setSt("st3", "warn", "слушай порядок"); $("b3").disabled = true; $("b2").disabled = true;
   $("dance").textContent = "Слушай"; $("dhint").textContent = plan().join(" · ");
   say("Команды голосом: вверх, вниз, в сторону, стой. Слушай и повторяй рукой. Начинаем после отсчёта.", 1.1);
-  const pressed = performance.now() + 7500; danceStart = pressed + COUNT_IN * BEAT * 1000; let beat = -99, said = -99;
+  const DB = BEAT * K, DT0 = T0 * K; $("spSlow").disabled = $("spGame").disabled = true;
+  const pressed = performance.now() + 7500; danceStart = pressed + COUNT_IN * DB * 1000; let beat = -99, said = -99;
   const tick = () => {
     const now = performance.now(); const s = (now - danceStart) / 1000;
     if (now < pressed) { requestAnimationFrame(tick); return; }
     if (s < 0) {                                           // отсчёт 4 доли перед записью — голосом
-      const b = Math.floor((now - pressed) / 1000 / BEAT); if (b !== beat) { beat = b; click(b === 0); const n = COUNT_IN - b; $("dance").textContent = String(n); say(String(n), 1.3); $("dhint").textContent = "приготовься — телефон в правой руке"; setSt("st3", "warn", "отсчёт"); }
+      const b = Math.floor((now - pressed) / 1000 / DB); if (b !== beat) { beat = b; click(b === 0); const n = COUNT_IN - b; $("dance").textContent = String(n); say(String(n), 1.3); $("dhint").textContent = "приготовься — телефон в правой руке"; setSt("st3", "warn", "отсчёт"); }
       requestAnimationFrame(tick); return;
     }
     if (phase !== "dance") phase = "dance";
-    const b = Math.floor((s - T0) / BEAT);                 // доля с момента музыки
-    const bs = Math.floor((s - T0 + LEAD) / BEAT);         // доля, которую пора ОБЪЯВИТЬ
+    const b = Math.floor((s - DT0) / DB);                  // доля с момента музыки
+    const bs = Math.floor((s - DT0 + LEAD) / DB);          // доля, которую пора ОБЪЯВИТЬ
     if (bs >= 0 && bs !== said && bs < ROUTINE.length * 2) { said = bs; const m = ROUTINE[Math.floor(bs / 2)];
       const w = CUE[m][bs % 2]; const prev = bs > 0 ? CUE[ROUTINE[Math.floor((bs - 1) / 2)]][(bs - 1) % 2] : null;
       if (w !== prev || bs % 2 === 0) say(w, 1.3); }     // то же слово второй долей подряд не повторяем
@@ -247,11 +255,11 @@ $("b3").onclick = () => {
   requestAnimationFrame(tick);
 };
 function finishDance() {
-  phase = "idle"; setSt("st3", "ok", `${danceEv.length} событий`); $("dance").textContent = "✓"; $("dhint").textContent = "Готово."; $("b3").disabled = false; $("b2").disabled = false;
+  phase = "idle"; setSt("st3", "ok", `${danceEv.length} событий`); $("dance").textContent = "✓"; $("dhint").textContent = "Готово."; $("b3").disabled = false; $("b2").disabled = false; $("spSlow").disabled = $("spGame").disabled = false;
   const nAcc = danceEv.filter(e => e.acc).length, nRot = danceEv.filter(e => e.rot).length;
   const data = { version: 1, ua: navigator.userAgent, bpm: BPM, made: new Date().toISOString(),
     calib: { events: calEv, prompts: [0, 2.5, 5], result: calib && { ok: true, f: calib.f, n: calib.n, rotScale: calib.rotScale, ratio: calib.ratio, upAngle: calib.upAngle } },
-    dance: { events: danceEv, routine: ROUTINE, t0: T0, hasAcc: nAcc / Math.max(1, danceEv.length), hasRot: nRot / Math.max(1, danceEv.length), rateHz: danceEv.length / DUR } };
+    dance: { events: danceEv, routine: ROUTINE, t0: T0, slow: K, hasAcc: nAcc / Math.max(1, danceEv.length), hasRot: nRot / Math.max(1, danceEv.length), rateHz: danceEv.length / DUR } };
   const txt = JSON.stringify(data); $("out").value = txt;
   const url = URL.createObjectURL(new Blob([txt], { type: "application/json" }));
   $("dl").href = url; $("dl").hidden = false; $("b4").disabled = false; setSt("st4", "ok", Math.round(txt.length / 1024) + " КБ");

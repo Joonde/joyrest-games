@@ -22628,8 +22628,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   gap: 10px;
 }
 .story-pick__arrow {
-  width: 40px;
-  height: 40px;
+  /* Не сжимается в строке со стрелками и точками: касание ≥ 44 px (проверка 2d, №9 — было 23×40). */
+  flex: none;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--color-border);
   border-radius: 50%;
   background: none;
@@ -22696,6 +22698,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .final-head__meta {
   font-size: 13px;
   color: var(--color-text-muted);
+}
+/* «итоги игры →»: место касания ≥ 44 px, строка не выше (поля внутрь компенсирует отрицательный отступ). */
+.final-head__meta a {
+  display: inline-block;
+  padding: 13px 0;
+  margin: -13px 0;
 }
 
 /* Дела после игры по шагам: полоска шагов и блоки, подсвечен первый несделанный (31 октября 2026). */
@@ -22835,6 +22843,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   color: var(--color-text-muted);
   text-align: center;
 }
+a.finale-step__aside {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
 .finale-step__row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -22855,6 +22869,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .finale-phone__more p {
   margin: 0;
 }
+/* «joy-rest.ru» в строке — касание ≥ 44 px. */
+.finale-phone__more p a {
+  display: inline-block;
+  padding: 11px 2px;
+}
 .finale-phone__thanks {
   margin-top: 8px !important;
   font-family: "Cormorant Garamond", Georgia, serif;
@@ -22868,7 +22887,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 .finale-review__rate {
   display: flex;
-  gap: 8px;
+  /* 5 звёзд на 360 px — каждая ≥ 44 px (с промежутком 8 px было 43). */
+  gap: 4px;
 }
 .finale-star {
   flex: 1;

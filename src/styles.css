@@ -26487,22 +26487,29 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   padding: 0 4px 4px;
 }
 
+/* Вкладка «Активные заказы» на компьютере — страница шире обычной (таблица целиком помещается на ноутбуке 1366 px). */
+@media (min-width: 1024px) {
+  .page:has(.orders-table) {
+    max-width: calc(1480px + var(--gutter) * 2);
+  }
+}
+
 .orders-table {
-  --orders-cols: 112px minmax(160px, 1.5fr) 108px 84px 124px 116px 96px 120px 104px 108px minmax(150px, 1.2fr);
+  --orders-cols: 104px minmax(150px, 1.5fr) 104px 104px 112px 108px 96px 104px 104px 108px minmax(140px, 1.2fr);
   display: grid;
   gap: 0;
-  min-width: 1340px;
+  min-width: 1318px;
 }
 
 .orders-table--no-agency {
-  --orders-cols: 112px minmax(160px, 1.5fr) 108px 84px 124px 116px 96px 120px 104px minmax(150px, 1.2fr);
-  min-width: 1220px;
+  --orders-cols: 104px minmax(150px, 1.5fr) 104px 104px 112px 108px 96px 104px 104px minmax(140px, 1.2fr);
+  min-width: 1204px;
 }
 
 .orders-row {
   display: grid;
   grid-template-columns: var(--orders-cols);
-  column-gap: 8px;
+  column-gap: 6px;
   padding: 0 12px;
 }
 
@@ -26562,7 +26569,18 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   min-width: 0;
   padding-top: 12px;
   padding-bottom: 12px;
-  overflow-wrap: anywhere;
+  /* Слова не рвём посреди («Админи‑стратор»): переносим по слогам, длинное без слогов — где придётся. */
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Метка и сумма — подпись всегда своей строкой («Отменено» / «не состоится», «2 000 ₽» / «внесена»). */
+.orders-mark,
+.orders-money {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .orders-line:hover {

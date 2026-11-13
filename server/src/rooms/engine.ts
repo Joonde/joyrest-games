@@ -26,6 +26,8 @@ export const STREAMS_PER_PLAYER = 3;
 export const REQUESTS_BURST = 20;
 export const REQUESTS_PER_SECOND = 10;
 /** Сколько последних команд пульта помним по id (повтор после обрыва не выполняется дважды). */
+/** Сводка экрана без перемен — раз в секунду (живой поток для экрана: см. `tick`). */
+export const SCREEN_KEEPALIVE_MS = 1000;
 const COMMAND_MEMORY = 20;
 /** Отключившихся в сводке пульта — не больше. */
 const OFFLINE_LIST_MAX = 100;
@@ -94,7 +96,11 @@ export interface RoomGame<S> {
   /** Как часто телефон шлёт пачку при таком числе игроков, мс. */
   batchMs(players: number): number;
   create(input: { snapshot: unknown; playMode: "solo" | "teams"; now: number }, ctx: RoomContext): S;
-  onInput(state: S, player: RoomPlayer, events: RoomEvent[], ctx: RoomContext): void;
+  /**
+   * Пачка телефона. true — в ней было игровое действие, которое игра приняла: только тогда пачка отмечает «играл в раунде»
+   * (`playUnit`). Игре без раундов отвечать не нужно.
+   */
+  onInput(state: S, player: RoomPlayer, events: RoomEvent[], ctx: RoomContext): boolean | void;
   onCommand(state: S, cmd: string, args: unknown, ctx: RoomContext): CommandOutcome;
   /**
    * Этап игры для команд пульта (`expect`): шаг или фаза, а не счётчик нажатий. Команда с другим этапом —
@@ -106,6 +112,16 @@ export interface RoomGame<S> {
   /** Пауза кончилась: `pausedMs` — сколько стояли (сдвинуть свои назначенные моменты). */
   onResume?(state: S, pausedMs: number, ctx: RoomContext): void;
   onJoin?(state: S, player: RoomPlayer, ctx: RoomContext): void;
+  /**
+   * Раунд игры для баллов ведущему (`room_play`): пачка с событиями, дошедшая до игры в этом раунде, отмечает телефон
+   * «играл в раунде N». null — сейчас не раунд (лобби, тренировка, привал). Нет метода — игра баллов по раундам не считает.
+   */
+  playUnit?(state: S): number | null;
+  /**
+   * Игра сыграна до конца (по состоянию комнаты): баллы ведущему — вместо «не меньше 40 минут» (решение владельца 13 ноября 2026).
+   * Нет метода — баллы по минутам, как у остальных игр.
+   */
+  playedToEnd?(state: S): boolean;
   screen(state: S, view: RoomView): unknown;
   personal(state: S, pid: string, view: RoomView): unknown;
   host(state: S, view: RoomView): unknown;
@@ -397,6 +413,9 @@ export class Room {
    * забытая на 12 часов комната закрывается (`abandoned`), и переподключение экрана её не продлевает.
    */
   activeAt: number;
+  /** «Телефон играл в раунде» (`playUnit`): ещё не записанные в базу и все уже отмеченные (без повторов). */
+  private playedNew: Array<{ pid: string; unit: number }> = [];
+  private playedSeen = new Set<string>();
   /** Номер изменения, записанный в последний снимок. */
   savedVersion = -1;
   /** Ждёт контрольная точка (запись снимка вне очереди 10 с). */
@@ -673,9 +692,12 @@ export class Room {
       newestAt: window.newestArrival(),
     });
     const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now, maxAgo, delayed));
+    // Раунд — на момент прихода пачки (до того, как игра её обработала).
+    const unit = this.game.playUnit?.(this.state) ?? null;
     let failed = false;
+    let played = false;
     try {
-      this.game.onInput(this.state, { pid: player.pid, name: player.name, team: player.team }, events, this.context(now));
+      played = this.game.onInput(this.state, { pid: player.pid, name: player.name, team: player.team }, events, this.context(now)) === true;
     } catch (error) {
       failed = true;
       this.onError("input", error);
@@ -683,8 +705,29 @@ export class Room {
     // Номер учтён и при ошибке игры: повтор той же пачки упал бы так же; события — в `dropped`, телефон узнает.
     window.commit(input.seq, now);
     if (failed) return { ...reply, dropped: input.events.length };
+    // «Играл в раунде» — только если игра приняла в пачке игровое действие (мусор `{ t: "zzz" }` не в счёт; проверка 2d, №4).
+    if (unit !== null && played) this.markPlayed(player.pid, unit);
     this.activity(now);
     return { ...reply, dropped, active: true };
+  }
+
+  private markPlayed(pid: string, unit: number): void {
+    const key = `${pid}:${unit}`;
+    if (this.playedSeen.has(key)) return;
+    this.playedSeen.add(key);
+    this.playedNew.push({ pid, unit });
+  }
+
+  /** Новые отметки «играл в раунде» для базы (`room_play`); забираются один раз. Не записались — `returnPlayed`. */
+  takePlayed(): Array<{ pid: string; unit: number }> {
+    const out = this.playedNew;
+    this.playedNew = [];
+    return out;
+  }
+
+  /** Запись не удалась — отметки вернутся к следующей попытке. */
+  returnPlayed(marks: Array<{ pid: string; unit: number }>): void {
+    this.playedNew.push(...marks);
   }
 
   /** Действие пульта по сессии (запись состояния, смена фазы): игра жива — комната не «забытая». Активностью для выкладки не считается (пульт сам обновляет `updated_at`). */
@@ -769,7 +812,10 @@ export class Room {
     }
     if (!this.paused && this.game.tick) this.safely("tick", () => this.game.tick?.(this.state, this.context(now)));
     const screenEvery = 1000 / (this.game.screenHz ?? 5);
-    if (this.screenDirty && this.screens.size > 0 && now - this.lastScreenAt >= screenEvery) this.flushScreen(now);
+    // Экрану — при переменах не чаще `screenHz`, а без перемен — раз в секунду: по непрерывности сводок экран отличает живой
+    // поток от снимка после обрыва (разрыв больше 3 с — снимок, без пропущенных моментов; аудит 2c, второй круг).
+    const screenDue = this.screenDirty ? screenEvery : SCREEN_KEEPALIVE_MS;
+    if (this.screens.size > 0 && now - this.lastScreenAt >= screenDue) this.flushScreen(now);
     // Пульт — раз в секунду всегда (задержка цикла и память меняются и без игры), чаще не надо.
     if (this.hosts.size > 0 && now - this.lastHostAt >= 1000) this.flushHost(now);
   }

@@ -1,4 +1,5 @@
 import { aquarium } from "./aquarium";
+import { bublikator } from "./bublikator";
 import { board } from "./board";
 import { DEMO_BOARD } from "./board/demo";
 import { checkers } from "./checkers";
@@ -56,7 +57,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(aquarium), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(aquarium), register(bublikator), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -84,6 +85,7 @@ const HINTS: Record<string, string> = {
   spy: "Все знают, где мы, кроме шпиона: локация и роль — тайно на телефоне. Вопросы по кругу, шпион угадывает локацию, город голосует, кто шпион. 4–20 игроков.",
   hundred: "Табло популярных ответов, как в телешоу: розыгрыш «Жми первым!», команда отвечает, три ошибки — шанс соперника, двойная, тройная, «Игра наоборот» и «Большая игра». Режим «Весь зал»: все пишут ответы с телефона. Свои проценты — «Опрос гостей заранее».",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки, «Кот в мешке» (вопрос другому игроку) и «Аукцион» со ставками.",
+  bublikator: "Экипажи кораблей: у каждого гостя приборы с дурацкими названиями и приказы про приборы товарищей — кричите и крутите. Три перелёта, события, тайный диверсант.",
   aquarium: "Перерыв с раскраской: гости раскрашивают на телефонах рыбок или ёлочные игрушки — рисунки оживают в 3D-аквариуме или на ёлке на экране зала. По мотивам Paper Aquarium (MrMoT9I).",
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
@@ -96,6 +98,35 @@ export const selectableMechanics: Array<{ id: string; title: string; hint: strin
   title: m.title,
   hint: HINTS[m.id] ?? "",
 }));
+
+/**
+ * Форматы, которые можно выбрать сейчас: без «Мероприятия из блоков», если сервер его не держит (`program`), и без игр в игровой
+ * комнате, если комнат нет (`rooms` — свой сервер; на Firebase «Бубликатор» в выборе был бы, а играть в него нельзя — аудит 2d,
+ * №12).
+ */
+export function selectableNow(opts: { rooms: boolean; program: boolean }): typeof selectableMechanics {
+  return selectableMechanics.filter((m) => (m.id !== "evening" || opts.program) && (opts.rooms || !getMechanic(m.id)?.room));
+}
+
+/**
+ * Рисует ли экран зала слайды платформы после игры («Спасибо» с QR): обычные игры — да; самостоятельные — только с общим финалом
+ * («Бубликатор», решение B). «Олимп» рисует всё сам — пульт не ставит ему «Спасибо» и не показывает кнопку (проверка 2d, №11).
+ */
+export function finaleSlides(mechanic: string | null): boolean {
+  const m = mechanic === null ? undefined : getMechanic(mechanic);
+  return !m?.standalone || m.standalone.finale === true;
+}
+
+/** Почему игру нельзя провести здесь: игра в игровой комнате, а комнат нет (откат на Firebase). */
+export const ROOM_ONLY_TEXT = "Эта игра работает только на своём сервере JoyRest";
+
+/**
+ * Запуск недоступен: «Бубликатор», уже добавленный в «Библиотеку» или «Мои игры», после отката на Firebase (комнат нет) —
+ * карточка показывает его недоступным, запуск — с понятным текстом (проверка 2d, №5). null — запускать можно.
+ */
+export function launchBlocked(mechanic: string | null, rooms: boolean): string | null {
+  return !rooms && mechanic !== null && getMechanic(mechanic)?.room === true ? ROOM_ONLY_TEXT : null;
+}
 
 export function mechanicTitle(id: string | null): string {
   if (!id) return "Без игры";
@@ -230,11 +261,18 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   { mechanic: story.id, title: "Давайте знакомиться", hint: "5 разделов на знакомство: истории гостей, смешные предложения со словами с бумажек, «что было дальше», две правды и ложь, 8 вопросов «кто это сказал».", content: createStory(), playMode: "teams" },
   { mechanic: aquarium.id, title: "Аквариум", hint: "Перерыв с раскраской: гости раскрашивают рыбок на телефонах — те приплывают в 3D-аквариум на экране. Крабы, ракушки, корм.", content: aquarium.create(), playMode: "solo" },
   { mechanic: aquarium.id, title: "Ёлка", hint: "Перерыв с раскраской: гости раскрашивают ёлочные игрушки — те повисают на ёлке. Куранты с отсчётом до Нового года, Дед Мороз на санях.", content: { ...aquarium.create(), scene: "tree" }, playMode: "solo" },
+  { mechanic: bublikator.id, title: bublikator.title, hint: "Экипажи кораблей кричат друг другу приказы: 3 перелёта по 4 минуты, события, тайный диверсант. Только команды и экран зала.", content: { ...bublikator.create(), saboteur: true }, playMode: "teams", ageRating: "12+" },
+  { mechanic: bublikator.id, title: `${bublikator.title}: для детей`, hint: "Детская сложность: приборы — картинки (лягушка, банан, ракета), всегда 3 прибора, без диверсанта, 2 перелёта по 3 минуты.", content: { ...bublikator.create(), difficulty: "kids", legs: 2, legMinutes: 3 }, playMode: "teams", ageRating: "0+" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
 
 /** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой (без скрытых форматов). */
 export const demoGames = allDemoGames.filter((d) => !HIDDEN_MECHANICS.has(d.mechanic));
+
+/** Шаблоны библиотеки сейчас: без игр в игровой комнате, если комнат нет (Firebase; аудит 2d, №12). */
+export function demoGamesNow(rooms: boolean): typeof demoGames {
+  return rooms ? demoGames : demoGames.filter((d) => !getMechanic(d.mechanic)?.room);
+}
 
 /** «8 вопросов» или «28 песен» — смотря какая игра. */
 export function stepsLabel(mechanicId: string, content: unknown): string {

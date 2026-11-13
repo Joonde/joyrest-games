@@ -201,10 +201,12 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
   return {
     push(event, opts) {
       if (stopped) return;
-      const item = { event, at: deps.now() };
+      const before = typeof opts?.beforeMs === "number" && Number.isFinite(opts.beforeMs) ? Math.max(0, Math.min(4000, opts.beforeMs)) : 0;
+      const pushedAt = deps.now();
+      const item = { event, at: pushedAt - before };
       if (opts?.now) {
-        if (nowTimer === null && item.at - lastNowAt >= ROOM_NOW_GAP_MS) {
-          lastNowAt = item.at;
+        if (nowTimer === null && pushedAt - lastNowAt >= ROOM_NOW_GAP_MS) {
+          lastNowAt = pushedAt;
           send([item]);
         } else {
           nowQueue.push(item);
@@ -215,7 +217,7 @@ export function createRoomSender(sessionId: string, options: RoomSenderOptions =
               const items = nowQueue;
               nowQueue = [];
               for (const batch of splitBatches(items)) send(batch);
-            }, Math.max(0, lastNowAt + ROOM_NOW_GAP_MS - item.at));
+            }, Math.max(0, lastNowAt + ROOM_NOW_GAP_MS - pushedAt));
           }
         }
       } else {
@@ -265,7 +267,10 @@ export function subscribeRoom(
 ): () => void {
   const id = encodeURIComponent(sessionId);
   const sub = newId().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 16);
-  const url = `/api/stream/room/${id}/${kind}?sub=${sub}${options.take ? "&take=1" : ""}`;
+  const base = `/api/stream/room/${id}/${kind}?sub=${sub}`;
+  // «Открыть здесь» вытесняет только один раз: как только поток открылся (пришло первое событие), переподключения —
+  // и самого браузера, и после «забыта» — идут без `take` и никого больше не вытесняют.
+  let take = options.take === true;
   const setTimer = deps.setTimer ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
   const clearTimer = deps.clearTimer ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>));
   let stopped = false;
@@ -292,6 +297,7 @@ export function subscribeRoom(
     if (stopped) return;
     const event = streamEventOf(value);
     if (!event) return;
+    take = false;
     onEvent(event);
     if (event.type === "closed") {
       if (event.reason === "removed") halt(new ApiError("permission-denied", 403, "removed"));
@@ -303,7 +309,9 @@ export function subscribeRoom(
   function start() {
     let ended = false;
     const stop = deps.open<unknown>({
-      url,
+      get url() {
+        return take ? `${base}&take=1` : base;
+      },
       poll: async () => {
         try {
           deliver(await deps.get(`/api/rooms/${id}/${kind}`));

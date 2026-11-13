@@ -109,6 +109,13 @@ export interface HostControlsProps<Content> extends ViewProps<Content> {
   rehearsal: boolean;
 }
 
+/** Предпросмотр и репетиция игры, которая идёт в игровой комнате («Бубликатор»): своя комната в памяти с тестовыми гостями. */
+export interface RoomPreviewProps<Content> {
+  content: Content;
+  /** `preview` — в конструкторе (игра идёт сама); `rehearsal` — «Репетиция» (кнопки пульта нажимает ведущий). */
+  mode: "preview" | "rehearsal";
+}
+
 /** Единый интерфейс механики (CLAUDE.md, раздел 6). Ядро знает только его. */
 export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   id: string;
@@ -136,8 +143,16 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
    * Самостоятельная игра со своим видом («Олимп»): тема зашита (`themeId`), при запуске и в
    * конструкторе нет выбора оформления, на пульте — только «Игра» и «Гости» (без звуков, музыки,
    * слайдов, «+10 секунд», «Наградить сейчас»), экран зала не показывает слайды и общий фон.
+   * `finale` — после «Завершить игру» как у остальных игр: на телефоне гостя — итог и дела по шагам (`FinalCard`: карточка для
+   * сторис, отзыв, чаевые, канал), на экране зала — слайд «Спасибо» с QR поверх своего финала («Бубликатор», решение владельца
+   * 13 ноября 2026). У «Олимпа» нет — его финал целиком свой.
    */
-  standalone?: { themeId: string };
+  standalone?: { themeId: string; finale?: boolean };
+  /**
+   * Музыку экрана зала ведёт сама механика («Бубликатор»: своя музыка полёта по сводке комнаты): встроенная музыка платформы
+   * (лобби, перерыв, музыка момента) на её экране не играет. Музыка ведущего с пульта — как обычно.
+   */
+  ownMusic?: boolean;
   /**
    * Нарисованный фон экрана зала во время игры (Figma AI, `public/covers/art/web/<имя>.webp`), только в базовых
    * темах JoyRest — сезонные и праздничные темы остаются со своим живым фоном. null — без фона.
@@ -162,6 +177,16 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   firstTurn?: (session: Session, content: Content, pid: string) => SessionChange | null;
   /** Предпросмотр в конструкторе: игра проходит сама с тестовыми командами (`src/mechanics/preview.ts`). */
   preview?: { driver: PreviewDriver<Content>; teams?: number; limit?: number };
+  /**
+   * Игра в игровой комнате быстрого канала («Бубликатор»): шагов сессии нет, поэтому вместо водителя `preview` — свой
+   * предпросмотр и репетиция с комнатой в памяти (правила те же, что на сервере), экран зала, телефон и пульт — настоящие.
+   */
+  roomPreview?: ComponentType<RoomPreviewProps<Content>>;
+  /**
+   * Игра идёт в игровой комнате быстрого канала (только свой сервер). Без комнат (откат на Firebase) её нет в выборе формата
+   * и в шаблонах библиотеки (`selectableNow`, `demoGamesNow` в реестре; аудит 2d, №12).
+   */
+  room?: boolean;
 }
 
 /**

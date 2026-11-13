@@ -11,7 +11,8 @@ const dataIndex = path.join(root, "src/data/index.ts");
 const result = await build({
   entryPoints: [process.env.ROBOT_ENTRY ? path.resolve(process.env.ROBOT_ENTRY) : path.join(import.meta.dirname, "entry.tsx")],
   bundle: true,
-  outfile: path.join(out, "robot.js"),
+  // ROBOT_SPLIT=1 — отдельные чанки для динамических import() (проверка lazy-чанка телефона «Бубликатора»).
+  ...(process.env.ROBOT_SPLIT ? { outdir: out, splitting: true, entryNames: "robot", chunkNames: "chunk-[name]-[hash]" } : { outfile: path.join(out, "robot.js") }),
   format: "esm",
   jsx: "automatic",
   logLevel: "warning",
@@ -19,7 +20,7 @@ const result = await build({
   loader: { ".woff2": "file", ".svg": "text", ".png": "file", ".jpg": "file", ".webp": "file", ".mp3": "file" },
   nodePaths: process.env.ROBOT_NODE_PATH ? [process.env.ROBOT_NODE_PATH] : [],
   // Firebase-версия роботу не нужна (динамическая загрузка SDK не выполняется).
-  external: ["firebase/*", "/fonts/*", "/olymp/*", "/brand/*", "/sounds/*", "/cards/*", "/shows/*", "/stage/*", "/spy/*", "/dance/*", "/quest/*", "/covers/*", "/super/*"],
+  external: ["firebase/*", "/fonts/*", "/olymp/*", "/brand/*", "/sounds/*", "/cards/*", "/shows/*", "/stage/*", "/spy/*", "/dance/*", "/quest/*", "/covers/*", "/super/*", "/bublikator/*"],
   define: { "import.meta.env.DEV": "false", "import.meta.env.PROD": "true" },
   plugins: [
     {

@@ -20,6 +20,7 @@
 | lobby-lofi-1.mp3 | лобби, по очереди | Pixabay: chill_background — «Lofi Vibes», id 113884 (прислал владелец 18 октября 2026; 160 кбит/с) |
 | dragon-attack-2.mp3 | «Бой с драконом»: атака дракона | Pixabay, автор — уточнить |
 | mafia-night-2.mp3 | «Мафия»: ночь и раздача ролей, по кругу с наплывом | своя: создана кодом JoyRest (`scripts/sounds/mafia-night.py`), права наши |
+| bub-flight-space-1.mp3, -pirates-1, -submarine-1, -wedding-1, -newyear-1 | «Бубликатор»: ритмичная музыка полёта, своя у каждой темы (только в полёте, в последние 30 с быстрее), по кругу | своя: создана кодом JoyRest (`scripts/sounds/bublikator-flight.py`), права наши (решение владельца 12 ноября 2026) |
 | lotto-intro-1.mp3 | Музыкальное лото: заставка «Откройте карточки», по кругу (громкость 60%) | своя: создана кодом JoyRest (`scripts/sounds/lotto-intro.py`), права наши |
 | durak-table-1.mp3 | «Дурак»: тихий фон за столом всю партию (громкость 35%) | geoffharvey — «Tap Room Rag», id 183462 (прислал владелец 10 октября 2026) |
 | millionaire-think-low-1.mp3, millionaire-think-high-1.mp3 | «Миллион на кону» (ступени 1–6 и 7–12) и «Ставка на знания»: напряжение, пока открыт вопрос, по кругу с наплывом | своя: создана кодом JoyRest (`scripts/sounds/millionaire.py`), права наши; в духе телевикторины, мелодия своя |

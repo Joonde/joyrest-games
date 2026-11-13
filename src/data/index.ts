@@ -34,6 +34,7 @@ export {
   screenRepo,
   resultsRepo,
   roomsRepo,
+  roomsAvailable,
   sessionsRepo,
   usersRepo,
   venuesRepo,

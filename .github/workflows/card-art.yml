@@ -1,5 +1,6 @@
 # Картинки карточного стола, «Олимпа», телешоу и фигурок «Танцев на поле»: скачивает файлы из public/cards/art/manifest.json,
-# public/olymp/art/manifest.json, public/shows/art/manifest.json и public/stage/art/manifest.json в репозиторий,
+# public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/bublikator/art/manifest.json
+# и др. в репозиторий,
 # чтобы они хранились в GitHub, попадали в образ и на сервер (и в его резервные копии).
 # Ссылки Figma AI живут 7 дней, поэтому запуск — сразу при изменении manifest в ветке
 # claude/* (~1 минута) и кнопкой Run workflow. Уже скачанные файлы не перекачиваются.
@@ -8,7 +9,7 @@ name: Картинки карт
 on:
   push:
     branches: ["claude/**"]
-    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/spy/art/manifest.json, public/mafia/art/manifest.json, public/dance/art/manifest.json, public/quest/art/manifest.json, public/covers/art/manifest.json, public/super/art/manifest.json, docs/site-extras/art/manifest.json]
+    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/spy/art/manifest.json, public/mafia/art/manifest.json, public/dance/art/manifest.json, public/quest/art/manifest.json, public/covers/art/manifest.json, public/super/art/manifest.json, public/bublikator/art/manifest.json, docs/site-extras/art/manifest.json]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           added=0
-          for dir in public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/mafia/art public/dance/art public/quest/art public/covers/art public/super/art docs/site-extras/art; do
+          for dir in public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/mafia/art public/dance/art public/quest/art public/covers/art public/super/art public/bublikator/art docs/site-extras/art; do
             [ -f "$dir/manifest.json" ] || continue
             while IFS=$'\t' read -r file url; do
               case "$file" in (*/*|.*|"") echo "Плохое имя файла: $file"; exit 1;; esac
@@ -59,6 +60,16 @@ jobs:
                   im = im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
                   im.save(t, "WEBP", quality=80, method=6)
                   print("WebP:", t, t.stat().st_size)
+          # Фоны экрана зала «Бубликатора»: 1920 и 1280 по ширине, качество ~78
+          for p in sorted(Path("public/bublikator/art").glob("*.png")):
+              out = p.parent / "web"; out.mkdir(exist_ok=True)
+              for w, sfx in ((1920, ""), (1280, "-1280")):
+                  t = out / (p.stem + sfx + ".webp")
+                  if t.exists(): continue
+                  im = Image.open(p).convert("RGB")
+                  im = im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
+                  im.save(t, "WEBP", quality=78, method=6)
+                  print("WebP:", t, t.stat().st_size)
           for folder in ("public/spy/art", "public/mafia/art", "public/dance/art"):
               src = Path(folder); out = src / "web"; out.mkdir(exist_ok=True)
               for p in sorted(src.glob("*.png")):
@@ -85,6 +96,6 @@ jobs:
         run: |
           git config user.name "joyrest-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/mafia/art public/dance/art public/quest/art public/covers/art public/super/art docs/site-extras/art site/img
+          git add public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/mafia/art public/dance/art public/quest/art public/covers/art public/super/art public/bublikator/art docs/site-extras/art site/img
           git commit -m "Картинки: скачано $ADDED [no-test]"
           git push

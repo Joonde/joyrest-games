@@ -6,16 +6,27 @@
  * Проверочная игра `room-check` (тесты и нагрузка) включается только на тестовой версии: `ROOM_CHECK=on`, а без
  * переменной — только при адресах сайта `test.*` (как анкеты площадок, `venueFormsOpen`). На основной версии её нет:
  * сессия с механикой `room-check` там — обычная сессия без комнаты (404).
+ *
+ * Игры, у которых ещё нет экранов, включаются тем же переключателем: на test — для проверки, на основной версии их нет
+ * (`TEST_ONLY_GAMES`). Экраны готовы — игра переезжает в `GAMES` («Бубликатор» — 12 ноября 2026, Блок 2d: телефон, экран
+ * зала, пульт и конструктор готовы).
  */
+import { bublikator } from "./bublikator";
 import { roomCheck, ROOM_CHECK } from "./check";
 import type { RoomGame } from "./engine";
 
-/** Игры комнат для настоящих мероприятий (пока нет — первыми придут «Матрёшка», «Бубликатор», «Джойки»). */
-const GAMES: Array<RoomGame<unknown>> = [];
+/** Игры комнат для настоящих мероприятий («Бубликатор»; дальше — «Матрёшка», «Джойки»). */
+const GAMES: Array<RoomGame<unknown>> = [bublikator as RoomGame<unknown>];
+
+/** Игры без экранов — только на тестовой версии (вместе с `room-check`). Сейчас таких нет. */
+const TEST_ONLY_GAMES: Array<RoomGame<unknown>> = [];
 
 export function roomGames(options: { check?: boolean } = {}): ReadonlyMap<string, RoomGame<unknown>> {
   const games = new Map<string, RoomGame<unknown>>(GAMES.map((g) => [g.id, g]));
-  if (options.check) games.set(ROOM_CHECK, roomCheck as RoomGame<unknown>);
+  if (options.check) {
+    games.set(ROOM_CHECK, roomCheck as RoomGame<unknown>);
+    for (const g of TEST_ONLY_GAMES) games.set(g.id, g);
+  }
   return games;
 }
 

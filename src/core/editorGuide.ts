@@ -4,6 +4,7 @@
 // В текстах «…» — названия кнопок и надписей: на странице они выделяются.
 
 import { GUIDE_BOARD } from "./editorGuide/board";
+import { GUIDE_BUBLIKATOR } from "./editorGuide/bublikator";
 import { GUIDE_BUNKER } from "./editorGuide/bunker";
 import { GUIDE_CHECKERS } from "./editorGuide/checkers";
 import { GUIDE_DANCE } from "./editorGuide/dance";
@@ -351,5 +352,6 @@ export const EDITOR_GUIDES: EditorGuide[] = [
   GUIDE_DURAK,
   GUIDE_PERUDO,
   GUIDE_WINE,
+  GUIDE_BUBLIKATOR,
   GUIDE_EVENING,
 ];

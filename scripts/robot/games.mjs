@@ -23,3 +23,21 @@ export const MECHANICS = {
   aquarium: { modes: ["solo", "teams"], demos: 2 },
   olymp: { modes: ["teams"], demos: 2, players: [1, 3] },
 };
+
+/**
+ * Игры, которые робот-ведущий и Ревизор не проводят — с причиной (иначе их молча «нет»).
+ * «Бубликатор» идёт не шагами сессии, а в игровой комнате быстрого канала (непрерывные движения приборов, тряска, удержание):
+ * страница робота ведёт сессию в памяти и шагами пульта, комнаты у неё нет. Его проверяют свои стенды против тех же правил,
+ * что у сервера: `bublikator-phone.*` (телефон), `bublikator-screen.*` (экран зала), `bublikator-host.*` (пульт, конструктор,
+ * предпросмотр, полная игра на 50 гостей) и тесты `src/mechanics/bublikator/**`, `server/src/rooms/bublikator.test.ts`.
+ */
+export const SKIPPED = {
+  bublikator: "игровая комната быстрого канала — свои стенды bublikator-phone/-screen/-host",
+};
+
+/** Строки журнала о пропущенных играх: все (без выбора игр) или только выбранные (`only` — список из поля «games»). */
+export function skippedLines(only) {
+  return Object.entries(SKIPPED)
+    .filter(([m]) => !only || only.includes(m))
+    .map(([m, why]) => `Пропуск: ${m} — ${why}`);
+}

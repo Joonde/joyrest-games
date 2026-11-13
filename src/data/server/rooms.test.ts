@@ -4,7 +4,7 @@ import { firebaseRoomsRepository } from "../rooms";
 import type { RoomStreamEvent } from "../types";
 import { ApiError } from "./api";
 import { createRoomSender, ROOM_ABANDONED_RETRY_MS, ROOM_NOW_GAP_MS, ROOM_BATCH_BYTES, ROOM_BATCH_MAX, ROOM_FORBIDDEN_BEATS, ROOM_RETRY_MAX, serverRoomsRepository, splitBatches, subscribeRoom, type SenderDeps, type SubscribeDeps } from "./rooms";
-import type { StreamOptions } from "./stream";
+import { openStream, type StreamOptions } from "./stream";
 
 /** Часы и таймеры понарошку: `advance(ms)` двигает время и запускает созревшие таймеры. */
 function fakeDeps(post: SenderDeps["post"]) {
@@ -83,6 +83,28 @@ describe("быстрый канал: отправитель пачек теле�
     sender.push({ t: "tap", n: 1 });
     sender.flush();
     expect(sent.at(-1)?.seq).toBe(3);
+    sender.stop();
+  });
+
+  it("`beforeMs` (аудит 2b, №14): накопленные нажатия — `ago` по первому из них; склейка «сейчас» — по времени отправки", async () => {
+    const sent: Body[] = [];
+    const { deps, advance } = fakeDeps(async (_path, body) => {
+      sent.push(body as Body);
+      return {};
+    });
+    const sender = createRoomSender("s1", {}, deps);
+    await advance(400);
+    sender.push({ t: "tap", n: 5 }, { now: true, beforeMs: 280 });
+    expect(sent.at(-1)).toMatchObject({ events: [{ t: "tap", n: 5, ago: 280 }] });
+    // Следующее «сейчас» через 200 мс уходит сразу: окно склейки — от отправки, а не от первого нажатия.
+    await advance(200);
+    const before = sent.length;
+    sender.push({ t: "move", id: "m1" }, { now: true });
+    expect(sent.length).toBe(before + 1);
+    // Больше 4 с назад не бывает (сервер всё равно не примет).
+    sender.push({ t: "tap", n: 1 }, { beforeMs: 60_000 });
+    sender.flush();
+    expect(sent.at(-1)?.events[0]?.ago).toBe(4000);
     sender.stop();
   });
 
@@ -368,6 +390,46 @@ describe("быстрый канал: поток и команды на клие�
     subscribeRoom("s1", "screen", () => undefined, (e) => errors.push(e), { get: async () => null, open: f.open });
     f.options().onEvent({ type: "closed", at: 1, reason: "unloaded" });
     expect(errors).toEqual([]);
+  });
+
+  it("«Открыть здесь» (`take`) вытесняет один раз: после первого события и при переподключении браузера — без `take` (аудит 2b, №19)", () => {
+    const f = fakeOpen();
+    subscribeRoom("s1", "me", () => undefined, () => undefined, { get: async () => null, open: f.open }, { take: true });
+    expect(f.options().url).toMatch(/&take=1$/);
+    f.options().onEvent({ type: "snapshot", at: 1, paused: false, every: 1000, offlineMs: 3000, data: {} });
+    expect(f.options().url).not.toContain("take");
+    // Настоящий поток: браузер сам переподключается по старому адресу — `openStream` видит новый и подключается по нему.
+    const made: FakeSource[] = [];
+    class FakeSource {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSED = 2;
+      readyState = 1;
+      onmessage: ((m: { data: string }) => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(readonly url: string) {
+        made.push(this);
+      }
+      addEventListener(): void {}
+      close(): void {
+        this.readyState = 2;
+      }
+    }
+    vi.stubGlobal("EventSource", FakeSource);
+    const stop = subscribeRoom("s2", "me", () => undefined, () => undefined, { get: async () => null, open: openStream }, { take: true });
+    expect(made.map((x) => x.url.endsWith("&take=1"))).toEqual([true]);
+    made[0]?.onmessage?.({ data: JSON.stringify({ type: "snapshot", at: 1, paused: false, every: 1000, offlineMs: 3000, data: {} }) });
+    // Обрыв: браузер в CONNECTING — переподключение по новому адресу, без `take`.
+    if (made[0]) made[0].readyState = 0;
+    made[0]?.onerror?.();
+    expect(made).toHaveLength(2);
+    expect(made[0]?.readyState).toBe(2);
+    expect(made[1]?.url).not.toContain("take");
+    // Дальше обрывы — как раньше: адрес не менялся, браузер переподключается сам.
+    if (made[1]) made[1].readyState = 0;
+    made[1]?.onerror?.();
+    expect(made).toHaveLength(2);
+    stop();
   });
 
   it("«abandoned» — не навсегда: поток отпущен, через минуту подписка пробует снова (и после 409 опроса)", async () => {

@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { copyOfGame, HOST_GAMES_FOLDER } from "../../core/games";
-import { errorCodeOf, gameFoldersRepo, gamesRepo, permissions, proposalsRepo, useLoad, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
+import { errorCodeOf, gameFoldersRepo, gamesRepo, permissions, proposalsRepo, roomsAvailable, useLoad, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { ListSkeleton } from "../../components/Skeleton";
 import { Tabs } from "../../components/Tabs";
 import { LoadFailedInline, NOT_YET_TEXT } from "../../components/Status";
-import { demoGames, gameMediaIds } from "../../mechanics/registry";
+import { demoGamesNow, gameMediaIds } from "../../mechanics/registry";
 import { groupByCategory, popularGames, type CategoryId } from "../../mechanics/categories";
 import { DEFAULT_THEME_ID } from "../../themes/registry";
 import { GameCard } from "./GameCard";
 import { ProposalsBlock } from "./Proposals";
+
+/** Шаблоны библиотеки: без игр в игровой комнате, если комнат нет (Firebase). */
+const demoGames = demoGamesNow(roomsAvailable);
 
 const NO_PROPOSALS: LibraryProposal[] = [];
 const NO_FOLDERS: string[] = [];

@@ -112,6 +112,8 @@ export const ROOM_STREAM_BACKLOG_BYTES = 128 * 1024;
 /** Сколько всего может ждать отправки в потоках одной комнаты и всех комнат: дальше обрываются самые отставшие. */
 export const ROOM_BACKLOG_BYTES = 16 * 1024 * 1024;
 export const ROOMS_BACKLOG_BYTES = 48 * 1024 * 1024;
+/** Отметки «телефон играл в раунде» (баллы ведущему, `room_play`) — в базу не реже. */
+const PLAYED_EVERY_MS = 5000;
 /** Кто на связи в комнате — в `participants.seen_at` не реже (у «Вы уже играли?» порог 75 с). */
 export const SEEN_EVERY_MS = 30_000;
 /** Опросов снимка без потока с устройства: запас 5 и один в секунду (клиент опрашивает раз в 2 с). */
@@ -152,6 +154,9 @@ interface Entry {
   /** Когда последний раз писали `participants.seen_at` тех, кто на связи; идёт ли запись (не накладываются). */
   lastSeenAt: number;
   seenBusy: boolean;
+  /** Отметки «телефон играл в раунде» (`room_play`, баллы ведущему): когда писали последний раз; идёт ли запись. */
+  lastPlayedAt: number;
+  playedSaving: Promise<void> | null;
   saving: Promise<void> | null;
   again: boolean;
   /** Следующий снимок — «спокойная выгрузка» (`clean`). */
@@ -220,6 +225,7 @@ export class RoomManager {
   /** Места экранов не ведущего, удержанные после закрытия: комната → устройство → адрес и до какого времени. */
   private readonly screenHolds = new Map<string, Map<string, { ip: string; until: number }>>();
   private readonly stopDevices: () => void;
+  private readonly stopFlush: () => void;
   /** Кто шлёт пачки: cookie → uid (без базы на каждую пачку); uid → ключи cookie (сбросить при перехвате). */
   private readonly identities = new Map<string, { uid: string; until: number }>();
   private readonly identityKeys = new Map<string, Set<string>>();
@@ -254,6 +260,8 @@ export class RoomManager {
     this.stopDevices = hub.subscribe(DEVICES_CHANNEL, (event) => {
       if (isRecord(event) && event.type === "moved" && typeof event.pid === "string") this.forgetDevice(event.pid);
     });
+    // «Завершить игру»: перед баллами ведущему — последние отметки «играл в раунде» и снимок комнаты в базу (проверка 2d, №3).
+    this.stopFlush = hub.onFlush((id) => this.flushPlayed(id));
     const loopMs = options.loopMs ?? 100;
     if (loopMs > 0) {
       let last = performance.now();
@@ -381,6 +389,8 @@ export class RoomManager {
         touchedActivity: room.activityCount,
         lastSeenAt: now,
         seenBusy: false,
+        lastPlayedAt: now,
+        playedSaving: null,
         saving: null,
         again: false,
         clean: false,
@@ -704,6 +714,11 @@ export class RoomManager {
         const pids = room.onlinePids();
         if (pids.length > 0) void this.markSeen(entry, pids, now);
       }
+      // Кто играл в раунде (баллы ведущему) — в базу раз в 5 с; и при выгрузке, до «Завершить игру» (там их читают).
+      if (now - entry.lastPlayedAt >= PLAYED_EVERY_MS && !entry.playedSaving) {
+        entry.lastPlayedAt = now;
+        void this.savePlayed(entry);
+      }
       // Игра идёт (пачки с событиями и команды) — сессия «живая» для выкладки: раз в минуту обновляем updated_at.
       // Пустые пачки («я на связи»), опросы, подписки и само создание комнаты — не игра: забытая вкладка не держит
       // выкладку и после выгрузки, подняв комнату снова, тоже.
@@ -725,6 +740,40 @@ export class RoomManager {
       this.lastBacklogCheck = now;
       this.trimBacklog();
     }
+  }
+
+  /**
+   * Перед итогами игры: все отметки «играл в раунде» и снимок комнаты — в базу сейчас (по ним баллы ведущему: телефоны и «игра
+   * сыграна до конца»). Комната выгружается (сессия завершена) — дождаться её записи; ещё в памяти — записать (идущая запись
+   * взяла старые отметки, вторая — пришедшие за это время).
+   */
+  async flushPlayed(id: string): Promise<void> {
+    await this.unloading.get(id)?.catch(() => undefined);
+    const entry = this.rooms.get(id);
+    if (!entry) return;
+    await Promise.all([this.save(entry), this.savePlayed(entry).then(() => this.savePlayed(entry))]);
+  }
+
+  /** Отметки «телефон играл в раунде» — в `room_play` (повтор — ничего); не записались — вернутся к следующей попытке. */
+  private savePlayed(entry: Entry): Promise<void> {
+    if (entry.playedSaving) return entry.playedSaving;
+    const marks = entry.room.takePlayed();
+    if (marks.length === 0) return Promise.resolve();
+    const id = entry.room.id;
+    entry.playedSaving = (async () => {
+      try {
+        for (let i = 0; i < marks.length; i += 500) {
+          const rows = marks.slice(i, i + 500).map((m) => ({ session_id: id, pid: m.pid, unit: m.unit }));
+          await this.sql`insert into room_play ${this.sql(rows, "session_id", "pid", "unit")} on conflict do nothing`;
+        }
+      } catch (error) {
+        entry.room.returnPlayed(marks);
+        this.log.warn({ room: "played", err: message(error) }, "rooms");
+      } finally {
+        entry.playedSaving = null;
+      }
+    })();
+    return entry.playedSaving;
   }
 
   private async markSeen(entry: Entry, pids: string[], now: number): Promise<void> {
@@ -831,7 +880,7 @@ export class RoomManager {
     entry.room.close(reason, this.now());
     this.releaseStreams(id);
     if (reason === "finished") this.screenHolds.delete(id);
-    const saved = this.save(entry);
+    const saved = Promise.all([this.save(entry), this.savePlayed(entry).then(() => this.savePlayed(entry))]).then(() => undefined);
     this.unloading.set(id, saved);
     try {
       await saved;
@@ -847,6 +896,7 @@ export class RoomManager {
   async close(): Promise<void> {
     this.closing = true;
     this.stopDevices();
+    this.stopFlush();
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     await Promise.all([...this.loading.values()].map((p) => p.catch(() => undefined)));

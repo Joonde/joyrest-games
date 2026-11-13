@@ -1,0 +1,258 @@
+/* Пульт «Бубликатора» (Блок 2d): только токены темы, кнопки — три вида платформы (.btn, .btn--secondary, .btn--quiet). */
+.bkh {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.bkh h2 {
+  margin: 0;
+}
+.bkh-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.bkh-head .eyebrow {
+  margin: 0;
+}
+.bkh-head__title {
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.bkh-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+.bkh-status .is-warn {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.bkh-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.bkh-sec > p,
+.bkh-sec .eyebrow {
+  margin: 0;
+}
+.bkh-big {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.bkh-timers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.bkh-timers p {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.bkh-pair,
+.bkh-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.bkh-pair .btn,
+.bkh-grid .btn {
+  min-width: 0;
+  padding-inline: 8px;
+  white-space: normal;
+  line-height: 1.2;
+}
+.bkh-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bkh-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  border-left: 6px solid var(--bkh-crew, var(--color-border));
+  min-width: 0;
+}
+.bkh-row__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.bkh-row__meta {
+  grid-column: 2 / -1;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.bkh-row > .btn {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+.bkh-row:not(:has(.bkh-row__place, .bkh-dot)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.bkh-row:not(:has(.bkh-row__place, .bkh-dot)) .bkh-row__meta {
+  grid-column: 1 / -1;
+}
+.bkh-row:not(:has(.bkh-row__place, .bkh-dot)) > .btn {
+  grid-column: 2;
+}
+.bkh-row__place {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5em;
+  text-align: center;
+}
+.bkh-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bkh-crew, var(--color-border));
+}
+.bkh-bar {
+  grid-column: 2 / -1;
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+.bkh-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--bkh-crew, var(--color-highlight));
+}
+.bkh-event,
+.bkh-pause {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 2px solid var(--color-highlight);
+  background: var(--color-surface-alt);
+}
+.bkh-event p,
+.bkh-pause p {
+  margin: 0;
+}
+.bkh-captain {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+}
+.bkh-fold {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 0 16px;
+}
+.bkh-fold > summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.bkh-fold[open] {
+  padding-bottom: 16px;
+}
+.bkh-fold > .bkh-sec + .bkh-sec {
+  margin-top: 16px;
+}
+.bkh-stars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 6px solid var(--bkh-crew, var(--color-border));
+}
+.bkh-stars .seg {
+  display: grid;
+  /* На телефоне — две строки по три (каждая кнопка ≥ 44 px: проверка 2d, №8 — в один ряд на 360 px было 33 px); с 440 px —
+     все шесть в ряд (≥ 46 px). */
+  grid-template-columns: repeat(3, minmax(44px, 1fr));
+  gap: 4px;
+}
+@media (min-width: 440px) {
+  .bkh-stars .seg {
+    grid-template-columns: repeat(6, minmax(44px, 1fr));
+  }
+}
+.bkh-stars .seg__btn {
+  min-height: 44px;
+  min-width: 0;
+  padding-inline: 0;
+  font-size: 13px;
+}
+.bkh-stars {
+  gap: 4px;
+}
+/* С 520 px — название экипажа и звёзды одной строкой. */
+@media (min-width: 520px) {
+  .bkh-stars {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    align-items: center;
+    gap: 8px;
+  }
+}
+.bkh .field select {
+  min-height: 52px;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Предпросмотр и репетиция (sim/Preview.tsx). */
+.bkpv-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bkpv-tools .seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+.bkpv-tools .seg__btn {
+  min-height: 44px;
+  min-width: 0;
+  white-space: normal;
+}
+.preview-phone.bkpv-phone {
+  padding: 0;
+  height: min(70dvh, 760px);
+  max-height: none;
+}
+.bkpv-phone .bkp {
+  min-height: 100%;
+}
+.bkpv-host {
+  width: min(100%, 520px);
+  margin: 0 auto;
+}
+/* Общее правило предпросмотра (`.preview-screen > :not(.scene)` — position: relative) сжало бы экран зала до нуля: ему нужен
+   весь кадр 16:9 (position: absolute; inset: 0 — как на настоящем экране). */
+.bkpv .preview-screen > .bks {
+  position: absolute;
+}

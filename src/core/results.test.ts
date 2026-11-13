@@ -44,6 +44,20 @@ describe("places", () => {
     expect(places(result.board)).toEqual([1, 1, 3]);
     expect(places([])).toEqual([]);
   });
+
+  it("строки одной группы (команды экипажа «Бубликатора») — одно место, считаются за одного; группа доходит до итогов", () => {
+    const rows = [
+      { name: "Лисы", score: 1200, group: "t0" },
+      { name: "Медведи", score: 1200, group: "t0" },
+      { name: "Ракеты", score: 800 },
+      { name: "Совы", score: 100 },
+    ];
+    expect(places(rows)).toEqual([1, 1, 2, 3]);
+    expect(compactBoard({ t0: { name: "Лисы", kind: "team", score: 1200, group: "t0" }, t2: { name: "Медведи", kind: "team", score: 1200, group: "t0" } })).toEqual([
+      { name: "Лисы", score: 1200, group: "t0" },
+      { name: "Медведи", score: 1200, group: "t0" },
+    ]);
+  });
 });
 
 describe("formatResultsText", () => {

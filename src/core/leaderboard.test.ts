@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { podiumPlaces } from "./podium";
 import type { Participant } from "../data/types";
 import {
   captainChanges,
   CAPTAIN_TIMEOUT_MS,
   leaderboardAdditions,
+  crewBoard,
   placeOf,
   rankedLeaderboard,
   scoreChange,
@@ -100,6 +102,44 @@ describe("места", () => {
     ]);
     expect(placeOf(board, "b")).toEqual({ place: 1, total: 4 });
     expect(placeOf(board, "x")).toBeNull();
+  });
+
+  it("группа (команды одного экипажа «Бубликатора») — одно место и считается за одного, «голова» первой", () => {
+    const merged = {
+      t0: { name: "Лисы", kind: "team" as const, score: 1200, group: "t0" },
+      t2: { name: "Медведи", kind: "team" as const, score: 1200, group: "t0" },
+      t1: { name: "Ракеты", kind: "team" as const, score: 800 },
+      t3: { name: "Альфа", kind: "team" as const, score: 800 },
+      t4: { name: "Бета", kind: "team" as const, score: 100 },
+    };
+    expect(rankedLeaderboard(merged).map((e) => [e.id, e.place])).toEqual([
+      ["t0", 1],
+      ["t2", 1],
+      ["t3", 2],
+      ["t1", 2],
+      ["t4", 4],
+    ]);
+    // Мест — по экипажам: 4 экипажа, а не 5 команд.
+    expect(placeOf(merged, "t2")).toEqual({ place: 1, total: 4 });
+    expect(placeOf(merged, "t4")).toEqual({ place: 4, total: 4 });
+    // Без групп — как раньше.
+    expect(rankedLeaderboard(board).map((e) => e.place)).toEqual([1, 1, 3, 4]);
+  });
+
+  it("одна строка на экипаж (итог экрана «Бубликатора» после завершения) и пьедестал без повторов", () => {
+    const merged = {
+      t0: { name: "Лисы", kind: "team" as const, score: 1200, group: "t0" },
+      t2: { name: "Медведи", kind: "team" as const, score: 1200, group: "t0" },
+      t1: { name: "Ракеты", kind: "team" as const, score: 800 },
+    };
+    expect(crewBoard(merged)).toEqual([
+      { id: "t0", name: "Лисы", score: 1200, place: 1 },
+      { id: "t1", name: "Ракеты", score: 800, place: 2 },
+    ]);
+    expect(podiumPlaces(merged).map((p) => [p.place, p.entries.map((e) => e.id)])).toEqual([
+      [1, ["t0"]],
+      [2, ["t1"]],
+    ]);
   });
 });
 

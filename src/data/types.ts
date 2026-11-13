@@ -419,6 +419,12 @@ export interface LeaderboardEntry {
   move?: number;
   /** Гонка «Кто быстрее»: сколько делений пройдено к финишу (угаданные треки, супер-трек — больше). */
   race?: number;
+  /**
+   * Общее место с другими записями (id «головы»: у «Бубликатора» — команда экипажа, в который влили эту команду). Записи одной
+   * группы — одно место, и места считаются по группам: экипажи 1200 (две команды) и 800 — места 1, 1, 2, а не 1, 1, 3
+   * (решение владельца 13 ноября 2026). Нет — запись сама себе группа (как раньше).
+   */
+  group?: string;
 }
 
 /** Ключ — id участника (игрока или команды). */
@@ -503,6 +509,10 @@ export type RoomStreamEvent =
   | { type: "snapshot"; at: number; paused: boolean; every: number; offlineMs: number; data: unknown }
   | { type: "event"; at: number; data: unknown }
   | { type: "room"; at: number; paused: boolean }
+  /**
+   * Сводка экрана: при переменах не чаще `screenHz`, без перемен — раз в секунду. Снимок это или перемена, экран решает сам по
+   * непрерывности (`at` подряд без разрыва больше 3 с и сводка не опоздала больше чем на 2,5 с; аудит 2c, второй круг).
+   */
   | { type: "screen"; at: number; version: number; paused: boolean; players: number; online: number; data: unknown }
   | {
       type: "host";
@@ -564,6 +574,8 @@ export interface ResultRow {
   name: string;
   score: number;
   colorIndex?: number;
+  /** Общее место с другими строками (см. `LeaderboardEntry.group`). */
+  group?: string;
 }
 
 /**

@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { formatDate } from "../../core/format";
 import { HOST_GAMES_FOLDER } from "../../core/games";
-import { permissions, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
+import { permissions, roomsAvailable, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ActionMenu, type MenuAction } from "../../components/Menu";
-import { mechanicTitle, stepsLabel, validateGame } from "../../mechanics/registry";
+import { launchBlocked, mechanicTitle, stepsLabel, validateGame } from "../../mechanics/registry";
 import { getTheme } from "../../themes/registry";
 
 interface Props {
@@ -32,6 +32,8 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
   const editable = permissions.canEditGame(profile, game);
   const date = game.updatedAt ?? game.createdAt;
   const ready = validateGame(game.mechanic, game.content).length === 0;
+  // Игра в игровой комнате без своего сервера (откат на Firebase) — запустить нельзя, репетиция в памяти работает.
+  const blocked = launchBlocked(game.mechanic, roomsAvailable);
 
   const menu: MenuAction[] = [{ label: editable ? "✍️ Редактировать" : "👀 Посмотреть", to: `/studio/games/${game.id}` }];
   if (ready) menu.push({ label: "Репетиция без гостей", to: `/studio/rehearsal/${game.id}` });
@@ -71,11 +73,13 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
         {game.ageRating !== "0+" && <li>{game.ageRating}</li>}
         {date !== null && <li>{formatDate(date)}</li>}
         {!ready && <li className="meta__warn">Не готова к запуску</li>}
+        {blocked && <li className="meta__warn">Недоступна здесь</li>}
         {proposal && <li className={proposal.status === "rejected" ? "meta__warn" : undefined}>{PROPOSAL_LABEL[proposal.status]}</li>}
       </ul>
       {proposal?.status === "rejected" && proposal.reason && <p className="muted small">Причина: {proposal.reason}</p>}
+      {blocked && <p className="muted small">{blocked}.</p>}
       <div className="actions">
-        {permissions.canLaunchGame(profile, game) ? (
+        {permissions.canLaunchGame(profile, game) && !blocked ? (
           <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
             ▶ Запустить игру
           </Link>

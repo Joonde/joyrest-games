@@ -4,7 +4,7 @@
  * телефон — только своё (кроме соперника в своей дуэли и пары дуэлянтов для ставки); пульт — всё нужное ведущему, тайн нет.
  * Времена наружу — по часам сервера (`toServer`).
  */
-import { BOXES, CATCH_FROM_MS, HEAD_TURN_MS, PERSONAL_EVERY_MS, PHONE_LEAD_MS, SCREEN_BYTES_MAX, SCREEN_LEAD_MS, SCREEN_NAME_MAX } from "./constants";
+import { BOARD_PAGE_MS, BOARD_PAGE_ROWS, BOXES, CATCH_FROM_MS, HEAD_TURN_MS, PERSONAL_EVERY_MS, PHONE_LEAD_MS, SCREEN_BYTES_MAX, SCREEN_LEAD_MS, SCREEN_NAME_MAX } from "./constants";
 import { questionsOf } from "./content";
 import { gameNow, toServer, type Env } from "./env";
 import { project, speedOf } from "./freeze";
@@ -304,7 +304,10 @@ export function screenView(s: MatState, env: ViewEnv): ScreenView {
     view.podium = { top: top.map((x) => ({ num: x.num, place: x.place, points: x.points })) };
   }
   if (s.board && s.phase !== "lobby") {
-    view.scoreboard = inGame(s).map((m) => ({ num: m.num, name: "", hearts: m.hearts, role: m.role }));
+    const list = inGame(s);
+    const pages = Math.max(1, Math.ceil(list.length / BOARD_PAGE_ROWS));
+    const page = Math.floor(env.now / BOARD_PAGE_MS) % pages;
+    view.scoreboard = { total: list.length, page, pages, rows: list.slice(page * BOARD_PAGE_ROWS, (page + 1) * BOARD_PAGE_ROWS).map((m) => [m.num, m.hearts]) };
   }
   for (const pid of names) {
     const m = s.members[pid];

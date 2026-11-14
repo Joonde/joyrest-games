@@ -1,7 +1,7 @@
 // Ход игры «Игр Матрёшки» (docs/matryoshka.md): номера по входу, каждая команда пульта вперёд и назад, отказ не в свой шаг,
 // «Второй шанс», «Добивка», финал, «Назад», «Вернуть» и «Убрать», пауза, снимок → восстановление, виды без тайн, баллы.
 import { describe, expect, it } from "vitest";
-import { MIN_PLAYERS, PLAYED_TRIALS_MIN, SCREEN_BYTES_MAX, UNIT_FINAL } from "./constants";
+import { BOARD_PAGE_MS, BOARD_PAGE_ROWS, MIN_PLAYERS, PLAYED_TRIALS_MIN, SCREEN_BYTES_MAX, UNIT_FINAL } from "./constants";
 import { questionsOf, TRIAL_KINDS } from "./content";
 import { input, moment, playedToEnd, playUnit, restore, snapshot } from "./game";
 import { inGame, standings } from "./members";
@@ -156,9 +156,29 @@ describe("команды пульта: вперёд, назад, не в сво�
     const w = new World(8, {}, "board");
     w.cmd("start");
     expect(w.cmd("board").ok).toBe(true);
-    expect(w.screen().scoreboard?.length).toBe(8);
+    expect(w.screen().scoreboard?.rows.length).toBe(8);
+    expect(w.screen().scoreboard?.rows.every(([num, hearts]) => num >= 1 && hearts >= 1)).toBe(true);
     expect(w.cmd("board").ok).toBe(true);
     expect(w.screen().scoreboard).toBeUndefined();
+  });
+
+  it("«Табло» на 100 игроках — страницами по 25, страница сменяется сама, за круг видны все (второе ревью 3a)", () => {
+    const w = new World(100, {}, "board-100");
+    w.cmd("start");
+    expect(w.cmd("board").ok).toBe(true);
+    const seen = new Set<number>();
+    const pages = new Set<number>();
+    for (let i = 0; i < (BOARD_PAGE_MS / 100) * 5; i += 1) {
+      const b = w.screen().scoreboard;
+      expect(b?.total).toBe(100);
+      expect(b?.pages).toBe(Math.ceil(100 / BOARD_PAGE_ROWS));
+      expect(b?.rows.length).toBe(BOARD_PAGE_ROWS);
+      pages.add(b?.page ?? -1);
+      for (const [num] of b?.rows ?? []) seen.add(num);
+      w.now += 100;
+    }
+    expect(pages.size).toBe(4);
+    expect(seen.size).toBe(100);
   });
 });
 
@@ -447,10 +467,11 @@ describe("пауза и восстановление", () => {
 });
 
 describe("виды: экран без тайн, телефон только своё", () => {
-  it("на экране нет крепкого льда, фигур до раскрытия, жестов до показа; телефон не видит чужих pid; ≤ 4 КБ (в байтах UTF-8) на 100 игроков с длинными русскими именами", () => {
-    const w = new World(100, { style: "night" }, "views");
-    // 30 букв кириллицы — по 2 байта: сводка считается в байтах, а не в знаках (аудит 3a).
-    for (const p of w.players) p.name = `Щ${p.pid}`.padEnd(30, "Ж");
+  for (const board of [false, true])
+  it(`на экране нет крепкого льда, фигур до раскрытия, жестов до показа; телефон не видит чужих pid; ≤ 3 900 байт UTF-8 на 100 игроков с длинными русскими именами и эмодзи, табло ${board ? "включено на всех испытаниях" : "выключено"}`, () => {
+    const w = new World(100, { style: "night", secondChance: 20 }, `views-${board}`);
+    // 30 букв кириллицы — по 2 байта, и эмодзи-семья (25 байт): сводка считается в байтах, а не в знаках (аудит 3a, второе ревью).
+    for (const p of w.players) p.name = `👨‍👩‍👧‍👦 ${`Щ${p.pid}`.padEnd(30, "Ж")}`;
     for (const p of w.players) {
       const m = w.s.members[p.pid];
       if (m) m.name = p.name;
@@ -458,10 +479,13 @@ describe("виды: экран без тайн, телефон только св
     w.cmd("start");
     let maxScreen = 0;
     let screens = 0;
+    const boardOn = new Set<string>();
     for (let i = 0; i < 40 * 60 * 10 && w.s.phase !== "podium"; i += 1) {
+      if (board && !w.s.board) expect(w.cmd("board").ok).toBe(true);
       w.step(100, true);
       const view = w.screen();
       maxScreen = Math.max(maxScreen, screenBytes(view));
+      if (view.scoreboard) boardOn.add(w.s.phase === "trial" ? (w.s.trial?.kind ?? "trial") : w.s.phase);
       if (i % 5 === 0) {
         const scr = JSON.stringify(view);
         screens += 1;
@@ -484,6 +508,7 @@ describe("виды: экран без тайн, телефон только св
     expect(screens).toBeGreaterThan(100);
     expect(maxScreen).toBeLessThanOrEqual(4096);
     expect(maxScreen).toBeLessThanOrEqual(SCREEN_BYTES_MAX);
+    if (board) for (const kind of ["freeze", "ginger", "chairs", "rope", "hopscotch", "final"]) expect(boardOn.has(kind), kind).toBe(true);
   }, 120_000);
 
   it("сводка экрана не выходит за предел и в худшем случае: имена укорачиваются, потом номера без имён", () => {

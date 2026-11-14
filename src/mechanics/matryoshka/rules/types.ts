@@ -394,7 +394,12 @@ export interface ScreenView {
   dobivka?: Record<string, unknown>;
   final?: Record<string, unknown>;
   podium?: Record<string, unknown>;
-  scoreboard?: Array<{ num: number; name: string; hearts: number; role: Role }>;
+  /**
+   * «Табло на экран» (второе ревью 3a: на 100 игроках старое табло давало сводку 6,5 КБ): кто в игре — строками `[номер,
+   * сердечки]` по номеру, страницами по `BOARD_PAGE_ROWS`, страница сама сменяется раз в `BOARD_PAGE_MS` (по часам сервера);
+   * `total` — сколько в игре, болельщики — `fans` сводки. Имена — те, что уже есть в `names`.
+   */
+  scoreboard?: { total: number; page: number; pages: number; rows: Array<[number, number]> };
 }
 
 export interface PersonalView {

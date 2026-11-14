@@ -352,7 +352,7 @@ export function leaders(players: readonly ScreenPlayer[], names: Readonly<Record
  * Подписи лидеров без наложений: подпись стоит над фишкой; если она задевает уже поставленную (ближе `w` по ширине и `h` по
  * высоте), уходит выше на высоту подписи, а упёрлась в верх поля (`top`) — ниже фишки. Координаты — в пикселях макета.
  */
-export function placeTags(points: ReadonlyArray<{ num: number; x: number; y: number }>, w = 250, h = 38, top = -40): Map<number, number> {
+export function placeTags(points: ReadonlyArray<{ num: number; x: number; y: number }>, w = 340, h = 50, top = -40): Map<number, number> {
   const placed: Array<{ x: number; y: number }> = [];
   const out = new Map<number, number>();
   for (const p of [...points].sort((a, b) => a.y - b.y || a.x - b.x)) {

@@ -234,8 +234,14 @@
 .mts-who b {
   font-weight: 600;
 }
+/* Имя в строке — одним куском; очень длинное — с многоточием, чтобы строка не выходила за плашку. */
 .mts-who {
+  display: inline-block;
+  max-width: calc(var(--px) * 440);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  vertical-align: bottom;
 }
 /* Подписи под заголовком посреди двора — на плашке (роспись под ними пёстрая). */
 .mts-center > .mts-cap,
@@ -826,13 +832,7 @@
   position: relative;
   text-align: center;
 }
-.mts-reveal__who .mts-who {
-  display: inline-block;
-  max-width: calc(var(--px) * 560);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  vertical-align: bottom;
-}
+
 .mts-grid {
   display: grid;
   align-content: start;
@@ -1786,6 +1786,10 @@
   text-align: center;
   min-width: 0;
   max-width: calc(var(--px) * 360);
+  /* Имя и очки — на плашке: под пьедесталом пёстрая роспись двора. */
+  background: var(--g-panel);
+  border-radius: calc(var(--px) * 18);
+  padding: calc(var(--px) * 8) calc(var(--px) * 12);
 }
 .mts-step__name {
   font-family: "Cormorant Garamond", Georgia, serif;

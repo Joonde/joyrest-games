@@ -3,7 +3,7 @@
  * сугроб — одна полоса вдоль всей кромки, решение владельца 14 ноября 2026). Координаты — как в макетах (кадр 1920×1080):
  * `px(n)` = n/1920 ширины кадра 16:9 (`--px`), поэтому раскладка макета переносится числами.
  */
-import type { CSSProperties, ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { HallTimer } from "../../../components/live/HallTimer";
 import { joinHint } from "../../../components/links";
 import { formatSessionCode } from "../../../core/code";
@@ -115,10 +115,11 @@ export function WhoList({ nums, m, max = 3 }: { nums: readonly number[]; m: Scre
   return (
     <>
       {shown.map((n, i) => (
-        <span key={n} className="mts-nowrap">
+        // Запятая с пробелом — вне имени: строка переносится между именами, само имя — одним куском (`.mts-who`).
+        <Fragment key={n}>
           {i > 0 ? ", " : ""}
           <Who n={n} m={m} />
-        </span>
+        </Fragment>
       ))}
       {nums.length > shown.length ? ` и ещё ${nums.length - shown.length}` : ""}
     </>

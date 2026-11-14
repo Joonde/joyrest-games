@@ -43,7 +43,7 @@ import {
   syncChosen,
   teamPick,
 } from "./logic";
-import { teamsCovered } from "./validate";
+import { poorestLevel, teamsCovered } from "./validate";
 
 /** Момент игры для повтора касания: всё, кроме того, что пишет фон пульта (подсветка выбора, проценты зала). */
 function millionaireMoment(s: Session): string {
@@ -56,13 +56,21 @@ function millionaireMoment(s: Session): string {
  * окончательный ответ?» и фиксирует → «Показать ответ» → «Следующая команда». Подсказки — плитками: каждая
  * у команды один раз; игрок может попросить подсказку с телефона — ведущий переспрашивает и включает.
  */
-/** «2 команды не сыграют», «5 игроков не сыграют». */
-function missText(n: number, solo: boolean): string {
+/** «1 команда», «2 команды», «5 команд» (в режиме «каждый сам» — игроки). */
+function teamWord(n: number, solo: boolean): string {
   const ten = n % 100;
   const one = n % 10 === 1 && ten !== 11;
   const few = n % 10 >= 2 && n % 10 <= 4 && (ten < 12 || ten > 14);
-  if (solo) return one ? "игрок не сыграет" : few ? "игрока не сыграют" : "игроков не сыграют";
-  return one ? "команда не сыграет" : few ? "команды не сыграют" : "команд не сыграют";
+  if (solo) return one ? "игрок" : few ? "игрока" : "игроков";
+  return one ? "команда" : few ? "команды" : "команд";
+}
+
+/** «на 1 команду», «на 3 команды», «на 5 команд». */
+function forTeams(n: number, solo: boolean): string {
+  const ten = n % 100;
+  const one = n % 10 === 1 && ten !== 11;
+  if (one) return `${n} ${solo ? "игрока" : "команду"}`;
+  return `${n} ${teamWord(n, solo)}`;
 }
 
 export function MillionaireHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<MillionaireContent>) {
@@ -138,6 +146,7 @@ export function MillionaireHostControls({ session, content, answers, participant
   // Хватит ли вопросов: на каждой ступени — по непоказанному вопросу на команду (М-Н-1).
   const covered = teamsCovered(content);
   const short = content.players === "one" ? 0 : Math.max(0, teams.length - covered);
+  const poorest = poorestLevel(content);
   const ranOut = outOfQuestions(content, r);
   const ranOutNote =
     ranOut.length > 0 ? (
@@ -147,7 +156,7 @@ export function MillionaireHostControls({ session, content, answers, participant
             ⚠️ У «<NameText name={name(team)} />» кончились вопросы ступени {lv} — {solo ? "игрок" : "команда"} больше не ходит, счёт остаётся.
           </p>
         ))}
-        <p className="muted small">Все вопросы этой ступени уже показаны залу. Чтобы так не было, добавьте в конструкторе вопросы — хотя бы по одному на каждую {solo ? "игрока" : "команду"} на каждой ступени, лучше с запасом на «Замену вопроса» и падения после ошибки.</p>
+        <p className="muted small">Все вопросы {ranOut.length > 1 ? "этих ступеней" : "этой ступени"} уже показаны залу. Чтобы так не было, добавьте в конструкторе вопросы — хотя бы по одному на {solo ? "каждого игрока" : "каждую команду"} на каждой ступени, лучше с запасом на «Замену вопроса» и падения после ошибки.</p>
       </div>
     ) : null;
   const finishLabel = (p: string) => {
@@ -181,11 +190,15 @@ export function MillionaireHostControls({ session, content, answers, participant
       ) : r.order.length === 0 ? (
         <>
           <p className="muted">
-            Вопросов хватит на {covered} {content.players === "one" ? "игру" : `${u.plGen} без замен`}. {solo ? "Игроки" : "Команды"} ходят в порядке подключения.
+            Вопросов хватит на {content.players === "one" ? `${covered} ${covered === 1 ? "игру" : covered >= 2 && covered <= 4 ? "игры" : "игр"}` : `${forTeams(covered, solo)} без замен`}. {solo ? "Игроки" : "Команды"} ходят в порядке подключения.
           </p>
           {short > 0 && (
             <p className="error" role="note">
-              ⚠️ {solo ? "Игроков" : "Команд"} сейчас {teams.length}, а вопросов на каждой ступени хватит только на {covered}: {short} {missText(short, solo)} ни одного вопроса. Добавьте вопросы в конструкторе (хотя бы по {teams.length} на ступень) и запустите игру заново — или начните так.
+              ⚠️ {solo ? "Игроков" : "Команд"} сейчас {teams.length}, а вопросов {poorest === 1 ? "первой ступени" : `ступени ${poorest}`} хватит только на {forTeams(covered, solo)}:{" "}
+              {poorest === 1
+                ? `${short} ${teamWord(short, solo)} не ${short % 10 === 1 && short % 100 !== 11 ? "сыграет" : "сыграют"} ни одного вопроса.`
+                : `${short} ${teamWord(short, solo)} дальше ступени ${poorest - 1} не ${short % 10 === 1 && short % 100 !== 11 ? "пройдёт" : "пройдут"}.`}{" "}
+              Добавьте вопросы в конструкторе (хотя бы по {teams.length} на ступень, лучше с запасом — после ошибки команды снова играют нижние ступени) и запустите игру заново — или начните так.
             </p>
           )}
           {content.players === "one" && teams.length > 0 && (

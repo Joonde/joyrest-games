@@ -76,8 +76,15 @@ export const PIECES = 200;
 /** Полоса допуска — доля ширины поля: взрослые («Ночной двор») и дети («Солнечный двор»). */
 export const BAND_ADULTS = 0.03;
 export const BAND_KIDS = 0.06;
-/** Вне полосы дольше столько — трещина. */
+/** Вне полосы дольше столько подряд — трещина (честное дрожание у линии прощается). */
 export const CRACK_OUT_MS = 200;
+/**
+ * Против «зигзага поперёк контура» (аудит 3a, 14 ноября 2026): палец дальше стольких полос от контура — трещина сразу; вне
+ * полосы в сумме дольше `CRACK_WINDOW_OUT_MS` за последние `CRACK_WINDOW_MS` — тоже трещина (короткие выходы складываются).
+ */
+export const CRACK_FAR = 3;
+export const CRACK_WINDOW_MS = 1000;
+export const CRACK_WINDOW_OUT_MS = 300;
 /** Длина контура каждой фигуры, в ширинах поля (±2% — тест). */
 export const SHAPE_LENGTH = 2.2;
 export const SHAPE_LENGTH_TOLERANCE = 0.02;

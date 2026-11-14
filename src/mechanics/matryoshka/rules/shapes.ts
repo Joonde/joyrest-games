@@ -2,10 +2,12 @@
  * Фигуры «Пряника» (docs/matryoshka.md, «Пряник»; L10): 7 замкнутых ломаных в долях поля 0…1, у всех **одинаковая длина
  * контура** (`SHAPE_LENGTH` ширин поля), каждая целиком в поле с отступом. Контур делится на 200 кусочков равной длины.
  * Обводка (для телефона, 3b): касание засчитывает **ближайший** к пальцу кусочек, если до него не дальше полосы допуска, —
- * поэтому во внутренних углах звезды и ёлочки полосы соседних рёбер не засчитывают кусочки без обводки. Палец вне полосы
- * дольше 0,2 с — трещина. Сервер обводку не считает: телефон шлёт число кусочков (мягкая защита, L12).
+ * поэтому во внутренних углах звезды и ёлочки полосы соседних рёбер не засчитывают кусочки без обводки. Трещина: палец вне
+ * полосы дольше 0,2 с подряд, дальше трёх полос от контура хоть на миг или вне полосы в сумме дольше 0,3 с за последнюю
+ * секунду (быстрый зигзаг поперёк контура — аудит 3a). Сервер обводку не считает: телефон шлёт число кусочков (мягкая
+ * защита, L12).
  */
-import { CRACK_OUT_MS, PIECES, SHAPE_LENGTH } from "./constants";
+import { CRACK_FAR, CRACK_OUT_MS, CRACK_WINDOW_MS, CRACK_WINDOW_OUT_MS, PIECES, SHAPE_LENGTH } from "./constants";
 import type { ShapeId } from "./types";
 
 export type Point = readonly [number, number];
@@ -264,13 +266,23 @@ export interface Trace {
   doneAt: number | null;
   /** Где был палец (для промежуточных точек при быстром движении). */
   last: Point | null;
+  /** Когда было прошлое касание этого движения (null — палец только что поставлен). */
+  lastT: number | null;
+  /** Время вне полосы за последнюю секунду: `[момент, мс]` по касаниям. */
+  outLog: Array<[number, number]>;
 }
 
 export function newTrace(): Trace {
-  return { covered: Array.from({ length: PIECES }, () => false), count: 0, outSince: null, cracked: false, crackedAt: null, doneAt: null, last: null };
+  return { covered: Array.from({ length: PIECES }, () => false), count: 0, outSince: null, cracked: false, crackedAt: null, doneAt: null, last: null, lastT: null, outLog: [] };
 }
 
-function touchPoint(shape: Shape, st: Trace, p: Point, t: number, band: number): void {
+function crack(st: Trace, t: number): void {
+  st.cracked = true;
+  st.crackedAt = t;
+}
+
+/** Одна точка: true — палец в полосе (кусочек засчитан, если новый). */
+function touchPoint(shape: Shape, st: Trace, p: Point, t: number, band: number): boolean {
   const { piece, distance } = nearestPiece(shape, p);
   if (distance <= band) {
     st.outSince = null;
@@ -279,32 +291,57 @@ function touchPoint(shape: Shape, st: Trace, p: Point, t: number, band: number):
       st.count += 1;
       if (st.count === PIECES) st.doneAt = t;
     }
-    return;
+    return true;
+  }
+  // Далеко от контура — трещина сразу: так «режут» пряник поперёк.
+  if (distance > band * CRACK_FAR) {
+    crack(st, t);
+    return false;
   }
   st.outSince ??= t;
-  if (t - st.outSince > CRACK_OUT_MS) {
-    st.cracked = true;
-    st.crackedAt = t;
-  }
+  if (t - st.outSince > CRACK_OUT_MS) crack(st, t);
+  return false;
+}
+
+/** Время вне полосы за последнюю секунду: короткие выходы складываются; больше 0,3 с — трещина. */
+function addOutside(st: Trace, t: number, ms: number): void {
+  st.outLog ??= [];
+  if (ms > 0) st.outLog.push([t, ms]);
+  st.outLog = st.outLog.filter(([at]) => at > t - CRACK_WINDOW_MS);
+  const sum = st.outLog.reduce((acc, [, x]) => acc + x, 0);
+  if (sum > CRACK_WINDOW_OUT_MS) crack(st, t);
 }
 
 /**
  * Палец в точке `p` (доли поля) в момент `t` (мс телефона). Быстрое движение — промежуточные точки через полкусочка, чтобы
- * кусочки не проскакивали. Трещина и целый пряник — конец обводки (дальше касания не меняют ничего).
+ * кусочки не проскакивали; время между касаниями делится на «в полосе» и «вне полосы» по этим точкам. Трещина и целый пряник
+ * — конец обводки (дальше касания не меняют ничего).
  */
 export function traceTouch(shape: Shape, st: Trace, p: Point, t: number, band: number): Trace {
   if (st.cracked || st.doneAt !== null) return st;
   const from = st.last;
+  const prevT = st.lastT ?? null;
+  let points = 0;
+  let outside = 0;
   if (from) {
     // Шаг — полкусочка (и не больше полполосы): быстрый палец не перепрыгивает кусочки.
     const step = Math.min(band / 2, SHAPE_LENGTH / PIECES / 2);
     const steps = Math.min(400, Math.ceil(dist(from, p) / step));
     for (let i = 1; i < steps && !st.cracked && st.doneAt === null; i += 1) {
-      touchPoint(shape, st, [from[0] + ((p[0] - from[0]) * i) / steps, from[1] + ((p[1] - from[1]) * i) / steps], t, band);
+      points += 1;
+      if (!touchPoint(shape, st, [from[0] + ((p[0] - from[0]) * i) / steps, from[1] + ((p[1] - from[1]) * i) / steps], t, band)) outside += 1;
     }
   }
-  if (!st.cracked && st.doneAt === null) touchPoint(shape, st, p, t, band);
+  if (!st.cracked && st.doneAt === null) {
+    points += 1;
+    if (!touchPoint(shape, st, p, t, band)) outside += 1;
+  }
+  if (!st.cracked && st.doneAt === null && from && prevT !== null) {
+    const dt = Math.max(0, Math.min(CRACK_WINDOW_MS, t - prevT));
+    addOutside(st, t, points > 0 ? (dt * outside) / points : 0);
+  }
   st.last = p;
+  st.lastT = t;
   return st;
 }
 
@@ -312,5 +349,6 @@ export function traceTouch(shape: Shape, st: Trace, p: Point, t: number, band: n
 export function traceLift(st: Trace): Trace {
   st.outSince = null;
   st.last = null;
+  st.lastT = null;
   return st;
 }

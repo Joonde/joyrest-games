@@ -3614,6 +3614,55 @@ kbd {
   color: var(--color-highlight);
 }
 
+/* Квиз: трек вопроса не скачался на экран зала (паспорт квиза, К-Н-10). Вне потока, не двигает вопрос. */
+.quiz-track-fail {
+  position: fixed;
+  top: max(1.5cqh, var(--safe-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  margin: 0;
+  padding: 0.6em 1.2em;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-highlight);
+  font-size: max(16px, 2.4cqh);
+  max-width: 90vw;
+  text-align: center;
+}
+
+/* В предпросмотре и репетиции надпись лежит поверх экрана вопроса, а не под ним. */
+.preview-screen > .quiz-track-fail {
+  position: absolute;
+  z-index: 25;
+}
+
+/* Студия, «Идёт игра»: пульт своей игры закрыт (Н-5). */
+.game-row__pult-quiet {
+  display: block;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Экран зала у ведущего: пульт закрыт дольше 30 с (паспорт общей части, Н-5). Внизу по центру, над строкой входа. */
+.hall-pult-quiet {
+  position: fixed;
+  bottom: max(9cqh, var(--safe-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  margin: 0;
+  padding: 0.5em 1.1em;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-highlight);
+  font-size: max(15px, 2cqh);
+  max-width: 90vw;
+  text-align: center;
+}
+
 /* Экран зала: браузер не дал включить музыку без касания. */
 .screen-tap {
   position: fixed;

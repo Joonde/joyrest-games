@@ -7,7 +7,7 @@ import { snapshotContent } from "../core/games";
 import { EVENING_MECHANIC } from "../core/program";
 import { captainChanges, leaderboardAdditions, rankedLeaderboard } from "../core/leaderboard";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
-import { startState } from "../core/session";
+import { olderThanShow, startState } from "../core/session";
 import { isOnline } from "../core/presence";
 import { awardNow, canAwardNow, hasPodium } from "../core/podium";
 import { presentationDone, teamOrder, teamsReveal } from "../core/teams";
@@ -216,7 +216,8 @@ function Console({ session }: { session: Session }) {
 
   // Счётчик «Ответили: N» для экрана зала — не чаще раза в 2 секунды. Механика со своим счётчиком
   // (`ownAnswered`: голоса, ставки, оценки) пишет его сама — не спорим с ней.
-  const ownCount = answers.filter((a) => a.step === session.state.step).length;
+  // Ответ, оставшийся с прошлого показа вопроса, не считаем — как и механика при подсчёте очков (паспорт квиза, К-Н-6).
+  const ownCount = answers.filter((a) => a.step === session.state.step && !olderThanShow(session.state, a.submittedAt)).length;
   const lastCountWrite = useRef(0);
   const countsItself = mechanic?.ownAnswered === true;
   useEffect(() => {
@@ -360,18 +361,22 @@ function Console({ session }: { session: Session }) {
     const slide = drawSlide(slideId(), pool.map(([, e]) => e.name), entry.name, Date.now() + clock.offset());
     const turn = mechanic?.firstTurn && content !== null ? mechanic.firstTurn(s, content, pid) : null;
     try {
-      await apply({ ...(turn ?? {}), state: { ...(turn?.state ?? {}), slide } });
-    } catch {
-      setError("Не получилось провести жеребьёвку. Проверьте интернет.");
+      // Право первого хода — только там, где его видел ведущий: второй пульт успел открыть клетку — жеребьёвка не
+      // перепишет выбирающего («Ставка на знания», паспорт, С-Н-12).
+      const expect = turn ? { expect: { phase: s.state.phase, step: s.state.step, stage: s.state.stage } } : {};
+      await apply({ ...(turn ?? {}), state: { ...(turn?.state ?? {}), slide }, ...expect });
+    } catch (e) {
+      setError(errorCodeOf(e) === "failed-precondition" ? "Игра изменилась — нажмите ещё раз." : "Не получилось провести жеребьёвку. Проверьте интернет.");
     }
   }
   const slide = session.state.slide ?? null;
   // Перерыв на время уходит сам, даже если пульт на вкладке «Музыка» или «Гости» (QA 22 октября 2026, M3).
   useTechBreakAutoEnd(slide, () => latest.current.state.slide ?? null, apply);
-  const screen = useScreenStatus(session.id, withScreen && phase !== "finished");
+  // Опрос экрана идёт и без экрана зала: по нему сервер знает, что пульт открыт (Н-5 — «Пульт не открыт» в студии).
+  const screen = useScreenStatus(session.id, phase !== "finished");
   // Телефон ведущего не гаснет, пока идёт вечер.
   useWakeLock(phase !== "finished");
-  const screenLabel = screen === undefined ? null : screenStatusLabel(screen);
+  const screenLabel = screen === undefined || !withScreen ? null : screenStatusLabel(screen);
   // Сколько идёт вечер: с первого гостя (сервер), пока он не записан — по самому раннему входу.
   const firstJoin = participants.reduce<number | null>((min, p) => (typeof p.joinedAt === "number" && (min === null || p.joinedAt < min) ? p.joinedAt : min), null);
   const eventStart = session.eventStartedAt ?? firstJoin;

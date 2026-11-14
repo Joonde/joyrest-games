@@ -18,6 +18,7 @@ import {
   deleteField,
   doc,
   getDocFromServer,
+  increment,
   initializeFirestore,
   memoryLocalCache,
   onSnapshot,
@@ -111,6 +112,11 @@ function patchOf(change: SessionChange): Record<string, unknown> {
   }
   for (const [pid, entry] of Object.entries(change.leaderboard ?? {})) {
     patch[`leaderboard.${pid}`] = entry === null ? deleteField() : entry;
+  }
+  // Как в Firebase-версии (`src/data/sessions.ts`): очки прибавкой, поля записи без очков — по одному.
+  for (const [pid, delta] of Object.entries(change.addScore ?? {})) patch[`leaderboard.${pid}.score`] = increment(delta);
+  for (const [pid, fields] of Object.entries(change.patch ?? {})) {
+    for (const [key, value] of Object.entries(fields)) if (value !== undefined) patch[`leaderboard.${pid}.${key}`] = value;
   }
   return patch;
 }

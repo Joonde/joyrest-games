@@ -27,7 +27,12 @@ export function parseBet(value: unknown): number | null {
 }
 
 /** Ставки шага: свежие ставки телефонов поверх запомненных (после «Назад» к ставкам), не больше разрешённого. */
-export function auctionBets(session: Session, q: QuizQuestion, answers: Answer[]): Array<{ pid: string; bet: number; at: number }> {
+export function auctionBets(
+  session: Session,
+  q: QuizQuestion,
+  answers: Answer[],
+  present?: (pid: string) => boolean,
+): Array<{ pid: string; bet: number; at: number }> {
   const auction = parseResult(session.state.result).auction;
   const startedAt = session.state.startedAt;
   const out = new Map<string, { pid: string; bet: number; at: number }>();
@@ -40,6 +45,8 @@ export function auctionBets(session: Session, q: QuizQuestion, answers: Answer[]
   }
   const list: Array<{ pid: string; bet: number; at: number }> = [];
   for (const b of out.values()) {
+    // Гостя убрали из игры — его ставка не играет (иначе отвечать было бы некому, К-Н-8).
+    if (present && !present(b.pid)) continue;
     // Участник, которого пульт ещё не внёс в таблицу, — со счётом 0.
     list.push({ ...b, bet: Math.min(b.bet, auctionMax(session.leaderboard[b.pid]?.score ?? 0, q)) });
   }
@@ -64,11 +71,12 @@ export function openBets(q: QuizQuestion, carry: Record<string, unknown>, keep?:
 }
 
 /** Кто уже поставил — на экран (без сумм). null — записывать нечего. */
-export function auctionSync(session: Session, q: QuizQuestion, answers: Answer[]): SessionChange | null {
+export function auctionSync(session: Session, q: QuizQuestion, answers: Answer[], present?: (pid: string) => boolean): SessionChange | null {
   const result = parseResult(session.state.result);
   const auction = result.auction;
   if (session.state.stage !== "question" || auction?.phase !== "bets") return null;
-  const placed = auctionBets(session, q, answers)
+  // Убранного гостя на экране «уже поставили» не показываем — его ставку «Ставки сделаны» тоже не берёт (К-Н-8).
+  const placed = auctionBets(session, q, answers, present)
     .map((b) => b.pid)
     .sort();
   if (placed.length === auction.placed.length && placed.every((p, i) => auction.placed[i] === p)) return null;
@@ -90,10 +98,16 @@ export interface AuctionDraw {
  * «Ставки сделаны»: самая большая ставка отвечает (равные — жребий на экране), ставок нет — отвечают все за очки
  * вопроса. Новый старт шага: время ответа идёт заново, ответ заменяет на сервере ставку того же участника.
  */
-export function closeBets(session: Session, q: QuizQuestion, answers: Answer[], draw?: AuctionDraw): SessionChange | null {
+export function closeBets(
+  session: Session,
+  q: QuizQuestion,
+  answers: Answer[],
+  draw?: AuctionDraw,
+  present?: (pid: string) => boolean,
+): SessionChange | null {
   const result = parseResult(session.state.result);
   if (session.state.stage !== "question" || result.auction?.phase !== "bets") return null;
-  const bets = auctionBets(session, q, answers);
+  const bets = auctionBets(session, q, answers, present);
   const top = bets.reduce((m, b) => Math.max(m, b.bet), 0);
   const tied = bets.filter((b) => b.bet === top && top > 0).sort((a, b) => a.at - b.at || a.pid.localeCompare(b.pid));
   const saved: Record<string, number> = {};

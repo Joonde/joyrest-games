@@ -253,7 +253,8 @@ export interface ClockService {
  * строку про экран не показывает.
  */
 export interface ScreenStatusRepository {
-  report(sessionId: string, report: ScreenReport): Promise<void>;
+  /** `pultQuiet` — пульт этой игры не открыт дольше 30 с (паспорт общей части, Н-5). */
+  report(sessionId: string, report: ScreenReport): Promise<{ pultQuiet: boolean }>;
   /** Только ведущий сессии; null — экран давно не сообщал о себе. */
   get(sessionId: string): Promise<ScreenStatus | null>;
 }

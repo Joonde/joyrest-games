@@ -162,11 +162,19 @@ describe("смена капитана", () => {
 
   it("капитан пропал — капитаном становится следующий участник", () => {
     const stale = now - CAPTAIN_TIMEOUT_MS - 1;
-    expect(captainChanges([t, phone("m2", 3), phone("c1", 1, stale), phone("m1", 2)], now)).toEqual({ t1: "m1" });
+    expect(captainChanges([t, phone("m2", 3, now - 5_000), phone("c1", 1, stale), phone("m1", 2, now - 5_000)], now)).toEqual({ t1: "m1" });
   });
 
   it("телефона капитана нет — капитан первый вошедший", () => {
-    expect(captainChanges([t, phone("m2", 3), phone("m1", 2)], now)).toEqual({ t1: "m1" });
+    expect(captainChanges([t, phone("m2", 3, now - 5_000), phone("m1", 2, now - 5_000)], now)).toEqual({ t1: "m1" });
+  });
+
+  it("следующий не на связи — капитаном становится тот, кто на связи; вся команда не на связи — не меняется (Н-9)", () => {
+    const stale = now - CAPTAIN_TIMEOUT_MS - 1;
+    expect(captainChanges([t, phone("c1", 1, stale), phone("m1", 2, stale), phone("m2", 3, now - 5_000)], now)).toEqual({ t1: "m2" });
+    expect(captainChanges([t, phone("c1", 1, stale), phone("m1", 2, stale), phone("m2", 3, stale)], now)).toEqual({});
+    // Только что вошёл (сервер ещё не подтвердил время) — на связи.
+    expect(captainChanges([t, phone("c1", 1, stale), { ...phone("m1", 2), joinedAt: null }], now)).toEqual({ t1: "m1" });
   });
 
   it("в команде один капитан — менять не на кого", () => {

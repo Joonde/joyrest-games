@@ -1,4 +1,4 @@
-import type { ChangeExpect, Leaderboard, Session, SessionChange, SessionState } from "../data/types";
+import type { Answer, AnswersMark, ChangeExpect, Leaderboard, LeaderboardPatch, Session, SessionChange, SessionState } from "../data/types";
 
 /** Ручная правка очков за раз: от −100 000 до 100 000. */
 export const MAX_SCORE_DELTA = 100_000;
@@ -41,9 +41,13 @@ export function meetsExpect(state: SessionState, expect: ChangeExpect | undefine
   return true;
 }
 
-/** Прибавка очков и переименование — только у тех, кто уже в таблице. */
-export function adjustBoard(board: Leaderboard, addScore?: Record<string, number>, rename?: Record<string, string>): Leaderboard {
+/** Прибавка очков, переименование и поля без очков (`patch`) — только у тех, кто уже в таблице. */
+export function adjustBoard(board: Leaderboard, addScore?: Record<string, number>, rename?: Record<string, string>, patch?: Record<string, LeaderboardPatch>): Leaderboard {
   const next = { ...board };
+  for (const [pid, fields] of Object.entries(patch ?? {})) {
+    const entry = next[pid];
+    if (entry) next[pid] = { ...entry, ...fields };
+  }
   for (const [pid, delta] of Object.entries(addScore ?? {})) {
     const entry = next[pid];
     if (entry && Number.isFinite(delta)) next[pid] = { ...entry, score: entry.score + delta };
@@ -73,18 +77,31 @@ export function secondsLeft(state: SessionState, serverNow: number): number | nu
   return Math.max(0, Math.ceil((deadline - serverNow) / 1000));
 }
 
-/** Самое долгое время на ответ после продлений, секунды. */
+/** Самое долгое время на ответ после продлений, пока таймер ещё идёт, секунды. */
 export const MAX_TIME_LIMIT = 900;
 
 /**
- * «+10 секунд» на пульте: продлить время открытого вопроса. Если время уже вышло — ответы снова
- * принимаются ещё `seconds` секунд с этой минуты (гости не успели). null — продлевать нечего
- * (вопрос не открыт, без таймера или дальше потолка).
+ * Потолок, когда время уже вышло и ведущий открывает ответы заново (12 часов): только чтобы число оставалось разумным.
+ * Обычный потолок тут не действует — иначе после долгого перерыва при открытом вопросе кнопка не работала бы
+ * (паспорт общей части, Н-4).
+ */
+export const MAX_REOPEN_LIMIT = 12 * 60 * 60;
+
+/**
+ * «+10 секунд» на пульте: продлить время открытого вопроса. Время ещё идёт — прибавляет `seconds`, но не дальше
+ * `MAX_TIME_LIMIT`. Время уже вышло — ответы снова принимаются ещё `seconds` секунд с этой минуты (гости не успели),
+ * сколько бы ни прошло с показа вопроса, и дальше прибавляется без потолка. null — продлевать нечего (вопрос не открыт,
+ * без таймера, таймер идёт и упёрся в потолок, или с показа прошло больше `MAX_REOPEN_LIMIT`).
  */
 export function addTimeChange(state: SessionState, serverNow: number, seconds = 10): SessionChange | null {
   if (state.phase !== "playing" || state.stage !== "question" || state.revealed || state.startedAt === null || state.timeLimit === null) return null;
   const elapsed = Math.max(0, Math.ceil((serverNow - state.startedAt) / 1000));
-  const next = Math.min(MAX_TIME_LIMIT, Math.max(state.timeLimit, elapsed) + seconds);
+  const expired = state.startedAt + state.timeLimit * 1000 <= serverNow;
+  // Таймер идёт: обычный потолок. Вопрос уже открывали заново после потолка (лимит больше него) — прибавляем дальше.
+  // Вопрос открыли заново у самого потолка (лимит 891–900): иначе кнопка снова упиралась бы в потолок до конца отсчёта.
+  const late = elapsed + 2 * seconds > MAX_TIME_LIMIT;
+  const cap = expired || late || state.timeLimit > MAX_TIME_LIMIT ? MAX_REOPEN_LIMIT : MAX_TIME_LIMIT;
+  const next = Math.min(cap, (expired ? elapsed : state.timeLimit) + seconds);
   // Продление должно дать время с этой минуты, иначе кнопка «сработает» впустую (потолок близко).
   if (next <= state.timeLimit || state.startedAt + next * 1000 <= serverNow) return null;
   return { state: { timeLimit: next }, expect: { phase: "playing", step: state.step, stage: "question" } };
@@ -95,6 +112,71 @@ export function acceptsAnswers(state: SessionState, serverNow: number): boolean 
   if (state.phase !== "playing" || state.stage !== "question" || state.revealed) return false;
   const deadline = answerDeadline(state);
   return deadline === null || serverNow <= deadline;
+}
+
+/** Модуль для суммы времён в отметке ответов (`AnswersMark.sum`): числа остаются небольшими при любом числе гостей. */
+export const ANSWERS_SUM_MOD = 1_000_000_000;
+
+/** Открыт ли приём ответов на шаге (без учёта таймера). */
+export function answersOpen(state: Pick<SessionState, "phase" | "step" | "stage" | "revealed">, step: number): boolean {
+  return state.phase === "playing" && state.stage === "question" && !state.revealed && state.step === step;
+}
+
+/**
+ * Запись старше нынешнего показа этого шага (ставка аукциона до «Ставки сделаны», ответ до «Назад» и нового показа):
+ * сервер заменяет её новым ответом, игра её не считает. На шагах, где ответ можно менять (`result.changeable`),
+ * запись остаётся как есть.
+ */
+export function olderThanShow(state: Pick<SessionState, "startedAt" | "result">, submittedAt: number | null): boolean {
+  if (state.startedAt === null || submittedAt === null) return false;
+  const result: unknown = state.result;
+  if (typeof result === "object" && result !== null && (result as Record<string, unknown>).changeable === true) return false;
+  return submittedAt < state.startedAt;
+}
+
+/**
+ * Вопрос открыт, а запись на сервере осталась с прошлого показа: телефон не считает её уже данным ответом —
+ * кнопки доступны, новый ответ её заменит. Когда вопрос закрыт, запись показывается как есть.
+ */
+export function staleAnswer(
+  state: Pick<SessionState, "phase" | "stage" | "revealed" | "startedAt" | "result">,
+  submittedAt: number | null,
+): boolean {
+  if (state.phase !== "playing" || state.stage !== "question" || state.revealed) return false;
+  return olderThanShow(state, submittedAt);
+}
+
+/** Где окажется игра после записи пульта — только то, от чего зависит приём ответов. */
+export function placeAfter(state: SessionState, change: SessionChange): Pick<SessionState, "phase" | "step" | "stage" | "revealed"> {
+  const next = change.state ?? {};
+  return {
+    phase: next.phase ?? state.phase,
+    step: next.step ?? state.step,
+    stage: next.stage ?? state.stage,
+    revealed: next.revealed ?? state.revealed,
+  };
+}
+
+/** Запись закрывает приём ответов на шаге: сейчас он открыт, после записи — нет («Показать ответ», следующий шаг). */
+export function closesAnswers(state: SessionState, change: SessionChange, step: number): boolean {
+  return answersOpen(state, step) && !answersOpen(placeAfter(state, change), step);
+}
+
+/**
+ * Отметка списка ответов шага, по которому пульт считает очки: сколько их и когда пришёл последний. Сервер пропустит
+ * запись, закрывающую вопрос, только если на шаге те же ответы (`expect.answers`): ответ, пришедший, пока пульт считал,
+ * не останется принятым, но не посчитанным (паспорт общей части, Н-1).
+ */
+export function answersMark(step: number, answers: readonly Pick<Answer, "step" | "submittedAt">[]): AnswersMark {
+  const own = answers.filter((a) => a.step === step);
+  let last: number | null = null;
+  let sum = 0;
+  for (const a of own) {
+    if (a.submittedAt === null) continue;
+    if (last === null || a.submittedAt > last) last = a.submittedAt;
+    sum += a.submittedAt % ANSWERS_SUM_MOD;
+  }
+  return { step, count: own.length, last, sum };
 }
 
 /** Применяет запись пульта к сессии в памяти: так работает «Репетиция» без сервера. */
@@ -109,5 +191,5 @@ export function applyChange(session: Session, change: SessionChange, now: number
     if (entry === null) delete board[pid];
     else board[pid] = entry;
   }
-  return { ...session, state, leaderboard: adjustBoard(board, change.addScore, change.rename) };
+  return { ...session, state, leaderboard: adjustBoard(board, change.addScore, change.rename, change.patch) };
 }

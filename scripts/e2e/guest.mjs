@@ -254,7 +254,8 @@ async function soloGame(browser, token) {
 
   step("пульт: начать игру и показать вопрос", host);
   await clickButton(host, "Начать игру");
-  await clickButton(host, "Показать вопрос");
+  // Квиз начинается с раунда — первая кнопка называется «Начать раунд» (паспорт квиза, К-Н-11).
+  await clickButton(host, "Начать раунд");
   step("Аня отвечает", anna.page);
   await anna.page.locator(".quiz-phone__option").first().click({ timeout: WAIT });
   await shot(anna.page, "аня-ответ", "Телефон Ани: ответила");

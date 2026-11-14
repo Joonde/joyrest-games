@@ -21,7 +21,7 @@ import { retentionCutoff } from "../../src/core/retention";
 import { EVENING_MECHANIC, moveProgram, newProgram, NOT_IN_EVENING, parseProgram, PROGRAM_LIMITS, publicProgram, storedSnapshots, type ProgramAction, type StoredProgram } from "../../src/core/program";
 import { parseCue, parseMix, parseMusic, parsePeek, parseScreenReport, parseSlide, parseTeams, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
-import type { ChangeExpect, Leaderboard, LeaderboardEntry, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
+import type { ChangeExpect, Leaderboard, LeaderboardEntry, LeaderboardPatch, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
 import { awardGamePoints } from "./staff";
 import { WindowLimiter } from "./lead";
 import { randomBytes } from "node:crypto";
@@ -188,6 +188,10 @@ const AUDIENCE_SESSIONS_MAX = 2000;
 const AUDIENCE_VOTES_MAX = 3000;
 /** Сколько сессий с экраном зала помним (старые вытесняются). */
 const SCREENS_MAX = 5000;
+/** Пульт молчит дольше — «Пульт не открыт» (паспорт общей части, Н-5). */
+const PULT_QUIET_MS = 30_000;
+/** Экран зала — только если пульт молчит дольше минуты и гости ждут внесения в таблицу. */
+const PULT_QUIET_HALL_MS = 60_000;
 /** Мероприятие из блоков: до пяти снимков игр в одном запросе (Caddy пускает тела до 2 МБ). */
 const PROGRAM_BODY = 1900 * 1024;
 /** Сколько старых сессий удаляется за один вход admin; остальные — в следующий раз. */
@@ -290,6 +294,7 @@ export interface CheckedChange {
   expect?: ChangeExpect;
   addScore?: Record<string, number>;
   rename?: Record<string, string>;
+  patch?: Record<string, LeaderboardPatch>;
 }
 
 /** После «Завершить игру» пульт управляет только музыкой, звуками и слайдами. */
@@ -300,7 +305,8 @@ export function allowedAfterFinish(change: CheckedChange): boolean {
     Object.keys(change.state).every((key) => AFTER_FINISH.has(key)) &&
     Object.keys(change.leaderboard).length === 0 &&
     Object.keys(change.addScore ?? {}).length === 0 &&
-    Object.keys(change.rename ?? {}).length === 0
+    Object.keys(change.rename ?? {}).length === 0 &&
+    Object.keys(change.patch ?? {}).length === 0
   );
 }
 
@@ -377,8 +383,17 @@ export function checkChange(value: unknown): CheckedChange | null {
   const checked: CheckedChange = { state, leaderboard };
   if (value.expect !== undefined) {
     if (!isRecord(value.expect)) return null;
-    const { phase, step, stage, result, slide } = value.expect;
+    const { phase, step, stage, result, slide, answers } = value.expect;
     const expect: ChangeExpect = {};
+    if (answers !== undefined) {
+      // Отметка списка ответов, по которому пульт считал очки (`answersMark`): проверяется под блокировкой строки.
+      if (!isRecord(answers)) return null;
+      const { step: at, count, last, sum } = answers;
+      if (!Number.isInteger(at) || (at as number) < 0 || !Number.isInteger(count) || (count as number) < 0) return null;
+      if (last !== null && (typeof last !== "number" || !Number.isFinite(last))) return null;
+      if (!Number.isSafeInteger(sum) || (sum as number) < 0) return null;
+      expect.answers = { step: at as number, count: count as number, last: last as number | null, sum: sum as number };
+    }
     if (slide !== undefined) {
       // id слайда на экране (или null — слайда нет): конец перерыва с двух пультов не уберёт чужой слайд.
       if (slide === null) expect.slide = null;
@@ -422,6 +437,24 @@ export function checkChange(value: unknown): CheckedChange | null {
     }
     checked.rename = rename;
   }
+  if (value.patch !== undefined) {
+    // Поля записи без очков (паспорт квиза, К-Н-3): только известные, числа — как в `parseEntry`.
+    if (!isRecord(value.patch)) return null;
+    const patch: Record<string, LeaderboardPatch> = {};
+    for (const [pid, raw] of Object.entries(value.patch)) {
+      if (!ID.test(pid) || !isRecord(raw)) return null;
+      const fields: LeaderboardPatch = {};
+      for (const [key, v] of Object.entries(raw)) {
+        if (typeof v !== "number" || !Number.isFinite(v)) return null;
+        if (key === "last" || key === "roundBase") fields[key] = v;
+        else if (key === "move" && Number.isInteger(v)) fields.move = v;
+        else if (key === "race" && Number.isInteger(v) && v >= 0 && v <= 1000) fields.race = v;
+        else return null;
+      }
+      patch[pid] = fields;
+    }
+    checked.patch = patch;
+  }
   return checked;
 }
 
@@ -435,7 +468,7 @@ export function applyChange(state: SessionState, board: Leaderboard, change: Che
     if (entry === null) delete leaderboard[pid];
     else leaderboard[pid] = entry;
   }
-  return { state: next, leaderboard: adjustBoard(leaderboard, change.addScore, change.rename) };
+  return { state: next, leaderboard: adjustBoard(leaderboard, change.addScore, change.rename, change.patch) };
 }
 
 /** Начало игры: шаг 0, как у Firebase-версии (sessions.setPhase). */
@@ -559,6 +592,13 @@ export async function expireSessions(sql: Sql, cutoff: Date, limit = CLEANUP_LIM
   return { deleted: batch.length, more: rows.length > limit };
 }
 
+/** Есть что сохранить в «Историю игр»: таблица не пуста (у вечера из блоков — и счёт прошлых блоков). */
+function hasResultBoard(row: SessionRow): boolean {
+  if (Object.keys(normalizeBoard(row.leaderboard)).length > 0) return true;
+  const program = parseProgram(row.program ?? null);
+  return program !== null && Object.keys(program.totals ?? {}).length > 0;
+}
+
 async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean, until = Date.now()): Promise<void> {
   // В транзакции и вне её запросы пишутся одинаково.
   const sql = db as Sql;
@@ -606,6 +646,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
   const claimsBySession = new WindowLimiter(60, 10 * 60_000);
   /** Последнее сообщение экрана зала по каждой сессии (см. `/screen`). */
   const screens = new Map<string, ScreenStatus>();
+  // Когда пульт последний раз спрашивал о себе экран (раз в 10 с, пока открыт): экран зала у ведущего и студия
+  // предупреждают «Пульт не открыт» (паспорт общей части, Н-5). Только память; после перезапуска — отсчёт с запуска.
+  const pults = new Map<string, number>();
+  const pultsSince = now();
+  const pultQuiet = (sessionId: string, at: number, quietMs = PULT_QUIET_MS) => (pults.get(sessionId) ?? pultsSince) < at - quietMs;
   /** Голоса зала по QR: сессия → шаг и голос каждого устройства (последний голос считается). */
   const audience = new Map<string, { step: number; votes: Map<string, number> }>();
   /**
@@ -677,7 +722,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     async function change(
       sessionId: string,
       update: (state: SessionState, board: Leaderboard) => CheckedChange | null | "conflict",
-      opts: { staleOnly?: boolean } = {},
+      opts: {
+        staleOnly?: boolean;
+        /** Ещё записи в той же транзакции, после записи сессии (итоги и баллы при «Завершить игру», паспорт общей части, Н-8). */
+        after?: (tx: TransactionSql, row: SessionRow, at: number) => Promise<void>;
+      } = {},
     ): Promise<"ok" | "missing" | "conflict"> {
       const event = await sql.begin(async (tx) => {
         const rows = await tx<(SessionRow & { stale: boolean })[]>`
@@ -693,6 +742,20 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const checked = update(state, board);
         if (checked === "conflict") return "conflict" as const;
         if (!checked) return null;
+        // Пульт посчитал очки по списку ответов и закрывает вопрос: пока он считал, пришёл ещё ответ — отказ, пульт
+        // возьмёт свежий список и повторит. Ответ пишется под `for share` этой же строки, поэтому здесь видны все
+        // принятые ответы, а новые ждут конца записи и попадут уже в закрытый вопрос.
+        const mark = checked.expect?.answers;
+        if (mark) {
+          // Сумма времён (по модулю `ANSWERS_SUM_MOD` = 1 000 000 000, как `answersMark`) ловит ответ, заменённый другим с более ранним временем:
+          // число ответов и последний при этом те же.
+          const [seen] = await tx<{ count: number; last: Date | null; sum: string }[]>`
+            select count(*)::int as count, max(submitted_at) as last,
+              coalesce(sum(round(extract(epoch from submitted_at) * 1000)::bigint % 1000000000), 0)::text as sum
+            from answers where session_id = ${sessionId} and step = ${mark.step}`;
+          const last = seen?.last ? seen.last.getTime() : null;
+          if ((seen?.count ?? 0) !== mark.count || last !== mark.last || (seen?.sum ?? "0") !== String(mark.sum)) return "conflict" as const;
+        }
         const at = now();
         const next = applyChange(state, board, checked, at);
         const starting = state.phase !== "playing" && next.state.phase === "playing";
@@ -710,9 +773,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
             event_started_at = case when ${starting} then coalesce(event_started_at, ${new Date(at)}) else event_started_at end,
             breaks = case when ${breaksChanged} then ${tx.json(breaks as never)} else breaks end
           where id = ${sessionId} returning version::int as version`;
+        if (opts.after) await opts.after(tx, { ...row, state: next.state, leaderboard: next.leaderboard, breaks }, at);
         // Подписчикам — изменённые записи таблицы целиком (с прибавкой и новым именем).
         const changed: Record<string, LeaderboardEntry | null> = { ...checked.leaderboard };
-        for (const pid of [...Object.keys(checked.addScore ?? {}), ...Object.keys(checked.rename ?? {})]) {
+        for (const pid of [...Object.keys(checked.addScore ?? {}), ...Object.keys(checked.rename ?? {}), ...Object.keys(checked.patch ?? {})]) {
           changed[pid] = next.leaderboard[pid] ?? null;
         }
         return { type: "patch", version: updated?.version ?? row.version + 1, state: next.state, leaderboard: changed };
@@ -872,6 +936,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         updatedAt: r.updated_at.getTime(),
         startedAt: r.started_at ? r.started_at.getTime() : null,
         stale: r.stale,
+        // Идёт или ждёт гостей, а пульт закрыт: «Пульт не открыт — откройте пульт» (Н-5).
+        pultQuiet: (r.phase === "lobby" || r.phase === "playing") && !r.stale && pultQuiet(r.id, now()),
         // Завершена: время из итогов, без итогов — последнее действие пульта.
         finishedAt: r.phase === "finished" ? (r.finished_at ?? r.updated_at).getTime() : null,
         planEnd: r.plan_end ? r.plan_end.getTime() : null,
@@ -995,19 +1061,24 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         if (moved === "active") return fail(reply, 403, "permission-denied");
         evening = moved === "ok";
       }
-      const done = await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }), { staleOnly: hosted.staleOnly && !evening });
+      // Игровая комната дописывает снимок и последние отметки «играл в раунде» до подсчёта баллов (вне транзакции:
+      // комната пишет своими запросами).
+      await hub.flush(hosted.row.id);
+      // Фаза, итоги и баллы ведущему — одной транзакцией (паспорт общей части, Н-8): не бывает «игра завершена, а в
+      // истории её нет». Итоги — по таблице на сервере, а не по присланной.
+      const done = await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }), {
+        staleOnly: hosted.staleOnly && !evening,
+        after: async (tx, row, at) => {
+          // Никто не играл (таблица пуста — в лобби или «Начать игру» без гостей) — в «Историю игр» пустую строку не
+          // пишем; пульт так и говорит: «в историю не попала» (Н-14). Баллы ведущему считаются по телефонам и ответам на
+          // сервере, а не по таблице (пульт мог не успеть внести гостей), — как раньше.
+          if (hasResultBoard(row)) await saveResult(tx, row, participantsCount, true, at);
+          const end = Math.min(at, (last?.updated_at.getTime() ?? at) + 15 * 60_000);
+          await awardGamePoints(tx as unknown as Sql, row.id, end);
+        },
+      });
       if (done === "conflict") return fail(reply, 403, "permission-denied");
       if (done === "missing") return fail(reply, 404, "not-found");
-      // Итоги — по таблице на сервере, а не по присланной.
-      const row = await loadSession(hosted.row.id);
-      // Сессию закрыли в лобби, никто не играл — в «Историю игр» пустую строку не пишем.
-      if (row && !(wasLobby && Object.keys(normalizeBoard(row.leaderboard)).length === 0)) {
-        await saveResult(sql, row, participantsCount, true, now());
-        const end = Math.min(now(), (last?.updated_at.getTime() ?? now()) + 15 * 60_000);
-        // Игровая комната дописывает последние отметки «играл в раунде» до подсчёта баллов.
-        await hub.flush(row.id);
-        await awardGamePoints(sql, row.id, end);
-      }
       return { ok: true };
     });
 
@@ -1284,7 +1355,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         where p.id in (${pid}, ${who.uid}) and p.kind = 'player' and s.id <> ${id}
           and s.phase in ('lobby', 'playing') and s.updated_at > now() - interval '6 hours'
         limit 1`;
-      if (busy.length > 0) return fail(reply, 409, "failed-precondition");
+      // Своя причина: гость видит «играет в другой игре», а не «игрок снова на связи» (паспорт общей части, Н-12).
+      if (busy.length > 0) return reply.code(409).send({ error: "failed-precondition", reason: "other-game" });
       const token = randomBytes(32).toString("base64url");
       const outcome = await sql.begin(async (tx) => {
         // У этого телефона уже есть свой игрок в этой игре — путаницы не допускаем.
@@ -1332,13 +1404,31 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         if (screens.size >= SCREENS_MAX) screens.delete(screens.keys().next().value ?? "");
       }
       screens.set(row.id, { ...report, seenAt: at });
-      return { ok: true };
+      // Экран зала видят гости, поэтому «Пульт не открыт» — только когда есть что терять: пульт молчит дольше минуты, а
+      // вошедшие гости (команды) ждут, пока пульт внесёт их в таблицу (проверка 12 ноября 2026: заблокированный на
+      // полминуты телефон не должен пугать зал).
+      let quiet = false;
+      if (pultQuiet(row.id, at, PULT_QUIET_HALL_MS)) {
+        const kind = row.play_mode === "teams" ? "team" : "player";
+        const known = Object.keys(normalizeBoard(row.leaderboard));
+        const [waiting] = await sql<{ n: number }[]>`
+          select count(*)::int as n from participants
+          where session_id = ${row.id} and kind = ${kind} and not (id = any(${known}::text[]))`;
+        quiet = (waiting?.n ?? 0) > 0;
+      }
+      return { ok: true, pultQuiet: quiet };
     });
 
     api.get<{ Params: { id: string } }>("/api/sessions/:id/screen", async (request, reply) => {
       const hosted = await hostedSession(request, reply);
       if (!hosted) return reply;
       reply.header("cache-control", "no-store");
+      const at = now();
+      if (pults.size >= SCREENS_MAX && !pults.has(hosted.row.id)) {
+        for (const [key, seen] of pults) if (at - seen > PULT_QUIET_MS) pults.delete(key);
+        if (pults.size >= SCREENS_MAX) pults.delete(pults.keys().next().value ?? "");
+      }
+      pults.set(hosted.row.id, at);
       const screen = screens.get(hosted.row.id);
       return { screen: screen && now() - screen.seenAt <= SCREEN_STALE_MS ? screen : null };
     });

@@ -436,7 +436,7 @@ async function runGame(browser, token, spec, game) {
       try {
         const b = JSON.parse(body);
         const keys = Object.keys(b.state ?? {});
-        return keys.length > 0 && keys.every((k) => k === "answered" || k === "teams") && !b.addScore && !b.leaderboard && !b.rename;
+        return keys.length > 0 && keys.every((k) => k === "answered" || k === "teams") && !b.addScore && !b.leaderboard && !b.rename && !b.patch;
       } catch {
         return false;
       }

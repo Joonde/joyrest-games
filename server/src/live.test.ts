@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { answersMark } from "../../src/core/session";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { applyChange, checkChange, Hub, normalizeState, OpenStreams, sseFrame } from "./live";
@@ -17,6 +18,21 @@ describe("изменение пульта", () => {
     expect(checkChange({ state: { phase: "deleted" } })).toBeNull();
     expect(checkChange({ state: { startedAt: 12345 } })).toBeNull();
     expect(checkChange({ leaderboard: { "../x": null } })).toBeNull();
+  });
+
+  it("поля записи без очков (patch): чужое «+10» не затирается, убранный не возвращается (К-Н-3)", () => {
+    const checked = checkChange({ addScore: { a: 100 }, patch: { a: { last: 100, move: 1, race: 2 }, gone: { last: 50 } } });
+    expect(checked?.patch).toEqual({ a: { last: 100, move: 1, race: 2 }, gone: { last: 50 } });
+    expect(checkChange({ patch: { a: { score: 5 } } })).toBeNull();
+    expect(checkChange({ patch: { a: { name: "Х" } } })).toBeNull();
+    expect(checkChange({ patch: { a: { move: 1.5 } } })).toBeNull();
+    expect(checkChange({ patch: { a: { race: -1 } } })).toBeNull();
+    expect(checkChange({ patch: { "../x": { last: 1 } } })).toBeNull();
+    // На сервере у Ани уже 10 очков с другого пульта: прибавка ложится сверху, «+100» и стрелка — как прислал пульт.
+    const board = { a: { name: "Аня", kind: "player" as const, score: 10, last: 0 } };
+    const next = applyChange({ ...normalizeState({}), phase: "playing" }, board, checked!, 1);
+    expect(next.leaderboard.a).toEqual({ name: "Аня", kind: "player", score: 110, last: 100, move: 1, race: 2 });
+    expect(next.leaderboard.gone).toBeUndefined();
   });
 
   it("звук по кнопке ведущего: только известные звуки и короткий id", () => {
@@ -391,6 +407,21 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", `/api/sessions?host=${hostUid}`, host)).json().length).toBeGreaterThan(0);
   });
 
+  it("завершение без игроков: в историю не попадает, как и пишет пульт (Н-14); повтор завершения — тоже 200 (Н-8)", async () => {
+    await newSession("fin0");
+    await call("POST", "/api/sessions/fin0/phase", host, { phase: "playing" });
+    expect((await call("POST", "/api/sessions/fin0/finish", host, { participantsCount: 0 })).statusCode).toBe(200);
+    expect((await call("GET", "/api/results/fin0", "")).statusCode).toBe(404);
+    expect((await call("GET", "/api/sessions/fin0", host)).json().state.phase).toBe("finished");
+    // С игроками: итоги пишутся в той же транзакции, что и «завершена»; повторное завершение их не теряет.
+    await newSession("fin2");
+    await call("POST", "/api/sessions/fin2/phase", host, { phase: "playing" });
+    await call("POST", "/api/sessions/fin2/leaderboard", host, { entries: { p1: { name: "Аня", kind: "player", score: 20 } } });
+    expect((await call("POST", "/api/sessions/fin2/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/fin2/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    expect((await call("GET", "/api/results/fin2", "")).json()).toMatchObject({ board: [{ name: "Аня", score: 20 }] });
+  });
+
   it("мероприятие из блоков: один код, блок → перерыв → следующий блок, общий счёт, ответы прошлого блока в архиве", async () => {
     const snap = (title: string, mechanic: string) => ({ title, mechanic, themeId: "joyrest", content: { questions: [] } });
     const program = { title: "Вечер", blocks: [{ title: "Квиз", mechanic: "quiz", snapshot: snap("Квиз", "quiz") }, { title: "Ставка на знания", mechanic: "board", snapshot: snap("Ставка на знания", "board") }] };
@@ -501,6 +532,68 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect(result.startedAt).toBe(started);
   });
 
+  it("показать ответ: пока пульт считал очки, пришёл ещё ответ — отказ; со свежим списком проходит", async () => {
+    await newSession("ansg1");
+    const first = await device();
+    const second = await device();
+    await call("POST", `/api/sessions/ansg1/participants/${first.uid}/join`, first.cookie, { name: "Аня", teamId: null });
+    await call("POST", `/api/sessions/ansg1/participants/${second.uid}/join`, second.cookie, { name: "Боря", teamId: null });
+    expect((await call("POST", "/api/sessions/ansg1/phase", host, { phase: "playing" })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "question", startedAt: "server", timeLimit: 20 } })).statusCode).toBe(200);
+    const answer = (guest: { cookie: string; uid: string }) => call("POST", "/api/sessions/ansg1/answers", guest.cookie, { step: 0, pid: guest.uid, value: "a" });
+    const list = async () => (await call("GET", "/api/sessions/ansg1/answers/0", host)).json() as Array<{ step: number; submittedAt: number | null }>;
+    expect((await answer(first)).json()).toEqual({ result: "sent" });
+    // Пульт взял список (один ответ) и считает очки — в это время отвечает второй гость.
+    const stale = answersMark(0, await list());
+    expect(stale.count).toBe(1);
+    expect((await answer(second)).json()).toEqual({ result: "sent" });
+    const expect0 = { phase: "playing", step: 0, stage: "question" };
+    const late = await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "reveal", revealed: true }, expect: { ...expect0, answers: stale } });
+    expect(late.statusCode).toBe(409);
+    expect(late.json()).toEqual({ error: "failed-precondition" });
+    // Вопрос остался открытым: принятый ответ не потерян.
+    expect((await call("GET", "/api/sessions/ansg1", host)).json().state).toMatchObject({ stage: "question", revealed: false });
+    // Свежий список — оба ответа в подсчёте, вопрос закрывается.
+    const fresh = answersMark(0, await list());
+    expect(fresh.count).toBe(2);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "reveal", revealed: true }, expect: { ...expect0, answers: fresh } })).statusCode).toBe(200);
+    expect((await call("GET", "/api/sessions/ansg1", host)).json().state).toMatchObject({ stage: "reveal", revealed: true });
+    // Неверная отметка — 400; без отметки запись работает как раньше.
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { answers: { step: 0, count: -1, last: null, sum: 0 } } })).statusCode).toBe(400);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { answers: { step: 0, count: 2, last: null } } })).statusCode).toBe(400);
+    expect((await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "board" }, expect: { step: 0, stage: "reveal" } })).statusCode).toBe(200);
+  });
+
+  it("сверка ответов ловит и ответ, заменённый другим с более ранним временем (шаг с изменяемым ответом)", async () => {
+    await newSession("ansg2");
+    const first = await device();
+    const second = await device();
+    await call("POST", `/api/sessions/ansg2/participants/${first.uid}/join`, first.cookie, { name: "Аня", teamId: null });
+    await call("POST", `/api/sessions/ansg2/participants/${second.uid}/join`, second.cookie, { name: "Боря", teamId: null });
+    await call("POST", "/api/sessions/ansg2/phase", host, { phase: "playing" });
+    const open = { state: { stage: "question", startedAt: "server", timeLimit: 60, result: { changeable: true } } };
+    expect((await call("POST", "/api/sessions/ansg2/apply", host, open)).statusCode).toBe(200);
+    const answer = (guest: { cookie: string; uid: string }, value: string) =>
+      call("POST", "/api/sessions/ansg2/answers", guest.cookie, { step: 0, pid: guest.uid, value });
+    const list = async () => (await call("GET", "/api/sessions/ansg2/answers/0", host)).json() as Array<{ step: number; submittedAt: number | null }>;
+    const started = clock;
+    clock = started + 1000;
+    expect((await answer(first, "a")).json()).toEqual({ result: "sent" });
+    clock = started + 5000;
+    expect((await answer(second, "a")).json()).toEqual({ result: "sent" });
+    const stale = answersMark(0, await list());
+    // Первый гость меняет ответ; время его записи раньше последнего ответа — число и «последний» прежние.
+    clock = started + 3000;
+    expect((await answer(first, "b")).json()).toEqual({ result: "sent" });
+    const fresh = answersMark(0, await list());
+    expect([fresh.count, fresh.last]).toEqual([stale.count, stale.last]);
+    expect(fresh.sum).not.toBe(stale.sum);
+    clock = started + 6000;
+    const close = { state: { stage: "reveal", revealed: true } };
+    expect((await call("POST", "/api/sessions/ansg2/apply", host, { ...close, expect: { answers: stale } })).statusCode).toBe(409);
+    expect((await call("POST", "/api/sessions/ansg2/apply", host, { ...close, expect: { answers: fresh } })).statusCode).toBe(200);
+  });
+
   it("пульт: устаревшее изменение — 409; прибавка очков складывается; после финиша — только музыка и слайды", async () => {
     await newSession("exp1");
     expect((await call("POST", "/api/sessions/exp1/apply", host, { state: { phase: "playing", step: 0, stage: "ready" }, expect: { phase: "lobby" } })).statusCode).toBe(200);
@@ -555,6 +648,31 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/sessions/scr1/screen", screen.cookie)).statusCode).toBe(403);
     clock += 61_000;
     expect((await call("GET", "/api/sessions/scr1/screen", host)).json()).toEqual({ screen: null });
+  });
+
+  it("«Пульт не открыт» на экране зала — только если пульт молчит дольше минуты и гости ждут таблицы (Н-5)", async () => {
+    await newSession("pq1");
+    const screen = await device();
+    const report = { soundReady: true, muted: false, musicBlocked: false };
+    // Пульт только что спросил экран — тишины нет.
+    await call("GET", "/api/sessions/pq1/screen", host);
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(false);
+    clock += 61_000;
+    // Пульт молчит, но ждать некому — не пугаем зал.
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(false);
+    const guest = await device();
+    expect((await call("POST", `/api/sessions/pq1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня" })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(true);
+    // В студии у ведущего — тоже.
+    const row = ((await call("GET", "/api/sessions/overview", host)).json() as Array<{ id: string; pultQuiet: boolean }>).find((r) => r.id === "pq1");
+    expect(row?.pultQuiet).toBe(true);
+    // Пульт открыли — предупреждения нет.
+    await call("GET", "/api/sessions/pq1/screen", host);
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(false);
+    // Гость в таблице — тоже нет, даже если пульт снова молчит.
+    await call("POST", "/api/sessions/pq1/leaderboard", host, { entries: { [guest.uid]: { name: "Аня", kind: "player", score: 0 } } });
+    clock += 61_000;
+    expect((await call("POST", "/api/sessions/pq1/screen", screen.cookie, report)).json().pultQuiet).toBe(false);
   });
 
   it("помощь зала по QR: голос без участия в игре, один на устройство, только пока ведущий открыл голосование", async () => {

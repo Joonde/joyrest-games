@@ -3,11 +3,11 @@ import { OrderNumberHost } from "./orderNumber";
 import { scoringParticipants } from "../../core/leaderboard";
 import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
-import type { Answer, Session, SessionChange } from "../../data/types";
+import type { Answer, AnswersMark, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { correctSet, drawEffectOfSettings, raceBonusOf, KIND_TITLES, roundAt, roundTitle, settingsOf, usesAnswers, usesOptions, type QuizContent } from "./content";
 import { clock } from "../../data";
-import { resultKey } from "../../core/session";
+import { answersMark, resultKey } from "../../core/session";
 import type { DrawEffect } from "../../core/draw";
 import { auctionSync, closeBets, isAuctionDraw, parseBet, QUIZ_AUCTION_HOLD_MS } from "./auction";
 import { AuctionHostPanel } from "./auctionViews";
@@ -50,7 +50,7 @@ import {
   toggleAccepted,
   type QuizAction,
 } from "./flow";
-import { auctionAnswers, groupOpenAnswers, parseResult, superAllowed } from "./logic";
+import { auctionAnswers, groupOpenAnswers, shownAnswers, parseResult, superAllowed } from "./logic";
 import { correctText, LETTERS } from "./views";
 import { SuperHostAnswers } from "../../components/live/SuperGame";
 import { activeLevels, LEVEL_NAMES, parsePickMode, parseSuperAnswer, superGroups, tallyLevelVote, tallySuperVote, voteUndecided, votePercent } from "../../core/supergame";
@@ -60,6 +60,11 @@ import { activeLevels, LEVEL_NAMES, parsePickMode, parseSuperAnswer, superGroups
  * «Таблица» → «Следующий вопрос»), «Назад» на шаг, таймер, кто ответил и кто ещё нет,
  * открытые ответы гостей с засчитыванием похожих одним касанием.
  */
+/** Сервер отказал: игра уже не там, где её видел пульт, или на шаге появились новые ответы. */
+function isPrecondition(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "code" in e && (e as { code: unknown }).code === "failed-precondition";
+}
+
 export function QuizHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<QuizContent>) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +126,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const auctionKey = q?.kind === "auction" && stage === "question" && auctionPhase === "bets" ? answers.filter((a) => a.step === step && parseBet(a.value) !== null).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
   useEffect(() => {
     if (!auctionKey || busy || !q) return;
-    const change = auctionSync(latest.current, q, answers);
+    const cur = latest.current;
+    const change = auctionSync(cur, q, answers, (pid) => pid in cur.leaderboard || participants.some((p) => p.id === pid));
     if (!change) return;
     const { phase, step: atStep, stage: atStage } = latest.current.state;
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: resultKey(latest.current.state.result) } }).catch(() => undefined);
@@ -178,7 +184,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const result = parseResult(session.state.result);
   const stepAnswers = answers.filter((a) => a.step === step);
   // Аукцион: после ставок ответы — только свежие (ставки того же шага — не ответы).
-  const own = q.kind === "auction" && result.auction && result.auction.phase !== "bets" ? auctionAnswers(stepAnswers, session.state.startedAt) : stepAnswers;
+  const own = q.kind === "auction" && result.auction && result.auction.phase !== "bets" ? auctionAnswers(stepAnswers, session.state.startedAt) : shownAnswers(stepAnswers, session.state.startedAt);
   const answeredIds = new Set(own.map((a) => a.pid));
   // Кто должен ответить: все в таблице и те, кого пульт ещё не успел в неё внести.
   // Участники, добавленные ведущим вручную (без телефона), не отвечают — их не ждём.
@@ -210,23 +216,50 @@ export function QuizHostControls({ session, content, answers, participants, cont
     });
   }
 
-  async function run(make: SessionChange | (() => Promise<SessionChange | null>), afterClear?: number) {
+  /**
+   * `again` — запись собрана по свежему списку ответов и уходит с его отметкой (`expect.answers`): сервер отказал, а
+   * игра там же — значит, пока пульт считал, пришёл ещё ответ; берём список заново и повторяем (до двух раз).
+   */
+  async function run(make: SessionChange | (() => Promise<SessionChange | null>), afterClear?: number, again = false) {
     if (busy) return;
     setBusy(true);
     setError(null);
     // Изменение — только если игра всё ещё там, где её видит этот пульт (второй пульт, двойное касание).
     const { phase, step: atStep, stage: atStage } = session.state;
     try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change) return;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, ...(change.expect ?? {}) } });
-      // Ответы убираем после закрытия вопроса: новые гости уже не успеют ответить.
-      if (afterClear !== undefined) await control.clearAnswers(afterClear);
-      await arrived;
+      for (let attempt = 0; ; attempt++) {
+        const change = typeof make === "function" ? await make() : make;
+        if (!change) return;
+        const arrived = rehearsal ? Promise.resolve() : nextSession();
+        try {
+          await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, ...(change.expect ?? {}) } });
+        } catch (e) {
+          // Сервер отказал, а игра там же: пока пульт считал очки, пришёл ещё ответ (сверка списка ответов, паспорт
+          // общей части, Н-1) — берём свежий список и повторяем. Игра ушла дальше — как раньше, молча.
+          const now = latest.current.state;
+          const same = now.phase === phase && now.step === atStep && now.stage === atStage;
+          if (again && typeof make === "function" && same && isPrecondition(e)) {
+            if (attempt < 2) {
+              // Отказ бывает и из-за итогов шага (фон пульта или второй пульт успели записать): даём свежей сессии
+              // дойти до пульта, иначе повтор ушёл бы с тем же устаревшим отпечатком.
+              await Promise.race([arrived, new Promise<void>((resolve) => window.setTimeout(resolve, 300))]);
+              continue;
+            }
+            // Три отказа подряд: гости всё ещё отвечают или игру меняет второй пульт. Молчать нельзя — ведущий
+            // решил бы, что кнопка не работает.
+            setError("Игра изменилась — нажмите ещё раз.");
+            return;
+          }
+          throw e;
+        }
+        // Ответы убираем после закрытия вопроса: новые гости уже не успеют ответить.
+        if (afterClear !== undefined) await control.clearAnswers(afterClear);
+        await arrived;
+        return;
+      }
     } catch (e) {
       // Игра уже ушла вперёд — пульт сейчас покажет, где она; ничего не делаем.
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) {
+      if (!isPrecondition(e)) {
         setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
       }
     } finally {
@@ -237,25 +270,41 @@ export function QuizHostControls({ session, content, answers, participants, cont
   /** Очки — по свежему списку ответов с сервера: ответ последней секунды мог ещё не дойти до пульта. */
   async function revealChange(): Promise<SessionChange> {
     let all: Answer[] = own;
+    let mark: AnswersMark | null = null;
     try {
       const fresh = await control.freshAnswers(step);
+      mark = answersMark(step, fresh);
       const byId = new Map(own.map((a) => [a.id, a]));
       for (const a of fresh) if (a.step === step) byId.set(a.id, a);
       all = [...byId.values()];
     } catch {
       // Нет связи — считаем по тому, что уже пришло.
     }
-    return reveal(latest.current, content, all, participants);
+    return marked(reveal(latest.current, content, all, participants), mark);
+  }
+
+  /**
+   * Запись пройдёт, только если на сервере те же ответы, что в подсчёте (`expect.answers`): ответ, ставка или голос,
+   * пришедшие между списком и записью, не останутся принятыми, но не посчитанными — сервер откажет, `run` с `again`
+   * возьмёт список заново (паспорт общей части, Н-1).
+   */
+  function marked(change: SessionChange, mark: AnswersMark | null): SessionChange {
+    return mark ? { ...change, expect: { ...change.expect, answers: mark } } : change;
+  }
+
+  /** Свежие ответы шага с сервера и их отметка; нет связи — то, что уже пришло, без отметки. */
+  async function freshStepAnswers(): Promise<{ all: Answer[]; mark: AnswersMark | null }> {
+    try {
+      const all = await control.freshAnswers(step);
+      return { all, mark: answersMark(step, all) };
+    } catch {
+      return { all: stepAnswers, mark: null };
+    }
   }
 
   /** «Ставки сделаны» — по свежим ставкам с сервера и свежей сессии; второй пульт не повторит жребий. */
   async function closeChange(): Promise<SessionChange | null> {
-    let all: Answer[] = stepAnswers;
-    try {
-      all = await control.freshAnswers(step);
-    } catch {
-      // Нет связи — по тому, что уже пришло.
-    }
+    const { all, mark } = await freshStepAnswers();
     const cur = latest.current;
     const curQ = content.questions[cur.state.step];
     if (!curQ) return null;
@@ -264,48 +313,38 @@ export function QuizHostControls({ session, content, answers, participants, cont
       now: Date.now() + clock.offset(),
       effect: drawEffect,
       name: (pid) => cur.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок",
-    });
-    return change ? { ...change, expect: { result: resultKey(cur.state.result) } } : null;
+    }, (pid) => pid in cur.leaderboard || participants.some((p) => p.id === pid));
+    return change ? marked({ ...change, expect: { result: resultKey(cur.state.result) } }, mark) : null;
   }
 
   /** «Подвести итог: какой уровень» — по свежим голосам с сервера; голоса шага стираются, поровну — жребий на экране. */
   async function levelVoteDoneChange(): Promise<SessionChange> {
-    let all: Answer[] = stepAnswers;
-    try {
-      all = await control.freshAnswers(step);
-    } catch {
-      // Нет связи — по тому, что уже пришло.
-    }
-    return closeLevelVote(latest.current, content, all, Date.now() + clock.offset());
+    const { all, mark } = await freshStepAnswers();
+    return marked(closeLevelVote(latest.current, content, all, Date.now() + clock.offset()), mark);
   }
 
   /** «Подвести итог голосования» — по свежим голосам с сервера; голоса шага стираются, дальше — уровни или пропуск. */
   async function voteDoneChange(): Promise<SessionChange> {
-    let all: Answer[] = stepAnswers;
-    try {
-      all = await control.freshAnswers(step);
-    } catch {
-      // Нет связи — по тому, что уже пришло.
-    }
-    return closeSuperVote(latest.current, all);
+    const { all, mark } = await freshStepAnswers();
+    return marked(closeSuperVote(latest.current, all), mark);
   }
 
   function perform(action: QuizAction) {
     if (action === "vote") void run(openSuperVote(session, content));
-    if (action === "voteDone") void run(voteDoneChange, step);
+    if (action === "voteDone") void run(voteDoneChange, step, true);
     if (action === "skip") void run(skipSuper(session));
     if (action === "levelVote") void run(openLevelVote(session, content));
-    if (action === "levelVoteDone") void run(levelVoteDoneChange, step);
+    if (action === "levelVoteDone") void run(levelVoteDoneChange, step, true);
     if (action === "coin") {
       const c = coinSuperVote(latest.current, Date.now() + clock.offset());
       if (c) void run({ ...c, expect: { result: resultKey(latest.current.state.result) } });
     }
     if (action === "show") void run(showQuestion(session, content));
     if (action === "reveal" && q?.kind === "auction" && result.auction?.phase === "bets") {
-      void run(closeChange);
+      void run(closeChange, undefined, true);
       return;
     }
-    if (action === "reveal") void run(revealChange);
+    if (action === "reveal") void run(revealChange, undefined, true);
     if (action === "board") void run(showBoard(session, content));
     if (action === "total") void run(showTotal(session));
     if (action === "next") void run(nextQuestion(session, content));
@@ -323,15 +362,31 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок";
   const speaking = q.kind === "buzz" && stage === "question" && buzz?.current ? buzz.current : null;
 
+  /**
+   * «Засчитать» / «Снять»: по свежей сессии и с отпечатком итогов шага — одновременный зачёт с второго пульта не
+   * затирается; при отказе пульт берёт свежие итоги и повторяет то же решение ведущего (К-Н-15).
+   */
+  function accept(key: string) {
+    const on = !parseResult(session.state.result).accepted.includes(key);
+    return run(async () => {
+      const cur = latest.current;
+      return { ...toggleAccepted(cur, key, on), expect: { result: resultKey(cur.state.result) } };
+    }, undefined, true);
+  }
+
   /** «Верно» по свежим ответам: победитель получает очки и деления. */
-  async function rightChange(): Promise<SessionChange> {
+  async function rightChange(): Promise<SessionChange | null> {
+    // Как «Неверно»: очки — только тому, кто отвечал, когда ведущий нажал (второй пульт мог передать слово, К-Н-9).
+    if (parseResult(latest.current.state.result).buzz?.current !== speaking) return null;
     let all: Answer[] = own;
     try {
       all = await control.freshAnswers(step);
     } catch {
       // Нет связи — по тому, что уже пришло.
     }
-    return buzzRightAnswer(latest.current, content, all, participants);
+    const cur = latest.current;
+    if (parseResult(cur.state.result).buzz?.current !== speaking) return null;
+    return buzzRightAnswer(cur, content, all, participants);
   }
 
   /**
@@ -376,7 +431,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
           {/* Пока на экране крутится жребий суперигры, кнопка не выдаёт итог и не обрывает его. */}
           {coinSpinning ? "🪙 Жребий крутится на экране…" : q.kind === "buzz" && action === "reveal" ? "Никто не угадал — показать ответ" : actionLabel(session, content, action)}
         </button>
-        {q.trackId && session.screenMode !== "none" && (stage === "question" || stage === "reveal") && (
+        {/* Во время ставок аукциона трек вопроса не звучит — и повторять нечего (К-Н-2). */}
+        {q.trackId && session.screenMode !== "none" && (stage === "question" || stage === "reveal") && !(q.kind === "auction" && stage === "question" && (parseResult(session.state.result).auction?.phase ?? "bets") === "bets") && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replayTrack(session))}>
             ♪ Повторить фрагмент
           </button>
@@ -582,7 +638,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
                     className={g.status === "accepted" ? "btn btn--secondary open-answers__btn" : "btn btn--quiet open-answers__btn"}
                     aria-pressed={g.status === "accepted"}
                     disabled={busy}
-                    onClick={() => void run(toggleAccepted(session, g.key))}
+                    onClick={() => void accept(g.key)}
                   >
                     {g.status === "accepted" ? "Засчитано ✓" : "Засчитать"}
                   </button>
@@ -603,7 +659,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
           only={allowed}
           editable={stage === "question"}
           busy={busy}
-          onToggle={(key) => void run(toggleAccepted(session, key))}
+          onToggle={(key) => void accept(key)}
         />
       )}
 
@@ -659,7 +715,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
                           className={g.status === "accepted" ? "btn btn--secondary open-answers__btn" : "btn btn--quiet open-answers__btn"}
                           aria-pressed={g.status === "accepted"}
                           disabled={busy}
-                          onClick={() => void run(toggleAccepted(session, g.key))}
+                          onClick={() => void accept(g.key)}
                         >
                           {g.status === "accepted" ? "Засчитано ✓" : "Засчитать"}
                         </button>

@@ -4,7 +4,7 @@
  * маленькая матрёшка в росписи двора («Солнечный двор» — гжель, «Ночной двор» — хохлома). Цвета — палитры игры
  * (`PALETTE`), а не цвета «в коде» экранов: экраны берут переменные `--mt-*` из `phone.css`.
  */
-import { useId } from "react";
+import { Doll as FolkDoll } from "../art/Doll";
 import { PIECES } from "../rules/constants";
 import { shapeOf } from "../rules/shapes";
 import type { Gesture, ShapeId, Style } from "../rules/types";
@@ -56,84 +56,12 @@ export function Ring({ left, total }: { left: number | null; total: number | nul
 
 // ------------------------------------------------------------------ матрёшка
 
-const BODY = "M100 8 C150 8 166 50 160 96 C158 110 151 119 148 126 C184 150 196 200 191 245 C187 276 171 292 150 292 L50 292 C29 292 13 276 9 245 C4 200 16 150 52 126 C49 119 42 110 40 96 C34 50 50 8 100 8 Z";
-const SCARF = "M100 13 C147 13 161 52 156 95 C153 115 143 128 127 140 L100 158 L73 140 C57 128 47 115 44 95 C39 52 53 13 100 13 Z";
-
-/** Роза мазком (гжель) или ягода с листьями (хохлома) — медальон на фартуке. */
-function Flower({ style, x, y, s }: { style: Style; x: number; y: number; s: number }) {
-  const p = PALETTE[style];
-  const petals = Array.from({ length: 6 }, (_, i) => (i * 60 * Math.PI) / 180);
-  return (
-    <g transform={`translate(${x} ${y}) scale(${s})`}>
-      {petals.map((a, i) => (
-        <ellipse key={i} cx={Math.cos(a) * 13} cy={Math.sin(a) * 13} rx="11" ry="6.5" transform={`rotate(${(a * 180) / Math.PI} ${Math.cos(a) * 13} ${Math.sin(a) * 13})`} fill={i % 2 === 0 ? p.main : p.mid} />
-      ))}
-      <circle r="9" fill={p.soft} />
-      <circle r="4.5" fill={style === "night" ? p.goldL : p.lace} />
-      {[-1, 1].map((d) => (
-        <path key={d} d={`M${d * 20} 12 q${d * 14} 6 ${d * 22} 20 q${-d * 16} -2 ${-d * 22} -20z`} fill={style === "night" ? p.gold : p.mid} opacity="0.9" />
-      ))}
-    </g>
-  );
-}
-
-/** Матрёшка двора: роспись по стилю, глаза «смотрит» (ночью светятся янтарём) или спокойные, закрытые (пауза). */
+/**
+ * Матрёшка двора — утверждённая роспись из `art/` (лист персонажа 14 ноября 2026: гжель днём, хохлома ночью): глаза спокойные,
+ * «смотрит» (ночью светятся янтарём) или закрыты (пауза). Ширину задаёт телефон, высота — по пропорции рисунка.
+ */
 export function Doll({ style, width = 120, eyes = "calm", className }: { style: Style; width?: number; eyes?: "calm" | "look" | "closed"; className?: string }) {
-  const p = PALETTE[style];
-  const uid = useId().replace(/:/g, "");
-  const night = style === "night";
-  const dots = Array.from({ length: 14 }, (_, i) => i);
-  return (
-    <svg className={`mtp-doll ${className ?? ""}`} width={width} height={width * 1.5} viewBox="0 0 200 300" aria-hidden="true">
-      <defs>
-        <linearGradient id={`b${uid}`} x1="0" x2="1">
-          <stop offset="0" stopColor={night ? "#1A0F0B" : "#FFFFFF"} />
-          <stop offset="0.55" stopColor={night ? "#0C0806" : "#F2F6FD"} />
-          <stop offset="1" stopColor={night ? "#000000" : "#D7E2F5"} />
-        </linearGradient>
-        <radialGradient id={`g${uid}`}>
-          <stop offset="0" stopColor="#FFC870" stopOpacity="0.95" />
-          <stop offset="1" stopColor="#FFB347" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <path d={BODY} fill={`url(#b${uid})`} stroke={p.line} strokeWidth="3" />
-      {/* Платок */}
-      <path d={SCARF} fill={night ? p.main : p.mid} stroke={p.line} strokeWidth="2.5" />
-      {dots.map((i) => {
-        const a = Math.PI * (0.15 + (i / 13) * 0.7);
-        return <circle key={i} cx={100 - Math.cos(a) * 50} cy={86 - Math.sin(a) * 66} r="3" fill={night ? p.goldL : p.lace} opacity="0.95" />;
-      })}
-      {/* Лицо */}
-      <ellipse cx="100" cy="80" rx="37" ry="40" fill={p.face} stroke={p.line} strokeWidth="2" />
-      <path d="M64 70 C70 46 130 46 136 70 C122 58 78 58 64 70Z" fill={night ? "#2A1A12" : "#3B2A20"} />
-      {eyes === "closed" ? (
-        <g stroke={p.line} strokeWidth="2.6" fill="none" strokeLinecap="round">
-          <path d="M80 82 q7 6 14 0" />
-          <path d="M106 82 q7 6 14 0" />
-        </g>
-      ) : (
-        <g>
-          {eyes === "look" && night && <circle cx="100" cy="80" r="34" fill={`url(#g${uid})`} />}
-          {[87, 113].map((x) => (
-            <g key={x}>
-              <ellipse cx={x} cy="80" rx="7.5" ry={eyes === "look" ? 8.5 : 7} fill="#FFFFFF" stroke={p.line} strokeWidth="1.4" />
-              <circle cx={x} cy={eyes === "look" ? 80 : 81} r="4.6" fill={eyes === "look" && night ? "#FFB347" : night ? "#5A2A10" : "#1B3F8B"} />
-              <circle cx={x} cy={eyes === "look" ? 80 : 81} r="2" fill="#0C0806" />
-              <circle cx={x + 1.8} cy="78" r="1.4" fill="#FFFFFF" />
-            </g>
-          ))}
-        </g>
-      )}
-      <circle cx="78" cy="96" r="7" fill={p.cheek} opacity="0.7" />
-      <circle cx="122" cy="96" r="7" fill={p.cheek} opacity="0.7" />
-      <path d="M93 104 q7 6 14 0" stroke={night ? "#B3261E" : "#C0504A"} strokeWidth="3" fill="none" strokeLinecap="round" />
-      {/* Фартук с медальоном */}
-      <ellipse cx="100" cy="212" rx="62" ry="66" fill={night ? "#160C08" : p.lace} stroke={night ? p.gold : p.main} strokeWidth="3" />
-      <ellipse cx="100" cy="212" rx="54" ry="58" fill="none" stroke={night ? p.goldL : p.mid} strokeWidth="1.5" strokeDasharray="2 5" />
-      <Flower style={style} x={100} y={206} s={1.35} />
-      <path d="M40 286 C70 278 130 278 160 286" stroke={night ? p.gold : p.main} strokeWidth="3" fill="none" />
-    </svg>
-  );
+  return <FolkDoll folk={style === "night" ? "khokhloma" : "gzhel"} eyes={eyes === "calm" ? "open" : eyes} glow={style === "night"} className={`mtp-doll${className ? ` ${className}` : ""}`} style={{ width, height: "auto" }} />;
 }
 
 // ------------------------------------------------------------------ «Пряник»

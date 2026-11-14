@@ -322,6 +322,30 @@ async function glitch() {
     else console.log("✓ второй палец не в счёт; поднял первый — «отпустил»");
     await page.close();
   }
+  // «Пряник»: ладонь (второе касание далеко от контура) не трескает пряник и не обводит — обводит только первый палец.
+  {
+    const { page } = await openScene("ginger-trace", "night", 390);
+    const box = await page.locator(".mtp-field").boundingBox();
+    const pts = await page.evaluate(() => window.shapePoints());
+    const cdp = await page.context().newCDPSession(page);
+    const at = (p, id) => ({ x: box.x + p[0] * box.width, y: box.y + p[1] * box.width, id });
+    const palm = { x: box.x + box.width * 0.5, y: box.y + box.width * 0.5, id: 9 };
+    const touch = (type, points) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points });
+    await touch("touchStart", [at(pts[0], 1)]);
+    await touch("touchStart", [at(pts[0], 1), palm]);
+    for (let i = 1; i <= 60; i += 1) {
+      await touch("touchMove", [at(pts[i], 1), { ...palm, x: palm.x + (i % 7) * 3 }]);
+      await page.waitForTimeout(8);
+    }
+    await touch("touchEnd", []);
+    await page.waitForTimeout(200);
+    const res = await page.evaluate(() => ({ label: document.querySelector(".mtp-field")?.getAttribute("aria-label"), crack: window.pushes.some((p) => p.event.t === "g" && p.event.crack === true), screen: window.stand.screen() }));
+    const pct = Number(res.label?.match(/(\d+)%/)?.[1] ?? 0);
+    if (res.crack || res.screen !== "ginger-trace" || pct < 20) note("«Пряник»: ладонь", `трещина ${res.crack}, экран ${res.screen}, обведено ${pct}%`);
+    else console.log(`✓ «Пряник»: ладонь не в счёт — без трещины, обведено ${pct}% первым пальцем`);
+    await page.screenshot({ path: path.join(out, "glitch-ginger-palm.png") });
+    await page.close();
+  }
   // Поворот по сверенным часам телефона: в назначенный T — вспышка зоны и «ЗАМРИ!».
   {
     const { page } = await openScene("freeze-gaze", "sunny", 390);

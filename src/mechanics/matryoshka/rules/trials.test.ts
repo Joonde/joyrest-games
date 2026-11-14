@@ -76,10 +76,10 @@ describe("«Замри!»", () => {
     expect(r.path).toBe(TRACK);
   });
 
-  it("окно поимки — полуинтервал [T + 0,5 с; конец) — реакция 0,3 с и запас на часы 0,2 с: отпустил ровно в T + 0,5 — не пойман, на 1 мс позже — пойман, откат 300", () => {
+  it("окно поимки — полуинтервал [T + 0,55 с; конец) — реакция 0,3 с и запас на часы 0,25 с (решение владельца 14 ноября 2026): отпустил ровно в T + 0,55 — не пойман, на 1 мс позже — пойман, откат 300", () => {
     expect(CATCH_FROM_MS).toBe(REACTION_MS + CLOCK_SYNC_MS);
     expect(CLOCK_SYNC_MS).toBeGreaterThanOrEqual(150);
-    expect(CLOCK_SYNC_MS).toBeLessThanOrEqual(200);
+    expect(CLOCK_SYNC_MS).toBe(250);
     for (const late of [0, 1]) {
       const st = oneGaze(10_000, 13_000);
       const r = st.runners.x ?? newRunner(0);
@@ -127,7 +127,7 @@ describe("«Замри!»", () => {
       expect(r.caught, `тишина с ${silentFrom}`).toBe(0);
       expect(r.holding).toBe(false);
     }
-    // А «держу», дошедшее уже в окне (T + 0,5 с и позже), — держал в окне: пойман.
+    // А «держу», дошедшее уже в окне (T + 0,55 с и позже), — держал в окне: пойман.
     const st = oneGaze(10_000, 13_000);
     const r = st.runners.x ?? newRunner(0);
     for (let t = 0; t <= 10_600; t += 1000) holdEvent(st, r, true, Math.min(t, 10_600), Math.min(t, 10_600));

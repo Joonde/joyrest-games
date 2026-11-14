@@ -7,7 +7,7 @@ import type { Answer, AnswersMark, Session, SessionChange } from "../../data/typ
 import type { HostControlsProps } from "../types";
 import { correctSet, drawEffectOfSettings, raceBonusOf, KIND_TITLES, roundAt, roundTitle, settingsOf, usesAnswers, usesOptions, type QuizContent } from "./content";
 import { clock } from "../../data";
-import { answersMark, resultKey } from "../../core/session";
+import { ANSWERS_RETRIES, answersChanged, answersMark, resultKey } from "../../core/session";
 import type { DrawEffect } from "../../core/draw";
 import { auctionSync, closeBets, isAuctionDraw, parseBet, QUIZ_AUCTION_HOLD_MS } from "./auction";
 import { AuctionHostPanel } from "./auctionViews";
@@ -218,7 +218,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
 
   /**
    * `again` — запись собрана по свежему списку ответов и уходит с его отметкой (`expect.answers`): сервер отказал, а
-   * игра там же — значит, пока пульт считал, пришёл ещё ответ; берём список заново и повторяем (до двух раз).
+   * игра там же — значит, пока пульт считал, пришёл ещё ответ; берём список заново и повторяем (из-за новых ответов —
+   * сразу, до пяти попыток; из-за итогов шага — дождавшись свежей сессии, до трёх).
    */
   async function run(make: SessionChange | (() => Promise<SessionChange | null>), afterClear?: number, again = false) {
     if (busy) return;
@@ -239,6 +240,9 @@ export function QuizHostControls({ session, content, answers, participants, cont
           const now = latest.current.state;
           const same = now.phase === phase && now.step === atStep && now.stage === atStage;
           if (again && typeof make === "function" && same && isPrecondition(e)) {
+            // Отказ только из-за новых ответов (большой зал, гости ещё отвечают): сессия от него не меняется — повторяем
+            // сразу, без ожидания, до 5 раз (паспорт общей части, Н-16).
+            if (answersChanged(e) && attempt < ANSWERS_RETRIES - 1) continue;
             if (attempt < 2) {
               // Отказ бывает и из-за итогов шага (фон пульта или второй пульт успели записать): даём свежей сессии
               // дойти до пульта, иначе повтор ушёл бы с тем же устаревшим отпечатком.

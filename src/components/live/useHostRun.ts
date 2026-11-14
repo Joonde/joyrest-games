@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { answersOpen, placeAfter, resultKey } from "../../core/session";
+import { ANSWERS_RETRIES, answersChanged, answersOpen, placeAfter, resultKey } from "../../core/session";
 import type { Session, SessionChange, SessionState } from "../../data/types";
 import type { SessionControl } from "../../mechanics/types";
 
@@ -113,15 +113,18 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
     // Фон успел увести игру на другой этап или шаг (телефон уже бросил кубик) — молча, касание больше не нужно.
     if (!samePlace(deps.current().state, at)) return "moved";
   }
-  for (let attempt = 0; ; attempt++) {
+  // Повторы из-за новых ответов (Н-16) считаются отдельно: сессия от них не меняется, ждать её не нужно.
+  let answerTries = 0;
+  for (let attempt = 0; ; ) {
     const basis = typeof make === "function" ? deps.current() : deps.seen;
     const change = typeof make === "function" ? await make(basis) : make;
-    if (!change) return attempt === 0 ? "none" : "moved";
+    if (!change) return attempt === 0 && answerTries === 0 ? "none" : "moved";
     if (isEmptyChange(change)) return "empty";
     // После ожиданий (свежие ответы с сервера): игра ушла дальше — запись всё равно получит отказ.
     if (!samePlace(deps.current().state, at)) return "moved";
     const key = resultKey(basis.state.result);
     let conflict = false;
+    let answersOnly = false;
     // Ответы стираем, только если игра всё ещё та, по которой собрана запись: иначе телефон потеряет свежий ответ.
     if (clear.length > 0 && resultKey(deps.current().state.result) !== key) conflict = true;
     else {
@@ -141,6 +144,7 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
       } catch (e) {
         if (errorCode(e) !== "failed-precondition") return { error: e };
         conflict = true;
+        answersOnly = answersChanged(e);
       }
       if (!conflict) {
         if (applyFirst) await clearClosed(clear, deps.clearAnswers);
@@ -148,7 +152,14 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
         return "done";
       }
     }
-    if (attempt >= attempts - 1 || !rebuild) return samePlace(deps.current().state, at) ? "conflict" : "moved";
+    // Пока пульт считал, гости ещё отвечали (большой зал): сразу берём свежий список и повторяем, до 5 раз (Н-16).
+    if (answersOnly && rebuild) {
+      if (!samePlace(deps.current().state, at)) return "moved";
+      if (moment && moment(deps.current()) !== moment(deps.seen)) return "conflict";
+      if (++answerTries < ANSWERS_RETRIES) continue;
+      return "conflict";
+    }
+    if (++attempt >= attempts || !rebuild) return samePlace(deps.current().state, at) ? "conflict" : "moved";
     // Свежие итоги шага ещё не пришли — ждём их, потом собираем запись заново.
     if (resultKey(deps.current().state.result) === key) await deps.nextSession();
     if (!samePlace(deps.current().state, at)) return "moved";

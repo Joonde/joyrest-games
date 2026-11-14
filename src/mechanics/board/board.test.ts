@@ -653,6 +653,25 @@ describe("«Ставка на знания»: «Аукцион», равные �
     expect(change?.state?.slide).toBeUndefined();
   });
 
+  it("«Назад» с ответа при ставке больше лимита прибавки — записью таблицы целиком (С-Н-17)", () => {
+    const c = content();
+    let s = auction(c);
+    const big = 300_000;
+    s = { ...s, leaderboard: { ...s.leaderboard, p1: { name: "Игрок 1", kind: "player", score: 500_000 } } };
+    const step = s.state.step;
+    s = apply(s, startAuction(s, c, [bet("p1", step, big, 1), bet("p2", step, 100, 2)], { id: "auctest", now: 1000, name: (pid) => pid }));
+    expect(parseBoardResult(s.state.result).catTo).toBe("p1");
+    s = apply(s, boardReveal(s, c, participants, true));
+    expect(s.leaderboard.p1?.score).toBe(500_000 + big);
+    const back = boardBack(s, c);
+    if (!back) throw new Error("назад");
+    expect(back.change.addScore?.p1).toBeUndefined();
+    expect(back.change.leaderboard?.p1?.score).toBe(500_000);
+    s = apply(s, back.change);
+    expect(s.leaderboard.p1?.score).toBe(500_000);
+    expect(s.state.stage).toBe("question");
+  });
+
   it("«Назад» с вопроса убирает монетку жребия", () => {
     const c = content();
     let s = auction(c);

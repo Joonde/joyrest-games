@@ -550,7 +550,8 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     const expect0 = { phase: "playing", step: 0, stage: "question" };
     const late = await call("POST", "/api/sessions/ansg1/apply", host, { state: { stage: "reveal", revealed: true }, expect: { ...expect0, answers: stale } });
     expect(late.statusCode).toBe(409);
-    expect(late.json()).toEqual({ error: "failed-precondition" });
+    // Своя причина отказа: пульт повторит сразу, не дожидаясь свежей сессии (паспорт общей части, Н-16).
+    expect(late.json()).toEqual({ error: "failed-precondition", reason: "answers" });
     // Вопрос остался открытым: принятый ответ не потерян.
     expect((await call("GET", "/api/sessions/ansg1", host)).json().state).toMatchObject({ stage: "question", revealed: false });
     // Свежий список — оба ответа в подсчёте, вопрос закрывается.

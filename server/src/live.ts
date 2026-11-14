@@ -727,7 +727,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         /** Ещё записи в той же транзакции, после записи сессии (итоги и баллы при «Завершить игру», паспорт общей части, Н-8). */
         after?: (tx: TransactionSql, row: SessionRow, at: number) => Promise<void>;
       } = {},
-    ): Promise<"ok" | "missing" | "conflict"> {
+    ): Promise<"ok" | "missing" | "conflict" | "answers"> {
       const event = await sql.begin(async (tx) => {
         const rows = await tx<(SessionRow & { stale: boolean })[]>`
           select ${tx(SESSION_COLUMNS)}, version::int as version,
@@ -754,7 +754,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
               coalesce(sum(round(extract(epoch from submitted_at) * 1000)::bigint % 1000000000), 0)::text as sum
             from answers where session_id = ${sessionId} and step = ${mark.step}`;
           const last = seen?.last ? seen.last.getTime() : null;
-          if ((seen?.count ?? 0) !== mark.count || last !== mark.last || (seen?.sum ?? "0") !== String(mark.sum)) return "conflict" as const;
+          // Отдельная причина (паспорт общей части, Н-16): пульт повторяет сразу, не дожидаясь свежей сессии — ответ её не меняет.
+          if ((seen?.count ?? 0) !== mark.count || last !== mark.last || (seen?.sum ?? "0") !== String(mark.sum)) return "answers" as const;
         }
         const at = now();
         const next = applyChange(state, board, checked, at);
@@ -781,7 +782,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         }
         return { type: "patch", version: updated?.version ?? row.version + 1, state: next.state, leaderboard: changed };
       });
-      if (event === "conflict") return "conflict";
+      if (event === "conflict" || event === "answers") return event;
       if (!event) return "missing";
       hub.publish(`session:${sessionId}`, event);
       return "ok";
@@ -985,6 +986,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       );
       // Игра ушла вперёд (второй пульт, двойное касание) — пульт получит свежее состояние и не повторит.
       if (result === "conflict") return fail(reply, 409, "failed-precondition");
+      // Пока пульт считал очки, пришёл или сменился ответ — пульт возьмёт список заново и повторит сразу (Н-16).
+      if (result === "answers") return reply.code(409).send({ error: "failed-precondition", reason: "answers" });
       return { ok: true };
     });
 

@@ -31,13 +31,32 @@ export const F_OUT = 32;
  * Первые `max` знаков строки — **целыми** знаками (второе ревью 3a: `.slice` резал эмодзи пополам, и на экране был «�»): по
  * графемам (`Intl.Segmenter` — семья 👨‍👩‍👧‍👦 и флаг — один знак), где его нет — по кодовым точкам (`Array.from`).
  */
+let segmenter: Intl.Segmenter | null | undefined;
+/** Знаки, после которых обрезка `.slice` может разорвать знак: суррогаты, склейка (ZWJ), селекторы, комбинируемые знаки. */
+const COMPLEX = /[\uD800-\uDFFF\u200D\uFE00-\uFE0F\u0300-\u036F\u0483-\u0489\u1AB0-\u1AFF\u20D0-\u20FF]/;
+const clipped = new Map<string, string>();
+
 export function clipText(text: string, max: number): string {
   if (max <= 0) return "";
+  // Знаков (графем) не больше, чем кодовых единиц: короткая строка — как есть, без разбора; простой текст — `.slice`.
+  if (text.length <= max) return text;
+  if (!COMPLEX.test(text)) return text.slice(0, max);
+  const key = `${max}|${text}`;
+  const known = clipped.get(key);
+  if (known !== undefined) return known;
+  const out = clipComplex(text, max);
+  if (clipped.size >= 4096) clipped.clear();
+  clipped.set(key, out);
+  return out;
+}
+
+function clipComplex(text: string, max: number): string {
   const Seg = (Intl as { Segmenter?: typeof Intl.Segmenter }).Segmenter;
   if (Seg) {
+    if (!segmenter) segmenter = new Seg("ru", { granularity: "grapheme" });
     let out = "";
     let n = 0;
-    for (const { segment } of new Seg("ru", { granularity: "grapheme" }).segment(text)) {
+    for (const { segment } of segmenter.segment(text)) {
       if (n >= max) break;
       out += segment;
       n += 1;

@@ -246,6 +246,43 @@ describe("«Игры Матрёшки» в игровой комнате", () =>
     expect(st.runners.b1?.caught).toBe(1);
   });
 
+  it("отметка времени `st`: честное «отпустил» в T+0,25 при дороге запроса 0–400 мс не поймано, в T+0,35 — поймано; без отметки дорога съедает окно (аудит 3a)", () => {
+    const lats = [0, 50, 100, 150, 250, 400];
+    const run = (rel: number, stamped: boolean): boolean[] => {
+      let now = 1_000_000;
+      const r = room(8, { style: "night" });
+      const phones = lats.map((_, i) => new Phone(`b${i}`, r, now, "st"));
+      r.command("start", null, null, now);
+      for (let t = 0; t < 20_000; t += 100) r.tick((now += 100));
+      const s = state(r);
+      const st = s.trial?.play as FreezeState;
+      expect(s.trial?.stage).toBe("play");
+      const t0 = now - s.offset;
+      const T = t0 + 3000;
+      st.gazes = [{ ph: t0, a: T, e: T + 3000, d: null }];
+      const stamp = (at: number) => (stamped ? { st: at } : {});
+      // Запросы по времени прихода: нажали сразу, «держу» раз в секунду до T − 0,2 с, «отпустил» в T + rel (по телефону).
+      const plan: Array<{ arrive: number; phone: Phone; e: Record<string, unknown> }> = [];
+      for (const p of phones) plan.push({ arrive: now, phone: p, e: { t: "h", on: true, ...stamp(now) } });
+      for (let x = now + 1000; x < T + s.offset - 200; x += 1000) for (const p of phones) plan.push({ arrive: x, phone: p, e: { t: "h", on: true, ...stamp(x) } });
+      lats.forEach((lat, i) => plan.push({ arrive: T + s.offset + rel + lat, phone: phones[i] as Phone, e: { t: "h", on: false, ...stamp(T + s.offset + rel) } }));
+      plan.sort((a, b) => a.arrive - b.arrive);
+      const end = T + s.offset + 6000;
+      while (now < end) {
+        while (plan.length > 0 && (plan[0]?.arrive ?? Infinity) <= now) {
+          const x = plan.shift();
+          if (x) x.phone.send(x.arrive, [x.e]);
+        }
+        r.tick((now += 50));
+      }
+      return lats.map((_, i) => (st.runners[`b${i}`]?.caught ?? 0) > 0);
+    };
+    expect(run(250, true)).toEqual(lats.map(() => false));
+    expect(run(350, true)).toEqual(lats.map(() => true));
+    // Без отметки (старый телефон) — по «приход − ago»: дорога 100 мс и больше уже ловит.
+    expect(run(250, false).slice(3)).toEqual([true, true, true]);
+  });
+
   it("снимок посреди испытания → «перезапуск»: комната на паузе, испытание снова с отсчёта, после «Продолжить» — играется до конца", () => {
     let now = 1_000_000;
     const r = room(12, { style: "night" });

@@ -108,7 +108,9 @@ export function botStep(b: Bot, me: unknown, now: number, paused: boolean, hint:
   const hop = rec(trial?.hop);
   if (hop && trial?.stage === "play" && hop.jumper === true && hop.fell !== true) {
     const row = String(hop.row);
-    if (hop.sub === "brave" && hop.braveTapped !== true && r() < 0.05 && once(b, `brave:${row}:${String(trial.index)}`)) out.push({ t: "brave", rt: 300 + Math.round(r() * 1500) });
+    // Реакция — от появления кнопки по часам (как у телефона): сервер сверяет её со своим временем (аудит 3a).
+    const braveAt = num(hop.braveAt);
+    if (hop.sub === "brave" && hop.braveTapped !== true && braveAt !== null && r() < 0.05 && once(b, `brave:${row}:${String(trial.index)}`)) out.push({ t: "brave", rt: Math.max(150, Math.round(now - braveAt)) });
     if (hop.sub === "jump" && hop.brave === true && hop.pick === null && once(b, `jump:${row}:${String(trial.index)}`)) out.push({ t: "cell", side: r() < 0.5 ? "L" : "R" });
     if (hop.sub === "choose" && hop.brave !== true && hop.pick === null && r() < 0.2 && once(b, `cell:${row}:${String(trial.index)}`)) {
       // Иногда — туда же, куда большинство смельчаков (это не подсказка: результат им не виден).

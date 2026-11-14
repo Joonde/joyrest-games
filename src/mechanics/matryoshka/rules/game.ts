@@ -8,6 +8,7 @@ import {
   BET_WIN,
   BRAVE_MS,
   CHANCE_BACK_MS,
+  CHANCE_GRACE_MS,
   CHANCE_MIN_RT,
   CHANCE_OFFER_MS,
   CHANCE_QUESTION_MS,
@@ -30,6 +31,7 @@ import {
   OPEN_MS,
   PICK_MS,
   PLAYED_TRIALS_MIN,
+  REACT_CLOCK_MS,
   REVEAL_BASE_MS,
   REVEAL_MAX_MS,
   REVEAL_PER_OUT_MS,
@@ -49,7 +51,7 @@ import {
   UNIT_FINAL,
 } from "./constants";
 import { parseContent, planOf, questionsOf } from "./content";
-import { eventTime, finite, gameNow, lots, randomOf, record, tempoMs, type Env, type InEvent, type Outcome } from "./env";
+import { claimedTime, eventTime, finite, gameNow, lots, randomOf, reactionFits, record, stampSlack, tempoMs, type Env, type InEvent, type Outcome } from "./env";
 import { buildFinal, champion, GESTURES, newDuel, nextMatch, resolveRound, setWinner } from "./final";
 import { advance, freezeEndNow, freezeKey, freezeMore, freezePause, freezeStart, holdEvent, settledAt } from "./freeze";
 import { boxEvent, gingerAutoBoxes, gingerKey, gingerStart, gingerSub, pieceEvent } from "./ginger";
@@ -800,14 +802,15 @@ export function input(s: MatState, pid: string, events: InEvent[], env: Env): bo
   let played = false;
   for (const e of events) {
     const te = eventTime(s, env, e);
-    if (handle(s, m, e, te, now)) played = true;
+    if (handle(s, m, e, te, now, claimedTime(s, env, e))) played = true;
   }
   if (played) s.rt.urgent.add(pid);
   env.changed();
   return played;
 }
 
-function handle(s: MatState, m: Member, e: InEvent, te: number, now: number): boolean {
+/** `te` — время события для игры (`delayed` — приход), `claimed` — заявленное (для сверки реакции с часами сервера). */
+function handle(s: MatState, m: Member, e: InEvent, te: number, now: number, claimed: number): boolean {
   const tr = s.trial;
   const play = tr?.play ?? null;
   const player = m.role === "player" && !m.removed;
@@ -839,7 +842,11 @@ function handle(s: MatState, m: Member, e: InEvent, te: number, now: number): bo
     case "sit": {
       if (!player || play?.kind !== "chairs" || tr?.stage !== "play") return false;
       const r = play.rounds[play.round];
-      return r ? sitEvent(r, m.pid, e.rt, te, now) : false;
+      if (!r) return false;
+      // Реакция — по телефону (L14), но сходится с часами сервера: показ по телефону ≈ появление стульев (аудит 3a).
+      const rt = finite(e.rt);
+      if (rt === null || !reactionFits(rt, claimed, r.appearAt, e)) return false;
+      return sitEvent(r, m.pid, e.rt, te, now);
     }
     case "tap": {
       if (play?.kind !== "rope" || tr?.stage !== "play") return false;
@@ -850,7 +857,9 @@ function handle(s: MatState, m: Member, e: InEvent, te: number, now: number): bo
     case "brave": {
       if (!player || play?.kind !== "hopscotch" || tr?.stage !== "play") return false;
       const r = play.rows[play.row];
-      return r ? braveEvent(r, m.pid, e.rt, te, e.delayed) : false;
+      const rt = finite(e.rt);
+      if (!r || rt === null || !reactionFits(rt, claimed, r.braveAt, e)) return false;
+      return braveEvent(r, m.pid, e.rt, te, e.delayed);
     }
     case "cell": {
       if (s.phase === "dobivka") {
@@ -873,7 +882,10 @@ function handle(s: MatState, m: Member, e: InEvent, te: number, now: number): bo
       const q = questionsOf(s.content)[c.question];
       if (i === null || rt === null || !q || !Number.isInteger(i) || i < 0 || i >= q.options.length || rt < CHANCE_MIN_RT) return false;
       const ends = c.stageEnds ?? 0;
-      if (te < c.stageAt - SIT_EARLY_MS || te > ends || now > ends + SIT_SETTLE_MS) return false;
+      // Реакция — от показа вопроса и сходится с часами сервера; ответ — до конца вопроса (с запасом часов), пришёл — не позже
+      // конца + 1 с (аудит 3a: раньше проходили «на 9,5 с с реакцией 300 мс» и ответ через 1,4 с после конца).
+      if (rt > ends - c.stageAt + REACT_CLOCK_MS || !reactionFits(rt, claimed, c.stageAt, e)) return false;
+      if (claimed < c.stageAt - SIT_EARLY_MS || claimed > ends + stampSlack(e) || now > ends + CHANCE_GRACE_MS) return false;
       c.answers[m.pid] = { i, rt: Math.round(rt) };
       return true;
     }

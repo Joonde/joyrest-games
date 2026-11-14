@@ -54,6 +54,11 @@ export interface RoomEvent {
   at: number;
   late: boolean;
   delayed: boolean;
+  /**
+   * Только у игр с `stampedTime`: `at` взят из отметки телефона `st` (часы сервера, сверенные телефоном), а не из `ago` —
+   * без дороги запроса (docs/fast-room.md, «Отметка времени»). Нет — время по `ago`, как у всех.
+   */
+  stamped?: boolean;
   [field: string]: unknown;
 }
 
@@ -95,6 +100,12 @@ export interface RoomGame<S> {
   screenHz?: number;
   /** Как часто телефон шлёт пачку при таком числе игроков, мс. */
   batchMs(players: number): number;
+  /**
+   * Телефон ставит событию отметку `st` — момент по часам сервера (сверены `GET /api/time`): время события — она, а не
+   * «приход − ago» (в `ago` нет дороги запроса). Отметка принимается в тех же пределах, что `ago`: не позже прихода и не
+   * раньше «приход − предел», поэтому задним числом она даёт не больше, чем `ago`. Нет — как раньше (по `ago`).
+   */
+  stampedTime?: boolean;
   create(input: { snapshot: unknown; playMode: "solo" | "teams"; now: number }, ctx: RoomContext): S;
   /**
    * Пачка телефона. true — в ней было игровое действие, которое игра приняла: только тогда пачка отмечает «играл в раунде»
@@ -164,16 +175,27 @@ export function parseInput(body: unknown): ParsedInput | null {
   return { stream, retry: body.retry === true, seq: typeof seq === "number" ? seq : null, events: parsed };
 }
 
-/** Событие по часам сервера: `ago` сверх `maxAgo` не принимается — момент не раньше `now − maxAgo`, пометка `late`. */
-export function timedEvent(event: RoomInputEvent, now: number, maxAgo = MAX_AGO_MS, delayed = false): RoomEvent {
-  const ago = Math.round(event.ago ?? 0);
-  const late = ago > maxAgo;
+/**
+ * Событие по часам сервера: `ago` сверх `maxAgo` не принимается — момент не раньше `now − maxAgo`, пометка `late`.
+ * `stamped` (игра с `stampedTime`) и у события число `st` — момент из отметки телефона в тех же пределах: не позже `now`, не
+ * раньше `now − maxAgo` (раньше — на пределе и `late`).
+ */
+export function timedEvent(event: RoomInputEvent, now: number, maxAgo = MAX_AGO_MS, delayed = false, stamped = false): RoomEvent {
+  const bound = Math.max(0, maxAgo);
   const fields: Record<string, unknown> = { ...event };
   delete fields.ago;
   delete fields.at;
   delete fields.late;
   delete fields.delayed;
-  return { ...fields, t: event.t, at: now - Math.min(ago, Math.max(0, maxAgo)), late, delayed };
+  delete fields.stamped;
+  const st = event.st;
+  if (stamped) delete fields.st;
+  if (stamped && typeof st === "number" && Number.isFinite(st)) {
+    const claimed = Math.round(st);
+    return { ...fields, t: event.t, at: Math.min(now, Math.max(now - bound, claimed)), late: claimed < now - bound, delayed, stamped: true };
+  }
+  const ago = Math.round(event.ago ?? 0);
+  return { ...fields, t: event.t, at: now - Math.min(ago, bound), late: ago > maxAgo, delayed };
 }
 
 /**
@@ -691,7 +713,7 @@ export class Room {
       prevRequestAt,
       newestAt: window.newestArrival(),
     });
-    const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now, maxAgo, delayed));
+    const events = input.events.slice(0, allowed).map((e) => timedEvent(e, now, maxAgo, delayed, this.game.stampedTime === true));
     // Раунд — на момент прихода пачки (до того, как игра её обработала).
     const unit = this.game.playUnit?.(this.state) ?? null;
     let failed = false;

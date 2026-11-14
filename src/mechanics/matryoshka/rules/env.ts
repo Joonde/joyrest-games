@@ -2,7 +2,7 @@
  * Что правила «Игр Матрёшки» знают о комнате (`Env` = `RoomContext` комнаты), время игры, время события, случайность.
  * Время в состоянии — «время игры»: часы сервера минус все паузы (`offset`); на паузе стоит.
  */
-import { TEMPO } from "./constants";
+import { REACT_CLOCK_MS, REACT_TRIP_MS, TEMPO } from "./constants";
 import type { MatState } from "./types";
 
 export interface Env {
@@ -16,12 +16,16 @@ export interface Env {
   random(key: string): number;
 }
 
-/** Событие телефона после проверки комнатой: `at` — по часам сервера (с учётом `ago`), `delayed` — пришло не в свой черёд. */
+/**
+ * Событие телефона после проверки комнатой: `at` — по часам сервера (из отметки телефона `st`, если она есть — `stamped`, иначе
+ * «приход − ago»), `delayed` — пришло не в свой черёд.
+ */
 export interface InEvent {
   t: string;
   at: number;
   late: boolean;
   delayed: boolean;
+  stamped?: boolean;
   [field: string]: unknown;
 }
 
@@ -49,6 +53,28 @@ export function eventTime(s: MatState, env: TimeEnv, e: Pick<InEvent, "at" | "de
   const now = gameNow(s, env);
   if (e.delayed) return now;
   return Math.min(now, Math.max(s.floor, e.at - s.offset));
+}
+
+/** Заявленное время события (время игры) — и у `delayed` тоже (для сверки реакции), не раньше конца паузы и не позже «сейчас». */
+export function claimedTime(s: MatState, env: TimeEnv, e: Pick<InEvent, "at">): number {
+  return Math.min(gameNow(s, env), Math.max(s.floor, e.at - s.offset));
+}
+
+/**
+ * Реакция телефона сходится с часами сервера (аудит 3a): момент показа по телефону `te − rt` — не раньше `shownAt − 0,3 с` и не
+ * позже `shownAt + 0,3 с`; без отметки времени или из повтора — ещё + 1,2 с (во времени события сидит дорога запроса). Так «нажал
+ * за 0,25 с до стульев с реакцией 150 мс» и «ответил на 9,5 с с реакцией 300 мс» не проходят, а честный телефон на медленной
+ * сети — проходит. Подделка остаётся возможной только в пределах `ago` движка (мягкая защита).
+ */
+export function reactionFits(rt: number, te: number, shownAt: number, e: Pick<InEvent, "stamped" | "delayed">): boolean {
+  const implied = te - rt;
+  const late = e.stamped === true && !e.delayed ? REACT_CLOCK_MS : REACT_CLOCK_MS + REACT_TRIP_MS;
+  return implied >= shownAt - REACT_CLOCK_MS && implied <= shownAt + late;
+}
+
+/** Запас к сроку для заявленного времени события: с отметкой — часы, без неё — ещё дорога запроса. */
+export function stampSlack(e: Pick<InEvent, "stamped" | "delayed">): number {
+  return e.stamped === true && !e.delayed ? REACT_CLOCK_MS : REACT_CLOCK_MS + REACT_TRIP_MS;
 }
 
 /**

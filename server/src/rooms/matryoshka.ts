@@ -21,6 +21,8 @@ export const matryoshka: RoomGame<MatState> = {
   eventsPerSecond: EVENTS_PER_SECOND,
   screenHz: 5,
   batchMs: () => BATCH_MS,
+  // Телефон ставит событиям отметку `st` по сверенным часам сервера: окно «Замри!» 0,3 с не съедает дорога запроса (аудит 3a).
+  stampedTime: true,
   // Режим платформы — только «каждый сам»: командная сессия играет так же, каждый лично (решение владельца 4).
   create: (init, ctx) => createState(contentOf(init.snapshot), ctx),
   onJoin: (state, player, ctx) => {

@@ -112,6 +112,12 @@ describe("быстрый канал: комната без базы", () => {
     expect(timedEvent({ t: "hold", ago: 300 }, 10_000)).toEqual({ t: "hold", at: 9700, late: false, delayed: false });
     expect(timedEvent({ t: "hold", ago: 9000, at: 1, late: false }, 10_000)).toEqual({ t: "hold", at: 10_000 - MAX_AGO_MS, late: true, delayed: false });
     expect(timedEvent({ t: "hold", ago: 3000, delayed: false }, 10_000, 1500, true)).toEqual({ t: "hold", at: 8500, late: true, delayed: true });
+    // Отметка времени (игра с `stampedTime`): момент — из `st`, в тех же пределах, что `ago`; у других игр `st` — просто поле.
+    expect(timedEvent({ t: "h", st: 9_620, ago: 0 }, 10_000, 1500, false, true)).toEqual({ t: "h", at: 9_620, late: false, delayed: false, stamped: true });
+    expect(timedEvent({ t: "h", st: 12_000 }, 10_000, 1500, false, true)).toEqual({ t: "h", at: 10_000, late: false, delayed: false, stamped: true });
+    expect(timedEvent({ t: "h", st: 1_000 }, 10_000, 1500, true, true)).toEqual({ t: "h", at: 8_500, late: true, delayed: true, stamped: true });
+    expect(timedEvent({ t: "h", st: "x", ago: 200 }, 10_000, 1500, false, true)).toEqual({ t: "h", at: 9_800, late: false, delayed: false });
+    expect(timedEvent({ t: "h", st: 9_620, ago: 0, stamped: true }, 10_000, 1500)).toEqual({ t: "h", st: 9_620, at: 10_000, late: false, delayed: false });
   });
 
   /** Комната-шпион: что игра получила. */

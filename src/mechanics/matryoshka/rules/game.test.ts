@@ -1,11 +1,12 @@
 // Ход игры «Игр Матрёшки» (docs/matryoshka.md): номера по входу, каждая команда пульта вперёд и назад, отказ не в свой шаг,
 // «Второй шанс», «Добивка», финал, «Назад», «Вернуть» и «Убрать», пауза, снимок → восстановление, виды без тайн, баллы.
 import { describe, expect, it } from "vitest";
-import { MIN_PLAYERS, PLAYED_TRIALS_MIN, UNIT_FINAL } from "./constants";
+import { MIN_PLAYERS, PLAYED_TRIALS_MIN, SCREEN_BYTES_MAX, UNIT_FINAL } from "./constants";
 import { questionsOf, TRIAL_KINDS } from "./content";
 import { input, moment, playedToEnd, playUnit, restore, snapshot } from "./game";
 import { inGame, standings } from "./members";
 import type { MatState } from "./types";
+import { fitScreen, screenBytes } from "./views";
 import { World } from "./world.test-kit";
 
 /** Провести испытание ботами до итогов. */
@@ -250,12 +251,15 @@ describe("«Добивка», финал, пьедестал", () => {
       if (i < 4) w.cmd("next");
     }
     const alive = inGame(w.s).length;
+    const heartsBefore = new Map(inGame(w.s).map((m) => [m.pid, m.hearts]));
     w.cmd("next");
     if (alive > w.s.F) {
       expect(w.s.phase).toBe("dobivka");
-      // Сердечки в «Добивке» не спасают: выбор — только у неупавших.
+      // Падение в «Добивке» сердечком не прощается; упало больше, чем нужно, — среди упавших решают сердечки (решение 14 ноября).
       w.until(() => w.s.dobivka?.stage === "results", 200_000, true);
       expect(inGame(w.s).length).toBe(w.s.F);
+      // Сердечко падение не отнимает: у оставшихся (и упавших, но оставшихся) — сколько было.
+      for (const m of inGame(w.s)) expect(m.hearts).toBe(heartsBefore.get(m.pid));
       expect(w.host().can.back).toBe(true);
       w.cmd("back");
       expect(w.s.phase).toBe("trial");
@@ -443,9 +447,10 @@ describe("пауза и восстановление", () => {
 });
 
 describe("виды: экран без тайн, телефон только своё", () => {
-  it("на экране нет крепкого льда, фигур до раскрытия, жестов до показа; телефон не видит чужих pid; ≤ 4 КБ на 100 игроков", () => {
+  it("на экране нет крепкого льда, фигур до раскрытия, жестов до показа; телефон не видит чужих pid; ≤ 4 КБ (в байтах UTF-8) на 100 игроков с длинными русскими именами", () => {
     const w = new World(100, { style: "night" }, "views");
-    for (const p of w.players) p.name = `Очень-очень длинное имя гостя ${p.pid}`;
+    // 30 букв кириллицы — по 2 байта: сводка считается в байтах, а не в знаках (аудит 3a).
+    for (const p of w.players) p.name = `Щ${p.pid}`.padEnd(30, "Ж");
     for (const p of w.players) {
       const m = w.s.members[p.pid];
       if (m) m.name = p.name;
@@ -455,9 +460,10 @@ describe("виды: экран без тайн, телефон только св
     let screens = 0;
     for (let i = 0; i < 40 * 60 * 10 && w.s.phase !== "podium"; i += 1) {
       w.step(100, true);
+      const view = w.screen();
+      maxScreen = Math.max(maxScreen, screenBytes(view));
       if (i % 5 === 0) {
-        const scr = JSON.stringify(w.screen());
-        maxScreen = Math.max(maxScreen, new TextEncoder().encode(scr).length);
+        const scr = JSON.stringify(view);
         screens += 1;
         const tr = w.s.trial;
         if (tr?.play?.kind === "hopscotch") {
@@ -477,7 +483,21 @@ describe("виды: экран без тайн, телефон только св
     }
     expect(screens).toBeGreaterThan(100);
     expect(maxScreen).toBeLessThanOrEqual(4096);
+    expect(maxScreen).toBeLessThanOrEqual(SCREEN_BYTES_MAX);
   }, 120_000);
+
+  it("сводка экрана не выходит за предел и в худшем случае: имена укорачиваются, потом номера без имён", () => {
+    const w = new World(100, { style: "night" }, "views-worst");
+    w.cmd("start");
+    const v = w.screen();
+    // 100 имён по 24 буквы кириллицы (~5,5 КБ) — больше предела.
+    for (let i = 1; i <= 100; i += 1) v.names[i] = "Ж".repeat(24);
+    expect(screenBytes(v)).toBeGreaterThan(SCREEN_BYTES_MAX);
+    const fit = fitScreen(v);
+    expect(screenBytes(fit)).toBeLessThanOrEqual(SCREEN_BYTES_MAX);
+    for (const name of Object.values(fit.names)) expect([...name].length).toBeLessThan(24);
+    expect(fit.inGame).toBe(100);
+  });
 });
 
 describe("правки по аудиту 3a (14 ноября 2026)", () => {
@@ -682,5 +702,52 @@ describe("правки по аудиту 3a (14 ноября 2026)", () => {
     w.now = at + 2000;
     expect(w.in(a ?? "", [{ t: "brave", rt: 160 }])).toBe(false);
     expect(w.in(b ?? "", [{ t: "brave", rt: 2000 }])).toBe(true);
+  });
+
+  it("экран: новая фраза «Замри!» — с её первого мгновения (не через 0,5 с); конец рассадки «Стульев» — не раньше остановки", () => {
+    const w = new World(8, { style: "night", trials: [{ kind: "freeze" }, { kind: "chairs" }, { kind: "ginger", on: false }, { kind: "rope", on: false }, { kind: "hopscotch", on: false }] }, "a3-screen");
+    w.cmd("start");
+    w.until(() => w.s.trial?.stage === "play");
+    const p = w.s.trial?.play;
+    if (p?.kind !== "freeze") throw new Error("не «Замри!»");
+    const g = p.gazes[2];
+    if (!g) throw new Error("нет фраз");
+    w.until(() => w.now - w.s.offset >= g.ph);
+    const phrase = ((w.screen().trial as { play: { phrase: { start: number } | null } }).play.phrase);
+    expect(phrase?.start).toBe(g.ph + w.s.offset);
+    // Будущей фразы на экране нет: за 0,1 с до конца взгляда — всё ещё эта фраза.
+    w.until(() => w.now - w.s.offset >= g.e - 100);
+    expect(((w.screen().trial as { play: { phrase: { start: number } | null } }).play.phrase)?.start).toBe(g.ph + w.s.offset);
+    toResults(w);
+    w.cmd("next");
+    w.until(() => w.s.trial?.kind === "chairs" && w.s.trial.stage === "play");
+    const c = w.s.trial?.play;
+    if (c?.kind !== "chairs") throw new Error("не стулья");
+    const r = c.rounds[0];
+    if (!r) throw new Error("нет захода");
+    const seatEnds = () => (w.screen().trial as { play: { seatEnds: number | null } }).play.seatEnds;
+    expect(seatEnds()).toBeNull();
+    w.until(() => w.now - w.s.offset >= r.stopAt - 100);
+    expect(seatEnds()).toBeNull();
+    w.until(() => w.now - w.s.offset >= r.stopAt);
+    expect(seatEnds()).toBe(r.seatEnds + w.s.offset);
+  });
+
+  it("«Второй шанс» — после 3-го **сыгранного** испытания: пропущенное не в счёт", () => {
+    const w = new World(40, { style: "night", secondChance: 10 }, "a3-chance3");
+    w.cmd("start");
+    toResults(w);
+    w.cmd("next");
+    w.until(() => w.s.trial?.stage === "rules");
+    expect(w.cmd("skip-trial").ok).toBe(true);
+    toResults(w);
+    // Сыграно 2 (третье по плану) — рано.
+    expect(w.s.trial?.index).toBe(2);
+    expect(w.host().can.chance).toBe(false);
+    w.cmd("next");
+    toResults(w);
+    expect(w.s.trial?.index).toBe(3);
+    expect(w.s.playedTrials.filter(Boolean).length).toBe(3);
+    expect(w.host().can.chance).toBe(true);
   });
 });

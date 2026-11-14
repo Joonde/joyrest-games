@@ -50,6 +50,23 @@ describe("порядок вылета: исход → результат → с�
     expect(dobivkaOut(Object.keys(rows), (p) => rows[p] ?? null, info, 5)).toEqual(["a", "c", "b", "f", "e"]);
     expect(dobivkaOut(Object.keys(rows), (p) => rows[p] ?? null, info, 0)).toEqual([]);
   });
+
+  it("«Добивка» (решение владельца 14 ноября 2026): упало больше, чем нужно, — остаётся тот, у кого больше сердечек, даже с худшим результатом; потом результат, потом жребий", () => {
+    // A (2 сердечка, сумма мест 40) и B (1 сердечко, сумма мест 10, 3 монеты) упали в одном ряду, нужен один.
+    const info: Record<string, { hearts: number; placeSum: number; coins: number; lot: number }> = {
+      A: { hearts: 2, placeSum: 40, coins: 0, lot: 0.1 },
+      B: { hearts: 1, placeSum: 10, coins: 3, lot: 0.9 },
+      C: { hearts: 1, placeSum: 5, coins: 0, lot: 0.5 },
+      D: { hearts: 1, placeSum: 10, coins: 0, lot: 0.2 },
+      E: { hearts: 1, placeSum: 10, coins: 0, lot: 0.7 },
+    };
+    const fell = (p: string) => (p === "C" ? null : 0);
+    expect(dobivkaOut(["A", "B", "C"], fell, (p) => info[p] as (typeof info)[string], 1)).toEqual(["B"]);
+    // Сердечки поровну — результат: больше сумма мест (хуже) выбывает; поровну — меньше монет; дальше — жребий.
+    expect(dobivkaOut(["B", "D", "C"], fell, (p) => info[p] as (typeof info)[string], 1)).toEqual(["D"]);
+    expect(dobivkaOut(["D", "E", "C"], fell, (p) => info[p] as (typeof info)[string], 1)).toEqual(["E"]);
+    // Падение сердечко не отнимает: сердечки оставшихся — те же (M, сквозной тест «Добивки»).
+  });
 });
 
 describe("прогнозы болельщиков (решение владельца 3)", () => {

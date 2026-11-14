@@ -286,7 +286,10 @@ export function screenView(s: MatState, env: ViewEnv): ScreenView {
     };
   }
   if (s.phase === "podium" || s.phase === "finished") {
-    const top = standings(s).slice(0, 8);
+    // Убранные на пьедестал и в «восьмёрку» экрана не выходят (аудит 3a); их место — в таблице.
+    const top = standings(s)
+      .filter((x) => !x.removed)
+      .slice(0, 8);
     for (const x of top) names.add(x.pid);
     view.podium = { top: top.map((x) => ({ num: x.num, place: x.place, points: x.points })) };
   }

@@ -83,33 +83,40 @@ export interface Standing {
   name: string;
   place: number;
   points: number;
+  /** Убран («Убрать игрока» или ушёл): место — как выбывший в момент «Убрать», на пьедестал не выходит. */
+  removed: boolean;
 }
 
 /**
- * Места и очки для таблицы лидеров (L28): финалисты — по финалу; остальные игроки — по вылету (позже — выше); ещё в игре —
- * над выбывшими. Опоздавшие (никогда не игравшие) в таблице не играют. Очки = (N − место + 1) × 10; равные места — равные очки.
+ * Места и очки для таблицы лидеров (L28) **на любой момент игры** (аудит 3a: пульт 3d пишет таблицу платформы из них):
+ * финалисты — по финалу (`finalPlaces`: кто ещё в сетке — выше проигравших); остальные игроки — по вылету (позже — выше); ещё в
+ * игре — над выбывшими. Убранный — как выбывший в момент «Убрать» (финалист тоже: мест финала у него нет). Опоздавшие (никогда
+ * не игравшие) в таблице не играют. Очки = (N − место + 1) × 10; равные места — равные очки.
  */
 export function standings(s: MatState): Standing[] {
   const ranked = Object.values(s.members).filter((m) => !m.late && m.role !== "lobby");
   const N = ranked.length;
   const placed = new Map<string, number>();
-  if (s.final) for (const [pid, place] of finalPlaces(s.final)) placed.set(pid, place);
-  const finalists = s.final ? new Set(s.final.seeds) : new Set<string>();
+  if (s.final) for (const [pid, place] of finalPlaces(s.final, (pid) => s.members[pid]?.removed === true)) placed.set(pid, place);
+  const finalists = s.final ? new Set(s.final.seeds.filter((pid) => s.members[pid]?.removed !== true)) : new Set<string>();
   // Места финала — как в спорте (1, 2, 3, 3 → следующий 5): следующее место — число уже поставленных + 1.
   let next = placed.size + 1;
   // Ещё в игре, не финалисты (игра не дошла до финала): по сердечкам и сумме мест.
   const alive = ranked.filter((m) => m.role === "player" && !finalists.has(m.pid)).sort((a, b) => b.hearts - a.hearts || placeSum(s, a) - placeSum(s, b) || a.num - b.num);
   for (const m of alive) placed.set(m.pid, next++);
-  // Финалисты без места (финал не доигран) — следом, по посеву.
-  for (const pid of s.final?.seeds ?? []) if (!placed.has(pid)) placed.set(pid, next++);
   const out = ranked.filter((m) => !placed.has(m.pid)).sort((a, b) => (b.outSeq ?? 0) - (a.outSeq ?? 0) || a.num - b.num);
   for (const m of out) placed.set(m.pid, next++);
   return ranked
     .map((m) => {
       const place = placed.get(m.pid) ?? N;
-      return { pid: m.pid, num: m.num, name: m.name, place, points: (N - place + 1) * POINTS_STEP };
+      return { pid: m.pid, num: m.num, name: m.name, place, points: (N - place + 1) * POINTS_STEP, removed: m.removed };
     })
     .sort((a, b) => a.place - b.place || a.num - b.num);
+}
+
+/** Пьедестал: места 1–3 без убранных (аудит 3a: убранный финалист на пьедестал не выходит). */
+export function podiumOf(list: readonly Standing[], top = 3): Standing[] {
+  return list.filter((x) => !x.removed && x.place <= top);
 }
 
 /** Чемпион игры (null — финала нет или без чемпиона). */
@@ -118,11 +125,12 @@ export function championOf(s: MatState): string | null {
 }
 
 /**
- * «Лучший болельщик»: больше всех очков болельщика (> 0); равенство — кто болел дольше (опоздавший — дольше всех, выбывший —
- * кто выбыл раньше, L31), дальше — жребий.
+ * «Лучший болельщик»: только кто **заканчивает игру болельщиком** (аудит 3a: вернувшийся и снова играющий — нет, финалист — нет;
+ * убранный и ушедший — нет), больше всех очков болельщика (> 0); равенство — кто болел дольше (опоздавший — дольше всех,
+ * выбывший — кто выбыл раньше, L31), дальше — жребий.
  */
 export function bestFanOf(s: MatState, lot: (pid: string) => number): string | null {
-  const list = Object.values(s.members).filter((m) => m.fanScore > 0 && m.role !== "lobby");
+  const list = Object.values(s.members).filter((m) => m.fanScore > 0 && m.role === "fan" && !m.removed && !m.gone);
   if (list.length === 0) return null;
   list.sort((a, b) => b.fanScore - a.fanScore || (a.late ? -1 : a.fanSince ?? 0) - (b.late ? -1 : b.fanSince ?? 0) || lot(a.pid) - lot(b.pid));
   return list[0]?.pid ?? null;

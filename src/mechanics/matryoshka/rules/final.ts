@@ -150,28 +150,43 @@ export function resolveRound(d: Duel, ga: Gesture, gb: Gesture, ta: number, tb: 
 }
 
 /**
- * Места финалистов: чемпион 1, проиграл финал 2, проигравшие полуфиналы — 3 (делят), четвертьфиналы — 5… по посеву (L27).
- * Ответ: pid → место.
+ * Места финалистов **на любой момент финала** (L27; аудит 3a — места пишет таблица лидеров платформы): кто ещё в сетке — выше
+ * всех, кто уже проиграл; между собой — кто прошёл дальше по сетке, потом по посеву (без общих мест). Проигравшие — по кругу,
+ * где проиграли (позже — выше): финал — 2-е, полуфиналы — общее место, четвертьфиналы — по посеву. Когда финал сыгран, это
+ * ровно «1 — чемпион, 2 — проиграл финал, 3 — полуфиналы (делят), 5–8 — четвертьфиналы по посеву».
+ * Убранные (`out`) мест финала не получают: их место — как выбывших в момент «Убрать» (`standings`). Ответ: pid → место.
  */
-export function finalPlaces(f: FinalState): Map<string, number> {
-  const out = new Map<string, number>();
+export function finalPlaces(f: FinalState, out: (pid: string) => boolean = () => false): Map<string, number> {
   const R = f.rounds.length;
   const champ = champion(f);
-  if (champ) out.set(champ, 1);
-  const byRound = (r: number) => f.seeds.filter((p) => f.lostIn[p] === r && p !== champ);
-  let next = champ ? 2 : 1;
-  for (let r = R - 1; r >= 0; r -= 1) {
-    const losers = byRound(r);
-    if (losers.length === 0) continue;
-    if (r >= R - 2) {
-      for (const p of losers) out.set(p, next);
-      next += losers.length;
-    } else {
-      for (const p of losers) {
-        out.set(p, next);
-        next += 1;
+  const rows: Array<{ pid: string; depth: number; alive: boolean; seed: number }> = [];
+  f.seeds.forEach((pid, seed) => {
+    if (out(pid)) return;
+    const lost = f.lostIn[pid];
+    if (pid === champ) rows.push({ pid, depth: R, alive: true, seed });
+    else if (lost !== undefined) rows.push({ pid, depth: lost, alive: false, seed });
+    else {
+      // Ещё в сетке: дальний круг, где он стоит.
+      let depth = 0;
+      for (let r = R - 1; r >= 0; r -= 1) {
+        if ((f.rounds[r] ?? []).some(([a, b]) => a === pid || b === pid)) {
+          depth = r;
+          break;
+        }
       }
+      rows.push({ pid, depth, alive: true, seed });
     }
+  });
+  rows.sort((a, b) => b.depth - a.depth || Number(b.alive) - Number(a.alive) || a.seed - b.seed);
+  const places = new Map<string, number>();
+  let place = 1;
+  for (let i = 0; i < rows.length; ) {
+    const row = rows[i] as (typeof rows)[number];
+    // Проигравшие финал и полуфиналы одного круга делят место; остальные — каждый своё.
+    const shared = !row.alive && row.depth >= R - 2 ? rows.filter((x, j) => j >= i && !x.alive && x.depth === row.depth) : [row];
+    for (const x of shared) places.set(x.pid, place);
+    place += shared.length;
+    i += shared.length;
   }
-  return out;
+  return places;
 }

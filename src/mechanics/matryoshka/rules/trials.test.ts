@@ -25,7 +25,7 @@ import { buildFinal, finalDone, finalPlaces, newDuel, nextMatch, resolveRound, s
 import { advance, freezeSchedule, freezeStart, holdEvent, newRunner, project } from "./freeze";
 import { gingerKey, gingerStart, pieceEvent } from "./ginger";
 import { braveEvent, crackRow, hopStart, newHopRow, pickBraves } from "./hopscotch";
-import { bestFanOf } from "./members";
+import { bestFanOf, championOf, podiumOf, standings } from "./members";
 import { knotStep, ropeStart, ropeTick, sidePower, tapEvent } from "./rope";
 import { targetOf } from "./target";
 import type { FreezeState, Gaze } from "./types";
@@ -532,6 +532,100 @@ describe("финал", () => {
   });
 });
 
+describe("места во время финала и убранные финалисты (аудит 3a)", () => {
+  it("на любой момент финала: кто в сетке — выше проигравших (по кругу, потом по посеву), проигравшие полуфиналы делят 3-е", () => {
+    const f = buildFinal(["s1", "s2", "s3", "s4"], 0);
+    // До дуэлей: все в сетке — 1, 2, 3, 4 по посеву.
+    expect([...finalPlaces(f)].sort()).toEqual([["s1", 1], ["s2", 2], ["s3", 3], ["s4", 4]]);
+    // Первый полуфинал: s4 обыграл s1 — s4 дальше всех, s2 и s3 ещё в сетке, s1 — ниже всех.
+    setWinner(f, 0, 0, "s4", "s1");
+    let p = finalPlaces(f);
+    expect([p.get("s4"), p.get("s2"), p.get("s3"), p.get("s1")]).toEqual([1, 2, 3, 4]);
+    // Второй полуфинал: оба проигравших — 3-е (делят), финалисты — 1 и 2 по посеву (никто не «1-й из 500»).
+    setWinner(f, 0, 1, "s3", "s2");
+    p = finalPlaces(f);
+    expect([p.get("s3"), p.get("s4"), p.get("s1"), p.get("s2")]).toEqual([1, 2, 3, 3]);
+    setWinner(f, 1, 0, "s4", "s3");
+    p = finalPlaces(f);
+    expect([p.get("s4"), p.get("s3"), p.get("s1"), p.get("s2")]).toEqual([1, 2, 3, 3]);
+  });
+
+  it("сетка на 8: проигравшие четвертьфиналы — 5–8 по посеву на любом шаге, а ещё играющие — над ними", () => {
+    const seeds = Array.from({ length: 8 }, (_, i) => `s${i + 1}`);
+    const f = buildFinal(seeds, 0);
+    for (let m = nextMatch(f, () => false), k = 0; m; m = nextMatch(f, () => false), k += 1) {
+      const win = Number(m.a.slice(1)) > Number(m.b.slice(1)) ? m.a : m.b; // побеждает худший посев
+      setWinner(f, m.round, m.match, win, win === m.a ? m.b : m.a);
+      const p = finalPlaces(f);
+      const alive = seeds.filter((x) => f.lostIn[x] === undefined);
+      const lost = seeds.filter((x) => f.lostIn[x] !== undefined);
+      for (const a of alive) for (const l of lost) expect((p.get(a) ?? 99) < (p.get(l) ?? 0), `шаг ${k}: ${a} выше ${l}`).toBe(true);
+      // Места без пропусков: 1…n, общие — только у проигравших одного круга (полуфинал и финал).
+      const sorted = [...p.values()].sort((x, y) => x - y);
+      expect(sorted[0]).toBe(1);
+    }
+    const p = finalPlaces(f);
+    expect(p.get("s8")).toBe(1);
+    expect(p.get("s7")).toBe(2);
+    expect([p.get("s5"), p.get("s6")]).toEqual([3, 3]);
+    expect([p.get("s1"), p.get("s2"), p.get("s3"), p.get("s4")]).toEqual([5, 6, 7, 8]);
+  });
+
+  it("убранный финалист мест финала не получает: место — как выбывший в момент «Убрать», на пьедестал не выходит; убрали всех — чемпиона нет", () => {
+    for (const removeN of [1, 2, 3, 4]) {
+      const w = new World(12, { style: "night", finalists: 4 }, `rm-final-${removeN}`);
+      w.cmd("start");
+      for (let i = 0; i < 40 * 60 * 10 && !(w.s.phase === "final" && w.s.final?.stage === "bracket"); i += 1) {
+        w.step(100, true);
+        const c = w.host().can;
+        if (c.next) w.cmd("next");
+      }
+      expect(w.s.final?.stage).toBe("bracket");
+      const seeds = [...(w.s.final?.seeds ?? [])];
+      const removed = seeds.slice(seeds.length - removeN);
+      for (const pid of removed) expect(w.cmd("remove", { pid }).ok).toBe(true);
+      for (let i = 0; i < 20 * 60 * 10 && w.s.phase !== "podium"; i += 1) {
+        w.step(100, true);
+        const c = w.host().can;
+        if (c.duel) w.cmd("duel");
+        else if (c.podium) w.cmd("podium");
+      }
+      expect(w.s.phase).toBe("podium");
+      const st = standings(w.s);
+      const kept = seeds.length - removeN;
+      // Оставшиеся финалисты — наверху, убранные — сразу под ними (выбыли последними), никого «1-го» среди убранных.
+      const top = st.slice(0, kept).map((x) => x.pid);
+      expect(top.every((pid) => !removed.includes(pid))).toBe(true);
+      for (const pid of removed) {
+        const x = st.find((y) => y.pid === pid);
+        expect(x?.removed).toBe(true);
+        expect(x?.place ?? 0).toBeGreaterThan(kept);
+      }
+      expect(podiumOf(st).some((x) => removed.includes(x.pid))).toBe(false);
+      const screenTop = ((w.screen().podium?.top ?? []) as Array<{ num: number }>).map((x) => x.num);
+      for (const pid of removed) expect(screenTop).not.toContain(w.s.members[pid]?.num ?? -1);
+      if (kept === 0) expect(championOf(w.s)).toBeNull();
+      else expect(removed).not.toContain(championOf(w.s));
+      // Места без пропусков и повторов (кроме общего 3-го).
+      expect(st[0]?.place).toBe(1);
+    }
+  }, 120_000);
+
+  it("после последней дуэли «Убрать» недоступна: чемпион и места финала не меняются", () => {
+    const w = new World(8, { style: "night", finalists: 2 }, "rm-champ");
+    w.cmd("start");
+    for (let i = 0; i < 40 * 60 * 10 && w.s.final?.stage !== "champion"; i += 1) {
+      w.step(100, true);
+      const c = w.host().can;
+      if (c.next) w.cmd("next");
+      else if (c.duel) w.cmd("duel");
+    }
+    expect(w.s.final?.stage).toBe("champion");
+    expect(w.host().can.remove).toBe(false);
+    expect(w.cmd("remove", { pid: w.s.final?.champion })).toEqual({ ok: false, error: "wrong-phase" });
+  }, 60_000);
+});
+
 describe("болельщики", () => {
   it("«Лучший болельщик»: больше очков; равенство — опоздавший (болел дольше всех), потом кто выбыл раньше (L31)", () => {
     const w = new World(8, {}, "fans");
@@ -555,6 +649,23 @@ describe("болельщики", () => {
     set("p2", 0, 1);
     set("p3", 0, -1, true);
     expect(bestFanOf(w.s, () => 0)).toBeNull();
+  });
+
+  it("«Лучший болельщик» — только кто заканчивает игру болельщиком: вернувшийся и снова играющий (финалист) — нет, убранный — нет (аудит 3a)", () => {
+    const w = new World(8, {}, "fans2");
+    const m = w.s.members;
+    const a = m.p0;
+    const b = m.p1;
+    const c = m.p2;
+    if (!a || !b || !c) throw new Error("нет игроков");
+    // p0 болел, набрал больше всех и вернулся «Вторым шансом» — снова игрок.
+    Object.assign(a, { role: "player", fanScore: 5, fanSince: 1, returned: true });
+    Object.assign(b, { role: "fan", fanScore: 3, fanSince: 2 });
+    Object.assign(c, { role: "fan", fanScore: 4, fanSince: 3, removed: true });
+    expect(bestFanOf(w.s, () => 0)).toBe("p1");
+    // Вернулся и снова выбыл — болельщик к концу игры: снова в зачёте.
+    a.role = "fan";
+    expect(bestFanOf(w.s, () => 0)).toBe("p0");
   });
 
   it("прогноз: болельщик угадывает, сколько ошибутся (решение 3); +3 самому близкому, в игре засчитывается", () => {

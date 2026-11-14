@@ -909,7 +909,8 @@ export function available(s: MatState): Record<string, boolean> {
     "end-now": playKind === "freeze" || ginger === "trace" || playKind === "rope" || playKind === "hopscotch",
     back: trialStage === "reveal" || trialStage === "results" || s.phase === "chance" || (s.phase === "dobivka" && s.dobivka?.stage === "results") || (s.phase === "final" && s.final?.stage === "bracket"),
     return: ((between && ahead) || trialStage === "rules") && Object.values(s.members).some((m) => returnable(m)),
-    remove: s.phase !== "lobby" && s.phase !== "podium" && s.phase !== "finished",
+    // После последней дуэли места финала не меняются: чемпиона и пьедестал «Убрать» не трогает.
+    remove: s.phase !== "lobby" && s.phase !== "podium" && s.phase !== "finished" && !(s.phase === "final" && s.final?.stage === "champion"),
     "to-final": (between || trialStage === "rules") && inGame(s).length <= s.F,
     duel: s.phase === "final" && (s.final?.stage === "bracket" || (s.final?.stage === "duel" && d?.stage === "over")),
     rerun: s.phase === "final" && (d?.stage === "pick" || d?.stage === "show"),

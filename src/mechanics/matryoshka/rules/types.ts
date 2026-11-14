@@ -379,7 +379,8 @@ export interface ScreenView {
   out: number;
   fans: number;
   piggy: number;
-  justOut: Array<{ num: number; name: string }>;
+  /** «Только что в сугробе» — номера (имена — в `names`). */
+  justOut: number[];
   /** Имена тех, кого видно подписью (лидеры, пойманные, финалисты): номер → имя. */
   names: Record<number, string>;
   lobby?: { count: number; marks: string[] };

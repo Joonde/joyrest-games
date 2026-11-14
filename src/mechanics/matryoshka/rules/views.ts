@@ -4,7 +4,7 @@
  * телефон — только своё (кроме соперника в своей дуэли и пары дуэлянтов для ставки); пульт — всё нужное ведущему, тайн нет.
  * Времена наружу — по часам сервера (`toServer`).
  */
-import { BOXES, PERSONAL_EVERY_MS, PHONE_LEAD_MS, REACTION_MS, SCREEN_LEAD_MS, SCREEN_NAME_MAX } from "./constants";
+import { BOXES, PERSONAL_EVERY_MS, PHONE_LEAD_MS, REACTION_MS, SCREEN_BYTES_MAX, SCREEN_LEAD_MS, SCREEN_NAME_MAX } from "./constants";
 import { questionsOf } from "./content";
 import { gameNow, toServer, type Env } from "./env";
 import { champion } from "./final";
@@ -66,7 +66,16 @@ function trialScreen(s: MatState, tr: TrialState, env: ViewEnv, names: Set<strin
   const offline = (pid: string) => (env.online(pid) ? 0 : F_OFFLINE);
   if (p?.kind === "freeze") {
     const v = speedOf(p);
-    const current = p.gazes.find((g) => g.ph <= now && now < g.e + 500);
+    // Текущая фраза — последняя начавшаяся (фразы идут встык): новая видна с первого же мгновения, прошлая — ещё 0,5 с после
+    // своего конца, только если новой нет (аудит 3a: раньше новая фраза приходила на 0,5 с позже и мелодию нельзя было свести).
+    let current: (typeof p.gazes)[number] | undefined;
+    for (let i = p.gazes.length - 1; i >= 0; i -= 1) {
+      const g = p.gazes[i];
+      if (g && g.ph <= now) {
+        if (now < g.e + 500) current = g;
+        break;
+      }
+    }
     const players: ScreenPlayer[] = [];
     const last = p.lastCatch;
     const lastSet = new Set(last?.pids ?? []);
@@ -124,7 +133,8 @@ function trialScreen(s: MatState, tr: TrialState, env: ViewEnv, names: Set<strin
         decoyAt: r.decoyAt !== null && now >= r.decoyAt - SCREEN_LEAD_MS ? srv(s, r.decoyAt) : null,
         appearAt: now >= r.stopAt ? srv(s, r.appearAt) : null,
         closeAt: now >= r.stopAt ? srv(s, r.closeAt) : null,
-        seatEnds: srv(s, r.seatEnds),
+        // Конец рассадки выдаёт момент остановки (seatEnds − stop постоянно ± 0,6 с) — только с остановки (аудит 3a).
+        seatEnds: now >= r.stopAt ? srv(s, r.seatEnds) : null,
         seated: r.seated?.map((pid) => numOf(s, pid)) ?? null,
         players: tr.participants.map((pid) => [numOf(s, pid), p.stats[pid]?.rounds ?? 0, (r.players.includes(pid) ? F_HOLD : 0) | offline(pid)] as ScreenPlayer),
       };
@@ -203,7 +213,8 @@ export function screenView(s: MatState, env: ViewEnv): ScreenView {
     out: outCount(s),
     fans: fans(s).length,
     piggy: s.piggy,
-    justOut: s.justOut.map((pid) => ({ num: numOf(s, pid), name: nameOf(s.members[pid]) })),
+    // Только номера: имена — в `names` (раньше имя повторялось дважды, сводка на 100 гостях выходила за 4 КБ — аудит 3a).
+    justOut: s.justOut.map((pid) => numOf(s, pid)),
     names: {},
   };
   if (s.phase === "lobby") {
@@ -299,6 +310,31 @@ export function screenView(s: MatState, env: ViewEnv): ScreenView {
   for (const pid of names) {
     const m = s.members[pid];
     if (m) view.names[m.num] = nameOf(m);
+  }
+  return fitScreen(view);
+}
+
+const utf8 = new TextEncoder();
+
+/** Размер сводки в байтах UTF-8 (как уходит в поток). */
+export function screenBytes(view: ScreenView): number {
+  return utf8.encode(JSON.stringify(view)).length;
+}
+
+/**
+ * Сводка в пределе `SCREEN_BYTES_MAX` байт: длинные имена укорачиваются (24 → 8 знаков, по 4), потом имена отбрасываются с
+ * конца (большие номера) — экран покажет номер без имени. Номера и всё остальное — как есть.
+ */
+export function fitScreen(view: ScreenView): ScreenView {
+  if (screenBytes(view) <= SCREEN_BYTES_MAX) return view;
+  for (let max = SCREEN_NAME_MAX - 4; max >= 8; max -= 4) {
+    for (const k of Object.keys(view.names)) view.names[Number(k)] = (view.names[Number(k)] ?? "").slice(0, max);
+    if (screenBytes(view) <= SCREEN_BYTES_MAX) return view;
+  }
+  const keys = Object.keys(view.names);
+  while (keys.length > 0 && screenBytes(view) > SCREEN_BYTES_MAX) {
+    const k = keys.pop();
+    if (k !== undefined) delete view.names[Number(k)];
   }
   return view;
 }

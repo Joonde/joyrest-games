@@ -356,8 +356,9 @@ export class RoomManager {
       const game = row.mechanic ? this.games.get(row.mechanic) : undefined;
       if (!game) return this.cancel(stop, "no-room");
       if (this.rooms.size >= this.maxRooms) return this.cancel(stop, "full");
+      // По порядку входа: «Игры Матрёшки» дают номера «№ 001…» стартовому составу в этом порядке (проверка готовности, L39).
       const participants = await this.sql<ParticipantRoomRow[]>`
-        select id, name, kind, team_id from participants where session_id = ${id}`;
+        select id, name, kind, team_id from participants where session_id = ${id} order by joined_at, id`;
       const [snap] = await this.sql<{ data: unknown }[]>`select data from room_snapshots where session_id = ${id}`;
       if (this.closing) return this.cancel(stop, "closing");
       const now = this.now();

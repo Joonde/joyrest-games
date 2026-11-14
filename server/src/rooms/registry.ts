@@ -14,12 +14,13 @@
 import { bublikator } from "./bublikator";
 import { roomCheck, ROOM_CHECK } from "./check";
 import type { RoomGame } from "./engine";
+import { matryoshka } from "./matryoshka";
 
 /** Игры комнат для настоящих мероприятий («Бубликатор»; дальше — «Матрёшка», «Джойки»). */
 const GAMES: Array<RoomGame<unknown>> = [bublikator as RoomGame<unknown>];
 
-/** Игры без экранов — только на тестовой версии (вместе с `room-check`). Сейчас таких нет. */
-const TEST_ONLY_GAMES: Array<RoomGame<unknown>> = [];
+/** Игры без экранов — только на тестовой версии (вместе с `room-check`): «Игры Матрёшки» — Блок 3a, правила (14 ноября 2026). */
+const TEST_ONLY_GAMES: Array<RoomGame<unknown>> = [matryoshka as RoomGame<unknown>];
 
 export function roomGames(options: { check?: boolean } = {}): ReadonlyMap<string, RoomGame<unknown>> {
   const games = new Map<string, RoomGame<unknown>>(GAMES.map((g) => [g.id, g]));

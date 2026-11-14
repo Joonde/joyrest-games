@@ -260,7 +260,9 @@ export function screenView(s: MatState, env: ViewEnv): ScreenView {
     const list = Object.values(s.members)
       .filter((m) => !m.gone)
       .sort((a, b) => a.num - b.num);
-    view.lobby = { count: list.length, marks: list.slice(0, 100).map((m) => [...m.name.trim()][0] ?? "•") };
+    // `nums` — номер игрока к смайлику (экран зала рисует фишки «№ 001» тем же смайликом весь вечер), `lives` — сердечки табло (3c).
+    const shown = list.slice(0, 100);
+    view.lobby = { count: list.length, marks: shown.map((m) => [...m.name.trim()][0] ?? "•"), nums: shown.map((m) => m.num), lives: s.content.lives };
   }
   if (s.phase === "trial" && s.trial) view.trial = trialScreen(s, s.trial, env, names);
   if (s.phase === "chance" && s.chance) {

@@ -388,7 +388,7 @@ export interface ScreenView {
   justOut: number[];
   /** Имена тех, кого видно подписью (лидеры, пойманные, финалисты): номер → имя. */
   names: Record<number, string>;
-  lobby?: { count: number; marks: string[] };
+  lobby?: { count: number; marks: string[]; nums: number[]; lives: number };
   trial?: Record<string, unknown>;
   chance?: Record<string, unknown>;
   dobivka?: Record<string, unknown>;

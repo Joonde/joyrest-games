@@ -479,7 +479,7 @@ export function personalView(s: MatState, pid: string, env: ViewEnv): PersonalVi
   const m = s.members[pid];
   if (!m) return null;
   const now = gameNow(s, env);
-  const view: PersonalView = { num: m.num, name: m.name, role: m.role, late: m.late, hearts: m.hearts, phase: s.phase, style: s.content.style, coins: m.coins, fanScore: m.fanScore, returned: m.returned, removed: m.removed };
+  const view: PersonalView = { num: m.num, name: m.name, role: m.role, late: m.late, hearts: m.hearts, lives: s.content.lives, phase: s.phase, style: s.content.style, coins: m.coins, fanScore: m.fanScore, returned: m.returned, removed: m.removed };
   if (s.phase === "lobby") view.lobby = { count: Object.values(s.members).filter((x) => !x.gone).length };
   if (s.phase === "trial" && s.trial) view.trial = trialPersonal(s, s.trial, m, now);
   if (s.phase === "chance" && s.chance) {

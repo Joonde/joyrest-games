@@ -205,7 +205,7 @@ describe("«Второй шанс»", () => {
     // Игрок ответить не может; вопрос открыт только выбывшим.
     w.until(() => w.s.chance?.stage === "question");
     const q = questionsOf(w.s.content)[c.question];
-    expect(w.in(inGame(w.s)[0]?.pid ?? "", [{ t: "ans", i: 0, rt: 900 }])).toBe(false);
+    expect(w.in(inGame(w.s)[0]?.pid ?? "", [{ t: "ans", i: 0, rt: 900, st: w.now }])).toBe(false);
     expect((w.me(inGame(w.s)[0]?.pid ?? "")?.chance as { q: unknown }).q).toBeNull();
     // Двое отвечают верно (медленный и быстрый), остальные — неверно. Реакция — от показа вопроса, по времени ответа.
     const [slow, fast, ...rest] = c.eligible;
@@ -214,16 +214,16 @@ describe("«Второй шанс»", () => {
       w.now = shown + ms;
     };
     at(500);
-    for (const pid of rest.slice(0, 10)) w.in(pid, [{ t: "ans", i: ((q?.correct ?? 0) + 1) % 4, rt: 500 }]);
+    for (const pid of rest.slice(0, 10)) w.in(pid, [{ t: "ans", i: ((q?.correct ?? 0) + 1) % 4, rt: 500, st: w.now }]);
     at(900);
-    w.in(fast ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 900 }]);
+    w.in(fast ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 900, st: w.now }]);
     // Реакция < 300 мс — не принимается; второй ответ — тоже.
-    expect(w.in(rest[11] ?? "", [{ t: "ans", i: 0, rt: 200 }])).toBe(false);
-    expect(w.in(fast ?? "", [{ t: "ans", i: 0, rt: 900 }])).toBe(false);
+    expect(w.in(rest[11] ?? "", [{ t: "ans", i: 0, rt: 200, st: w.now }])).toBe(false);
+    expect(w.in(fast ?? "", [{ t: "ans", i: 0, rt: 900, st: w.now }])).toBe(false);
     at(3000);
-    w.in(slow ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 3000 }]);
+    w.in(slow ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 3000, st: w.now }]);
     // Реакция не сходится с часами сервера (ответ на 3 с с заявленными 300 мс) — не принят (аудит 3a).
-    expect(w.in(rest[12] ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 300 }])).toBe(false);
+    expect(w.in(rest[12] ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 300, st: w.now }])).toBe(false);
     // Экран: верный ответ — только после возвращения.
     expect((w.screen().chance as { correct: unknown }).correct).toBeNull();
     w.until(() => w.s.chance?.stage === "done");
@@ -525,8 +525,9 @@ describe("виды: экран без тайн, телефон только св
     const saved = intl.Segmenter;
     intl.Segmenter = undefined;
     try {
-      expect(clipText(`${"Ж".repeat(7)}🦊🦊`, 8)).toBe(`${"Ж".repeat(7)}🦊`);
-      expect(lone.test(clipText(`${"Ж".repeat(7)}👨‍👩‍👧‍👦`, 8))).toBe(false);
+      // Другие строки, чем выше: результат запоминается, и запасной путь иначе не проверился бы.
+      expect(clipText(`${"Щ".repeat(7)}🐻🐻`, 8)).toBe(`${"Щ".repeat(7)}🐻`);
+      expect(lone.test(clipText(`${"Щ".repeat(7)}👩‍👩‍👧`, 8))).toBe(false);
     } finally {
       intl.Segmenter = saved;
     }
@@ -707,13 +708,14 @@ describe("правки по аудиту 3a (14 ноября 2026)", () => {
     const [early, honest, slow, stampedSlow] = r.players;
     w.until(() => w.now >= appear - 250);
     w.now = appear - 250;
-    expect(w.in(early ?? "", [{ t: "sit", rt: 150 }])).toBe(false);
+    expect(w.in(early ?? "", [{ t: "sit", rt: 150, st: w.now }])).toBe(false);
     // Честный: коснулся через 0,6 с, запрос сразу дошёл.
     w.now = appear + 600;
-    expect(w.in(honest ?? "", [{ t: "sit", rt: 600 }])).toBe(true);
-    // Честный без отметки: коснулся через 0,5 с, запрос шёл 0,9 с — время события включает дорогу, всё равно принят.
+    expect(w.in(honest ?? "", [{ t: "sit", rt: 600, st: w.now }])).toBe(true);
+    // Без отметки `st` реакцию не с чем сверить — не принят, даже честный (второе ревью 3a: заниженная реакция 1,2–1,5 с проходила).
     w.now = appear + 1400;
-    expect(w.in(slow ?? "", [{ t: "sit", rt: 500 }])).toBe(true);
+    expect(w.in(slow ?? "", [{ t: "sit", rt: 500 }])).toBe(false);
+    expect(w.in(slow ?? "", [{ t: "sit", rt: 1400 }])).toBe(false);
     // С отметкой времени: коснулся через 0,7 с (st), пришло через 1,5 с — принят; та же отметка с 150 мс — нет.
     w.now = appear + 1500;
     const st = (ms: number, rt: number) => input(w.s, stampedSlow ?? "", [{ t: "sit", rt, at: appear + ms, late: false, delayed: false, stamped: true }], w);
@@ -737,15 +739,17 @@ describe("правки по аудиту 3a (14 ноября 2026)", () => {
     const ends = (c.stageEnds ?? 0) + w.s.offset;
     const [cheat, honest, late, tooLate] = c.eligible;
     w.now = shown + 9500;
-    expect(w.in(cheat ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 300 }])).toBe(false);
-    expect(w.in(honest ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 9500 }])).toBe(true);
+    expect(w.in(cheat ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 300, st: w.now }])).toBe(false);
+    // Без отметки — не принят (второе ревью 3a).
+    expect(w.in(honest ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 9500 }])).toBe(false);
+    expect(w.in(honest ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 9500, st: w.now }])).toBe(true);
     // Пришёл через 1,4 с после конца, «заявлено» на конце (ago 1400) — поздно.
     w.now = ends + 1400;
-    expect(w.in(late ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 300 }], { ago: 1400 })).toBe(false);
-    expect(w.in(late ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 9950 }], { ago: 1400 })).toBe(false);
+    expect(w.in(late ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 300, st: ends }])).toBe(false);
+    expect(w.in(late ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 9950, st: ends - 50 }])).toBe(false);
     // Пришёл через 0,8 с после конца, ответ — за 0,1 с до конца с честной реакцией: принят (запас 1 с).
     w.now = ends + 800;
-    expect(w.in(tooLate ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 9900 }], { ago: 900 })).toBe(true);
+    expect(w.in(tooLate ?? "", [{ t: "ans", i: q?.correct ?? 0, rt: 9900, st: ends - 100 }])).toBe(true);
   });
 
   it("«Прыгаю первым!»: реакция должна сходиться со временем нажатия", () => {
@@ -761,8 +765,9 @@ describe("правки по аудиту 3a (14 ноября 2026)", () => {
     const at = r.braveAt + w.s.offset;
     const [a, b] = r.jumpers;
     w.now = at + 2000;
-    expect(w.in(a ?? "", [{ t: "brave", rt: 160 }])).toBe(false);
-    expect(w.in(b ?? "", [{ t: "brave", rt: 2000 }])).toBe(true);
+    expect(w.in(a ?? "", [{ t: "brave", rt: 160, st: w.now }])).toBe(false);
+    expect(w.in(b ?? "", [{ t: "brave", rt: 2000 }])).toBe(false);
+    expect(w.in(b ?? "", [{ t: "brave", rt: 2000, st: w.now }])).toBe(true);
   });
 
   it("экран: новая фраза «Замри!» — с её первого мгновения (не через 0,5 с); конец рассадки «Стульев» — не раньше остановки", () => {

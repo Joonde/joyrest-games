@@ -8,10 +8,11 @@ import { describe, expect, it } from "vitest";
 import type { RoomStreamEvent } from "../../../src/data/types";
 import { botStep, newBot, type Bot } from "../../../src/mechanics/matryoshka/sim/bots";
 import { questionsOf } from "../../../src/mechanics/matryoshka/rules/content";
+import { reactionFits } from "../../../src/mechanics/matryoshka/rules/env";
 import { inGame } from "../../../src/mechanics/matryoshka/rules/members";
 import { finalistsFor } from "../../../src/mechanics/matryoshka/rules/target";
 import type { FreezeState, MatState } from "../../../src/mechanics/matryoshka/rules/types";
-import { parseInput, Room, type RoomGame, type RoomListener } from "./engine";
+import { parseInput, Room, timedEvent, type RoomGame, type RoomListener } from "./engine";
 import { matryoshka } from "./matryoshka";
 import { roomGames } from "./registry";
 
@@ -333,6 +334,27 @@ describe("«Игры Матрёшки» в игровой комнате", () =>
     for (const rt of [800, 1200]) expect(run(rt).filter((c) => !c.caught && c.ep - c.es >= -150)).toEqual([]);
     // Без ошибок часов: 0,25 с — нет, 0,55 с — пойман при любой дороге.
     expect(run(550).filter((c) => c.es === 0 && c.ep === 0).every((c) => c.caught)).toBe(true);
+  });
+
+  it("реакция — от НАЗНАЧЕННОГО момента по сверенным часам телефона: ошибка часов ±300 мс и отрисовка позже до 500 мс — ни одного отказа; от отрисовки — отказы (требование к телефону 3b)", () => {
+    const SHOW = 1_000_000; // назначенный момент (появление стульев, кнопка «Прыгаю первым!», вопрос) по часам сервера
+    const rejected = (mode: "schedule" | "paint") => {
+      let n = 0;
+      for (const e of [-300, -200, -100, 0, 100, 200, 300]) // ошибка сверки часов телефона
+        for (const d of [20, 100, 300, 800, 1500]) // дорога запроса
+          for (const lag of [0, 100, 250, 400, 500]) // телефон нарисовал позже назначенного
+            for (const human of [200, 400, 900, 2000]) {
+              const paint = SHOW - e + lag; // телефон рисует, когда его часы показывают SHOW, плюс подвисание
+              const tap = paint + human;
+              const rt = mode === "schedule" ? tap + e - SHOW : human;
+              const arrival = tap + d;
+              const ev = timedEvent({ t: "sit", rt, st: tap + e }, arrival, 1500, false, true);
+              if (!reactionFits(rt, Math.min(arrival, ev.at), SHOW, ev)) n += 1;
+            }
+      return n;
+    };
+    expect(rejected("schedule")).toBe(0);
+    expect(rejected("paint")).toBeGreaterThan(0);
   });
 
   it("снимок посреди испытания → «перезапуск»: комната на паузе, испытание снова с отсчёта, после «Продолжить» — играется до конца", () => {

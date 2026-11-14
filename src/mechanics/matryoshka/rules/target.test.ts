@@ -97,7 +97,7 @@ function fastToFinal(A: number, content: Record<string, unknown>, seed: string, 
       // Половина выбывших отвечает верно, остальные — нет.
       q.eligible.forEach((pid, k) => {
         if (q.answers[pid]) return;
-        w.in(pid, [{ t: "ans", i: k % 2 === 0 ? 0 : 1, rt: 400 + k }]);
+        w.in(pid, [{ t: "ans", i: k % 2 === 0 ? 0 : 1, rt: 400 + k, st: w.now }]);
       });
     }
     if (c.next) w.cmd("next");

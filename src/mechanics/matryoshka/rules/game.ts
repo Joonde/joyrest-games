@@ -809,6 +809,15 @@ export function input(s: MatState, pid: string, events: InEvent[], env: Env): bo
   return played;
 }
 
+/**
+ * Событие с реакцией («сел», «Прыгаю первым!», ответ «Второго шанса») — только с отметкой телефона `st` (второе ревью 3a: без
+ * неё время события включает дорогу запроса, и заниженная реакция 1,2–1,5 с проходила). Защита мягкая: подделать отметку в
+ * пределах движка можно, но реакция с ней сходится с часами сервера до ±0,3 с.
+ */
+function stampedReaction(e: InEvent): boolean {
+  return e.stamped === true;
+}
+
 /** `te` — время события для игры (`delayed` — приход), `claimed` — заявленное (для сверки реакции с часами сервера). */
 function handle(s: MatState, m: Member, e: InEvent, te: number, now: number, claimed: number): boolean {
   const tr = s.trial;
@@ -844,9 +853,11 @@ function handle(s: MatState, m: Member, e: InEvent, te: number, now: number, cla
       if (!player || play?.kind !== "chairs" || tr?.stage !== "play") return false;
       const r = play.rounds[play.round];
       if (!r) return false;
-      // Реакция — по телефону (L14), но сходится с часами сервера: показ по телефону ≈ появление стульев (аудит 3a).
+      // Реакция — по телефону (L14) от **назначенного** появления стульев (`appearAt` личного вида) по сверенным часам, не от
+      // отрисовки; сходится с часами сервера (аудит 3a). Без отметки `st` не принимается (второе ревью 3a): иначе заниженную
+      // реакцию не с чем сверить.
       const rt = finite(e.rt);
-      if (rt === null || !reactionFits(rt, claimed, r.appearAt, e)) return false;
+      if (rt === null || !stampedReaction(e) || !reactionFits(rt, claimed, r.appearAt, e)) return false;
       return sitEvent(r, m.pid, e.rt, te, now);
     }
     case "tap": {
@@ -859,7 +870,7 @@ function handle(s: MatState, m: Member, e: InEvent, te: number, now: number, cla
       if (!player || play?.kind !== "hopscotch" || tr?.stage !== "play") return false;
       const r = play.rows[play.row];
       const rt = finite(e.rt);
-      if (!r || rt === null || !reactionFits(rt, claimed, r.braveAt, e)) return false;
+      if (!r || rt === null || !stampedReaction(e) || !reactionFits(rt, claimed, r.braveAt, e)) return false;
       return braveEvent(r, m.pid, e.rt, te, e.delayed);
     }
     case "cell": {
@@ -881,7 +892,7 @@ function handle(s: MatState, m: Member, e: InEvent, te: number, now: number, cla
       const i = finite(e.i);
       const rt = finite(e.rt);
       const q = questionsOf(s.content)[c.question];
-      if (i === null || rt === null || !q || !Number.isInteger(i) || i < 0 || i >= q.options.length || rt < CHANCE_MIN_RT) return false;
+      if (i === null || rt === null || !q || !Number.isInteger(i) || i < 0 || i >= q.options.length || rt < CHANCE_MIN_RT || !stampedReaction(e)) return false;
       const ends = c.stageEnds ?? 0;
       // Реакция — от показа вопроса и сходится с часами сервера; ответ — до конца вопроса (с запасом часов), пришёл — не позже
       // конца + 1 с (аудит 3a: раньше проходили «на 9,5 с с реакцией 300 мс» и ответ через 1,4 с после конца).

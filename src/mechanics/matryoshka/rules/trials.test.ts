@@ -367,7 +367,7 @@ describe("«Стулья»", () => {
     w.until(() => (w.s.lastTick ?? 0) >= r.stopAt - 1000);
     expect((w.me("p0")?.trial as { chairs: { stopAt: unknown } }).chairs.stopAt).toBe(r.stopAt + w.s.offset);
     w.until(() => (w.s.lastTick ?? 0) >= r.appearAt + 500);
-    for (let i = 0; i < r.chairs; i += 1) w.in(`p${i}`, [{ t: "sit", rt: 300 + i * 10 }]);
+    for (let i = 0; i < r.chairs; i += 1) w.in(`p${i}`, [{ t: "sit", rt: 300 + i * 10, st: w.now }]);
     w.until(() => r.seated !== null);
     expect(r.seated?.length).toBe(r.chairs);
     expect((w.me("p9")?.trial as { chairs: { seated: unknown } }).chairs.seated).toBe(false);
@@ -465,7 +465,7 @@ describe("«Классики»", () => {
     const row = st.rows[0];
     if (!row) throw new Error("нет ряда");
     w.step(500);
-    w.in("p1", [{ t: "brave", rt: 400 }]);
+    w.in("p1", [{ t: "brave", rt: 400, st: w.now }]);
     w.until(() => row.braves !== null);
     expect(row.braves).toEqual(["p1"]);
     w.in("p1", [{ t: "cell", side: "L" }]);

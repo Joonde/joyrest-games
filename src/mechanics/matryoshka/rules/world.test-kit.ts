@@ -70,9 +70,16 @@ export class World implements Env {
     return out;
   }
 
-  /** Событие телефона: `ago` — сколько мс назад (свежее), `delayed` — из повторённой пачки (время — приход). */
+  /**
+   * Событие телефона: `ago` — сколько мс назад (свежее), `delayed` — из повторённой пачки (время — приход). Число `st` — отметка
+   * телефона (часы сервера), как у движка с `stampedTime`: время — она (не позже «сейчас»), `stamped`.
+   */
   in(pid: string, events: Array<Record<string, unknown>>, opts: { ago?: number; delayed?: boolean } = {}): boolean {
-    const ev = events.map((e) => ({ ...e, t: String(e.t), at: this.now - (opts.ago ?? 0), late: false, delayed: opts.delayed === true })) as InEvent[];
+    const ev = events.map((e) => {
+      const { st, ...rest } = e;
+      const stamped = typeof st === "number" && Number.isFinite(st);
+      return { ...rest, t: String(e.t), at: stamped ? Math.min(this.now, st) : this.now - (opts.ago ?? 0), late: false, delayed: opts.delayed === true, ...(stamped ? { stamped: true } : {}) };
+    }) as InEvent[];
     const played = input(this.s, pid, ev, this);
     flushPersonal(this.s, this);
     return played;

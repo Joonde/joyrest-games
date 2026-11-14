@@ -101,7 +101,8 @@ export function botStep(b: Bot, me: unknown, now: number, paused: boolean, hint:
   if (chairs && trial?.stage === "play" && chairs.inRound === true && chairs.tapped !== true) {
     const appear = num(chairs.appearAt);
     const rt = 200 + Math.round((1 - b.skill) * 1600 + r() * 400);
-    if (appear !== null && now >= appear + rt && once(b, `sit:${String(chairs.round)}:${appear}`)) out.push({ t: "sit", rt });
+    // Реакция — от назначенного появления по часам (как у телефона, не от отрисовки), с отметкой `st`.
+    if (appear !== null && now >= appear + rt && once(b, `sit:${String(chairs.round)}:${appear}`)) out.push({ t: "sit", rt: Math.round(now - appear), st: now });
   }
   const rope = rec(trial?.rope);
   if (rope && rope.sub === "pull" && trial?.stage === "play") out.push({ t: "tap", n: Math.round(1 + r() * 2 + b.skill) });
@@ -110,7 +111,7 @@ export function botStep(b: Bot, me: unknown, now: number, paused: boolean, hint:
     const row = String(hop.row);
     // Реакция — от появления кнопки по часам (как у телефона): сервер сверяет её со своим временем (аудит 3a).
     const braveAt = num(hop.braveAt);
-    if (hop.sub === "brave" && hop.braveTapped !== true && braveAt !== null && r() < 0.05 && once(b, `brave:${row}:${String(trial.index)}`)) out.push({ t: "brave", rt: Math.max(150, Math.round(now - braveAt)) });
+    if (hop.sub === "brave" && hop.braveTapped !== true && braveAt !== null && r() < 0.05 && once(b, `brave:${row}:${String(trial.index)}`)) out.push({ t: "brave", rt: Math.max(150, Math.round(now - braveAt)), st: now });
     if (hop.sub === "jump" && hop.brave === true && hop.pick === null && once(b, `jump:${row}:${String(trial.index)}`)) out.push({ t: "cell", side: r() < 0.5 ? "L" : "R" });
     if (hop.sub === "choose" && hop.brave !== true && hop.pick === null && r() < 0.2 && once(b, `cell:${row}:${String(trial.index)}`)) {
       // Иногда — туда же, куда большинство смельчаков (это не подсказка: результат им не виден).
@@ -126,7 +127,7 @@ export function botStep(b: Bot, me: unknown, now: number, paused: boolean, hint:
     if (now >= at + rt && once(b, `ans:${at}`)) {
       // Верно — 70%: верный вариант боту подсказывает тест (`hint`), телефон его не знает.
       const correct = hint.chanceCorrect ?? 0;
-      out.push({ t: "ans", i: r() < 0.7 ? correct : (correct + 1) % chance.options.length, rt });
+      out.push({ t: "ans", i: r() < 0.7 ? correct : (correct + 1) % chance.options.length, rt: Math.round(now - at), st: now });
     }
   }
   const dob = rec(v.dobivka);

@@ -1,6 +1,6 @@
 /** Игроки и болельщики «Игр Матрёшки»: кто в игре, вылет, «Убрать», «Вернуть», Копилка, места и очки (docs/matryoshka.md). */
 import { JUST_OUT_MAX, LIVES_RETURN, POINTS_STEP } from "./constants";
-import { champion, finalPlaces } from "./final";
+import { championAmong, finalPlaces } from "./final";
 import type { MatState, Member } from "./types";
 
 export function newMember(pid: string, name: string, num: number): Member {
@@ -119,9 +119,12 @@ export function podiumOf(list: readonly Standing[], top = 3): Standing[] {
   return list.filter((x) => !x.removed && x.place <= top);
 }
 
-/** Чемпион игры (null — финала нет или без чемпиона). */
+/**
+ * Чемпион игры (null — финала нет, он не сыгран или без чемпиона). Убранный или ушедший чемпион чемпионом не остаётся: им
+ * становится соперник по финалу, если он здесь, иначе чемпиона нет (`championAmong`).
+ */
 export function championOf(s: MatState): string | null {
-  return s.final ? (s.final.champion ?? champion(s.final)) : null;
+  return s.final ? championAmong(s.final, (pid) => s.members[pid]?.removed === true) : null;
 }
 
 /**

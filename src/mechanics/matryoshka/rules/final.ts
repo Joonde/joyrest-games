@@ -111,6 +111,20 @@ export function champion(f: FinalState): string | null {
   return w === EMPTY ? null : w;
 }
 
+/**
+ * Чемпион с учётом убранных и ушедших (`out`; второе ревью 3a): победитель финала убран или ушёл из сессии — чемпион его
+ * соперник по финалу без боя, если сам он здесь; убраны оба — чемпиона нет. Финал не сыгран — null. Копилка, пьедестал и места
+ * никогда не достаются убранному.
+ */
+export function championAmong(f: FinalState, out: (pid: string) => boolean): string | null {
+  const w = champion(f);
+  if (w === null) return null;
+  if (!out(w)) return w;
+  const [a, b] = f.rounds.at(-1)?.[0] ?? [null, null];
+  const other = a === w ? b : a;
+  return other !== null && other !== EMPTY && !out(other) ? other : null;
+}
+
 /** 1 — победил первый, −1 — второй, 0 — ничья. */
 export function rps(a: Gesture, b: Gesture): number {
   if (a === b) return 0;

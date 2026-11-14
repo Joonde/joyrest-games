@@ -7,13 +7,12 @@
 import { BOXES, PERSONAL_EVERY_MS, PHONE_LEAD_MS, REACTION_MS, SCREEN_BYTES_MAX, SCREEN_LEAD_MS, SCREEN_NAME_MAX } from "./constants";
 import { questionsOf } from "./content";
 import { gameNow, toServer, type Env } from "./env";
-import { champion } from "./final";
 import { project, speedOf } from "./freeze";
 import { boxCounts, gingerSub } from "./ginger";
 import { chairsSub } from "./chairs";
 import { hopSub, sideShares } from "./hopscotch";
 import { available, canReturn, chanceAvailable, moment } from "./game";
-import { fans, inGame, standings } from "./members";
+import { championOf, fans, inGame, standings } from "./members";
 import { ropeSub } from "./rope";
 import { SHAPE_TITLES } from "./shapes";
 import type { HostView, MatState, Member, PersonalView, ScreenPlayer, ScreenView, TrialState } from "./types";
@@ -266,7 +265,7 @@ export function screenView(s: MatState, env: ViewEnv): ScreenView {
     const d = f.duel;
     const show = d !== null && (d.stage === "show" || d.stage === "over");
     const last = d?.history.at(-1);
-    const champ = f.champion ?? champion(f);
+    const champ = championOf(s);
     if (s.bestFan) names.add(s.bestFan);
     view.final = {
       stage: f.stage,
@@ -476,7 +475,7 @@ export function personalView(s: MatState, pid: string, env: ViewEnv): PersonalVi
   if ((s.phase === "final" || s.phase === "podium" || s.phase === "finished") && s.final) {
     const f = s.final;
     const d = f.duel;
-    const champ = f.champion ?? champion(f);
+    const champ = championOf(s);
     const final: Record<string, unknown> = { stage: f.stage, finalist: f.seeds.includes(pid), seed: f.seeds.indexOf(pid) + 1 || null, champion: champ === pid, bestFan: s.bestFan === pid };
     if (d && f.stage === "duel") {
       const duelist = pid === d.a || pid === d.b;
@@ -606,7 +605,7 @@ export function hostView(s: MatState, env: ViewEnv): HostView {
       winners: f.winners,
       at: f.at,
       duel: d ? { a: d.a, b: d.b, wins: d.wins, roundNo: d.roundNo, stage: d.stage, stageEnds: srv(s, d.stageEnds), picked: [d.picks[d.a] !== undefined, d.picks[d.b] !== undefined], online: [env.online(d.a), env.online(d.b)], winner: d.winner, ties: d.ties } : null,
-      champion: f.champion ?? champion(f),
+      champion: championOf(s),
       bestFan: s.bestFan,
     };
   }

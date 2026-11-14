@@ -624,6 +624,52 @@ describe("места во время финала и убранные финал
     expect(w.host().can.remove).toBe(false);
     expect(w.cmd("remove", { pid: w.s.final?.champion })).toEqual({ ok: false, error: "wrong-phase" });
   }, 60_000);
+
+  it("последняя дуэль сыграна, «Следующая дуэль» ещё не нажата: «Убрать» нет; чемпион ушёл из сессии — чемпион соперник; ушли оба — без чемпиона (второе ревью 3a)", () => {
+    for (const leave of ["winner", "both", "loser"] as const) {
+      const w = new World(8, { style: "night", finalists: 2 }, `left-champ-${leave}`);
+      w.cmd("start");
+      // До конца последней дуэли (её итог показан, пульт ещё не нажал «Следующая дуэль»).
+      const lastOver = () => w.s.final?.stage === "duel" && w.s.final.duel?.stage === "over" && finalDone(w.s.final);
+      for (let i = 0; i < 40 * 60 * 10 && !lastOver(); i += 1) {
+        w.step(100, true);
+        if (lastOver()) break;
+        const c = w.host().can;
+        if (c.next) w.cmd("next");
+        else if (c.duel) w.cmd("duel");
+      }
+      expect(lastOver()).toBe(true);
+      const d = w.s.final?.duel;
+      expect(d?.stage).toBe("over");
+      const winner = d?.winner as string;
+      const loser = winner === d?.a ? (d?.b as string) : (d?.a as string);
+      expect(w.host().can.remove).toBe(false);
+      expect(w.cmd("remove", { pid: winner })).toEqual({ ok: false, error: "wrong-phase" });
+      expect(w.s.members[winner]?.removed).toBe(false);
+      // Ушли из сессии (пульт не спрашивают): так же, как «Убрать».
+      const gone = leave === "winner" ? [winner] : leave === "loser" ? [loser] : [winner, loser];
+      w.players = w.players.filter((p) => !gone.includes(p.pid));
+      w.step(100);
+      expect(w.cmd("duel").ok).toBe(true);
+      expect(w.s.final?.stage).toBe("champion");
+      const expected = leave === "winner" ? loser : leave === "loser" ? winner : null;
+      expect(championOf(w.s)).toBe(expected);
+      expect(w.s.final?.champion).toBe(expected);
+      const champNum = expected ? (w.s.members[expected]?.num ?? -1) : null;
+      expect(w.screen().final?.champion ?? null).toBe(champNum);
+      expect(w.cmd("podium").ok).toBe(true);
+      const st = standings(w.s);
+      const top = podiumOf(st);
+      for (const pid of gone) {
+        expect(top.map((x) => x.pid)).not.toContain(pid);
+        expect(st.find((x) => x.pid === pid)?.place ?? 0).toBeGreaterThan(2 - gone.length);
+      }
+      if (expected) expect(st[0]?.pid).toBe(expected);
+      const myFinal = (pid: string) => ((w.me(pid) as { final?: { champion?: boolean } } | null)?.final ?? {}) as { champion?: boolean };
+      if (expected) expect(myFinal(expected).champion).toBe(true);
+      for (const pid of gone) expect(myFinal(pid).champion ?? false).toBe(false);
+    }
+  }, 120_000);
 });
 
 describe("болельщики", () => {

@@ -52,12 +52,12 @@ import {
 } from "./constants";
 import { parseContent, planOf, questionsOf } from "./content";
 import { claimedTime, eventTime, finite, gameNow, lots, randomOf, reactionFits, record, stampSlack, tempoMs, type Env, type InEvent, type Outcome } from "./env";
-import { buildFinal, champion, GESTURES, newDuel, nextMatch, resolveRound, setWinner } from "./final";
+import { buildFinal, finalDone, GESTURES, newDuel, nextMatch, resolveRound, setWinner } from "./final";
 import { advance, freezeEndNow, freezeKey, freezeMore, freezePause, freezeStart, holdEvent, settledAt } from "./freeze";
 import { boxEvent, gingerAutoBoxes, gingerKey, gingerStart, gingerSub, pieceEvent } from "./ginger";
 import { chairsFails, chairsFor, chairsKey, chairsStart, newRound, seatRound, sitEvent } from "./chairs";
 import { braveDue, braveEvent, cellEvent, crackDobRow, crackRow, hopKey, hopStart, newDobRow, newHopRow, pickBraves } from "./hopscotch";
-import { bestFanOf, bringBack, eliminate, fans, inGame, inGamePids, knockedOut, newMember, placeSum, removePlayer } from "./members";
+import { bestFanOf, bringBack, championOf, eliminate, fans, inGame, inGamePids, knockedOut, newMember, placeSum, removePlayer } from "./members";
 import { ropeAddFan, ropeEndNow, ropeStart, ropeTick, ropeWinner, tapEvent, tapRate } from "./rope";
 import { dobivkaOut, finalistsFor, losersOf, rankOrder, scoreGuesses, targetOf } from "./target";
 import type { Gesture, MatState, Member, Phase, RuntimeState, Side, TrialKind, TrialStage, TrialState } from "./types";
@@ -698,7 +698,7 @@ function toChampion(s: MatState, env: Env, t: number): void {
   if (!f) return;
   f.stage = "champion";
   f.stageAt = t;
-  f.champion = champion(f);
+  f.champion = championOf(s);
   const lot = lots(s, env, Object.keys(s.members));
   s.bestFan = bestFanOf(s, (pid) => lot.get(pid) ?? 0);
 }
@@ -943,8 +943,9 @@ export function available(s: MatState): Record<string, boolean> {
     "end-now": playKind === "freeze" || ginger === "trace" || playKind === "rope" || playKind === "hopscotch",
     back: trialStage === "reveal" || trialStage === "results" || s.phase === "chance" || (s.phase === "dobivka" && s.dobivka?.stage === "results") || (s.phase === "final" && s.final?.stage === "bracket"),
     return: ((between && ahead) || trialStage === "rules") && Object.values(s.members).some((m) => canReturn(m)),
-    // После последней дуэли места финала не меняются: чемпиона и пьедестал «Убрать» не трогает.
-    remove: s.phase !== "lobby" && s.phase !== "podium" && s.phase !== "finished" && !(s.phase === "final" && s.final?.stage === "champion"),
+    // Финал решён (последняя дуэль сыграна, даже до «Следующая дуэль»), чемпион и пьедестал — «Убрать» нет: места финала уже
+    // не меняются (второе ревью 3a: раньше между концом последней дуэли и «Следующей дуэлью» убранный оставался чемпионом).
+    remove: s.phase !== "lobby" && s.phase !== "podium" && s.phase !== "finished" && !(s.phase === "final" && s.final !== null && (s.final.stage === "champion" || finalDone(s.final))),
     "to-final": (between || trialStage === "rules") && inGame(s).length <= s.F,
     duel: s.phase === "final" && (s.final?.stage === "bracket" || (s.final?.stage === "duel" && d?.stage === "over")),
     rerun: s.phase === "final" && (d?.stage === "pick" || d?.stage === "show"),

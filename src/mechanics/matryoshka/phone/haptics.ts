@@ -26,6 +26,9 @@ export function canVibrate(): boolean {
 /** Вибрировать, если телефон умеет; ошибки браузера (вкладка в фоне, нет разрешения) игре не мешают. */
 export function buzz(kind: BuzzKind): void {
   if (!canVibrate()) return;
+  // До первого касания страницы браузер вибрацию не даёт (и пишет ошибку в консоль) — молча пропускаем.
+  const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+  if (activation && !activation.hasBeenActive) return;
   try {
     navigator.vibrate([...BUZZ[kind]]);
   } catch {

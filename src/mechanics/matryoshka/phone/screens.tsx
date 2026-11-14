@@ -516,7 +516,7 @@ function chairSpots(round: number, n: number): Array<{ x: number; y: number }> {
     const j = Math.floor(rand() * (i + 1));
     [cells[i], cells[j]] = [cells[j] ?? 0, cells[i] ?? 0];
   }
-  return cells.slice(0, Math.max(1, Math.min(6, n))).map((c) => ({ x: ((c % 3) + 0.5) * 33.3 + (rand() - 0.5) * 6, y: (Math.floor(c / 3) + 0.5) * 33.3 + (rand() - 0.5) * 6 }));
+  return cells.slice(0, Math.max(1, Math.min(6, n))).map((c) => ({ x: ((c % 3) + 0.5) * 33.3 + (rand() - 0.5) * 3, y: (Math.floor(c / 3) + 0.5) * 33.3 + (rand() - 0.5) * 4 }));
 }
 
 function ChairsPlay({ ctx, me, t, c }: { ctx: PhoneCtx; me: Me; t: MeTrial; c: MeChairs }) {

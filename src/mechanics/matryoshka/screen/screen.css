@@ -817,8 +817,21 @@
 .mts-reveal__n {
   font-size: calc(var(--px) * 44);
 }
+.mts-reveal__col {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 18);
+}
 .mts-reveal__who {
+  position: relative;
   text-align: center;
+}
+.mts-reveal__who .mts-who {
+  display: inline-block;
+  max-width: calc(var(--px) * 560);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
 .mts-grid {
   display: grid;

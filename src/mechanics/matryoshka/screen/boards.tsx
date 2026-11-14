@@ -384,32 +384,34 @@ function RevealBoard({ m, v, code, liveAt, still }: BoardProps) {
   if (!t || !o) return null;
   const live = !still && liveAt[`reveal${t.index}`] !== undefined;
   const falling = o.out.slice(0, 8);
-  const g = gridOf(survivors.length, 760, 400, 96);
+  const g = gridOf(survivors.length, 760, 360, 90);
   const shown = survivors.slice(0, 66);
   return (
     <Frame className={live ? "mts-reveal is-live" : "mts-reveal"}>
       <Head eyebrow={trialEyebrow(t, "вскрытие")} title={o.out.length > 0 ? "В сугроб!" : "Все в игре!"} />
       <Counters items={[{ n: v.inGame, text: "в игре" }, { n: v.out, text: "в сугробе", tone: "bad" }]} />
-      <Plate className="mts-reveal__who" style={at(600, 186, 760)}>
-        {o.out.length > 0 ? (
-          <>
-            <span className="mts-cap">Теперь болельщики: </span>
-            <WhoList nums={o.out} m={m} max={3} />
-          </>
-        ) : (
-          <span className="mts-body">{t.seeding ? "Испытание на посев — никто не выбывает." : o.lost > 0 ? `Минус сердечко у ${o.lost} — но все ещё в игре!` : "Матрёшка сегодня добрая — никто не выбыл."}</span>
-        )}
-      </Plate>
-      <Plate className="mts-center" style={at(600, 300, 760)}>
-        <span className="mts-cap">Остаются в игре</span> <b className="mts-num mts-reveal__n">{v.inGame}</b>
-        {o.out.length > 0 && o.lost > o.out.length && <div className="mts-cap">минус сердечко у {o.lost - o.out.length} — ещё в игре</div>}
-      </Plate>
-      <div className="mts-abs mts-grid" style={{ ...at(600, 395, 760, 400), gridTemplateColumns: `repeat(${g.cols}, 1fr)` }}>
-        {shown.map((n) => (
-          <span key={n} className="mts-grid__cell">
-            <Chip n={n} m={m} size={Math.max(30, Math.floor(g.size * 0.8))} className="is-static" />
-          </span>
-        ))}
+      {/* Одна колонка: итог сверху, фишки оставшихся под ним — сколько бы строк ни занял итог, ничего не наезжает. */}
+      <div className="mts-abs mts-reveal__col" style={at(600, 186, 760, 600)}>
+        <Plate className="mts-reveal__who">
+          <div>
+            <span className="mts-cap">Остаются в игре</span> <b className="mts-num mts-reveal__n">{v.inGame}</b>
+          </div>
+          {o.out.length > 0 ? (
+            <div className="mts-cap">
+              Теперь болельщики: <WhoList nums={o.out} m={m} max={2} />
+            </div>
+          ) : (
+            <div className="mts-body">{t.seeding ? "Испытание на посев — никто не выбывает." : o.lost > 0 ? `Минус сердечко у ${o.lost} — но все ещё в игре!` : "Матрёшка сегодня добрая — никто не выбыл."}</div>
+          )}
+          {o.out.length > 0 && o.lost > o.out.length && <div className="mts-cap">минус сердечко у {o.lost - o.out.length} — ещё в игре</div>}
+        </Plate>
+        <div className="mts-grid" style={{ gridTemplateColumns: `repeat(${g.cols}, 1fr)` }}>
+          {shown.map((n) => (
+            <span key={n} className="mts-grid__cell">
+              <Chip n={n} m={m} size={Math.max(30, Math.floor(g.size * 0.8))} className="is-static" />
+            </span>
+          ))}
+        </div>
       </div>
       {survivors.length > shown.length && (
         <span className="mts-abs mts-more" style={at(1370, 760)}>

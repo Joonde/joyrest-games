@@ -10,7 +10,8 @@ import { DANCE_DECOY_MS, DECOY_GAP_MS, chantNotes, danceNotes } from "./music";
 import { applyScreen, boardOf, emptyScreen, F_HOLD, fieldTokens, freezeLook, isSnapshot, laneCount, leadingEmoji, markOf, momentsOf, placeTags, plainName, wordTimes } from "./model";
 import { parseScreen, type PhraseV } from "./view";
 
-const ev = (w: World, type: "screen" | "snapshot" = "screen", at = w.now): RoomStreamEvent => ({ type, at, version: w.changes, paused: w.paused, players: 0, online: 0, data: screenView(w.s, w) });
+const ev = (w: World, type: "screen" | "snapshot" = "screen", at = w.now): RoomStreamEvent =>
+  type === "snapshot" ? { type, at, paused: w.paused, every: 200, offlineMs: 3000, data: screenView(w.s, w) } : { type, at, version: w.changes, paused: w.paused, players: 0, online: 0, data: screenView(w.s, w) };
 
 /** Пульт жмёт главную кнопку, пока не выполнится условие (условие — и после шага, до нажатия: этапы ожидания видны). */
 function drive(w: World, cond: () => boolean, limit = 1_500_000): boolean {

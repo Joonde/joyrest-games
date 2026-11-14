@@ -12,7 +12,7 @@ import { doneCount, folkProps, Frame, gridOf, jarFill, trialEyebrow, TRIAL_TITLE
 import { Crowd, type CrowdItem } from "./crowd";
 import { F_DONE, F_FAIL, F_HOLD, F_OFFLINE, fieldTokens, freezeLook, has, laneCount, leaders, leftMs, placeTags, markOf, numText, plainName, secs, type FreezeLook } from "./model";
 import { at, Chip, Counters, Head, Plate, plural, px, Strip, Tag, Timer, Who, WhoList } from "./parts";
-import type { ChairsV, FreezeV, GingerV, HopV, RopeV } from "./view";
+import type { ChairsV, FreezeV, GingerV } from "./view";
 
 // ------------------------------------------------------------------ «Замри!»
 

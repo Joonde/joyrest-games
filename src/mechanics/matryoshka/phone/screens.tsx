@@ -182,7 +182,11 @@ function FreezePlay({ ctx, me, t, f }: { ctx: PhoneCtx; me: Me; t: MeTrial; f: M
   const isHolding = holding(hold);
   useEffect(() => {
     if (!isHolding) return;
-    const h = setInterval(() => sendRef.current({ t: "h", on: true }), BATCH_MS);
+    // Проверка в самом таймере: после сбоя (сон, долгий кадр) таймер может сработать раньше, чем React его снимет, — «держу»
+    // после «отпустил» продлило бы удержание на сервере и могло поймать.
+    const h = setInterval(() => {
+      if (holding(holdRef.current)) sendRef.current({ t: "h", on: true });
+    }, BATCH_MS);
     return () => clearInterval(h);
   }, [isHolding]);
 

@@ -286,7 +286,9 @@ async function glitch() {
     const tail = after.slice(before.length).filter((x) => x.now);
     const state = await page.evaluate(() => document.querySelector(".mtp-zone")?.getAttribute("data-state"));
     const server = await page.evaluate(() => window.stand.server());
-    const ok = before.at(-1) === true && tail.length >= 1 && tail.at(-1).on === false && tail.every((x) => x.st) && state !== "run";
+    // После «отпустил» не уходит больше ни одного «держу» (и пачкой тоже), комната не держит.
+    const lateKeep = after.slice(before.length).some((x, i, arr) => x.on === true && arr.slice(0, i).some((y) => y.on === false));
+    const ok = before.at(-1) === true && tail.length >= 1 && tail.at(-1).on === false && tail.every((x) => x.st) && state !== "run" && !lateKeep && server.holding !== true;
     // После сбоя тот же палец не бежит — нужно новое касание.
     await page.mouse.move(z.x + z.width / 2, z.y + z.height / 2 + 10);
     await page.waitForTimeout(150);

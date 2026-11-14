@@ -143,7 +143,8 @@ export function settledAt(st: FreezeState, now: number): number {
  * игровое действие.
  */
 export function holdEvent(st: FreezeState, r: Runner, on: boolean, te: number, arrival: number, confirms = true): boolean {
-  if (r.finishedAt !== null || arrival > st.runEnds) return false;
+  // Пришло после конца бега — только если случилось до него и не позже «устоявшегося» срока (дальше итоги уже подведены).
+  if (r.finishedAt !== null || te > st.runEnds || arrival > st.runEnds + FREEZE_SETTLE_MS) return false;
   const at = Math.min(st.runEnds, Math.max(te, r.acc, r.last));
   if (r.holding && confirms) r.seen = Math.max(r.seen, at);
   advance(st, r, at);

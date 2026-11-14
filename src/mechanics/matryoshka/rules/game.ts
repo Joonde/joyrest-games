@@ -21,6 +21,7 @@ import {
   GUESS_BEST,
   GUESS_NEAR,
   GUESS_NEAR_SHARE,
+  HOLD_GRACE_MS,
   HOP_ROWS,
   JUDGING_MS,
   JUMP_MS,
@@ -60,7 +61,7 @@ import { braveDue, braveEvent, cellEvent, crackDobRow, crackRow, hopKey, hopStar
 import { bestFanOf, bringBack, championOf, eliminate, fans, inGame, inGamePids, knockedOut, newMember, placeSum, removePlayer } from "./members";
 import { ropeAddFan, ropeEndNow, ropeStart, ropeTick, ropeWinner, tapEvent, tapRate } from "./rope";
 import { dobivkaOut, finalistsFor, losersOf, rankOrder, scoreGuesses, targetOf } from "./target";
-import type { Gesture, MatState, Member, Phase, RuntimeState, Side, TrialKind, TrialStage, TrialState } from "./types";
+import type { Gesture, MatState, Member, Phase, Runner, RuntimeState, Side, TrialKind, TrialStage, TrialState } from "./types";
 
 export type { Env, InEvent, Outcome } from "./env";
 
@@ -424,15 +425,29 @@ function playTick(s: MatState, env: Env, tr: TrialState, t: number): boolean {
   }
 }
 
+/**
+ * До какого момента учесть бегуна сейчас: обычно — до «сейчас − 1,5 с». Держит, а подтверждение (`seen`) отстаёт — только до
+ * подтверждённого, пока не вышли 2 с после его последней пачки (второе ревью 3a): на медленной сети «держу» приходит позже 1,5 с,
+ * и без этого честный игрок терял путь (дорога 0,8 с — треть пути). Вышли — до «сейчас − 1,5 с», дальше подтверждения «стоит».
+ */
+function settleTarget(r: Runner, settled: number): number {
+  if (r.holding && settled < r.heard + HOLD_GRACE_MS) return Math.min(settled, Math.max(r.acc, r.seen));
+  return settled;
+}
+
 /** «Замри!»: учёт до «сейчас − 1,5 с», объявление пойманных устоявшихся взглядов, моменты экрану и телефонам. */
 function settleFreeze(s: MatState, env: Env, tr: TrialState, t: number): void {
   const p = tr.play;
   if (!p || p.kind !== "freeze") return;
   const settled = settledAt(p, t);
-  for (const r of Object.values(p.runners)) if (r.acc < settled) advance(p, r, settled);
+  for (const r of Object.values(p.runners)) {
+    const to = settleTarget(r, settled);
+    if (r.acc < to) advance(p, r, to);
+  }
   while (p.judged < p.gazes.length) {
     const g = p.gazes[p.judged];
-    if (!g || g.e > settled) break;
+    // Взгляд объявляется, когда учтён у всех (учёт держащего ждёт его подтверждений — не дольше 2 с после его последней пачки).
+    if (!g || g.e > settled || Object.values(p.runners).some((r) => r.acc < Math.min(g.e, p.runEnds) && r.finishedAt === null)) break;
     const pids = Object.entries(p.runners)
       .filter(([, r]) => r.caughtAt.includes(p.judged))
       .map(([pid]) => pid);
@@ -833,7 +848,8 @@ function handle(s: MatState, m: Member, e: InEvent, te: number, now: number, cla
       return true;
     }
     case "h": {
-      if (!player || play?.kind !== "freeze" || tr?.stage !== "play") return false;
+      // И в «всматривается…» (`judging`): «держу» и «отпустил», случившиеся до конца бега, на медленной сети приходят позже.
+      if (!player || play?.kind !== "freeze" || (tr?.stage !== "play" && tr?.stage !== "judging")) return false;
       const r = play.runners[m.pid];
       if (!r) return false;
       // Подтверждает удержание до своего момента только событие с отметкой или свежее (у повтора без отметки время — приход).

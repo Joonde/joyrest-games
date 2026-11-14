@@ -369,6 +369,44 @@ describe("«Игры Матрёшки» в игровой комнате", () =>
     expect(rejected("paint")).toBeGreaterThan(0);
   });
 
+  it("медленная сеть (дорога 0–1,2 с, пачка раз в 1–1,3 с): честный держащий не теряет путь, держал в окне — пойман, отпустил до окна — нет (второе ревью 3a)", () => {
+    for (const d of [0, 400, 800, 1200]) {
+      let now = 1_000_000;
+      const r = room(8, { style: "night" });
+      const phones = Array.from({ length: 3 }, (_, i) => new Phone(`b${i}`, r, now, "slow"));
+      r.command("start", null, null, now);
+      for (let t = 0; t < 20_000; t += 100) r.tick((now += 100));
+      const s = state(r);
+      const st = s.trial?.play as FreezeState;
+      const start = now;
+      // b0 — держит 10 с и отпускает за 2 с до поворота (путь); b1 — держит и через взгляд; b2 — отпускает за 0,2 с до поворота.
+      const T = now - s.offset + 12_000;
+      st.gazes = [{ ph: T - 3000, a: T, e: T + 3000, d: null }];
+      const Ts = T + s.offset;
+      const releaseAt = [start + 10_000, Ts + 2000, Ts - 200];
+      const plan: Array<{ arrive: number; i: number; e: Record<string, unknown> }> = [];
+      let k = 0;
+      releaseAt.forEach((rel, i) => {
+        for (let x = start; x < rel; x += 1000 + ((k++ * 97) % 300)) plan.push({ arrive: x + d, i, e: { t: "h", on: true, st: x } });
+        plan.push({ arrive: rel + d, i, e: { t: "h", on: false, st: rel } });
+      });
+      plan.sort((a, b) => a.arrive - b.arrive);
+      while (now < start + 25_000) {
+        while (plan.length > 0 && (plan[0]?.arrive ?? Infinity) <= now) {
+          const x = plan.shift();
+          if (x) (phones[x.i] as Phone).send(x.arrive, [x.e]);
+        }
+        r.tick((now += 10));
+      }
+      // b0: путь за 10 с удержания — целиком (не меньше 99%), как без задержки.
+      const v = 1000 / (0.45 * st.base);
+      expect((st.runners.b0?.path ?? 0) / (10_000 * v), `дорога ${d}: путь`).toBeGreaterThan(0.99);
+      expect(st.runners.b0?.caught, `дорога ${d}`).toBe(0);
+      expect(st.runners.b1?.caughtAt, `дорога ${d}: держал в окне`).toEqual([0]);
+      expect(st.runners.b2?.caught, `дорога ${d}: отпустил до окна`).toBe(0);
+    }
+  });
+
   it("снимок посреди испытания → «перезапуск»: комната на паузе, испытание снова с отсчёта, после «Продолжить» — играется до конца", () => {
     let now = 1_000_000;
     const r = room(12, { style: "night" });

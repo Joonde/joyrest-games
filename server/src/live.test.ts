@@ -397,8 +397,8 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     // Больше 5 блоков или блок без снимка — отказ.
     const bad = await call("POST", "/api/sessions", host, { id: "prog-bad", gameTitle: "Вечер", mechanic: "evening", program: { blocks: [{ title: "x", mechanic: "quiz" }] } });
     expect(bad.statusCode).toBe(400);
-    // «Бубликатор» и «Олимп» блоком вечера не ставятся (решение владельца 13 ноября 2026).
-    for (const mechanic of ["bublikator", "olymp"]) {
+    // «Бубликатор», «Олимп» и «Игры Матрёшки» блоком вечера не ставятся (решения владельца 13 и 14 ноября 2026).
+    for (const mechanic of ["bublikator", "olymp", "matryoshka"]) {
       const no = await call("POST", "/api/sessions", host, { id: `prog-${mechanic}`, gameTitle: "Вечер", mechanic: "evening", program: { blocks: [program.blocks[0], { title: "x", mechanic, snapshot: snap("x", mechanic) }] } });
       expect(no.statusCode, mechanic).toBe(400);
     }

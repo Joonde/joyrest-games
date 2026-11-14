@@ -1,0 +1,304 @@
+/**
+ * «Игры Матрёшки» в настоящей игровой комнате (`engine.ts`, docs/matryoshka.md): реестр (только test), команды с этапом
+ * (двойное касание и второй пульт → `moved`), пауза движка (в «Замри!» все отпустили, пачки на паузе выброшены), снимок →
+ * восстановление, `delayed`, потоки (личное — только своё, экран — без тайн и ≤ 4 КБ на 100) и сквозные игры ботами на 6, 12, 50
+ * и 100 игроков — до пьедестала, в финале ровно F, баллы ведущему (`room_play`, «сыграна до конца»).
+ */
+import { describe, expect, it } from "vitest";
+import type { RoomStreamEvent } from "../../../src/data/types";
+import { botStep, newBot, type Bot } from "../../../src/mechanics/matryoshka/sim/bots";
+import { questionsOf } from "../../../src/mechanics/matryoshka/rules/content";
+import { inGame } from "../../../src/mechanics/matryoshka/rules/members";
+import { finalistsFor } from "../../../src/mechanics/matryoshka/rules/target";
+import type { FreezeState, MatState } from "../../../src/mechanics/matryoshka/rules/types";
+import { parseInput, Room, type RoomGame, type RoomListener } from "./engine";
+import { matryoshka } from "./matryoshka";
+import { roomGames } from "./registry";
+
+const game = matryoshka as RoomGame<unknown>;
+
+function room(players: number, content: Record<string, unknown> = {}, now = 1_000_000): Room {
+  return new Room({
+    id: "m1",
+    key: "matryoshka",
+    hostId: "h",
+    game,
+    players: Array.from({ length: players }, (_, i) => ({ pid: `b${i}`, name: `Гость номер ${i + 1} с длинным именем`, team: null })),
+    teams: [],
+    snapshot: { title: "Игры Матрёшки", mechanic: "matryoshka", content },
+    playMode: "solo",
+    now,
+  });
+}
+
+const state = (r: Room) => r.state as MatState;
+
+/** Телефон бота: свой поток пачек, последнее личное из потока `me`. */
+class Phone {
+  seq = 0;
+  me: unknown = null;
+  paused = false;
+  bytes = 0;
+  bot: Bot;
+  private off: () => void;
+  private readonly listener: RoomListener = { send: (e) => this.got(e), end: () => undefined };
+  constructor(
+    readonly pid: string,
+    readonly r: Room,
+    now: number,
+    seed: string,
+  ) {
+    this.bot = newBot(pid, seed);
+    this.off = r.listen("me", this.listener, now, pid);
+  }
+  reconnect(now: number): void {
+    this.off();
+    this.off = this.r.listen("me", this.listener, now, this.pid);
+  }
+  private got(e: RoomStreamEvent): void {
+    if (e.type === "snapshot") {
+      this.me = e.data;
+      this.paused = e.paused;
+    } else if (e.type === "event") {
+      const d = e.data as { t?: string; me?: unknown };
+      this.bytes += JSON.stringify(d).length;
+      if (d.t === "me") this.me = d.me;
+    } else if (e.type === "room") this.paused = e.paused;
+  }
+  alive(now: number): void {
+    const p = parseInput({ stream: `s-${this.pid}`, events: [] });
+    if (p) this.r.input(this.pid, p, now);
+  }
+  send(now: number, events: Array<Record<string, unknown>>, opts: { ago?: number; retry?: boolean; seq?: number } = {}): void {
+    const seq = opts.seq ?? this.seq++;
+    const p = parseInput({ stream: `s-${this.pid}`, seq, retry: opts.retry === true ? true : undefined, events: events.map((e) => ({ ago: opts.ago ?? 0, ...e })) });
+    if (!p) throw new Error("пачка не разобралась");
+    const out = this.r.input(this.pid, p, now);
+    if (!out.ok) throw new Error(`пачка: ${out.error}`);
+  }
+  private pending: Array<{ e: Record<string, unknown>; at: number }> = [];
+  private lastSend = -Infinity;
+  /** Как телефон: действия копятся и уходят пачкой не чаще раза в 250 мс (`ago` — сколько назад случилось). */
+  act(now: number, chanceCorrect?: number): void {
+    for (const e of botStep(this.bot, this.me, now, this.paused, { chanceCorrect })) this.pending.push({ e, at: now });
+    if (this.pending.length > 0 && now - this.lastSend >= 250) {
+      const seq = this.seq++;
+      const p = parseInput({ stream: `s-${this.pid}`, seq, events: this.pending.map(({ e, at }) => ({ ...e, ago: now - at })) });
+      this.pending = [];
+      this.lastSend = now;
+      if (!p) throw new Error("пачка не разобралась");
+      const out = this.r.input(this.pid, p, now);
+      if (!out.ok) throw new Error(`пачка: ${out.error}`);
+    } else if (now - this.lastSend >= 1000) {
+      this.lastSend = now;
+      this.alive(now);
+    }
+  }
+}
+
+function collector() {
+  const got: RoomStreamEvent[] = [];
+  return { got, listener: { send: (e: RoomStreamEvent) => got.push(e), end: () => undefined } satisfies RoomListener };
+}
+
+/** Пульт: главная кнопка по сводке `host` (с этапом), как ведущий. */
+function hostStep(r: Room, now: number, host: RoomStreamEvent | undefined): string | null {
+  if (!host || host.type !== "host") return null;
+  const data = host.data as { can: Record<string, boolean> } | null;
+  const can = data?.can ?? {};
+  for (const cmd of ["chance", "next", "duel", "podium"]) {
+    if (can[cmd]) {
+      const out = r.command(cmd, null, `${cmd}-${now}`, now, host.moment);
+      return out.ok ? cmd : null;
+    }
+  }
+  return null;
+}
+
+/** Сквозная игра ботами в настоящем движке. */
+function fullGame(players: number, content: Record<string, unknown>, seed: string) {
+  let now = 1_000_000;
+  const r = room(players, content, now);
+  const phones = Array.from({ length: players }, (_, i) => new Phone(`b${i}`, r, now, seed));
+  const screen = collector();
+  const host = collector();
+  r.listen("screen", screen.listener, now);
+  r.listen("host", host.listener, now);
+  let maxScreen = 0;
+  let maxTick = 0;
+  expect(r.command("start", null, "start", now, r.moment())).toEqual({ ok: true, result: { finalists: finalistsFor(Number(content.finalists ?? 4), players) } });
+  for (let i = 0; i < 40 * 60 * 10 && state(r).phase !== "podium"; i += 1) {
+    now += 100;
+    const s = state(r);
+    const correct = s.chance ? questionsOf(s.content)[s.chance.question]?.correct : undefined;
+    for (const p of phones) p.act(now, correct);
+    const t0 = performance.now();
+    r.tick(now);
+    maxTick = Math.max(maxTick, performance.now() - t0);
+    const last = screen.got.at(-1);
+    if (last?.type === "screen") maxScreen = Math.max(maxScreen, Buffer.byteLength(JSON.stringify(last.data)));
+    screen.got.length = Math.min(screen.got.length, 1);
+    hostStep(r, now, host.got.at(-1));
+    host.got.length = 0;
+  }
+  return { r, phones, maxScreen, maxTick };
+}
+
+describe("«Игры Матрёшки» в игровой комнате", () => {
+  it("комната — только на тестовой версии, пока нет экранов (Блок 3a); «без связи» 3 с, пачка раз в 1 с", () => {
+    expect(roomGames().has("matryoshka")).toBe(false);
+    expect(roomGames({ check: true }).has("matryoshka")).toBe(true);
+    expect(roomGames().has("bublikator")).toBe(true);
+    expect(matryoshka.offlineMs).toBe(3000);
+    expect(matryoshka.batchMs(100)).toBe(1000);
+  });
+
+  it("номера «№ 001…» — в порядке состава комнаты (сервер читает участников по порядку входа)", () => {
+    const r = room(5);
+    expect(Object.values(state(r).members).map((m) => [m.pid, m.num])).toEqual([
+      ["b0", 1],
+      ["b1", 2],
+      ["b2", 3],
+      ["b3", 4],
+      ["b4", 5],
+    ]);
+    r.upsertParticipant({ id: "x", name: "Новый", kind: "player", teamId: null }, 1_000_100);
+    expect(state(r).members.x?.num).toBe(6);
+  });
+
+  it("команда с этапом: двойное касание и второй пульт — `moved`, ничего не сделано; повтор по id — прежний итог", () => {
+    let now = 1_000_000;
+    const r = room(8);
+    const m0 = r.moment();
+    expect(m0).toBe("lobby:0:-:-:0");
+    expect(r.command("start", null, "c1", now, m0).ok).toBe(true);
+    expect(r.command("start", null, "c1", now, m0).ok).toBe(true);
+    expect(r.command("start", null, "c2", now, m0)).toEqual({ ok: false, error: "moved" });
+    for (let t = 0; t < 7000; t += 100) r.tick((now += 100));
+    const m1 = r.moment();
+    expect(m1).toBe("trial:0:rules:-:0");
+    expect(r.command("skip-rules", null, "c3", now, m1)).toEqual({ ok: true });
+    expect(r.command("skip-rules", null, "c4", now, m1)).toEqual({ ok: false, error: "moved" });
+  });
+
+  it("пауза движка посреди «Замри!»: все «отпустили», пачки на паузе выброшены, путь стоит; после «Продолжить» — жать заново (L7)", () => {
+    let now = 1_000_000;
+    const r = room(6, { style: "night" });
+    const phones = Array.from({ length: 6 }, (_, i) => new Phone(`b${i}`, r, now, "p"));
+    r.command("start", null, null, now);
+    for (let t = 0; t < 20_000; t += 100) r.tick((now += 100));
+    const s = state(r);
+    expect(s.trial?.stage).toBe("play");
+    const st = s.trial?.play as FreezeState;
+    st.gazes = [];
+    const phone = phones[0] as Phone;
+    phone.send(now, [{ t: "h", on: true }]);
+    for (let t = 0; t < 1000; t += 100) r.tick((now += 100));
+    expect(st.runners.b0?.holding).toBe(true);
+    expect(r.command("pause", null, null, now)).toEqual({ ok: true });
+    expect(st.runners.b0?.holding).toBe(false);
+    expect(phone.paused).toBe(true);
+    const path = st.runners.b0?.path ?? 0;
+    // На паузе «нажал» не доходит до игры.
+    phone.send(now, [{ t: "h", on: true }]);
+    for (let t = 0; t < 10_000; t += 100) r.tick((now += 100));
+    expect(st.runners.b0?.holding).toBe(false);
+    expect(r.command("resume", null, null, now)).toEqual({ ok: true });
+    for (let t = 0; t < 3000; t += 100) r.tick((now += 100));
+    expect(st.runners.b0?.path).toBeCloseTo(path, 6);
+    phone.send(now, [{ t: "h", on: true }]);
+    for (let t = 0; t < 1000; t += 100) r.tick((now += 100));
+    expect(st.runners.b0?.holding).toBe(true);
+  });
+
+  it("«отпустил» из повторённой пачки (`delayed`) — по приходу; свежая пачка — по заявленному времени (L5)", () => {
+    let now = 1_000_000;
+    const r = room(6, { style: "night" });
+    const phones = Array.from({ length: 2 }, (_, i) => new Phone(`b${i}`, r, now, "d"));
+    r.command("start", null, null, now);
+    for (let t = 0; t < 20_000; t += 100) r.tick((now += 100));
+    const s = state(r);
+    const st = s.trial?.play as FreezeState;
+    const t0 = (now - s.offset) as number;
+    st.gazes = [{ ph: t0, a: t0 + 3000, e: t0 + 6000, d: null }];
+    for (const p of phones) p.send(now, [{ t: "h", on: true }]);
+    for (let t = 0; t < 2900; t += 100) {
+      now += 100;
+      if (t % 1000 === 0) for (const p of phones) p.send(now, [{ t: "h", on: true }]);
+      r.tick(now);
+    }
+    // Оба отпустили за 0,1 с до поворота; пачки пришли через 0,9 с: b0 — свежая, b1 — повтор (`delayed`).
+    for (let t = 0; t < 900; t += 100) r.tick((now += 100));
+    (phones[0] as Phone).send(now, [{ t: "h", on: false }], { ago: 900 });
+    (phones[1] as Phone).send(now, [{ t: "h", on: false }], { ago: 900, retry: true, seq: 0 });
+    for (let t = 0; t < 6000; t += 100) r.tick((now += 100));
+    expect(st.runners.b0?.caught).toBe(0);
+    expect(st.runners.b1?.caught).toBe(1);
+  });
+
+  it("снимок посреди испытания → «перезапуск»: комната на паузе, испытание снова с отсчёта, после «Продолжить» — играется до конца", () => {
+    let now = 1_000_000;
+    const r = room(12, { style: "night" });
+    r.command("start", null, null, now);
+    for (let t = 0; t < 40_000; t += 100) r.tick((now += 100));
+    expect(state(r).trial?.stage).toBe("play");
+    const snap = r.snapshotData(now);
+    const r2 = new Room({ id: "m1", key: "matryoshka", hostId: "h", game, players: Array.from({ length: 12 }, (_, i) => ({ pid: `b${i}`, name: `Гость ${i}`, team: null })), teams: [], snapshot: null, playMode: "solo", now: now + 5000, restoreFrom: JSON.parse(JSON.stringify(snap)) });
+    expect(r2.paused).toBe(true);
+    expect(r2.restored).toBe(true);
+    const s2 = state(r2);
+    expect(s2.trial?.stage).toBe("countdown");
+    expect(s2.attempt).toBe(state(r).attempt + 1);
+    now += 5000;
+    for (let t = 0; t < 10_000; t += 100) r2.tick((now += 100));
+    expect(s2.trial?.stage).toBe("countdown");
+    expect(r2.command("resume", null, null, now)).toEqual({ ok: true });
+    for (let t = 0; t < 200_000 && s2.trial?.stage !== "results"; t += 100) r2.tick((now += 100));
+    expect(s2.trial?.stage).toBe("results");
+    expect(inGame(s2).length).toBe(s2.trial?.T);
+  });
+
+  it("личное — только своё; экран — без тайн; номера болельщиков-опоздавших не мешают", () => {
+    let now = 1_000_000;
+    const r = room(10);
+    const phones = Array.from({ length: 10 }, (_, i) => new Phone(`b${i}`, r, now, "own"));
+    r.command("start", null, null, now);
+    r.upsertParticipant({ id: "late", name: "Опоздал", kind: "player", teamId: null }, now);
+    const late = new Phone("late", r, now, "own");
+    expect((late.me as { role: string }).role).toBe("fan");
+    for (let t = 0; t < 120_000; t += 100) {
+      now += 100;
+      for (const p of phones) p.act(now);
+      r.tick(now);
+      const me = JSON.stringify(phones[3]?.me);
+      expect(/"b(?!3")\d+"/.test(me)).toBe(false);
+    }
+  });
+
+  for (const [players, content, label] of [
+    [6, { style: "night" }, "6 гостей, взрослые"],
+    [12, { style: "sunny" }, "12 гостей, дети"],
+    [50, { style: "sunny" }, "50 гостей, дети (замер)"],
+    [50, { style: "night", finalists: 6 }, "50 гостей, взрослые, 6 финалистов"],
+    [100, { style: "night", finalists: 8 }, "100 гостей (расчётный максимум), 8 финалистов"],
+  ] as Array<[number, Record<string, unknown>, string]>) {
+    it(`сквозная игра ботами: ${label} — до пьедестала, в финале ровно F, сводка экрана ≤ 4 КБ, шаг цикла ≤ 10 мс`, () => {
+      const { r, maxScreen, maxTick } = fullGame(players, content, label);
+      const s = state(r);
+      expect(s.phase).toBe("podium");
+      expect(s.final?.seeds.length).toBe(finalistsFor(Number(content.finalists ?? 4), players));
+      expect(s.final?.champion).not.toBeNull();
+      expect(maxScreen).toBeLessThanOrEqual(4096);
+      expect(maxTick).toBeLessThan(players >= 100 ? 25 : 10);
+      // Баллы ведущему: телефоны играли в нескольких раундах; игра сыграна до конца.
+      const played = r.takePlayed();
+      const units = new Map<string, Set<number>>();
+      for (const { pid, unit } of played) units.set(pid, (units.get(pid) ?? new Set()).add(unit));
+      const twoOrMore = [...units.values()].filter((u) => u.size >= 2).length;
+      expect(twoOrMore).toBeGreaterThan(players * 0.8);
+      expect(game.playedToEnd?.(r.state)).toBe(true);
+      r.command("finish", null, null, 9e15);
+      expect(s.phase).toBe("finished");
+    }, 120_000);
+  }
+});

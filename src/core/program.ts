@@ -16,10 +16,11 @@ export const PROGRAM_LIMITS = { minBlocks: 1, maxBlocks: 5, title: 80, results: 
 
 /**
  * Игры, которые нельзя ставить блоком вечера: сам вечер, «Олимп» (целый вечер сам по себе) и «Бубликатор» (игровая комната со
- * своим ходом и итогами — пока проводится отдельно, решение владельца 13 ноября 2026). Проверяют студия (выбор игр, проверка
+ * своим ходом и итогами — пока проводится отдельно, решение владельца 13 ноября 2026), «Игры Матрёшки» (то же, решение 14 ноября
+ * 2026). Проверяют студия (выбор игр, проверка
  * вечера, запуск) и сервер (`POST /api/sessions` с программой — 400).
  */
-export const NOT_IN_EVENING: ReadonlySet<string> = new Set(["evening", "olymp", "bublikator"]);
+export const NOT_IN_EVENING: ReadonlySet<string> = new Set(["evening", "olymp", "bublikator", "matryoshka"]);
 
 /** Блок вечера в студии: ссылка на игру и запомненные название и механика (для списка). */
 export interface ProgramBlockRef {

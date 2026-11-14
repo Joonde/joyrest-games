@@ -95,7 +95,8 @@ export function standings(s: MatState): Standing[] {
   const placed = new Map<string, number>();
   if (s.final) for (const [pid, place] of finalPlaces(s.final)) placed.set(pid, place);
   const finalists = s.final ? new Set(s.final.seeds) : new Set<string>();
-  let next = placed.size === 0 ? 1 : Math.max(...placed.values()) + 1;
+  // Места финала — как в спорте (1, 2, 3, 3 → следующий 5): следующее место — число уже поставленных + 1.
+  let next = placed.size + 1;
   // Ещё в игре, не финалисты (игра не дошла до финала): по сердечкам и сумме мест.
   const alive = ranked.filter((m) => m.role === "player" && !finalists.has(m.pid)).sort((a, b) => b.hearts - a.hearts || placeSum(s, a) - placeSum(s, b) || a.num - b.num);
   for (const m of alive) placed.set(m.pid, next++);

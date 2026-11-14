@@ -6,4 +6,5 @@
  */
 // «Бубликатор» был скрыт с 6 ноября 2026 (готов только телефон гостя) и открыт 12 ноября 2026 (Блок 2d: экран зала, пульт и
 // конструктор готовы).
-export const HIDDEN_MECHANICS: ReadonlySet<string> = new Set<string>();
+// «Игры Матрёшки» скрыты с 14 ноября 2026: Блок 3a — только правила и комната на test; телефон, экран и пульт — 3b–3d.
+export const HIDDEN_MECHANICS: ReadonlySet<string> = new Set<string>(["matryoshka"]);

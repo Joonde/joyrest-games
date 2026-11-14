@@ -3,7 +3,8 @@ import type { Mechanic } from "../types";
 import { MATRYOSHKA, MATRYOSHKA_SUPPORTS } from "./rules/constants";
 import { parseContent } from "./rules/content";
 import type { MatContent } from "./rules/types";
-import { MatryoshkaEditor, MatryoshkaHostControls, MatryoshkaPlayerView, MatryoshkaScreenView } from "./views";
+import { MatryoshkaPlayerView } from "./phone/lazy";
+import { MatryoshkaEditor, MatryoshkaHostControls, MatryoshkaScreenView } from "./views";
 
 /**
  * «Игры Матрёшки» (ТЗ «Три игры», Блок 3; docs/matryoshka.md): дворовые испытания на вылет, болельщики, финал «Камень,

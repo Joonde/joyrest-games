@@ -1,0 +1,1015 @@
+/* «Игры Матрёшки» — телефон гостя (Блок 3b), по согласованным макетам ph-* и fan-* (14 ноября 2026). Свой вид игры: цвета —
+   палитры двора, переменные --mt-* здесь. «Солнечный двор» — гжель (кобальт по белому фарфору), «Ночной двор» — хохлома (чёрный
+   лак, золото, киноварь). Сначала телефон 360 px; кнопки не ниже 52 px, плитки выбора не ниже 44; анимации — только transform и
+   opacity, при «уменьшить движение» — без них. Зона «Замри!» без лупы iOS, выделения текста и контекстного меню. */
+
+.mtp {
+  --mt-bg: #f3f6fb;
+  --mt-bg-top: #ffffff;
+  --mt-bg-bottom: #eef2f9;
+  --mt-text: #14244f;
+  --mt-muted: #3d4f7a;
+  --mt-head: #1b3f8b;
+  --mt-accent: #2e5aac;
+  --mt-panel: rgba(255, 255, 255, 0.96);
+  --mt-panel-solid: #ffffff;
+  --mt-line: rgba(27, 63, 139, 0.22);
+  --mt-track: rgba(20, 36, 79, 0.12);
+  --mt-bad: #a6443a;
+  --mt-good: #2f6b45;
+  --mt-hi: #2e5aac;
+  --mt-run: #e3c68c;
+  --mt-run-ink: #221e1b;
+  --mt-stand: #ffffff;
+  --mt-stand-ink: #1b3f8b;
+  --mt-look: #a6443a;
+  --mt-look-ink: #ffffff;
+  --mt-banner: #1b3f8b;
+  --mt-banner-ink: #ffffff;
+  --mt-ice: #e6f3f8;
+  --mt-ice-2: #9cc3d5;
+  --mt-ice-line: #2f5f73;
+  --mt-ice-ink: #16323d;
+  --mt-gold-line: #9a7444;
+  --mt-chip: #e3c68c;
+  --mt-on-gold: #221e1b;
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--mt-bg-top) 0%, var(--mt-bg-bottom) 100%);
+  background-color: var(--mt-bg);
+  color: var(--mt-text);
+  font-family: Jost, system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
+  font-feature-settings: "lnum" 1;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mtp[data-style="night"] {
+  --mt-bg: #140b08;
+  --mt-bg-top: #3a1a0e;
+  --mt-bg-bottom: #140b08;
+  --mt-text: #fbf1de;
+  --mt-muted: #e2cba6;
+  --mt-head: #f3d27a;
+  --mt-accent: #e9b949;
+  --mt-panel: rgba(30, 18, 13, 0.94);
+  --mt-panel-solid: #1e120d;
+  --mt-line: rgba(233, 185, 73, 0.38);
+  --mt-track: rgba(251, 246, 241, 0.14);
+  --mt-bad: #ff9a85;
+  --mt-good: #a3c2aa;
+  --mt-hi: #e9b949;
+  --mt-run: #e9b949;
+  --mt-run-ink: #1a0c08;
+  --mt-stand: #1e120d;
+  --mt-stand-ink: #f3d27a;
+  --mt-look: #c2281e;
+  --mt-look-ink: #fff4e0;
+  --mt-banner: #f3d27a;
+  --mt-banner-ink: #1a0c08;
+  --mt-ice: #2d4b58;
+  --mt-ice-2: #16262e;
+  --mt-ice-line: #9cc3d5;
+  --mt-ice-ink: #fbf6f1;
+  background: radial-gradient(130% 55% at 50% 0%, var(--mt-bg-top) 0%, var(--mt-bg-bottom) 62%);
+  background-color: var(--mt-bg);
+}
+
+/* «Канат»: цвет своей стороны — на весь фон (макет ph-rope), текст тёмный. */
+.mtp[data-side="coral"],
+.mtp[data-side="sage"] {
+  --mt-panel-solid: #fbf6f1;
+  --mt-chip: #fbf6f1;
+  --mt-text: #221e1b;
+  --mt-muted: #3a302a;
+  --mt-head: #221e1b;
+  --mt-panel: rgba(34, 30, 27, 0.14);
+  --mt-line: rgba(34, 30, 27, 0.4);
+  --mt-track: rgba(34, 30, 27, 0.16);
+  background: #e3aa9c;
+}
+.mtp[data-side="sage"] {
+  background: #a3c2aa;
+}
+
+/* Экраны, где важно «не прокручивается»: зона «Замри!», стулья, обводка — во весь экран. */
+.mtp[data-screen="freeze"],
+.mtp[data-screen="chairs-tap"] {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.mtp-offline {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 10px 16px;
+  background: var(--mt-bad);
+  color: #ffffff;
+  font-weight: 600;
+  text-align: center;
+}
+.mtp[data-style="night"] .mtp-offline {
+  color: #1a0c08;
+}
+
+/* ------------------------------------------------------------ шапка */
+
+.mtp-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 8px;
+}
+.mtp-me {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.mtp-me__txt {
+  min-width: 0;
+}
+.mtp-chip {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--mt-chip);
+  color: var(--mt-on-gold);
+  font-size: 24px;
+  font-weight: 600;
+  border: 2px solid var(--mt-line);
+}
+.mtp-chip--big {
+  width: 56px;
+  height: 56px;
+  font-size: 30px;
+}
+.mtp-no {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--mt-text);
+}
+.mtp-name {
+  font-size: 15px;
+  color: var(--mt-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mtp-hearts {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+.mtp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  background: var(--mt-panel-solid);
+  color: var(--mt-text);
+  border: 1.5px solid var(--mt-line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mtp-pill--start {
+  align-self: flex-start;
+}
+
+/* ------------------------------------------------------------ тело и текст */
+
+.mtp-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 16px 44px;
+  min-height: 0;
+}
+.mtp-body--center {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.mtp-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mtp-head__txt {
+  flex: 1;
+  min-width: 0;
+}
+.mtp-eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mt-muted);
+  line-height: 1.3;
+}
+.mtp-eyebrow--ink {
+  color: var(--mt-text);
+}
+.mtp-title {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(30px, 9.4vw, 40px);
+  line-height: 1.04;
+  color: var(--mt-head);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.mtp[data-style="night"] .mtp-title {
+  text-shadow: 0 0 14px rgba(243, 210, 122, 0.35);
+}
+.mtp[data-side] .mtp-title {
+  text-shadow: none;
+}
+.mtp-title--huge {
+  font-size: 88px;
+}
+.mtp-text {
+  margin: 0;
+  font-size: 17px;
+}
+.mtp-lead {
+  font-size: 22px;
+}
+.mtp-hint {
+  margin: 0;
+  font-size: 15px;
+  color: var(--mt-muted);
+}
+.mtp-ink {
+  color: var(--mt-text);
+}
+.mtp-center {
+  text-align: center;
+}
+.mtp-left {
+  text-align: left;
+}
+.mtp-clip {
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mtp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.mtp-row--ink {
+  font-size: 15px;
+  margin-top: 4px;
+}
+.mtp-card {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--mt-panel);
+  border: 1.5px solid var(--mt-line);
+  border-radius: 18px;
+  padding: 14px 16px;
+}
+.mtp-card--bad {
+  border-color: var(--mt-bad);
+}
+.mtp-card--good {
+  border-color: var(--mt-good);
+}
+.mtp-card__big {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--mt-bad);
+}
+.mtp-bignum {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  font-size: 56px;
+  line-height: 1;
+  color: var(--mt-head);
+}
+.mtp-bignum--no {
+  font-size: 92px;
+}
+.mtp-bignum--xl {
+  font-size: 112px;
+}
+.mtp-bignum--sm {
+  font-size: 34px;
+}
+.mtp[data-style="night"] .mtp-bignum {
+  text-shadow: 0 0 18px rgba(243, 210, 122, 0.45);
+}
+.mtp-mono {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  width: 22px;
+  color: var(--mt-muted);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.mtp-mono svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.mtp-actions {
+  width: 100%;
+}
+
+/* Кнопки платформы — в цветах двора (вторичная на белом фарфоре иначе не видна). */
+.mtp .btn {
+  min-height: 56px;
+}
+.mtp .btn--secondary {
+  color: var(--mt-text);
+  border-color: var(--mt-hi);
+}
+.mtp[data-style="sunny"] .btn--secondary {
+  border-color: var(--mt-gold-line);
+}
+.mtp .btn:disabled {
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------ кольцо отсчёта */
+
+.mtp-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.mtp-ring svg {
+  position: absolute;
+  inset: 0;
+}
+.mtp-ring__track {
+  stroke: var(--mt-track);
+}
+.mtp-ring__fill {
+  stroke: var(--mt-accent);
+}
+.mtp[data-side] .mtp-ring__fill {
+  stroke: #221e1b;
+}
+.mtp-ring b {
+  position: relative;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 24px;
+  color: var(--mt-text);
+}
+
+/* ------------------------------------------------------------ «Замри!» */
+
+.mtp-path {
+  position: relative;
+  height: 18px;
+  margin: 14px 30px 4px 0;
+  border-radius: 9px;
+  background: var(--mt-track);
+}
+.mtp-path--thin {
+  height: 12px;
+  margin: 8px 0 0;
+  overflow: hidden;
+}
+.mtp-path i {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: var(--mt-accent);
+  transform-origin: left center;
+  transition: transform 0.2s linear;
+}
+.mtp-path__me {
+  position: absolute;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 50%;
+  background: var(--mt-chip);
+  color: var(--mt-on-gold);
+  font-size: 16px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fbf6f1;
+}
+.mtp-path__flag {
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  line-height: 1;
+}
+.mtp-banner {
+  border-radius: 18px;
+  padding: 10px 16px;
+  text-align: center;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  font-size: 60px;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--mt-banner);
+  color: var(--mt-banner-ink);
+  animation: mtp-pop 0.25s ease-out;
+}
+.mtp[data-style="night"] .mtp-banner {
+  box-shadow: 0 0 24px rgba(243, 210, 122, 0.7);
+}
+
+/* Зона удержания — нижняя половина экрана: держит — бежит, отпустил — стоит. Без лупы, выделения и меню. */
+.mtp-zone {
+  position: relative;
+  flex: 1 1 50%;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 32px;
+  text-align: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+  background: var(--mt-stand);
+  color: var(--mt-stand-ink);
+  border: 3px dashed var(--mt-hi);
+  overflow: hidden;
+}
+.mtp-zone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--mt-look);
+  opacity: 0;
+  pointer-events: none;
+}
+.mtp-zone__big {
+  position: relative;
+  z-index: 1;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.mtp-zone__small {
+  position: relative;
+  z-index: 1;
+  font-size: 17px;
+  font-weight: 500;
+}
+.mtp-zone[data-state="run"] {
+  background: var(--mt-run);
+  color: var(--mt-run-ink);
+  border: 3px solid var(--mt-run);
+}
+.mtp-zone[data-state="run"]::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220px;
+  height: 220px;
+  margin: -110px 0 0 -110px;
+  border-radius: 50%;
+  border: 3px solid rgba(34, 30, 27, 0.25);
+  animation: mtp-pulse 0.9s ease-out infinite;
+  pointer-events: none;
+}
+.mtp-zone[data-state="look"],
+.mtp-zone[data-state="caught-risk"] {
+  background: var(--mt-look);
+  color: var(--mt-look-ink);
+  border: 3px solid var(--mt-look);
+}
+.mtp-zone[data-state="look"]::after,
+.mtp-zone[data-state="caught-risk"]::after {
+  background: #ffffff;
+  animation: mtp-flash 0.45s ease-out 1;
+}
+.mtp-zone[data-state="off"],
+.mtp-zone[data-state="done"] {
+  background: var(--mt-panel);
+  color: var(--mt-muted);
+  border-style: solid;
+  border-color: var(--mt-line);
+  cursor: default;
+}
+.mtp-zone[data-state="done"] {
+  color: var(--mt-good);
+}
+
+/* ------------------------------------------------------------ «Пряник» */
+
+.mtp-boxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mtp-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 52px;
+  border-radius: 18px;
+  padding: 8px 4px 10px;
+  background: var(--mt-panel);
+  border: 2px solid var(--mt-line);
+  color: var(--mt-text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+}
+.mtp-box.is-on {
+  border-color: var(--mt-hi);
+  box-shadow: 0 0 0 3px var(--mt-hi);
+}
+.mtp-tin {
+  width: 100%;
+  max-width: 140px;
+  height: auto;
+}
+.mtp-field {
+  align-self: center;
+  width: min(100%, 52dvh, 420px);
+  aspect-ratio: 1;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.mtp-cookie {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.mtp-cookie--small {
+  width: min(62vw, 240px);
+}
+.mtp-cookie__done {
+  stroke: #f3dfae;
+}
+.mtp[data-style="night"] .mtp-cookie__done {
+  stroke: #ffd36b;
+}
+.mtp-cookie__finger {
+  fill: rgba(255, 245, 220, 0.55);
+  stroke: #fff4d6;
+  stroke-width: 1;
+}
+.mtp-cookie.is-cracked .mtp-cookie__a {
+  transform-origin: 50% 50%;
+  animation: mtp-crack 0.5s ease-out both;
+}
+.mtp-crack-word {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  font-size: 84px;
+  line-height: 1;
+  color: var(--mt-bad);
+  animation: mtp-shake 0.4s ease-out;
+}
+
+/* ------------------------------------------------------------ «Стулья» */
+
+.mtp-dance {
+  animation: mtp-dance 0.9s ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+}
+.mtp-notes {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 52px;
+  line-height: 1;
+  color: var(--mt-head);
+}
+.mtp-chairs {
+  position: relative;
+  flex: 1;
+  min-height: 300px;
+  border-radius: 20px;
+  background: var(--mt-panel);
+  border: 1.5px dashed var(--mt-line);
+}
+.mtp-chair {
+  position: absolute;
+  width: 92px;
+  height: 92px;
+  transform: translate(-50%, -50%);
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  background: #fbf6f1;
+  border: 3px solid #9a7444;
+  box-shadow: 0 6px 0 #9a7444;
+  touch-action: none;
+  cursor: pointer;
+  animation: mtp-pop 0.18s ease-out;
+}
+.mtp[data-style="night"] .mtp-chair {
+  background: #35302b;
+  border-color: #e3c68c;
+  box-shadow: 0 0 16px rgba(227, 198, 140, 0.5);
+}
+.mtp-seat.is-dim {
+  opacity: 0.45;
+}
+
+/* ------------------------------------------------------------ «Канат» */
+
+.mtp-card--side {
+  background: rgba(34, 30, 27, 0.14);
+  border-color: rgba(34, 30, 27, 0.4);
+}
+.mtp-tug {
+  position: relative;
+  height: 22px;
+  margin-top: 8px;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 2px solid rgba(34, 30, 27, 0.55);
+  background: #fbf6f1;
+}
+.mtp-tug i {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transition: transform 0.2s linear;
+}
+.mtp-tug--coral i {
+  background: #8a5148;
+}
+.mtp-tug--sage i {
+  background: #3f6b4a;
+}
+.mtp-knot-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.mtp-knot {
+  width: min(250px, 66vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 18px;
+  background: #fbf6f1;
+  color: #221e1b;
+  font: inherit;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.15;
+  box-shadow:
+    0 0 0 14px rgba(251, 246, 241, 0.35),
+    0 16px 30px rgba(0, 0, 0, 0.3);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+.mtp-knot:active {
+  transform: scale(0.96);
+}
+.mtp-knot:disabled {
+  opacity: 0.7;
+}
+.mtp[data-side] .mtp-bignum {
+  color: #221e1b;
+  text-shadow: none;
+}
+
+/* ------------------------------------------------------------ «Классики», «Второй шанс», финал */
+
+.mtp-brave {
+  min-height: 96px !important;
+  font-size: 26px;
+}
+.mtp-lr {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-height: 160px;
+  max-height: 340px;
+}
+.mtp-cell {
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 52px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--mt-ice-ink);
+  background: linear-gradient(160deg, var(--mt-ice), var(--mt-ice-2));
+  border: 3px solid var(--mt-ice-line);
+  cursor: pointer;
+}
+.mtp-cell.is-on {
+  outline: 4px solid var(--mt-run);
+  outline-offset: 3px;
+}
+.mtp-cell:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.mtp-question {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+.mtp-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mtp-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  border: 2px solid var(--mt-line);
+  background: var(--mt-panel);
+  color: var(--mt-text);
+  font: inherit;
+  font-size: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+.mtp-option b {
+  flex: none;
+  width: 28px;
+}
+.mtp-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mtp-option.is-on {
+  border-color: var(--mt-hi);
+  box-shadow: 0 0 0 3px var(--mt-hi);
+}
+.mtp-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mtp-option--who > span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+.mtp-who {
+  font-size: 20px;
+  width: auto !important;
+  overflow-wrap: anywhere;
+}
+.mtp-gestures {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mtp-gesture {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 96px;
+  border-radius: 20px;
+  padding: 6px 18px;
+  background: var(--mt-panel);
+  border: 2px solid var(--mt-line);
+  color: var(--mt-text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 24px;
+  cursor: pointer;
+}
+.mtp-gesture.is-on {
+  border-color: var(--mt-hi);
+  box-shadow: 0 0 0 3px var(--mt-hi);
+}
+.mtp-score {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+.mtp-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.mtp-vs > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.mtp-count {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  font-size: 160px;
+  line-height: 1;
+  color: var(--mt-head);
+  animation: mtp-pop 0.3s ease-out;
+}
+.mtp-doll-row {
+  display: flex;
+  justify-content: center;
+}
+.mtp-doll {
+  display: block;
+  height: auto;
+}
+
+/* ------------------------------------------------------------ болельщик */
+
+.mtp-guess {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mtp-slider {
+  --fill: 30%;
+  width: 100%;
+  height: 52px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  accent-color: var(--mt-accent);
+}
+.mtp-slider::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--mt-accent) var(--fill), var(--mt-track) var(--fill));
+}
+.mtp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  margin-top: -16px;
+  border-radius: 50%;
+  background: #fbf6f1;
+  border: 4px solid var(--mt-accent);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+.mtp-slider::-moz-range-track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--mt-track);
+}
+.mtp-slider::-moz-range-progress {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--mt-accent);
+}
+.mtp-slider::-moz-range-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fbf6f1;
+  border: 4px solid var(--mt-accent);
+}
+.mtp-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ------------------------------------------------------------ анимации (только transform и opacity) */
+
+@keyframes mtp-pop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes mtp-pulse {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+@keyframes mtp-flash {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes mtp-crack {
+  0% {
+    transform: none;
+  }
+  30% {
+    transform: translateX(-3px) rotate(-2deg);
+  }
+  60% {
+    transform: translateX(3px) rotate(2deg);
+  }
+  100% {
+    transform: none;
+    opacity: 0.85;
+  }
+}
+@keyframes mtp-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+@keyframes mtp-dance {
+  from {
+    transform: rotate(-6deg);
+  }
+  to {
+    transform: rotate(6deg) translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mtp *,
+  .mtp *::before,
+  .mtp *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Узкий телефон (320–359 px): крупное чуть меньше. */
+@media (max-width: 359px) {
+  .mtp-title {
+    font-size: 32px;
+  }
+  .mtp-bignum--no {
+    font-size: 76px;
+  }
+  .mtp-banner {
+    font-size: 48px;
+  }
+}

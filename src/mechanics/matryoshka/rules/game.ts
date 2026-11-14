@@ -827,7 +827,8 @@ function handle(s: MatState, m: Member, e: InEvent, te: number, now: number, cla
       if (!player || play?.kind !== "freeze" || tr?.stage !== "play") return false;
       const r = play.runners[m.pid];
       if (!r) return false;
-      return holdEvent(play, r, e.on === true, te, now);
+      // Подтверждает удержание до своего момента только событие с отметкой или свежее (у повтора без отметки время — приход).
+      return holdEvent(play, r, e.on === true, te, now, e.stamped === true || !e.delayed);
     }
     case "box": {
       if (!player || play?.kind !== "ginger" || tr?.stage !== "play") return false;

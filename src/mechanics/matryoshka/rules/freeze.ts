@@ -7,6 +7,7 @@
  * своим заявленным временем, а поимка объявляется, когда взгляд «устоялся».
  */
 import {
+  CATCH_FROM_MS,
   DECOY_BEFORE_MS,
   DECOY_SHARE,
   FIRST_PHRASE_MS,
@@ -17,7 +18,6 @@ import {
   HOLD_SHARE,
   PHRASE_MAX_MS,
   PHRASE_MIN_MS,
-  REACTION_MS,
   ROLLBACK,
   TRACK,
 } from "./constants";
@@ -45,7 +45,7 @@ export function freezeSchedule(rand: () => number, from: number, until: number):
 }
 
 export function newRunner(t: number): Runner {
-  return { path: 0, holding: false, acc: t, heard: -Infinity, last: t, finishedAt: null, pending: null, caught: 0, caughtAt: [], everHeld: false };
+  return { path: 0, holding: false, acc: t, heard: -Infinity, last: t, seen: t, finishedAt: null, pending: null, caught: 0, caughtAt: [], everHeld: false };
 }
 
 export function freezeStart(rand: () => number, t: number, duration: number, pids: readonly string[]): FreezeState {
@@ -59,19 +59,28 @@ export function speedOf(st: Pick<FreezeState, "base">): number {
   return TRACK / (HOLD_SHARE * st.base);
 }
 
-/** Окно поимки взгляда: полуинтервал [T + 0,3 с; конец взгляда) (L4). */
+/**
+ * Окно поимки взгляда: полуинтервал [T + 0,5 с; конец взгляда) — реакция 0,3 с и запас на часы экрана и телефона 0,2 с (L4,
+ * второе ревью 3a). `T` — назначенный сервером момент поворота: и экран, и отметка телефона сверены с часами сервера.
+ */
 export function windowOf(g: Gaze): [number, number] {
-  return [g.a + REACTION_MS, g.e];
+  return [g.a + CATCH_FROM_MS, g.e];
 }
 
 /**
  * Учесть бегуна до `to`: путь растёт, пока держит вне окон; держал в окне — пойман этим взглядом (откат на конце взгляда);
- * держит без пачек дольше 2 с — «стоит» (L6); после конца бега путь не растёт. Меняет `r` на месте.
+ * после конца бега путь не растёт. Меняет `r` на месте.
+ *
+ * Держит — это **подтверждённое** удержание (второе ревью 3a, решение владельца 12 «любой сбой — стою»): до последнего события
+ * телефона, пока он держал (`seen`). Пачек нет (обрыв связи) — дальше для игры «стоит»: путь не растёт, взгляд не ловит; для
+ * вида «держит» ещё 2 с после последней пачки (`HOLD_GRACE_MS`), потом и вид «стоит» (L6). `optimistic` — только для вида
+ * экрана «на сейчас»: путь и без подтверждения, до конца этих 2 с.
  */
-export function advance(st: FreezeState, r: Runner, to: number): void {
+export function advance(st: FreezeState, r: Runner, to: number, optimistic = false): void {
   if (to <= r.acc) return;
   const v = speedOf(st);
-  const holdEnd = r.holding ? Math.max(r.acc, Math.min(to, r.heard + HOLD_GRACE_MS, st.runEnds)) : r.acc;
+  const graceEnd = r.holding ? Math.max(r.acc, Math.min(to, r.heard + HOLD_GRACE_MS, st.runEnds)) : r.acc;
+  const holdEnd = optimistic ? graceEnd : Math.max(r.acc, Math.min(graceEnd, r.seen));
   const cuts = new Set<number>([to]);
   if (holdEnd > r.acc && holdEnd < to) cuts.add(holdEnd);
   for (const g of st.gazes) {
@@ -111,14 +120,14 @@ export function advance(st: FreezeState, r: Runner, to: number): void {
     }
     x = y;
   }
-  if (r.holding && (holdEnd < to || r.finishedAt !== null)) r.holding = false;
+  if (r.holding && (graceEnd < to || r.finishedAt !== null)) r.holding = false;
   r.acc = to;
 }
 
 /** Путь и финиш на «сейчас» без изменений (экран): копия бегуна, учтённая до `to`. */
 export function project(st: FreezeState, r: Runner, to: number): { path: number; finished: boolean } {
   const copy: Runner = { ...r, caughtAt: [...r.caughtAt] };
-  advance(st, copy, Math.min(to, st.runEnds));
+  advance(st, copy, Math.min(to, st.runEnds), true);
   return { path: copy.path, finished: copy.finishedAt !== null };
 }
 
@@ -129,16 +138,20 @@ export function settledAt(st: FreezeState, now: number): number {
 
 /**
  * «Нажал» (`on`) или «отпустил» в момент `te` (уже время игры), пришло в `arrival`. Время не раньше учтённого и прошлого
- * события этого телефона, не позже конца бега. Ответ — принято ли игровое действие.
+ * события этого телефона, не позже конца бега. Событие, пока держал, подтверждает удержание до своего момента (`confirms`:
+ * у события с отметкой или свежего; у повтора без отметки время — приход, оно удержание не продлевает). Ответ — принято ли
+ * игровое действие.
  */
-export function holdEvent(st: FreezeState, r: Runner, on: boolean, te: number, arrival: number): boolean {
+export function holdEvent(st: FreezeState, r: Runner, on: boolean, te: number, arrival: number, confirms = true): boolean {
   if (r.finishedAt !== null || arrival > st.runEnds) return false;
   const at = Math.min(st.runEnds, Math.max(te, r.acc, r.last));
+  if (r.holding && confirms) r.seen = Math.max(r.seen, at);
   advance(st, r, at);
   r.last = at;
   if (r.finishedAt !== null) return true;
   if (on) {
     r.heard = arrival;
+    if (!r.holding || confirms) r.seen = Math.max(r.seen, at);
     r.holding = true;
     r.everHeld = true;
   } else r.holding = false;

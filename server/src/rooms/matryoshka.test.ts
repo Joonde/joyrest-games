@@ -221,10 +221,10 @@ describe("«Игры Матрёшки» в игровой комнате", () =>
     expect(st.runners.b0?.holding).toBe(true);
   });
 
-  it("«отпустил» из повторённой пачки (`delayed`) — по приходу; свежая пачка — по заявленному времени (L5)", () => {
+  it("«отпустил» дошло поздно: свежая пачка — по заявленному времени, повтор с отметкой — по отметке, повтор без отметки удержание не продлевает — никто не пойман (L5, второе ревью 3a)", () => {
     let now = 1_000_000;
     const r = room(6, { style: "night" });
-    const phones = Array.from({ length: 2 }, (_, i) => new Phone(`b${i}`, r, now, "d"));
+    const phones = Array.from({ length: 3 }, (_, i) => new Phone(`b${i}`, r, now, "d"));
     r.command("start", null, null, now);
     for (let t = 0; t < 20_000; t += 100) r.tick((now += 100));
     const s = state(r);
@@ -237,16 +237,25 @@ describe("«Игры Матрёшки» в игровой комнате", () =>
       if (t % 1000 === 0) for (const p of phones) p.send(now, [{ t: "h", on: true }]);
       r.tick(now);
     }
-    // Оба отпустили за 0,1 с до поворота; пачки пришли через 0,9 с: b0 — свежая, b1 — повтор (`delayed`).
+    // Все отпустили за 0,1 с до поворота; пачки пришли через 0,9 с: b0 — свежая, b1 — повтор (`delayed`) без отметки, b2 —
+    // повтор с отметкой.
+    const releasedAt = now;
+    // Пачка «отпустил» у b1 и b2 потерялась (номер ушёл), дошёл её повтор.
+    const lost1 = (phones[1] as Phone).seq++;
+    const lost2 = (phones[2] as Phone).seq++;
     for (let t = 0; t < 900; t += 100) r.tick((now += 100));
     (phones[0] as Phone).send(now, [{ t: "h", on: false }], { ago: 900 });
-    (phones[1] as Phone).send(now, [{ t: "h", on: false }], { ago: 900, retry: true, seq: 0 });
+    (phones[1] as Phone).send(now, [{ t: "h", on: false }], { ago: 900, retry: true, seq: lost1 });
+    (phones[2] as Phone).send(now, [{ t: "h", on: false, st: releasedAt }], { retry: true, seq: lost2 });
+    expect(st.runners.b1?.holding).toBe(false);
+    expect(st.runners.b2?.holding).toBe(false);
     for (let t = 0; t < 6000; t += 100) r.tick((now += 100));
     expect(st.runners.b0?.caught).toBe(0);
-    expect(st.runners.b1?.caught).toBe(1);
+    expect(st.runners.b1?.caught).toBe(0);
+    expect(st.runners.b2?.caught).toBe(0);
   });
 
-  it("отметка времени `st`: честное «отпустил» в T+0,25 при дороге запроса 0–400 мс не поймано, в T+0,35 — поймано; без отметки дорога съедает окно (аудит 3a)", () => {
+  it("отметка времени `st`: честное «отпустил» в T+0,25 при дороге запроса 0–400 мс не поймано, в T+0,55 — поймано (окно с T+0,5 с); без отметки дорога съедает окно (аудит 3a)", () => {
     const lats = [0, 50, 100, 150, 250, 400];
     const run = (rel: number, stamped: boolean): boolean[] => {
       let now = 1_000_000;
@@ -278,9 +287,52 @@ describe("«Игры Матрёшки» в игровой комнате", () =>
       return lats.map((_, i) => (st.runners[`b${i}`]?.caught ?? 0) > 0);
     };
     expect(run(250, true)).toEqual(lats.map(() => false));
-    expect(run(350, true)).toEqual(lats.map(() => true));
-    // Без отметки (старый телефон) — по «приход − ago»: дорога 100 мс и больше уже ловит.
-    expect(run(250, false).slice(3)).toEqual([true, true, true]);
+    expect(run(550, true)).toEqual(lats.map(() => true));
+    // Без отметки (старый телефон) — по «приход − ago»: дорога больше 250 мс уже ловит.
+    expect(run(250, false)).toEqual([false, false, false, false, false, true]);
+  });
+
+  it("поворот — по назначенному сервером T, окно с T + 0,5 с (реакция 0,3 + запас на часы 0,2): ошибки часов экрана и телефона ±150 мс, дорога 30/150/400 мс (второе ревью 3a)", () => {
+    const ERR = [-150, 0, 150];
+    const DELAYS = [30, 150, 400];
+    /** Человек отпустил через `rt` после поворота, который показал экран (по своим часам, ошибка es); телефон ставит отметку по своим (ep). */
+    const run = (rt: number): Array<{ es: number; ep: number; d: number; caught: boolean }> => {
+      const combos = ERR.flatMap((es) => ERR.flatMap((ep) => DELAYS.map((d) => ({ es, ep, d }))));
+      let now = 1_000_000;
+      const r = room(combos.length + 2, { style: "night" });
+      const phones = combos.map((_, i) => new Phone(`b${i}`, r, now, "clk"));
+      r.command("start", null, null, now);
+      for (let t = 0; t < 20_000; t += 100) r.tick((now += 100));
+      const s = state(r);
+      const st = s.trial?.play as FreezeState;
+      expect(s.trial?.stage).toBe("play");
+      const T = now - s.offset + 3000;
+      st.gazes = [{ ph: T - 3000, a: T, e: T + 3000, d: null }];
+      const Ts = T + s.offset;
+      const plan: Array<{ arrive: number; i: number; e: Record<string, unknown> }> = [];
+      combos.forEach((c, i) => {
+        const release = Ts - c.es + rt; // настоящее время, когда отпустил
+        for (let x = now; x < release; x += 1000) plan.push({ arrive: x + c.d, i, e: { t: "h", on: true, st: x + c.ep } });
+        plan.push({ arrive: release + c.d, i, e: { t: "h", on: false, st: release + c.ep } });
+      });
+      plan.sort((a, b) => a.arrive - b.arrive);
+      while (now < Ts + 6000) {
+        while (plan.length > 0 && (plan[0]?.arrive ?? Infinity) <= now) {
+          const x = plan.shift();
+          if (x) (phones[x.i] as Phone).send(x.arrive, [x.e]);
+        }
+        r.tick((now += 10));
+      }
+      return combos.map((c, i) => ({ ...c, caught: (st.runners[`b${i}`]?.caught ?? 0) > 0 }));
+    };
+    // Честные 0,15–0,2 с — не пойманы ни при каких ошибках часов; 0,25 с — не пойманы, пока часы экрана и телефона расходятся не
+    // больше чем на 0,15 с (в угловом случае «экран отстаёт на 0,15, телефон спешит на 0,15» — пойман; docs/matryoshka.md).
+    for (const rt of [150, 200]) expect(run(rt).filter((c) => c.caught)).toEqual([]);
+    expect(run(250).filter((c) => c.caught && c.ep - c.es <= 150)).toEqual([]);
+    // Держал 0,8 с и дольше — пойман, кроме углового «экран спешит на 0,15, телефон отстаёт на 0,15».
+    for (const rt of [800, 1200]) expect(run(rt).filter((c) => !c.caught && c.ep - c.es >= -150)).toEqual([]);
+    // Без ошибок часов: 0,25 с — нет, 0,55 с — пойман при любой дороге.
+    expect(run(550).filter((c) => c.es === 0 && c.ep === 0).every((c) => c.caught)).toBe(true);
   });
 
   it("снимок посреди испытания → «перезапуск»: комната на паузе, испытание снова с отсчёта, после «Продолжить» — играется до конца", () => {

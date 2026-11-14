@@ -46,12 +46,15 @@ export function toServer(s: MatState, gameTime: number): number {
 
 /**
  * Время события телефона в игре (L5): свежее — **заявленное** (`at`; его предел ставит движок: интервал пачки + 0,5 с, не
- * больше 4 с), `delayed` — время прихода. Не раньше конца паузы (`floor`) и не позже «сейчас». Правила «Бубликатора» «задним
- * числом не больше 0,3 с» здесь нет: честное «отпустил» с пачкой через 1 с сдвинулось бы и поймало бы зря.
+ * больше 4 с). Событие с отметкой телефона (`stamped`, часы сервера) — по отметке **и из повторённой пачки** (`delayed`; второе
+ * ревью 3a: честное «отпустил» в T + 0,1 с, дошедшее повтором через 0,3–2 с, иначе ловилось бы по времени прихода); предел у
+ * повтора движок ставит свой — время с прихода прошлой принятой пачки + 0,5 с, не больше 4 с, — поэтому задним числом и так
+ * не дальше. `delayed` без отметки — время прихода. Не раньше конца паузы (`floor`) и не позже «сейчас». Правила
+ * «Бубликатора» «задним числом не больше 0,3 с» здесь нет: честное «отпустил» с пачкой через 1 с сдвинулось бы и поймало бы зря.
  */
-export function eventTime(s: MatState, env: TimeEnv, e: Pick<InEvent, "at" | "delayed">): number {
+export function eventTime(s: MatState, env: TimeEnv, e: Pick<InEvent, "at" | "delayed" | "stamped">): number {
   const now = gameNow(s, env);
-  if (e.delayed) return now;
+  if (e.delayed && e.stamped !== true) return now;
   return Math.min(now, Math.max(s.floor, e.at - s.offset));
 }
 
@@ -68,13 +71,15 @@ export function claimedTime(s: MatState, env: TimeEnv, e: Pick<InEvent, "at">): 
  */
 export function reactionFits(rt: number, te: number, shownAt: number, e: Pick<InEvent, "stamped" | "delayed">): boolean {
   const implied = te - rt;
-  const late = e.stamped === true && !e.delayed ? REACT_CLOCK_MS : REACT_CLOCK_MS + REACT_TRIP_MS;
-  return implied >= shownAt - REACT_CLOCK_MS && implied <= shownAt + late;
+  return implied >= shownAt - REACT_CLOCK_MS && implied <= shownAt + stampSlack(e);
 }
 
-/** Запас к сроку для заявленного времени события: с отметкой — часы, без неё — ещё дорога запроса. */
+/**
+ * Запас к сроку для заявленного времени события: с отметкой — часы (и у повтора: отметка — часы телефона, дорога в ней не
+ * сидит), без неё — ещё дорога запроса.
+ */
 export function stampSlack(e: Pick<InEvent, "stamped" | "delayed">): number {
-  return e.stamped === true && !e.delayed ? REACT_CLOCK_MS : REACT_CLOCK_MS + REACT_TRIP_MS;
+  return e.stamped === true ? REACT_CLOCK_MS : REACT_CLOCK_MS + REACT_TRIP_MS;
 }
 
 /**

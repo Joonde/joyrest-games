@@ -3,7 +3,9 @@
 import { describe, expect, it } from "vitest";
 import {
   BAND_KIDS,
+  CATCH_FROM_MS,
   CHAIRS_LATE_RT,
+  CLOCK_SYNC_MS,
   DECOY_BEFORE_MS,
   FAN_WEIGHT,
   FREEZE_MS,
@@ -74,13 +76,16 @@ describe("«Замри!»", () => {
     expect(r.path).toBe(TRACK);
   });
 
-  it("окно поимки — полуинтервал [T + 0,3 с; конец): отпустил ровно в T + 0,3 — не пойман, на 1 мс позже — пойман, откат 300", () => {
+  it("окно поимки — полуинтервал [T + 0,5 с; конец) — реакция 0,3 с и запас на часы 0,2 с: отпустил ровно в T + 0,5 — не пойман, на 1 мс позже — пойман, откат 300", () => {
+    expect(CATCH_FROM_MS).toBe(REACTION_MS + CLOCK_SYNC_MS);
+    expect(CLOCK_SYNC_MS).toBeGreaterThanOrEqual(150);
+    expect(CLOCK_SYNC_MS).toBeLessThanOrEqual(200);
     for (const late of [0, 1]) {
       const st = oneGaze(10_000, 13_000);
       const r = st.runners.x ?? newRunner(0);
       holdEvent(st, r, true, 0, 0);
       for (let t = 1000; t < 10_000; t += 1000) holdEvent(st, r, true, t, t);
-      holdEvent(st, r, false, 10_000 + REACTION_MS + late, 10_000 + REACTION_MS + late);
+      holdEvent(st, r, false, 10_000 + CATCH_FROM_MS + late, 10_000 + CATCH_FROM_MS + late);
       const before = r.path;
       advance(st, r, 20_000);
       expect(r.caught, `late ${late}`).toBe(late);
@@ -97,22 +102,38 @@ describe("«Замри!»", () => {
     const r = st.runners.x ?? newRunner(0);
     for (let t = 0; t <= 30_000; t += 1000) holdEvent(st, r, true, t, t);
     const v = TRACK / (HOLD_SHARE * FREEZE_MS);
-    // Держал всё время: до окна 10,3 с (286 делений) — откат в 0 (не ниже нуля), до второго окна 8,3 с — снова 0, дальше 8 с.
+    // Держал всё время: до окна 10,5 с (292 деления) — откат в 0 (не ниже нуля), до второго окна 8,5 с — снова 0, дальше 8 с.
     expect(r.caught).toBe(2);
     expect(r.caughtAt).toEqual([0, 1]);
-    expect((10_000 + REACTION_MS) * v).toBeLessThan(ROLLBACK);
+    expect((10_000 + CATCH_FROM_MS) * v).toBeLessThan(ROLLBACK);
     expect(r.path).toBeCloseTo((30_000 - 22_000) * v, 3);
   });
 
-  it("нет связи: удержание считается до последней пачки + 2 с, дальше «стоит» и не пойман (L6)", () => {
+  it("нет связи: путь — только до последнего подтверждённого «держу», взгляд без пачек не ловит; «держит» для вида — ещё 2 с (L6, второе ревью 3a)", () => {
+    const v = TRACK / (HOLD_SHARE * FREEZE_MS);
+    // Связь пропала за 0,1–2 с до поворота (последнее «держу» дошло), палец так и лежит на зоне: не пойман, путь — до «держу».
+    for (const silentFrom of [8_000, 9_000, 9_500, 9_900, 10_000, 10_400]) {
+      const st = oneGaze(10_000, 13_000);
+      const r = st.runners.x ?? newRunner(0);
+      holdEvent(st, r, true, 0, 0);
+      for (let t = 1000; t < silentFrom; t += 1000) holdEvent(st, r, true, t, t);
+      holdEvent(st, r, true, silentFrom, silentFrom);
+      // Для вида «держит» ещё 2 с после пачки — путь «на сейчас» растёт, учтённый — нет.
+      expect(project(st, r, silentFrom + 1000).path).toBeGreaterThan(r.path);
+      advance(st, r, silentFrom + HOLD_GRACE_MS - 100);
+      expect(r.holding).toBe(true);
+      advance(st, r, 20_000);
+      expect(r.path, `тишина с ${silentFrom}`).toBeCloseTo(silentFrom * v, 6);
+      expect(r.caught, `тишина с ${silentFrom}`).toBe(0);
+      expect(r.holding).toBe(false);
+    }
+    // А «держу», дошедшее уже в окне (T + 0,5 с и позже), — держал в окне: пойман.
     const st = oneGaze(10_000, 13_000);
     const r = st.runners.x ?? newRunner(0);
-    holdEvent(st, r, true, 0, 0);
+    for (let t = 0; t <= 10_600; t += 1000) holdEvent(st, r, true, Math.min(t, 10_600), Math.min(t, 10_600));
+    holdEvent(st, r, true, 10_600, 10_600);
     advance(st, r, 20_000);
-    const v = TRACK / (HOLD_SHARE * FREEZE_MS);
-    expect(r.path).toBeCloseTo(HOLD_GRACE_MS * v, 6);
-    expect(r.caught).toBe(0);
-    expect(r.holding).toBe(false);
+    expect(r.caught).toBe(1);
   });
 
   it("экран видит путь «на сейчас» (с удержанием), учтённое не меняется", () => {
@@ -124,8 +145,8 @@ describe("«Замри!»", () => {
     expect(r.path).toBe(0);
   });
 
-  it("свежее «отпустил» с пачкой через 1 с — по заявленному времени (не пойман); из повтора (delayed) — по приходу (пойман) (L5)", () => {
-    for (const delayed of [false, true]) {
+  it("«отпустил» дошло поздно: свежее — по заявленному времени, повтор с отметкой — по отметке, повтор без отметки — не продлевает удержание: не пойман; держал в окне (пачки «держу» в окне) — пойман (L5, второе ревью 3a)", () => {
+    for (const how of ["fresh", "delayed-stamped", "delayed", "held-in-window"] as const) {
       const w = new World(6, { style: "night" }, "freeze-l5");
       w.cmd("start");
       w.until(() => w.s.trial?.stage === "play");
@@ -135,11 +156,21 @@ describe("«Замри!»", () => {
       w.in("p0", [{ t: "h", on: true }]);
       w.step(4900);
       w.in("p0", [{ t: "h", on: true }]);
-      // Отпустил за 0,1 с до поворота, пачка пришла через 1,1 с (в окне).
-      w.step(1200);
-      w.in("p0", [{ t: "h", on: false }], delayed ? { delayed: true } : { ago: 1100 });
+      if (how === "held-in-window") {
+        // Держал и в окне: «держу» пришло на T + 0,7 с, «отпустил» — повтором позже.
+        w.step(800);
+        w.in("p0", [{ t: "h", on: true }]);
+        w.step(400);
+        w.in("p0", [{ t: "h", on: false }], { delayed: true });
+      } else {
+        // Отпустил в T + 0,1 с, «отпустил» дошло через 1,1 с (в окне).
+        w.step(1300);
+        if (how === "fresh") w.in("p0", [{ t: "h", on: false }], { ago: 1100 });
+        else if (how === "delayed-stamped") w.in("p0", [{ t: "h", on: false, stamped: true }], { ago: 1100, delayed: true });
+        else w.in("p0", [{ t: "h", on: false }], { delayed: true });
+      }
       w.step(5000);
-      expect(st.runners.p0?.caught, delayed ? "delayed" : "fresh").toBe(delayed ? 1 : 0);
+      expect(st.runners.p0?.caught, how).toBe(how === "held-in-window" ? 1 : 0);
     }
   });
 

@@ -4,7 +4,7 @@
  * телефон — только своё (кроме соперника в своей дуэли и пары дуэлянтов для ставки); пульт — всё нужное ведущему, тайн нет.
  * Времена наружу — по часам сервера (`toServer`).
  */
-import { BOXES, PERSONAL_EVERY_MS, PHONE_LEAD_MS, REACTION_MS, SCREEN_BYTES_MAX, SCREEN_LEAD_MS, SCREEN_NAME_MAX } from "./constants";
+import { BOXES, CATCH_FROM_MS, HEAD_TURN_MS, PERSONAL_EVERY_MS, PHONE_LEAD_MS, SCREEN_BYTES_MAX, SCREEN_LEAD_MS, SCREEN_NAME_MAX } from "./constants";
 import { questionsOf } from "./content";
 import { gameNow, toServer, type Env } from "./env";
 import { project, speedOf } from "./freeze";
@@ -92,7 +92,7 @@ function trialScreen(s: MatState, tr: TrialState, env: ViewEnv, names: Set<strin
     out.play = {
       runEnds: srv(s, p.runEnds),
       speed: Math.round(v * 1_000_000) / 1000,
-      phrase: current ? { start: srv(s, current.ph), at: srv(s, current.a), end: srv(s, current.e), decoy: srv(s, current.d), window: srv(s, current.a + REACTION_MS) } : null,
+      phrase: current ? { start: srv(s, current.ph), at: srv(s, current.a), end: srv(s, current.e), decoy: srv(s, current.d), window: srv(s, current.a + CATCH_FROM_MS), head: srv(s, current.a - HEAD_TURN_MS) } : null,
       caught: last ? { gaze: last.gaze, count: last.pids.length, nums: last.pids.slice(0, 10).map((pid) => numOf(s, pid)) } : null,
       players,
     };

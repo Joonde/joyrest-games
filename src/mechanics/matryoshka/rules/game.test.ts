@@ -6,7 +6,7 @@ import { questionsOf, TRIAL_KINDS } from "./content";
 import { input, moment, playedToEnd, playUnit, restore, snapshot } from "./game";
 import { inGame, standings } from "./members";
 import type { MatState } from "./types";
-import { fitScreen, screenBytes } from "./views";
+import { clipText, fitScreen, screenBytes } from "./views";
 import { World } from "./world.test-kit";
 
 /** Провести испытание ботами до итогов. */
@@ -510,6 +510,42 @@ describe("виды: экран без тайн, телефон только св
     expect(maxScreen).toBeLessThanOrEqual(SCREEN_BYTES_MAX);
     if (board) for (const kind of ["freeze", "ginger", "chairs", "rope", "hopscotch", "final"]) expect(boardOn.has(kind), kind).toBe(true);
   }, 120_000);
+
+  it("имена укорачиваются целыми знаками: эмодзи на месте обрезки не режется пополам — ни в сводке экрана, ни при подгонке по байтам (второе ревью 3a)", () => {
+    const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+    // Эмодзи стоит ровно на границах 24, 20, 16, 12, 8 знаков (и семья — на нескольких кодовых точках).
+    for (const cut of [8, 12, 16, 20, 24]) {
+      expect(lone.test(clipText(`${"Ж".repeat(cut - 1)}🦊🦊`, cut))).toBe(false);
+      expect(clipText(`${"Ж".repeat(cut - 1)}🦊🦊`, cut)).toBe(`${"Ж".repeat(cut - 1)}🦊`);
+      expect(clipText(`${"Ж".repeat(cut - 1)}👨‍👩‍👧‍👦 Аня`, cut)).toBe(`${"Ж".repeat(cut - 1)}👨‍👩‍👧‍👦`);
+    }
+    expect(clipText("Аня", 24)).toBe("Аня");
+    // Браузер без `Intl.Segmenter` — по кодовым точкам: пара не рвётся.
+    const intl = Intl as { Segmenter?: unknown };
+    const saved = intl.Segmenter;
+    intl.Segmenter = undefined;
+    try {
+      expect(clipText(`${"Ж".repeat(7)}🦊🦊`, 8)).toBe(`${"Ж".repeat(7)}🦊`);
+      expect(lone.test(clipText(`${"Ж".repeat(7)}👨‍👩‍👧‍👦`, 8))).toBe(false);
+    } finally {
+      intl.Segmenter = saved;
+    }
+    const w = new World(60, { style: "night" }, "emoji-cut");
+    w.players.forEach((p, i) => (p.name = `${"Ж".repeat(15 + (i % 10))}👨‍👩‍👧‍👦🦊 Константинопольская`));
+    for (const p of w.players) {
+      const m = w.s.members[p.pid];
+      if (m) m.name = p.name;
+    }
+    w.cmd("start");
+    const v = w.screen();
+    for (let i = 1; i <= 60; i += 1) v.names[i] = w.players[i - 1]?.name ?? "";
+    const f = fitScreen(v);
+    expect(Object.values(f.names).some((n) => lone.test(n))).toBe(false);
+    for (let i = 0; i < 600 && w.s.phase === "trial"; i += 1) {
+      w.step(100, true);
+      expect(Object.values(w.screen().names).some((n) => lone.test(n))).toBe(false);
+    }
+  });
 
   it("сводка экрана не выходит за предел и в худшем случае: имена укорачиваются, потом номера без имён", () => {
     const w = new World(100, { style: "night" }, "views-worst");

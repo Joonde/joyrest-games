@@ -27,8 +27,29 @@ export const F_OFFLINE = 8;
 export const F_BRAVE = 16;
 export const F_OUT = 32;
 
+/**
+ * Первые `max` знаков строки — **целыми** знаками (второе ревью 3a: `.slice` резал эмодзи пополам, и на экране был «�»): по
+ * графемам (`Intl.Segmenter` — семья 👨‍👩‍👧‍👦 и флаг — один знак), где его нет — по кодовым точкам (`Array.from`).
+ */
+export function clipText(text: string, max: number): string {
+  if (max <= 0) return "";
+  const Seg = (Intl as { Segmenter?: typeof Intl.Segmenter }).Segmenter;
+  if (Seg) {
+    let out = "";
+    let n = 0;
+    for (const { segment } of new Seg("ru", { granularity: "grapheme" }).segment(text)) {
+      if (n >= max) break;
+      out += segment;
+      n += 1;
+    }
+    return out;
+  }
+  const points = Array.from(text);
+  return points.length <= max ? text : points.slice(0, max).join("");
+}
+
 function nameOf(m: Member | undefined): string {
-  return (m?.name ?? "").slice(0, SCREEN_NAME_MAX);
+  return clipText(m?.name ?? "", SCREEN_NAME_MAX);
 }
 
 function numOf(s: MatState, pid: string): number {
@@ -330,7 +351,7 @@ export function screenBytes(view: ScreenView): number {
 export function fitScreen(view: ScreenView): ScreenView {
   if (screenBytes(view) <= SCREEN_BYTES_MAX) return view;
   for (let max = SCREEN_NAME_MAX - 4; max >= 8; max -= 4) {
-    for (const k of Object.keys(view.names)) view.names[Number(k)] = (view.names[Number(k)] ?? "").slice(0, max);
+    for (const k of Object.keys(view.names)) view.names[Number(k)] = clipText(view.names[Number(k)] ?? "", max);
     if (screenBytes(view) <= SCREEN_BYTES_MAX) return view;
   }
   const keys = Object.keys(view.names);

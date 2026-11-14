@@ -29,8 +29,11 @@ import {
   nextPlayer,
   attemptsLeft,
   ladderWindow,
+  finishReason,
+  outOfQuestions,
+  showTip,
 } from "./logic";
-import { validateMillionaire } from "./validate";
+import { teamsCovered, validateMillionaire } from "./validate";
 
 const teams: Participant[] = ["A", "B", "C"].map((id, i) => ({ id, name: `Команда ${id}`, kind: "team", teamId: null, captainUid: `u${id}`, joinedAt: i }));
 // Телефоны: капитан A (uA) и участник A, капитан B, участник C.
@@ -499,5 +502,103 @@ describe("время на ответ", () => {
     expect(s.state.timeLimit).toBeNull();
     const old = started({ ...game(), answerSeconds: 0 });
     expect(apply(old.s, showQuestion(old.s, old.content)).state.timeLimit).toBeNull();
+  });
+});
+
+describe("Миллион на кону: наводка ведущего (М-Н-2)", () => {
+  it("наводка не переходит к следующему ходу и к запасному вопросу", () => {
+    let { s, content } = started();
+    s = apply(s, showQuestion(s, content));
+    s = apply(s, applyLifeline(s, content, [], "host", t));
+    s = apply(s, showTip(s, "наводка к вопросу A"));
+    expect(parseMillionaireResult(s.state.result).tipText).toBe("наводка к вопросу A");
+    // Ход B: у нового вопроса наводки нет, «Совет» B начинается с пустой наводки.
+    s = apply(s, markPick(s, 1));
+    s = apply(s, revealAnswer(s, content, [], everyone));
+    s = apply(s, nextTurn(s, content, everyone));
+    expect(parseMillionaireResult(s.state.result)).toMatchObject({ turn: "B", tip: false, tipText: null });
+    s = apply(s, showQuestion(s, content));
+    s = apply(s, applyLifeline(s, content, [], "host", t));
+    expect(parseMillionaireResult(s.state.result)).toMatchObject({ tip: true, tipText: null });
+    // Наводку к вопросу B показали, потом B взяла «Замену» — к запасному вопросу наводки нет.
+    s = apply(s, showTip(s, "наводка к вопросу B"));
+    const before = parseMillionaireResult(s.state.result).q;
+    s = apply(s, applyLifeline(s, content, [], "swap", t));
+    const r = parseMillionaireResult(s.state.result);
+    expect(r.q).not.toBe(before);
+    expect(r).toMatchObject({ tip: false, tipText: null });
+  });
+});
+
+describe("Миллион на кону: не хватило вопросов (М-Н-1)", () => {
+  const four: Participant[] = [...everyone, { id: "D", name: "Команда D", kind: "team", teamId: null, captainUid: "uD", joinedAt: 3 }];
+  /** По три вопроса на ступень — как в прежнем шаблоне. */
+  function three(): MillionaireContent {
+    const c = game();
+    return { ...c, questions: c.questions.filter((q) => !q.id.endsWith("_3")) };
+  }
+  function right(s: Session, content: MillionaireContent): Session {
+    s = apply(s, showQuestion(s, content));
+    s = apply(s, markPick(s, 1));
+    s = apply(s, revealAnswer(s, content, [], four));
+    return apply(s, nextTurn(s, content, four));
+  }
+
+  it("команде, которой не хватило вопроса, — причина «вопросы ступени N», а не просто «закончила»", () => {
+    const content = three();
+    expect(teamsCovered(content)).toBe(3);
+    let s = session();
+    s = apply(s, startMillionaire(s, four, content));
+    // A, B, C ответили на свои вопросы первой ступени; у D вопросов первой ступени нет.
+    s = right(s, content);
+    s = right(s, content);
+    s = right(s, content);
+    const r = parseMillionaireResult(s.state.result);
+    expect(r.turn).toBe("A");
+    expect(finishReason(content, r, "D")).toBe("questions");
+    expect(outOfQuestions(content, r)).toEqual([{ team: "D", level: 1 }]);
+    expect(finishReason(content, r, "A")).toBeNull();
+  });
+
+  it("«Начать с самого начала» без вопросов первой ступени — тоже «кончились вопросы», а выбывшая — «выбыла»", () => {
+    const content = three();
+    let s = session();
+    s = apply(s, startMillionaire(s, everyone, content));
+    // Все три команды прошли первую ступень — её вопросы показаны.
+    for (let i = 0; i < 3; i++) {
+      s = apply(s, showQuestion(s, content));
+      s = apply(s, markPick(s, 1));
+      s = apply(s, revealAnswer(s, content, [], everyone));
+      s = apply(s, nextTurn(s, content, everyone));
+    }
+    s = apply(s, showQuestion(s, content));
+    s = apply(s, markPick(s, 3));
+    s = apply(s, revealAnswer(s, content, [], everyone));
+    s = apply(s, wrongChoice(s, content, everyone, "restart"));
+    let r = parseMillionaireResult(s.state.result);
+    expect(outOfQuestions(content, r)).toEqual([{ team: "A", level: 1 }]);
+    s = apply(s, showQuestion(s, content));
+    s = apply(s, markPick(s, 3));
+    s = apply(s, revealAnswer(s, content, [], everyone));
+    s = apply(s, wrongChoice(s, content, everyone, "out"));
+    r = parseMillionaireResult(s.state.result);
+    expect(finishReason(content, r, "B")).toBe("out");
+    expect(outOfQuestions(content, r).map((x) => x.team)).toEqual(["A"]);
+  });
+
+  it("дошла до верха — «top», не «вопросы кончились»", () => {
+    const content = three();
+    const r = { ...parseMillionaireResult(null), order: ["A"], done: ["A"], levels: { A: levelsOf(content) } };
+    expect(finishReason(content, r, "A")).toBe("top");
+    expect(outOfQuestions(content, r)).toEqual([]);
+  });
+
+  it("шаблон — по 6 вопросов на каждую из 15 ступеней: хватит на 6 команд", () => {
+    expect(levelsOf(DEMO_MILLIONAIRE)).toBe(15);
+    expect(DEMO_MILLIONAIRE.questions).toHaveLength(90);
+    expect(teamsCovered(DEMO_MILLIONAIRE)).toBe(6);
+    expect(validateMillionaire(DEMO_MILLIONAIRE)).toEqual([]);
+    const texts = DEMO_MILLIONAIRE.questions.map((q) => q.text.trim().toLowerCase());
+    expect(new Set(texts).size).toBe(texts.length);
   });
 });

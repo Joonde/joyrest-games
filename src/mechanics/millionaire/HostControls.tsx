@@ -18,6 +18,7 @@ import {
   canUseLifeline,
   endCall,
   finishAudience,
+  finishReason,
   levelToPlay,
   liveAudience,
   lockAnswer,
@@ -26,6 +27,7 @@ import {
   millionairePrimary,
   millionaireTeams,
   nextTurn,
+  outOfQuestions,
   wrongChoice,
   toggleAudienceQr,
   attemptsLeft,
@@ -54,6 +56,15 @@ function millionaireMoment(s: Session): string {
  * окончательный ответ?» и фиксирует → «Показать ответ» → «Следующая команда». Подсказки — плитками: каждая
  * у команды один раз; игрок может попросить подсказку с телефона — ведущий переспрашивает и включает.
  */
+/** «2 команды не сыграют», «5 игроков не сыграют». */
+function missText(n: number, solo: boolean): string {
+  const ten = n % 100;
+  const one = n % 10 === 1 && ten !== 11;
+  const few = n % 10 >= 2 && n % 10 <= 4 && (ten < 12 || ten > 14);
+  if (solo) return one ? "игрок не сыграет" : few ? "игрока не сыграют" : "игроков не сыграют";
+  return one ? "команда не сыграет" : few ? "команды не сыграют" : "команд не сыграют";
+}
+
 export function MillionaireHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<MillionaireContent>) {
   const { busy, error, latest, run, quiet } = useHostRun(session, control, rehearsal, { moment: millionaireMoment, emptyText: "Сейчас этого сделать нельзя — проверьте, что вопрос открыт." });
   const [only, setOnly] = useState<string | null>(null);
@@ -124,6 +135,28 @@ export function MillionaireHostControls({ session, content, answers, participant
     if (fresh && typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(asked ? [120, 80, 120] : 80);
   }, [buzzKey, asked]);
   const level = levelToPlay(r, r.turn);
+  // Хватит ли вопросов: на каждой ступени — по непоказанному вопросу на команду (М-Н-1).
+  const covered = teamsCovered(content);
+  const short = content.players === "one" ? 0 : Math.max(0, teams.length - covered);
+  const ranOut = outOfQuestions(content, r);
+  const ranOutNote =
+    ranOut.length > 0 ? (
+      <div className="stack stack--tight" role="note">
+        {ranOut.map(({ team, level: lv }) => (
+          <p key={team} className="error small">
+            ⚠️ У «<NameText name={name(team)} />» кончились вопросы ступени {lv} — {solo ? "игрок" : "команда"} больше не ходит, счёт остаётся.
+          </p>
+        ))}
+        <p className="muted small">Все вопросы этой ступени уже показаны залу. Чтобы так не было, добавьте в конструкторе вопросы — хотя бы по одному на каждую {solo ? "игрока" : "команду"} на каждой ступени, лучше с запасом на «Замену вопроса» и падения после ошибки.</p>
+      </div>
+    ) : null;
+  const finishLabel = (p: string) => {
+    const why = finishReason(content, r, p);
+    if (why === "top") return solo ? " · прошёл всю лестницу" : " · прошла всю лестницу";
+    if (why === "out") return solo ? " · выбыл" : " · выбыла";
+    if (why === "questions") return ` · кончились вопросы ступени ${levelToPlay(r, p, levelsOf(content))}`;
+    return "";
+  };
   const used = r.turn ? (r.used[r.turn] ?? []) : [];
   const votes = r.mode === "audience" ? audienceVotes(session, answers, participants).map((n, i) => n + (qrVotes[i] ?? 0)) : [0, 0, 0, 0];
   const voteLeft = r.mode === "audience" ? secondsLeft(session.state, now) : null;
@@ -148,8 +181,13 @@ export function MillionaireHostControls({ session, content, answers, participant
       ) : r.order.length === 0 ? (
         <>
           <p className="muted">
-            Вопросов хватит на {teamsCovered(content)} {content.players === "one" ? "игру" : `${u.plGen} без замен`}. {solo ? "Игроки" : "Команды"} ходят в порядке подключения.
+            Вопросов хватит на {covered} {content.players === "one" ? "игру" : `${u.plGen} без замен`}. {solo ? "Игроки" : "Команды"} ходят в порядке подключения.
           </p>
+          {short > 0 && (
+            <p className="error" role="note">
+              ⚠️ {solo ? "Игроков" : "Команд"} сейчас {teams.length}, а вопросов на каждой ступени хватит только на {covered}: {short} {missText(short, solo)} ни одного вопроса. Добавьте вопросы в конструкторе (хотя бы по {teams.length} на ступень) и запустите игру заново — или начните так.
+            </p>
+          )}
           {content.players === "one" && teams.length > 0 && (
             <fieldset className="stack stack--tight">
               <legend>Кто играет</legend>
@@ -167,13 +205,17 @@ export function MillionaireHostControls({ session, content, answers, participant
           )}
         </>
       ) : r.mode === "over" ? (
-        <p>Все {u.plNom} закончили. Дальше — награждение.</p>
+        <>
+          <p>Все {u.plNom} закончили. Дальше — награждение.</p>
+          {ranOutNote}
+        </>
       ) : (
         <>
           <p>
             Ход: <strong><NameText name={name(r.turn)} /></strong> · вопрос {level} — {pointsLabel(pointsAt(content, level))}
             {content.safe.includes(level) ? " · несгораемая" : ""}
           </p>
+          {ranOutNote}
           {/* Что прислал телефон — сразу сверху, не надо листать: просьба подсказки и выбранный ответ. */}
           {asked && askedCheck && (
             <section className="card stack stack--tight mil-ask" role="status">
@@ -335,7 +377,7 @@ export function MillionaireHostControls({ session, content, answers, participant
                 .map((p) => (
                   <li key={p}>
                     <NameText name={name(p)} /> — ступень {r.levels[p] ?? 0} из {levelsOf(content)} · подсказок осталось {content.lifelines.filter((l) => !(r.used[p] ?? []).includes(l)).length}
-                    {r.done.includes(p) ? " · закончила" : ""}
+                    {finishLabel(p)}
                   </li>
                 ))}
             </ol>

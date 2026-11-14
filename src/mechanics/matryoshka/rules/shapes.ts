@@ -7,8 +7,8 @@
  * секунду (быстрый зигзаг поперёк контура — аудит 3a). Сервер обводку не считает: телефон шлёт число кусочков (мягкая
  * защита, L12).
  */
-import { CRACK_FAR, CRACK_OUT_MS, CRACK_WINDOW_MS, CRACK_WINDOW_OUT_MS, PIECES, SHAPE_LENGTH } from "./constants";
-import type { ShapeId } from "./types";
+import { CRACK_FAR, CRACK_OUT_MS, CRACK_WINDOW_MS, CRACK_WINDOW_OUT_MS, GINGER_BAND, PIECES, SHAPE_LENGTH, TRACE_GAP_MS } from "./constants";
+import type { ShapeId, Style } from "./types";
 
 export type Point = readonly [number, number];
 
@@ -270,6 +270,8 @@ export interface Trace {
   lastT: number | null;
   /** Время вне полосы за последнюю секунду: `[момент, мс]` по касаниям. */
   outLog: Array<[number, number]>;
+  /** Прошлое касание было вне полосы (палец, стоявший там, всё это время вне полосы). Нет поля — старая обводка: внутри. */
+  lastOut?: boolean;
 }
 
 export function newTrace(): Trace {
@@ -332,14 +334,25 @@ export function traceTouch(shape: Shape, st: Trace, p: Point, t: number, band: n
       if (!touchPoint(shape, st, [from[0] + ((p[0] - from[0]) * i) / steps, from[1] + ((p[1] - from[1]) * i) / steps], t, band)) outside += 1;
     }
   }
+  let lastOut = false;
   if (!st.cracked && st.doneAt === null) {
     points += 1;
-    if (!touchPoint(shape, st, p, t, band)) outside += 1;
+    if (!touchPoint(shape, st, p, t, band)) {
+      outside += 1;
+      lastOut = true;
+    }
   }
   if (!st.cracked && st.doneAt === null && from && prevT !== null) {
+    // Второе ревью 3a: без событий палец стоит (браузер не шлёт движение без движения). Поэтому на «дорогу» между касаниями
+    // приходится не больше `TRACE_GAP_MS` (её делим по промежуточным точкам), остальное — палец стоял там, где было прошлое
+    // касание: вне полосы — это время вне полосы, в полосе — нет. Раньше пауза на линии до 1 с делилась как дорога, и одно
+    // дрожащее касание после неё давало трещину.
     const dt = Math.max(0, Math.min(CRACK_WINDOW_MS, t - prevT));
-    addOutside(st, t, points > 0 ? (dt * outside) / points : 0);
+    const travel = Math.min(dt, TRACE_GAP_MS);
+    const rest = st.lastOut === true ? dt - travel : 0;
+    addOutside(st, t, (points > 0 ? (travel * outside) / points : 0) + rest);
   }
+  st.lastOut = lastOut;
   st.last = p;
   st.lastT = t;
   return st;
@@ -348,7 +361,13 @@ export function traceTouch(shape: Shape, st: Trace, p: Point, t: number, band: n
 /** Палец поднят: отрывать можно — время вне полосы не копится, следующая точка без промежуточных. */
 export function traceLift(st: Trace): Trace {
   st.outSince = null;
+  st.lastOut = false;
   st.last = null;
   st.lastT = null;
   return st;
+}
+
+/** Полоса допуска по стилю (`GINGER_BAND`; строгость — решение владельца на живых телефонах). */
+export function bandOf(style: Style): number {
+  return GINGER_BAND[style];
 }

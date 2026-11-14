@@ -1,9 +1,9 @@
 // Фигуры «Пряника» (docs/matryoshka.md, «Пряник», L10): равная длина контура, в поле, 200 кусочков, ближайший кусочек,
 // трещина через 0,2 с вне полосы, промежуточные точки при быстром движении.
 import { describe, expect, it } from "vitest";
-import { BAND_ADULTS, BAND_KIDS, CRACK_FAR, CRACK_OUT_MS, CRACK_WINDOW_OUT_MS, PIECES, SHAPE_LENGTH, SHAPE_LENGTH_TOLERANCE, SHAPE_MARGIN } from "./constants";
+import { BAND_ADULTS, BAND_KIDS, BAND_NIGHT, BAND_SUNNY, CRACK_FAR, CRACK_OUT_MS, CRACK_WINDOW_OUT_MS, PIECES, SHAPE_LENGTH, SHAPE_LENGTH_TOLERANCE, SHAPE_MARGIN } from "./constants";
 import { SHAPE_IDS } from "./content";
-import { contourLength, nearestPiece, newTrace, segmentDistance, shapeOf, traceLift, traceTouch, type Point, type Shape, type Trace } from "./shapes";
+import { bandOf, contourLength, nearestPiece, newTrace, segmentDistance, shapeOf, traceLift, traceTouch, type Point, type Shape, type Trace } from "./shapes";
 
 describe("фигуры «Пряника»", () => {
   it("7 фигур, у всех одинаковая длина контура (±2%), 200 кусочков, целиком в поле с отступом", () => {
@@ -95,6 +95,63 @@ describe("фигуры «Пряника»", () => {
     traceTouch(s, st2, out, 150, BAND_ADULTS);
     traceTouch(s, st2, out, 300, BAND_ADULTS);
     expect(st2.cracked).toBe(false);
+  });
+
+  it("палец постоял на линии (событий нет) 0–1 с, потом одно дрожащее касание за полосой — трещины нет; стоял вне полосы — есть (второе ревью 3a)", () => {
+    for (const band of [BAND_ADULTS, BAND_KIDS]) {
+      for (const id of ["circle", "star", "tree", "umbrella"] as const) {
+        const s = shapeOf(id);
+        const pts = s.points;
+        for (const rest of [0, 150, 300, 600, 1000]) {
+          for (const slip of [1.3, 1.6, 2, 2.5]) {
+            for (const side of [1, -1]) {
+              const st = newTrace();
+              let t = 0;
+              for (let i = 0; i < 20; i += 1, t += 16) traceTouch(s, st, pts[i] as Point, t, band);
+              t += rest;
+              const a = pts[20] as Point;
+              const b = pts[21] as Point;
+              const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+              const n: Point = [(-(b[1] - a[1]) / len) * side, ((b[0] - a[0]) / len) * side];
+              traceTouch(s, st, [a[0] + n[0] * slip * band, a[1] + n[1] * slip * band], t, band);
+              traceTouch(s, st, a, t + 16, band);
+              expect(st.cracked, `${id} полоса ${band} стоял ${rest} мс, срыв ${slip} полосы`).toBe(false);
+            }
+          }
+        }
+        // Палец стоит за полосой (на 2 полосы) 0,4 с без событий и возвращается на линию — это 0,4 с вне полосы: трещина.
+        // Место на контуре, где в двух полосах от линии палец и правда вне полосы (у острых углов звезды — не везде).
+        let a = pts[0] as Point;
+        let outP: Point | null = null;
+        for (let i = 0; i < pts.length && outP === null; i += 1) {
+          const p0 = pts[i] as Point;
+          const p1 = pts[(i + 1) % pts.length] as Point;
+          const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+          for (const k of [1, -1]) {
+            const c: Point = [p0[0] - ((p1[1] - p0[1]) / len) * 2 * band * k, p0[1] + ((p1[0] - p0[0]) / len) * 2 * band * k];
+            const d = nearestPiece(s, c).distance;
+            if (d > 1.5 * band && d < 2.5 * band) {
+              a = p0;
+              outP = c;
+              break;
+            }
+          }
+        }
+        expect(outP).not.toBeNull();
+        const st = newTrace();
+        traceTouch(s, st, a, 0, band);
+        traceTouch(s, st, outP as Point, 16, band);
+        traceTouch(s, st, a, 16 + 400, band);
+        expect(st.cracked, `${id}: стоял вне полосы 0,4 с`).toBe(true);
+      }
+    }
+  });
+
+  it("полоса допуска — по стилю, одной строкой (строгость — решение владельца на живых телефонах)", () => {
+    expect(bandOf("night")).toBe(BAND_NIGHT);
+    expect(bandOf("sunny")).toBe(BAND_SUNNY);
+    expect(BAND_ADULTS).toBe(BAND_NIGHT);
+    expect(BAND_KIDS).toBe(BAND_SUNNY);
   });
 
   it("быстрое движение по контуру не пропускает кусочки (промежуточные точки), полоса у детей шире", () => {

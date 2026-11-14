@@ -73,9 +73,19 @@ export const PICK_MS = 10_000;
 export const UNBOX_MS = 5000;
 export const TRACE_MS = 45_000;
 export const PIECES = 200;
-/** Полоса допуска — доля ширины поля: взрослые («Ночной двор») и дети («Солнечный двор»). */
-export const BAND_ADULTS = 0.03;
-export const BAND_KIDS = 0.06;
+/**
+ * Полоса допуска «Пряника» — доля ширины поля, своя у каждого стиля. **Строгость решает владелец на живых телефонах на тестовой
+ * выкладке** (второе ревью 3a: при 3% — ~1,7 мм на телефоне 360 px — честное дрожание даёт 6–60% ложных трещин, 6% намного
+ * безопаснее): выбор — одна строка здесь.
+ */
+export const BAND_NIGHT = 0.03;
+/** «Солнечный двор» (дети). */
+export const BAND_SUNNY = 0.06;
+/** Те же полосы старыми именами: взрослые («Ночной двор») и дети («Солнечный двор»). */
+export const BAND_ADULTS = BAND_NIGHT;
+export const BAND_KIDS = BAND_SUNNY;
+/** Полоса по стилю — её берёт телефон (3b). */
+export const GINGER_BAND = { sunny: BAND_SUNNY, night: BAND_NIGHT } as const;
 /** Вне полосы дольше столько подряд — трещина (честное дрожание у линии прощается). */
 export const CRACK_OUT_MS = 200;
 /**
@@ -85,6 +95,11 @@ export const CRACK_OUT_MS = 200;
 export const CRACK_FAR = 3;
 export const CRACK_WINDOW_MS = 1000;
 export const CRACK_WINDOW_OUT_MS = 300;
+/**
+ * Между двумя касаниями «дорогой» пальца считается не больше стольких мс (второе ревью 3a): движущийся палец даёт событие каждый
+ * кадр (16 мс; медленный телефон — 33 мс), дольше без событий — палец стоял на месте прошлого касания.
+ */
+export const TRACE_GAP_MS = 50;
 /** Длина контура каждой фигуры, в ширинах поля (±2% — тест). */
 export const SHAPE_LENGTH = 2.2;
 export const SHAPE_LENGTH_TOLERANCE = 0.02;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ANSWERS_RETRIES, answersChanged, answersOpen, placeAfter, resultKey } from "../../core/session";
+import { ANSWERS_RETRIES, ANSWERS_RETRY_PAUSE_MS, answersChanged, answersOpen, placeAfter, resultKey } from "../../core/session";
 import type { Session, SessionChange, SessionState } from "../../data/types";
 import type { SessionControl } from "../../mechanics/types";
 
@@ -152,12 +152,15 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
         return "done";
       }
     }
-    // Пока пульт считал, гости ещё отвечали (большой зал): сразу берём свежий список и повторяем, до 5 раз (Н-16).
+    // Пока пульт считал, гости ещё отвечали (большой зал): берём свежий список и повторяем без ожидания сессии — до 5 попыток
+    // из-за ответов (с третьей — после паузы 250 мс), отказы из-за итогов шага считаются отдельно (`attempts`; Н-16).
     if (answersOnly && rebuild) {
       if (!samePlace(deps.current().state, at)) return "moved";
       if (moment && moment(deps.current()) !== moment(deps.seen)) return "conflict";
-      if (++answerTries < ANSWERS_RETRIES) continue;
-      return "conflict";
+      if (++answerTries >= ANSWERS_RETRIES) return "conflict";
+      if (answerTries > 1 && !deps.rehearsal) await new Promise<void>((resolve) => setTimeout(resolve, ANSWERS_RETRY_PAUSE_MS));
+      if (!samePlace(deps.current().state, at)) return "moved";
+      continue;
     }
     if (++attempt >= attempts || !rebuild) return samePlace(deps.current().state, at) ? "conflict" : "moved";
     // Свежие итоги шага ещё не пришли — ждём их, потом собираем запись заново.

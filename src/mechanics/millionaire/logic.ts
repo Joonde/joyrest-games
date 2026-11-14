@@ -201,7 +201,7 @@ export function millionairePrimary(session: Session): MillionaireAction {
 const fresh = { chosen: null, locked: false, refused: null, audienceVote: false, changeable: true } as const;
 
 function base(r: MillionaireResult): MillionaireResult {
-  return { ...r, q: null, removed: [], audience: null, votes: 0, callEndsAt: null, shield: false, tip: false, hostPick: null, pick: null, outcome: null, flash: null, qrBig: false, ...fresh };
+  return { ...r, q: null, removed: [], audience: null, votes: 0, callEndsAt: null, shield: false, tip: false, tipText: null, hostPick: null, pick: null, outcome: null, flash: null, qrBig: false, ...fresh };
 }
 
 /**
@@ -327,6 +327,20 @@ export function retryQuestion(session: Session, content?: MillionaireContent): S
   return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: answerLimit(content), revealed: false, answered: 0, result: write({ ...r, mode: "question", pick: null, outcome: null, hostPick: null, ...fresh }) } };
 }
 
+/** Почему команда больше не ходит: дошла до верха, выбыла или вопросы её ступени кончились; null — ходит. */
+export type MillionaireFinish = "top" | "out" | "questions";
+
+export function finishReason(content: MillionaireContent, r: MillionaireResult, team: string): MillionaireFinish | null {
+  if (!r.done.includes(team)) return null;
+  if (r.out.includes(team)) return "out";
+  return (r.levels[team] ?? 0) >= levelsOf(content) ? "top" : "questions";
+}
+
+/** Команды, которым не хватило непоказанных вопросов их ступени, и эта ступень (М-Н-1: пульт и телефон говорят об этом прямо). */
+export function outOfQuestions(content: MillionaireContent, r: MillionaireResult): { team: string; level: number }[] {
+  return r.order.filter((p) => finishReason(content, r, p) === "questions").map((team) => ({ team, level: levelToPlay(r, team, levelsOf(content)) }));
+}
+
 /** «Следующая команда»; некому ходить — конец игры. */
 export function nextTurn(session: Session, content: MillionaireContent, participants: Participant[]): SessionChange {
   const r = parseMillionaireResult(session.state.result);
@@ -432,7 +446,7 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
   } else if (id === "swap") {
     const q = freshQuestion(content, levelToPlay(r, team, levelsOf(content)), r.seen, r.q);
     if (!q) return null;
-    next = { ...next, q: q.id, seen: [...r.seen, q.id], removed: [], audience: null, votes: 0, tip: false, callEndsAt: null };
+    next = { ...next, q: q.id, seen: [...r.seen, q.id], removed: [], audience: null, votes: 0, tip: false, tipText: null, callEndsAt: null };
   } else if (id === "audience") {
     next = { ...next, mode: "audience", audience: [0, 0, 0, 0], votes: 0, audienceVote: true, changeable: false };
     timeLimit = content.audienceSeconds;
@@ -442,7 +456,9 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
   } else if (id === "mistake") {
     next.shield = true;
   } else if (id === "host") {
+    // Наводка — только к этому вопросу: прежняя (чужого хода или заменённого вопроса) на экран не попадает (М-Н-2).
     next.tip = true;
+    next.tipText = null;
   }
   return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit, revealed: false, answered: 0, result: write(next) } };
 }

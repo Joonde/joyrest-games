@@ -22,6 +22,20 @@ export function validateMillionaire(content: MillionaireContent): ValidationErro
   return errors;
 }
 
+/** Самая «бедная» ступень (первая из таких): на ней вопросы кончатся раньше всего. */
+export function poorestLevel(content: MillionaireContent): number {
+  let best = 1;
+  let min = Infinity;
+  for (let level = 1; level <= levelsOf(content); level++) {
+    const n = questionsOf(content, level).filter((q) => q.text.trim()).length;
+    if (n < min) {
+      min = n;
+      best = level;
+    }
+  }
+  return best;
+}
+
 /** На сколько команд хватит вопросов (без замен): самая «бедная» ступень. */
 export function teamsCovered(content: MillionaireContent): number {
   let min = Infinity;

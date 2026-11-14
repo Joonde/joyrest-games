@@ -20,7 +20,7 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { LETTERS, levelsOf, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { LifelineIcon, MillionaireEmblem } from "./icons";
 import { showStageClass } from "../showLook";
-import { ladderWindow, levelToPlay, lifelineState, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
+import { finishReason, ladderWindow, levelToPlay, lifelineState, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
 
 export type MillionaireAnswerValue = { choice: number } | { vote: number } | { lifeline: LifelineId; n: string };
 
@@ -392,6 +392,16 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
     </p>
   );
   const used = r.used[pid] ?? [];
+  // Почему телефон больше не ходит (М-Н-1): вопросы ступени кончились — говорим прямо, а не «вы наблюдаете».
+  const finished = r.order.includes(pid) ? finishReason(content, r, pid) : null;
+  const finishNote =
+    finished === "questions"
+      ? `Вопросы вашей ступени (${levelToPlay(r, pid, levelsOf(content))}) закончились — дальше вы не ходите. Счёт сохранён, болейте за других!`
+      : finished === "top"
+        ? "Вы прошли всю лестницу! Дальше болейте за других."
+        : finished === "out"
+          ? "Вы выбыли из игры — болейте за других!"
+          : null;
 
   if (r.order.length === 0 || stage === "ready" || r.mode === "over") {
     return (
@@ -411,6 +421,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
             Ход: <NameText name={nameOf(session, r.turn)} />
           </h2>
         )}
+        {finishNote && r.mode !== "over" && <p className="muted" role="status">{finishNote}</p>}
         {r.order.includes(pid) && <LifelineRow content={content} used={used} size="phone" />}
       </div>
     );
@@ -472,7 +483,6 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
   // Ходит другая команда: телефон только наблюдает — ни одной кнопки, понятно, что нажимать ничего не надо
   // (решение владельца 14 октября 2026).
   if (!mine) {
-    const out = r.out.includes(pid);
     return (
       <div className="quiz-phone mil-watch">
         {head}
@@ -483,7 +493,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
           <strong>
             Отвечает <NameText name={nameOf(session, r.turn)} />
           </strong>
-          <span>{out ? "Вы выбыли из игры — болейте за других!" : "Сейчас не ваш ход — вы наблюдаете. Нажимать ничего не нужно, смотрите на экран."}</span>
+          <span>{finishNote ?? "Сейчас не ваш ход — вы наблюдаете. Нажимать ничего не нужно, смотрите на экран."}</span>
         </div>
         <p className="muted small mil-watch__level">
           Вопрос {levelToPlay(r, r.turn)} — {pointsLabel(pointsAt(content, levelToPlay(r, r.turn)))}
@@ -492,7 +502,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
           <QuestionCard question={q} result={r} reveal={stage === "reveal"} size="phone" />
         </div>
         {stage === "reveal" && <p className={r.outcome === "right" ? "success" : "muted"}>{r.outcome === "right" ? "Они ответили верно!" : r.outcome === "saved" ? "Ошибка, но их спасло право на ошибку" : "Они ошиблись"}</p>}
-        {r.order.includes(pid) && !out && <p className="muted small">Ваш ход — когда ведущий передаст его вам: телефон покажет «Ваш вопрос».</p>}
+        {r.order.includes(pid) && !finished && <p className="muted small">Ваш ход — когда ведущий передаст его вам: телефон покажет «Ваш вопрос».</p>}
       </div>
     );
   }

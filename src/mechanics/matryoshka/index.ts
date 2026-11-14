@@ -4,7 +4,8 @@ import { MATRYOSHKA, MATRYOSHKA_SUPPORTS } from "./rules/constants";
 import { parseContent } from "./rules/content";
 import type { MatContent } from "./rules/types";
 import { MatryoshkaPlayerView } from "./phone/lazy";
-import { MatryoshkaEditor, MatryoshkaHostControls, MatryoshkaScreenView } from "./views";
+import { MatryoshkaScreenLazy } from "./screen/lazy";
+import { MatryoshkaEditor, MatryoshkaHostControls } from "./views";
 
 /**
  * «Игры Матрёшки» (ТЗ «Три игры», Блок 3; docs/matryoshka.md): дворовые испытания на вылет, болельщики, финал «Камень,
@@ -26,7 +27,7 @@ export const matryoshka: Mechanic<MatContent, never> = {
   parse: parseContent,
   mediaIds: () => [],
   Editor: MatryoshkaEditor,
-  ScreenView: MatryoshkaScreenView,
+  ScreenView: MatryoshkaScreenLazy,
   PlayerView: MatryoshkaPlayerView,
   HostControls: MatryoshkaHostControls,
   steps: () => [{ id: "room", answerable: false }],

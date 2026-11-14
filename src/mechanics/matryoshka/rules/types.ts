@@ -350,6 +350,13 @@ export interface MatState {
   finalBase: string | null;
   /** Номер попытки (растёт на «Назад» и восстановление): входит в `moment`. */
   attempt: number;
+  /**
+   * Счётчик команд пульта, после которых этап не сменился («+10 секунд», «Табло», «Вернуть», «Убрать»…): входит в `moment`
+   * (`#N`), поэтому второе касание со старым этапом — `moved` (аудит 3a).
+   */
+  rev: number;
+  /** «Вернуть игрока» на `open`/`rules` текущего испытания (после точки `base`): переживают перезапуск сервера (аудит 3a). */
+  trialReturns: string[];
   offset: number;
   floor: number;
   pausedGame: number | null;

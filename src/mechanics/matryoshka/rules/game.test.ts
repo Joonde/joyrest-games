@@ -259,6 +259,8 @@ describe("«Добивка», финал, пьедестал", () => {
   it("финал: «Начать дуэль», ставки болельщиков +1, «Переиграть раунд», «Засчитать победу сопернику», чемпион, «Лучший болельщик», пьедестал", () => {
     const w = new World(30, { style: "night" }, "final");
     w.cmd("start");
+    // Болельщик — опоздавший (убранные — тоже болельщики, но «Лучшим болельщиком» не становятся).
+    w.addPlayer("fanx", "Болельщик");
     w.until(() => w.s.trial?.stage === "rules");
     // Быстро к финалу: убираем лишних, пока в игре не F.
     while (inGame(w.s).length > 4) w.cmd("remove", { pid: inGame(w.s).at(-1)?.pid });
@@ -271,7 +273,7 @@ describe("«Добивка», финал, пьедестал", () => {
     const d = w.s.final?.duel;
     if (!d) throw new Error("нет дуэли");
     expect(d.stage).toBe("bets");
-    const fan = Object.values(w.s.members).find((m) => m.role === "fan")?.pid ?? "";
+    const fan = "fanx";
     expect(w.in(fan, [{ t: "bet", side: 0 }])).toBe(true);
     expect(w.in(d.a, [{ t: "bet", side: 0 }])).toBe(false);
     w.until(() => d.stage === "pick");
@@ -293,7 +295,7 @@ describe("«Добивка», финал, пьедестал", () => {
       w.step(100, true);
     }
     expect(w.s.final?.champion).not.toBeNull();
-    expect(w.s.bestFan).not.toBeNull();
+    expect(w.s.bestFan).toBe("fanx");
     expect(playedToEnd(w.s)).toBe(false);
     w.cmd("podium");
     expect(w.s.phase).toBe("podium");
@@ -467,4 +469,137 @@ describe("виды: экран без тайн, телефон только св
     expect(screens).toBeGreaterThan(100);
     expect(maxScreen).toBeLessThanOrEqual(4096);
   }, 120_000);
+});
+
+describe("правки по аудиту 3a (14 ноября 2026)", () => {
+  it("«Вернуть» на правиле переживает перезапуск сервера; «Назад» к раскрытию этого испытания его снимает", () => {
+    const w = new World(12, { style: "night" }, "a3-return");
+    w.cmd("start");
+    toResults(w);
+    const out = w.s.trial?.outcome?.out[0] ?? "";
+    expect(out).not.toBe("");
+    w.cmd("next");
+    w.until(() => w.s.trial?.stage === "rules");
+    expect(w.cmd("return", { pid: out }).ok).toBe(true);
+    expect(w.s.trialReturns).toEqual([out]);
+    w.until(() => w.s.trial?.stage === "play");
+    expect(w.s.trial?.participants).toContain(out);
+    // Перезапуск посреди испытания: откат к началу испытания, но вернувшийся — снова в игре (1 сердечко).
+    const s2 = restore(JSON.parse(JSON.stringify(snapshot(w.s))));
+    expect(s2?.trial?.stage).toBe("countdown");
+    expect(s2?.members[out]?.role).toBe("player");
+    expect(s2?.members[out]?.hearts).toBe(1);
+    expect(s2?.trialReturns).toEqual([out]);
+    // «Назад» с итогов — к раскрытию, до «Вернуть»: он снова болельщик.
+    toResults(w);
+    expect(w.cmd("back").ok).toBe(true);
+    expect(w.s.trial?.stage).toBe("open");
+    expect(w.s.members[out]?.role).toBe("fan");
+    expect(w.s.trialReturns).toEqual([]);
+    // Вернули, потом убрали — перезапуск его не возвращает.
+    w.until(() => w.s.trial?.stage === "rules");
+    w.cmd("return", { pid: out });
+    w.cmd("remove", { pid: out });
+    w.until(() => w.s.trial?.stage === "play");
+    const s3 = restore(JSON.parse(JSON.stringify(snapshot(w.s))));
+    expect(s3?.members[out]?.role).toBe("fan");
+    expect(s3?.members[out]?.removed).toBe(true);
+  });
+
+  it("«К финалу» с правила, через 30 с «Назад» с сетки — правило с полным отсчётом, испытание идёт с отсчёта, а не по жребию", () => {
+    const w = new World(12, { style: "night", finalists: 4 }, "a3-tofinal");
+    w.cmd("start");
+    w.until(() => w.s.trial?.stage === "rules");
+    while (inGame(w.s).length > 4) w.cmd("remove", { pid: inGame(w.s).at(-1)?.pid });
+    expect(w.cmd("to-final").ok).toBe(true);
+    expect(w.s.phase).toBe("final");
+    w.step(30_000);
+    expect(w.cmd("back").ok).toBe(true);
+    expect(w.s.phase).toBe("trial");
+    expect(w.s.trial?.stage).toBe("rules");
+    const left = (w.s.trial?.stageEnds ?? 0) - (w.now - w.s.offset);
+    expect(left).toBe(10_000);
+    w.step(200);
+    expect(w.s.trial?.stage).toBe("rules");
+    w.until(() => w.s.trial?.stage === "countdown");
+    w.step(200);
+    expect(w.s.trial?.stage).toBe("countdown");
+  });
+
+  it("каждая команда, после которой этап не сменился, меняет `moment`: второе касание «+10 секунд» и «Табло» со старым этапом — не то же", () => {
+    const w = new World(8, { style: "night" }, "a3-rev");
+    w.cmd("start");
+    w.until(() => w.s.trial?.stage === "play");
+    const m0 = moment(w.s);
+    expect(w.cmd("more-time").ok).toBe(true);
+    const m1 = moment(w.s);
+    expect(m1).not.toBe(m0);
+    expect(m1.endsWith("#1")).toBe(true);
+    expect(w.cmd("board").ok).toBe(true);
+    expect(moment(w.s)).not.toBe(m1);
+    // Отказ этап не трогает.
+    const m2 = moment(w.s);
+    expect(w.cmd("duel").ok).toBe(false);
+    expect(moment(w.s)).toBe(m2);
+  });
+
+  it("ушёл из лобби до «Начать» и вернулся после — болельщик (прогнозы), а не «лобби»", () => {
+    const w = new World(8, { style: "night" }, "a3-lobby");
+    const gone = w.players.pop();
+    if (!gone) throw new Error("нет игрока");
+    w.step(100);
+    expect(w.s.members[gone.pid]?.gone).toBe(true);
+    expect(w.cmd("start").ok).toBe(true);
+    expect(w.s.members[gone.pid]?.role).toBe("lobby");
+    w.addPlayer(gone.pid, gone.name);
+    const m = w.s.members[gone.pid];
+    expect(m?.role).toBe("fan");
+    expect(m?.late).toBe(true);
+    expect(m?.gone).toBe(false);
+    w.until(() => w.s.trial?.stage === "rules");
+    expect(w.in(gone.pid, [{ t: "guess", n: 2 }])).toBe(true);
+    expect(w.me(gone.pid)?.role).toBe("fan");
+    // «Назад» его болельщиком и оставляет.
+    toResults(w);
+    w.cmd("back");
+    expect(w.s.members[gone.pid]?.role).toBe("fan");
+  });
+
+  it("перезапуск во время ставок перед дуэлью — снова ставки с полным временем, сделанные ставки на месте", () => {
+    const w = new World(30, { style: "night" }, "a3-bets");
+    w.cmd("start");
+    w.until(() => w.s.trial?.stage === "rules");
+    while (inGame(w.s).length > 4) w.cmd("remove", { pid: inGame(w.s).at(-1)?.pid });
+    w.cmd("to-final");
+    expect(w.cmd("duel").ok).toBe(true);
+    const fan = Object.values(w.s.members).find((m) => m.role === "fan")?.pid ?? "";
+    expect(w.in(fan, [{ t: "bet", side: 1 }])).toBe(true);
+    w.step(2000);
+    const data = JSON.parse(JSON.stringify(snapshot(w.s)));
+    const s2 = restore(data);
+    const d = s2?.final?.duel;
+    expect(d?.stage).toBe("bets");
+    expect(d?.bets[fan]).toBe(w.s.final?.duel?.b);
+    expect((d?.stageEnds ?? 0) - (d?.stageAt ?? 0)).toBe(5000);
+    expect(s2?.attempt).toBe(w.s.attempt + 1);
+  });
+
+  it("пульт: список «Вернуть» — те же, кого принимает команда (выбывшие игрой и убранные)", () => {
+    const w = new World(12, { style: "night" }, "a3-returnable");
+    w.cmd("start");
+    w.until(() => w.s.trial?.stage === "rules");
+    const victim = inGame(w.s).at(-1)?.pid ?? "";
+    w.cmd("remove", { pid: victim });
+    toResults(w);
+    const list = w.host().returnable as string[];
+    expect(list).toContain(victim);
+    for (const pid of w.s.trial?.outcome?.out ?? []) expect(list).toContain(pid);
+    for (const pid of list) {
+      const copy = restore(JSON.parse(JSON.stringify(snapshot(w.s))));
+      if (!copy) throw new Error("не восстановилось");
+      expect(Object.values(copy.members).find((m) => m.pid === pid)?.role).toBe("fan");
+    }
+    for (const pid of list) expect(w.cmd("return", { pid }).ok).toBe(true);
+    expect(w.host().returnable).toEqual([]);
+  });
 });

@@ -12,8 +12,8 @@ import { project, speedOf } from "./freeze";
 import { boxCounts, gingerSub } from "./ginger";
 import { chairsSub } from "./chairs";
 import { hopSub, sideShares } from "./hopscotch";
-import { available, chanceAvailable, moment } from "./game";
-import { fans, inGame, knockedOut, standings } from "./members";
+import { available, canReturn, chanceAvailable, moment } from "./game";
+import { fans, inGame, standings } from "./members";
 import { ropeSub } from "./rope";
 import { SHAPE_TITLES } from "./shapes";
 import type { HostView, MatState, Member, PersonalView, ScreenPlayer, ScreenView, TrialState } from "./types";
@@ -527,7 +527,11 @@ export function hostView(s: MatState, env: ViewEnv): HostView {
     played: s.playedTrials,
     trialIndex: s.trialIndex,
     startCount: s.startCount,
-    returnable: knockedOut(s).map((m) => m.pid),
+    // Тот же список, что принимает «Вернуть» (выбывшие игрой и убранные), по номеру (аудит 3a).
+    returnable: Object.values(s.members)
+      .filter((m) => canReturn(m))
+      .sort((a, b) => a.num - b.num)
+      .map((m) => m.pid),
   };
   if (s.phase === "lobby") view.lobbyCount = Object.values(s.members).filter((m) => !m.gone).length;
   if (tr && s.phase === "trial") {

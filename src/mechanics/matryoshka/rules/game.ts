@@ -105,6 +105,8 @@ export function createState(contentRaw: unknown, env: Env): MatState {
     dobBase: null,
     finalBase: null,
     attempt: 0,
+    rev: 0,
+    trialReturns: [],
     offset: 0,
     floor: env.now,
     pausedGame: null,
@@ -118,23 +120,35 @@ export function createState(contentRaw: unknown, env: Env): MatState {
   return s;
 }
 
-/** Вошёл гость: номер по порядку входа; после «Начать» — болельщик (опоздавший). */
+/** После «Начать» вошедший — болельщик (опоздавший): прогнозы, «Канат», ставки; в таблице не играет. */
+function makeLate(s: MatState, m: Member): void {
+  m.role = "fan";
+  m.late = true;
+  m.fanSince = -1;
+  m.places = s.plan.map(() => null);
+  const play = s.trial?.play;
+  if (play?.kind === "rope") ropeAddFan(play, m.pid, s.lastTick ?? 0);
+}
+
+/**
+ * Вошёл гость: номер по порядку входа; после «Начать» — болельщик (опоздавший). Ушёл из лобби до «Начать» и вернулся после —
+ * тоже болельщик (аудит 3a: раньше оставался в роли лобби и не мог ничего).
+ */
 export function join(s: MatState, p: { pid: string; name: string }, env: Pick<Env, "changed">): void {
   const known = s.members[p.pid];
   if (known) {
     known.name = p.name;
     known.gone = false;
+    if (known.role === "lobby" && s.phase !== "lobby") {
+      makeLate(s, known);
+      s.rt.urgent.add(p.pid);
+      env.changed();
+    }
     return;
   }
   s.joinSeq += 1;
   const m = newMember(p.pid, p.name, s.joinSeq);
-  if (s.phase !== "lobby") {
-    m.role = "fan";
-    m.late = true;
-    m.fanSince = -1;
-    const play = s.trial?.play;
-    if (play?.kind === "rope") ropeAddFan(play, m.pid, s.lastTick ?? 0);
-  }
+  if (s.phase !== "lobby") makeLate(s, m);
   s.members[p.pid] = m;
   s.rt.urgent.add(p.pid);
   env.changed();
@@ -174,7 +188,7 @@ function savePoint(s: MatState): string {
  * убранными), времени, случайности, номера попытки и номеров (L32). Точки «Назад» — те, что сейчас (их снимает вызывающий).
  */
 function applyPoint(s: MatState, point: string): void {
-  const keep = { offset: s.offset, floor: s.floor, pausedGame: s.pausedGame, lastTick: s.lastTick, rng: s.rng, attempt: s.attempt + 1, joinSeq: s.joinSeq, chanceAsked: s.chanceAsked, outSeq: s.outSeq, rt: s.rt, base: s.base, chanceBase: s.chanceBase, dobBase: s.dobBase, finalBase: s.finalBase, board: s.board };
+  const keep = { offset: s.offset, floor: s.floor, pausedGame: s.pausedGame, lastTick: s.lastTick, rng: s.rng, attempt: s.attempt + 1, rev: s.rev, joinSeq: s.joinSeq, chanceAsked: s.chanceAsked, outSeq: s.outSeq, rt: s.rt, base: s.base, chanceBase: s.chanceBase, dobBase: s.dobBase, finalBase: s.finalBase, board: s.board };
   const current = s.members;
   const old = JSON.parse(point) as Persisted;
   Object.assign(s, old, keep);
@@ -186,7 +200,14 @@ function applyPoint(s: MatState, point: string): void {
     }
     restored.name = m.name;
     restored.gone = m.gone;
-    if (m.removed && !restored.removed && restored.role === "player") {
+    // Ушёл из лобби до «Начать» и вернулся позже — болельщик и в точке (иначе снова «лобби»).
+    if (restored.role === "lobby" && m.role !== "lobby") {
+      restored.role = m.role;
+      restored.late = m.late;
+      restored.fanSince = m.fanSince;
+    }
+    // Убран после точки — убранным и остаётся (в точке он мог быть и выбывшим болельщиком: вернули, потом убрали).
+    if (m.removed && !restored.removed) {
       restored.role = "fan";
       restored.removed = true;
       restored.hearts = 0;
@@ -225,6 +246,7 @@ function openTrial(s: MatState, env: Env, index: number, t: number): void {
   s.dobBase = null;
   s.finalBase = null;
   const kind = s.plan[index] as TrialKind;
+  s.trialReturns = [];
   s.trial = { index, kind, stage: "open", stageAt: t, stageEnds: t + tempoMs(s, OPEN_MS), A: 0, T: 0, k: 0, seeding: false, participants: [], guesses: {}, play: null, outcome: null, auto: false };
   s.base = savePoint(s);
   urgentAll(s);
@@ -887,7 +909,7 @@ export function moment(s: MatState): string {
     stage = s.final?.stage ?? "-";
     x = `${s.final?.duels ?? 0}${s.final?.duel ? `.${s.final.duel.stage}.${s.final.duel.roundNo}` : ""}`;
   }
-  return `${s.phase}:${s.trialIndex}:${stage}:${x}:${s.attempt}`;
+  return `${s.phase}:${s.trialIndex}:${stage}:${x}:${s.attempt}${s.rev > 0 ? `#${s.rev}` : ""}`;
 }
 
 /** Какие команды пульта доступны сейчас (пульт показывает только их). */
@@ -908,7 +930,7 @@ export function available(s: MatState): Record<string, boolean> {
     "more-time": playKind === "freeze" || (playKind === "ginger" && ginger !== "over"),
     "end-now": playKind === "freeze" || ginger === "trace" || playKind === "rope" || playKind === "hopscotch",
     back: trialStage === "reveal" || trialStage === "results" || s.phase === "chance" || (s.phase === "dobivka" && s.dobivka?.stage === "results") || (s.phase === "final" && s.final?.stage === "bracket"),
-    return: ((between && ahead) || trialStage === "rules") && Object.values(s.members).some((m) => returnable(m)),
+    return: ((between && ahead) || trialStage === "rules") && Object.values(s.members).some((m) => canReturn(m)),
     // После последней дуэли места финала не меняются: чемпиона и пьедестал «Убрать» не трогает.
     remove: s.phase !== "lobby" && s.phase !== "podium" && s.phase !== "finished" && !(s.phase === "final" && s.final?.stage === "champion"),
     "to-final": (between || trialStage === "rules") && inGame(s).length <= s.F,
@@ -925,7 +947,8 @@ function activeLobby(s: MatState): Member[] {
   return Object.values(s.members).filter((m) => !m.gone);
 }
 
-function returnable(m: Member): boolean {
+/** Кого можно «Вернуть»: выбывших игрой и убранных (не опоздавших и не ушедших). Тот же список — у пульта (`returnable`). */
+export function canReturn(m: Member): boolean {
   return m.role === "fan" && !m.late && !m.gone && (m.everOut || m.removed);
 }
 
@@ -943,6 +966,14 @@ function dropPlayer(s: MatState, m: Member, env: Env): void {
 }
 
 export function command(s: MatState, cmd: string, raw: unknown, env: Env): Outcome {
+  const before = moment(s);
+  const out = runCommand(s, cmd, raw, env);
+  // Этап не сменился («+10 секунд», «Табло», «Вернуть»…) — счётчик в `moment`: второе касание со старым этапом — `moved`.
+  if (out.ok && moment(s) === before) s.rev += 1;
+  return out;
+}
+
+function runCommand(s: MatState, cmd: string, raw: unknown, env: Env): Outcome {
   const a = record(raw);
   const t = gameNow(s, env);
   const can = available(s);
@@ -1013,8 +1044,10 @@ export function command(s: MatState, cmd: string, raw: unknown, env: Env): Outco
     case "return": {
       const m = typeof a.pid === "string" ? s.members[a.pid] : undefined;
       if (!m) return { ok: false, error: "no-player" };
-      if (!returnable(m)) return { ok: false, error: "not-out" };
+      if (!canReturn(m)) return { ok: false, error: "not-out" };
       bringBack(m);
+      // Вернули на `rules` — после точки `base`: перезапуск сервера (откат к `base`) возвращает его снова; «Назад» к `open` — нет.
+      if (s.phase === "trial" && (s.trial?.stage === "open" || s.trial?.stage === "rules")) s.trialReturns = [...s.trialReturns.filter((x) => x !== m.pid), m.pid];
       s.rt.urgent.add(m.pid);
       break;
     }
@@ -1075,6 +1108,18 @@ export function command(s: MatState, cmd: string, raw: unknown, env: Env): Outco
   return { ok: true };
 }
 
+/**
+ * Точка «Назад» могла быть записана на шаге с отсчётом («К финалу» с `rules`): отсчёт этого шага — заново, с полной длиной
+ * (аудит 3a: иначе испытание проскакивало отсчёт, и места решал жребий).
+ */
+function restartStage(s: MatState, t: number): void {
+  const tr = s.trial;
+  if (s.phase !== "trial" || !tr) return;
+  if (tr.stage === "open") setTrialStage(tr, "open", t, tempoMs(s, OPEN_MS));
+  else if (tr.stage === "rules") setTrialStage(tr, "rules", t, tempoMs(s, RULES_MS));
+  else if (tr.stage === "countdown") setTrialStage(tr, "countdown", t, tempoMs(s, COUNTDOWN_MS));
+}
+
 /** «Назад»: к началу испытания; со «Второго шанса» — к итогам 3-го; с итогов «Добивки» и сетки — к точке перед ними. */
 function back(s: MatState, env: Env, t: number): Outcome {
   if (s.phase === "final" && s.finalBase) {
@@ -1082,6 +1127,7 @@ function back(s: MatState, env: Env, t: number): Outcome {
     s.finalBase = null;
     loadPoint(s, point, env);
     s.final = null;
+    restartStage(s, t);
     return { ok: true, result: s.phase };
   }
   if (s.phase === "dobivka" && s.dobBase) {
@@ -1089,6 +1135,7 @@ function back(s: MatState, env: Env, t: number): Outcome {
     s.dobBase = null;
     loadPoint(s, point, env);
     s.dobivka = null;
+    restartStage(s, t);
     return { ok: true, result: s.phase };
   }
   if (s.phase === "chance" && s.chanceBase) {
@@ -1097,6 +1144,7 @@ function back(s: MatState, env: Env, t: number): Outcome {
     loadPoint(s, point, env);
     s.chance = null;
     s.chanceUsed = false;
+    restartStage(s, t);
     return { ok: true, result: s.phase };
   }
   if (s.phase === "trial" && s.base) {
@@ -1168,7 +1216,14 @@ function rewindLive(s: MatState): void {
   const tr = s.trial;
   if (s.phase === "trial" && tr && (tr.stage === "countdown" || tr.stage === "play" || tr.stage === "judging") && s.base) {
     const guesses = tr.guesses;
+    // «Вернуть» на `rules` было после точки `base`: вернувшиеся (если их с тех пор не убрали) — снова в игре.
+    const returned = (s.trialReturns ?? []).filter((pid) => s.members[pid]?.role === "player");
     applyPoint(s, s.base);
+    for (const pid of returned) {
+      const m = s.members[pid];
+      if (m && canReturn(m)) bringBack(m);
+    }
+    s.trialReturns = returned;
     if (s.trial) {
       s.trial.guesses = guesses;
       setTrialStage(s.trial, "countdown", tf, tempoMs(s, COUNTDOWN_MS));
@@ -1195,7 +1250,14 @@ function rewindLive(s: MatState): void {
     return;
   }
   const duel = s.final?.duel;
-  if (s.phase === "final" && duel && (duel.stage === "pick" || duel.stage === "bets")) {
+  // Ставки перед дуэлью — заново с полным временем, сделанные ставки остаются (аудит 3a: раньше сразу выбор жестов, ставки терялись).
+  if (s.phase === "final" && duel && duel.stage === "bets") {
+    duel.stageAt = tf;
+    duel.stageEnds = tf + tempoMs(s, BETS_MS);
+    s.attempt += 1;
+    return;
+  }
+  if (s.phase === "final" && duel && duel.stage === "pick") {
     duel.picks = {};
     duel.auto = {};
     duel.stage = "pick";
@@ -1219,6 +1281,8 @@ export function restore(data: unknown): MatState | null {
   if (typeof s.pausedGame !== "number") s.pausedGame = null;
   if (typeof s.lastTick !== "number") s.lastTick = null;
   if (!Array.isArray(s.trialSizes)) s.trialSizes = s.plan.map(() => 0);
+  if (typeof s.rev !== "number" || !Number.isFinite(s.rev)) s.rev = 0;
+  if (!Array.isArray(s.trialReturns)) s.trialReturns = [];
   rewindLive(s);
   urgentAll(s);
   return s;

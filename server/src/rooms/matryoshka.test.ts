@@ -179,6 +179,16 @@ describe("«Игры Матрёшки» в игровой комнате", () =>
     expect(m1).toBe("trial:0:rules:-:0");
     expect(r.command("skip-rules", null, "c3", now, m1)).toEqual({ ok: true });
     expect(r.command("skip-rules", null, "c4", now, m1)).toEqual({ ok: false, error: "moved" });
+    // «+10 секунд» и «Табло» этап не меняют — но второе касание с тем же этапом (второй пульт) тоже `moved` (аудит 3a).
+    for (let t = 0; t < 4000; t += 100) r.tick((now += 100));
+    const m2 = r.moment();
+    expect(r.command("more-time", null, "c5", now, m2)).toEqual({ ok: true });
+    expect(r.command("more-time", null, "c6", now, m2)).toEqual({ ok: false, error: "moved" });
+    expect((state(r).trial?.play as FreezeState).extra).toBe(10_000);
+    const m3 = r.moment();
+    expect(r.command("board", null, "c7", now, m3)).toEqual({ ok: true });
+    expect(r.command("board", null, "c8", now, m3)).toEqual({ ok: false, error: "moved" });
+    expect(state(r).board).toBe(true);
   });
 
   it("пауза движка посреди «Замри!»: все «отпустили», пачки на паузе выброшены, путь стоит; после «Продолжить» — жать заново (L7)", () => {

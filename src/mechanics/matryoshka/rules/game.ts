@@ -170,10 +170,10 @@ function savePoint(s: MatState): string {
 }
 
 /**
- * Вернуться к точке: всё как было, кроме вошедших (болельщики остаются) и убранных (остаются убранными), времени, случайности,
- * номера попытки и номеров (L32).
+ * Вернуться к точке (без побочных действий): всё как было, кроме вошедших (болельщики остаются) и убранных (остаются
+ * убранными), времени, случайности, номера попытки и номеров (L32). Точки «Назад» — те, что сейчас (их снимает вызывающий).
  */
-function loadPoint(s: MatState, point: string, env: Pick<Env, "changed" | "checkpoint">): void {
+function applyPoint(s: MatState, point: string): void {
   const keep = { offset: s.offset, floor: s.floor, pausedGame: s.pausedGame, lastTick: s.lastTick, rng: s.rng, attempt: s.attempt + 1, joinSeq: s.joinSeq, chanceAsked: s.chanceAsked, outSeq: s.outSeq, rt: s.rt, base: s.base, chanceBase: s.chanceBase, dobBase: s.dobBase, finalBase: s.finalBase, board: s.board };
   const current = s.members;
   const old = JSON.parse(point) as Persisted;
@@ -196,6 +196,10 @@ function loadPoint(s: MatState, point: string, env: Pick<Env, "changed" | "check
     }
   }
   urgentAll(s);
+}
+
+function loadPoint(s: MatState, point: string, env: Pick<Env, "changed" | "checkpoint">): void {
+  applyPoint(s, point);
   env.checkpoint();
   env.changed();
 }
@@ -313,7 +317,8 @@ function playTick(s: MatState, env: Env, tr: TrialState, t: number): boolean {
         const r = p.runners[pid];
         return !r || r.cracked || r.doneAt !== null;
       });
-      if (sub === "trace") env.changed();
+      // Коробки на экране открываются по очереди, кусочки растут — сводка экрана 5 раз в секунду.
+      if (sub === "trace" || sub === "unbox") env.changed();
       return sub === "over" || (sub === "trace" && all);
     }
     case "chairs": {
@@ -1032,7 +1037,7 @@ export function command(s: MatState, cmd: string, raw: unknown, env: Env): Outco
         const last = d.history.pop();
         if (last?.winner === d.a) d.wins[0] -= 1;
         if (last?.winner === d.b) d.wins[1] -= 1;
-        if (last && last.winner === null) d.ties = Math.max(0, d.ties - 1);
+        if (last) d.ties = last.ties;
         d.winner = null;
       }
       d.picks = {};
@@ -1162,11 +1167,7 @@ function rewindLive(s: MatState): void {
   const tr = s.trial;
   if (s.phase === "trial" && tr && (tr.stage === "countdown" || tr.stage === "play" || tr.stage === "judging") && s.base) {
     const guesses = tr.guesses;
-    const old = JSON.parse(s.base) as Persisted;
-    const keep = { offset: s.offset, floor: s.floor, pausedGame: s.pausedGame, lastTick: s.lastTick, rng: s.rng, attempt: s.attempt + 1, joinSeq: s.joinSeq, outSeq: s.outSeq, base: s.base, rt: s.rt };
-    const current = s.members;
-    Object.assign(s, old, keep);
-    for (const [pid, m] of Object.entries(current)) if (!s.members[pid]) s.members[pid] = m;
+    applyPoint(s, s.base);
     if (s.trial) {
       s.trial.guesses = guesses;
       setTrialStage(s.trial, "countdown", tf, tempoMs(s, COUNTDOWN_MS));

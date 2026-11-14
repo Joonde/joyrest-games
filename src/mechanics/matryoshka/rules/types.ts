@@ -278,7 +278,8 @@ export interface Duel {
   picks: Record<string, { g: Gesture; at: number }>;
   auto: Record<string, Gesture>;
   bets: Record<string, string>;
-  history: Array<{ ga: Gesture; gb: Gesture; winner: string | null; bySpeed: boolean }>;
+  /** Раунды: жесты, победитель (null — ничья), решила ли скорость, ничьих подряд до раунда («Переиграть раунд» возвращает). */
+  history: Array<{ ga: Gesture; gb: Gesture; winner: string | null; bySpeed: boolean; ties: number }>;
   winner: string | null;
   forfeit: boolean;
 }

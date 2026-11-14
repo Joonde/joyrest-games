@@ -303,6 +303,28 @@ describe("«Добивка», финал, пьедестал", () => {
     expect(w.s.phase).toBe("finished");
   });
 
+  it("«Переиграть раунд» после третьей ничьей подряд (решила скорость) — снова две ничьи в запасе, победа снята", () => {
+    const w = new World(8, { style: "night", fanBets: false }, "rerun");
+    w.cmd("start");
+    w.until(() => w.s.trial?.stage === "rules");
+    while (inGame(w.s).length > 2) w.cmd("remove", { pid: inGame(w.s).at(-1)?.pid });
+    w.cmd("to-final");
+    w.cmd("duel");
+    const d = w.s.final?.duel;
+    if (!d) throw new Error("нет дуэли");
+    for (let round = 0; round < 3; round += 1) {
+      w.until(() => d.stage === "pick");
+      w.in(d.a, [{ t: "rps", g: "r" }]);
+      w.in(d.b, [{ t: "rps", g: "r" }]);
+      w.until(() => d.stage === "show");
+    }
+    expect(d.history.at(-1)?.bySpeed).toBe(true);
+    expect(d.wins[0] + d.wins[1]).toBe(1);
+    expect(w.cmd("rerun").ok).toBe(true);
+    expect(d.ties).toBe(2);
+    expect(d.wins).toEqual([0, 0]);
+  });
+
   it("сквозная игра 50 ботов: «сыграна до конца», места — 1, 2, 3, 3 и дальше по вылету, очки (N − место + 1) × 10 (L28)", () => {
     const w = new World(50, {}, "full50");
     w.cmd("start");

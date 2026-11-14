@@ -127,6 +127,7 @@ export function newDuel(a: string, b: string, t: number, betsEnds: number | null
  */
 export function resolveRound(d: Duel, ga: Gesture, gb: Gesture, ta: number, tb: number, lot: () => number): string | null {
   const r = rps(ga, gb);
+  const ties = d.ties;
   let winner: string | null = null;
   let bySpeed = false;
   if (r !== 0) {
@@ -140,7 +141,7 @@ export function resolveRound(d: Duel, ga: Gesture, gb: Gesture, ta: number, tb: 
       d.ties = 0;
     }
   }
-  d.history.push({ ga, gb, winner, bySpeed });
+  d.history.push({ ga, gb, winner, bySpeed, ties });
   if (winner === d.a) d.wins[0] += 1;
   if (winner === d.b) d.wins[1] += 1;
   if (d.wins[0] >= DUEL_WINS) d.winner = d.a;

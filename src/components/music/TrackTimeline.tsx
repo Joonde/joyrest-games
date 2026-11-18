@@ -69,6 +69,11 @@ export function playbackPoint(clip: Clip, which: Handle): number {
   return Math.max(start, start + length - END_PREVIEW_SECONDS);
 }
 
+/** Что сделать со звуком при движении таймлайна: запустить с места или лишь перемотать играющий фрагмент. */
+export function dragPlaybackAction(listening: "guess" | "chorus" | null): "play" | "seek" {
+  return listening === null ? "play" : "seek";
+}
+
 /**
  * `answer` — «Музыка на ответ»: один отрывок, который играет на показе верного ответа (без угадывания, припева и конфетти).
  */
@@ -125,14 +130,16 @@ export function TrackTimeline({ clip, onChange, disabled, answer = false }: { cl
     const next = moveHandle(latest.current, drag, sec, knownDuration);
     onChange(next);
 
-    // Если отрывок уже играет, движение края работает как seek в обычном плеере:
-    // звук переходит к этой позиции, а конец редактируемого отрывка обновляется вместе с ползунком.
+    // При движении края звук всегда переходит к новой позиции. Если фрагмент был остановлен,
+    // запускаем его сразу с этого места; если уже играл — просто перематываем.
     const el = audio.current;
-    if (!el || !listening) return;
+    if (!el) return;
     const section = drag === "start" || drag === "end" ? "guess" : "chorus";
+    const action = dragPlaybackAction(listening);
     if (listening !== section) setListening(section);
     stopAt.current = section === "guess" ? next.start + next.length : (next.chorusStart ?? 0) + next.chorusLength;
     pendingSeek.current = playbackPoint(next, drag);
+    if (action === "play") el.src = `${tracksRepo?.fileUrl(next.trackId ?? "")}#t=${pendingSeek.current}`;
     const seek = () => {
       if (pendingSeek.current === null) return;
       try {
@@ -144,6 +151,7 @@ export function TrackTimeline({ clip, onChange, disabled, answer = false }: { cl
     };
     if (el.readyState > 0) seek();
     else el.addEventListener("loadedmetadata", seek, { once: true });
+    if (action === "play") void el.play().catch(() => setListening(null));
   }
 
   /** Прослушать участок: играет прямо по касанию (iPhone), конец — по таймеру позиции. */

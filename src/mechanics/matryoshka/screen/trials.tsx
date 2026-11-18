@@ -165,8 +165,8 @@ export function FreezeBoard({ m, v, code, getNow, still }: BoardProps) {
         {caught ? (
           <Plate className="mts-caught" style={at(40, 872, 1160)}>
             <span className="mts-dot-bad" />
-            Поймала: <WhoList nums={caught.nums} m={m} max={2} />
-            {caught.count > caught.nums.length ? ` и ещё ${caught.count - Math.min(2, caught.nums.length)}` : ""} — минус сердечко и назад
+            Поймала: <WhoList nums={caught.nums.slice(0, 2)} m={m} max={2} />
+            {caught.count > 2 ? ` и ещё ${caught.count - Math.min(2, caught.nums.length)}` : ""} — минус сердечко и назад
           </Plate>
         ) : (
           <Plate className="mts-hint" style={at(40, 872, 1160)}>

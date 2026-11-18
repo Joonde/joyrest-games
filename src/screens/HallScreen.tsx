@@ -110,6 +110,7 @@ function ScreenControls({ toStudio, toPick, bed }: { toStudio: (() => void) | nu
   const ready = useSoundReady();
   const bedVolume = useBedVolume();
   const [full, setFull] = useState(() => document.fullscreenElement !== null);
+  const [open, setOpen] = useState(false);
   const canFullscreen = typeof document.documentElement.requestFullscreen === "function";
 
   useEffect(() => {
@@ -125,52 +126,63 @@ function ScreenControls({ toStudio, toPick, bed }: { toStudio: (() => void) | nu
   }
 
   return (
-    <div className="screen-controls">
+    <div className={open ? "screen-controls is-open" : "screen-controls"}>
       <button
         type="button"
-        className="btn btn--secondary"
-        onClick={() => {
-          if (muted) setMuted(false);
-          else if (!ready) unlockSound();
-          else setMuted(true);
-        }}
+        className="btn btn--secondary screen-controls__toggle"
+        aria-expanded={open}
+        aria-controls="screen-controls-panel"
+        onClick={() => setOpen((value) => !value)}
       >
-        {/* Подпись — что сделает кнопка, а не что сейчас: «Звук включён» путало ведущих. */}
-        {muted || !ready ? "Включить звук" : "Выключить звук"}
+        {open ? "Скрыть" : "Экран"}
       </button>
-      {/* Общая bed-шина: фон платформы или собственная музыка игры («Матрёшка», «Бубликатор»), эффекты не тише. */}
-      {bed && !muted && (
-        <label className="screen-bed" title="Только фоновая музыка игры и платформы. Музыка ведущего и звуковые эффекты — как были.">
-          <span className="screen-bed__label">🎵 Фон {bedVolume}%</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={bedVolume}
-            aria-label="Громкость фоновой музыки"
-            onChange={(e) => {
-              unlockSound();
-              setBedVolume(Number(e.target.value));
-            }}
-          />
-        </label>
-      )}
-      {canFullscreen && (
-        <button type="button" className="btn btn--secondary" onClick={toggleFullscreen}>
-          {full ? "Выйти из полного экрана" : "Во весь экран"}
+      <div className="screen-controls__panel" id="screen-controls-panel">
+        <button
+          type="button"
+          className="btn btn--secondary"
+          onClick={() => {
+            if (muted) setMuted(false);
+            else if (!ready) unlockSound();
+            else setMuted(true);
+          }}
+        >
+          {/* Подпись — что сделает кнопка, а не что сейчас: «Звук включён» путало ведущих. */}
+          {muted || !ready ? "Включить звук" : "Выключить звук"}
         </button>
-      )}
-      {toPick && (
-        <button type="button" className="btn btn--secondary" onClick={toPick}>
-          Пульт или экран?
-        </button>
-      )}
-      {toStudio && (
-        <button type="button" className="btn btn--secondary" onClick={toStudio}>
-          В студию
-        </button>
-      )}
+        {/* Общая bed-шина: фон платформы или собственная музыка игры («Матрёшка», «Бубликатор»), эффекты не тише. */}
+        {bed && !muted && (
+          <label className="screen-bed" title="Только фоновая музыка игры и платформы. Музыка ведущего и звуковые эффекты — как были.">
+            <span className="screen-bed__label">🎵 Фон {bedVolume}%</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={bedVolume}
+              aria-label="Громкость фоновой музыки"
+              onChange={(e) => {
+                unlockSound();
+                setBedVolume(Number(e.target.value));
+              }}
+            />
+          </label>
+        )}
+        {canFullscreen && (
+          <button type="button" className="btn btn--secondary" onClick={toggleFullscreen}>
+            {full ? "Выйти из полного экрана" : "Во весь экран"}
+          </button>
+        )}
+        {toPick && (
+          <button type="button" className="btn btn--secondary" onClick={toPick}>
+            Пульт или экран?
+          </button>
+        )}
+        {toStudio && (
+          <button type="button" className="btn btn--secondary" onClick={toStudio}>
+            В студию
+          </button>
+        )}
+      </div>
     </div>
   );
 }

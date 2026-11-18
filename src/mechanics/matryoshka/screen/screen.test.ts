@@ -189,4 +189,15 @@ describe("поле «Замри!» и подписи", () => {
     const ys = pts.map((p) => y.get(p.num) ?? 0).sort((a, b) => a - b);
     for (let i = 1; i < ys.length; i += 1) expect(ys[i]! - ys[i - 1]!).toBeGreaterThanOrEqual(38);
   });
+
+  it("стандартный шаг подписей учитывает увеличенный шрифт узкого экрана", () => {
+    const pts = [
+      { num: 1, x: 20, y: 0 },
+      { num: 2, x: 20, y: 0 },
+      { num: 3, x: 20, y: 0 },
+    ];
+    const y = placeTags(pts);
+    const ys = pts.map((p) => y.get(p.num) ?? 0).sort((a, b) => a - b);
+    for (let i = 1; i < ys.length; i += 1) expect(ys[i]! - ys[i - 1]!).toBeGreaterThanOrEqual(84);
+  });
 });

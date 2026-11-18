@@ -6,6 +6,7 @@ import type { EventProgram } from "../core/eventProgram";
  */
 import type { SavedBranding, SessionBranding } from "../core/branding";
 import type { SessionProgram } from "../core/program";
+import type { AnswerSource } from "../core/hardware";
 import type { OfferData, RequestData, RequestStatus, VenueData, VenueFileKind, VenueStatus } from "../core/venues";
 
 export type { SavedBranding, SessionBranding };
@@ -382,6 +383,12 @@ export interface SessionChange {
   addScore?: Record<string, number>;
   /** Новое имя в таблице, остальное в записи не трогается. */
   rename?: Record<string, string>;
+  /**
+   * Поля записи без очков (`last`, `move`, `race`, `roundBase`) — только у тех, кто уже в таблице. Очки при этом идут
+   * прибавкой (`addScore`): одновременное «+10» со второго пульта не затирается, убранный участник не возвращается
+   * (паспорт квиза, К-Н-3).
+   */
+  patch?: Record<string, LeaderboardPatch>;
 }
 
 export interface ChangeExpect {
@@ -399,6 +406,23 @@ export interface ChangeExpect {
    * 22 октября 2026). Firebase-версия поле не проверяет.
    */
   slide?: string | null;
+  /**
+   * Ответы шага, по которым пульт посчитал очки (`answersMark`): запись проходит, только если на сервере на этом шаге
+   * столько же ответов и последний пришёл тогда же. Пока пульт считал, пришёл ещё ответ — отказ, пульт берёт свежий
+   * список и повторяет (паспорт общей части, Н-1). Firebase-версия и репетиция поле не проверяют.
+   */
+  answers?: AnswersMark;
+}
+
+/**
+ * Отметка списка ответов шага: сколько ответов, время последнего (мс, часы сервера; null — ответов нет) и сумма времён
+ * (каждое — по модулю `ANSWERS_SUM_MOD` из `core/session.ts`): ловит и ответ, заменённый другим с более ранним временем.
+ */
+export interface AnswersMark {
+  step: number;
+  count: number;
+  last: number | null;
+  sum: number;
 }
 
 export type ParticipantKind = "player" | "team";
@@ -429,6 +453,9 @@ export interface LeaderboardEntry {
 
 /** Ключ — id участника (игрока или команды). */
 export type Leaderboard = Record<string, LeaderboardEntry>;
+
+/** Поля записи таблицы, которые механика меняет без очков: «+100», стрелка места, деления гонки, старт раунда. */
+export type LeaderboardPatch = Partial<Pick<LeaderboardEntry, "last" | "move" | "race" | "roundBase">>;
 
 export interface Session {
   id: string;
@@ -548,6 +575,8 @@ export interface Answer {
   uid: string;
   value: unknown;
   submittedAt: number | null;
+  /** Источник ответа: телефон или физическая кнопка (у старых записей — phone). */
+  source?: AnswerSource;
 }
 
 export interface NewSessionOptions {
@@ -1053,6 +1082,8 @@ export interface SessionSummary {
   startedAt: number | null;
   /** «Ждёт гостей» или «идёт», но 12 часов без действий — скорее всего, брошена. */
   stale: boolean;
+  /** Идёт или ждёт гостей, а пульт не открыт дольше 30 с (только свой сервер; паспорт общей части, Н-5). */
+  pultQuiet?: boolean;
   /** Когда завершили (мс); null — идёт или ждёт гостей. */
   finishedAt?: number | null;
   /** Конец мероприятия этого вечера по планировщику (мс) — для «сверх плана»; null — мероприятия нет. */

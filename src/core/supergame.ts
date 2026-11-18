@@ -425,7 +425,8 @@ export function levelProblems(levels: SuperLevel[]): string[] {
     const kind = levelKind(l);
     const options = l.options ?? [];
     if (!l.text.trim() && !l.imageId && !l.trackId) problems.push(`${name}: напишите вопрос, добавьте картинку или трек.`);
-    if (kind === "open" && !l.answers.some((a) => normalizeAnswer(a).length > 0)) problems.push(`${name}: добавьте верный ответ.`);
+    // Верный ответ — с буквой или цифрой, как у открытого вопроса квиза (ответ из одних знаков — скорее опечатка).
+    if (kind === "open" && !l.answers.some((a) => /[\p{L}\p{N}]/u.test(a))) problems.push(`${name}: добавьте верный ответ.`);
     if (kind === "choice") {
       if (options.length < SUPER_LIMITS.minOptions || options.some((o) => !o.trim())) problems.push(`${name}: заполните варианты — от ${SUPER_LIMITS.minOptions} до ${SUPER_LIMITS.maxOptions}.`);
       if ((l.correct ?? []).length === 0) problems.push(`${name}: отметьте верный вариант.`);

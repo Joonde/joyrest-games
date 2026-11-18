@@ -12,7 +12,7 @@ import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { ROLES, type MafiaContent, type RoleId } from "./content";
 import { CardBack, MafiaCardStyleContext, RoleArt, RoleCardView, RoleFace } from "./RoleArt";
-import { canHeal, checkOf, isMafia, parseMafiaResult, parseRoleCard, parseWhisper, targetOf, voteOf, type MafiaResult, type RoleCard, type Whisper } from "./logic";
+import { canHeal, canVisit, checkOf, isMafia, parseMafiaResult, parseRoleCard, parseWhisper, targetOf, voteOf, type MafiaResult, type RoleCard, type Whisper } from "./logic";
 import { isKey, newKey, storedKey, storeKey, unseal } from "./seal";
 
 export type MafiaAnswerValue = { key: string } | { target?: string; check?: string } | { vote: string };
@@ -28,6 +28,10 @@ function partyOf(content: MafiaContent, r: MafiaResult): string {
 function clock(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function winnerTitle(winner: MafiaResult["winner"]): string {
+  return winner === "city" ? "Победил город!" : winner === "mafia" ? "Победила мафия!" : winner === "maniac" ? "Победил Маньяк!" : "Партия окончена";
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -167,7 +171,7 @@ function MafiaScreen({ session, content }: ViewProps<MafiaContent>) {
       else if (r.mode === "verdict") playSound(r.out ? "wrong" : "sparkle");
       else if (r.mode === "morning") {
         playSound("drumroll");
-        window.setTimeout(() => playSound(r.killed ? "wrong" : "sparkle"), 1800);
+        window.setTimeout(() => playSound(r.killed.length > 0 ? "wrong" : "sparkle"), 1800);
       } else if (r.mode === "over") playSound("fanfare");
     }
     prev.current = key;
@@ -214,18 +218,17 @@ function MafiaScreen({ session, content }: ViewProps<MafiaContent>) {
       </>
     );
   } else if (r.mode === "morning") {
-    const role = r.killed ? deadRole(r, r.killed) : null;
     main = (
       <>
         <span className="quiz-screen__badge">Утро</span>
         <h2 className="mf-title">Город просыпается</h2>
-        {r.killed ? (
+        {r.killed.length > 0 ? (
           <div className="mf-news is-dark">
-            <p className="mf-news__line">Этой ночью убит(а)</p>
-            <p className="mf-news__name">
-              <Who session={session} r={r} pid={r.killed} />
-            </p>
-            {role && <p className="mf-news__role">{ROLES[role].title}</p>}
+            <p className="mf-news__line">Этой ночью {r.killed.length === 1 ? "убит(а)" : "убиты"}</p>
+            {r.killed.map((pid) => {
+              const role = deadRole(r, pid);
+              return <div key={pid} className="mf-news__victim"><p className="mf-news__name"><Who session={session} r={r} pid={pid} /></p>{role && <p className="mf-news__role">{ROLES[role].title}</p>}</div>;
+            })}
           </div>
         ) : (
           <div className="mf-news">
@@ -286,7 +289,7 @@ function MafiaScreen({ session, content }: ViewProps<MafiaContent>) {
       <>
         {r.winner && <Confetti burst={`mf:${step}`} />}
         {partyOf(content, r) && <span className="quiz-screen__badge">{partyOf(content, r)} · итог</span>}
-        <h2 className="mf-title">{r.winner === "city" ? "Победил город!" : r.winner === "mafia" ? "Победила мафия!" : "Партия окончена"}</h2>
+        <h2 className="mf-title">{winnerTitle(r.winner)}</h2>
         <ul className="mf-reveal">
           {r.seats.map((p) => {
             const role = r.reveal?.[p];
@@ -311,10 +314,8 @@ function MafiaScreen({ session, content }: ViewProps<MafiaContent>) {
     main = (
       <>
         <span className="quiz-screen__badge">День {r.round}</span>
-        {r.killed && r.speakKind !== "speech" && !r.speaker ? (
-          <p className="mf-note">
-            Ночью погиб(ла) <Who session={session} r={r} pid={r.killed} />
-          </p>
+        {r.killed.length > 0 && r.speakKind !== "speech" && !r.speaker ? (
+          <p className="mf-note">Ночью {r.killed.length === 1 ? "погиб(ла)" : "погибли"} {r.killed.map((pid, i) => <span key={pid}>{i > 0 ? ", " : ""}<Who session={session} r={r} pid={pid} /></span>)}</p>
         ) : null}
         <h2 className="mf-title mf-title--small">{r.speaker ? "Обсуждение" : r.nominees.length > 0 ? "Кандидаты на голосование" : "Город обсуждает: кто мафия?"}</h2>
         <Speaker session={session} r={r} now={now} />
@@ -405,7 +406,8 @@ function NightMove({ session, r, me, card, whisper, myAnswer, sending, onAnswer 
   const others = r.alive.filter((p) => p !== me);
   const familyIds = card.family.map((f) => f.pid);
   const tags: Record<string, string> = {};
-  for (const f of card.family) if (r.alive.includes(f.pid)) tags[f.pid] = f.role === "don" ? "Дон · свой" : "свой";
+  for (const f of card.family) if (r.alive.includes(f.pid)) tags[f.pid] = f.role === "don" ? "Дон · свой" : f.role === "advocate" ? "Адвокат · свой" : "свой";
+  const blockedNotice = whisper?.blocked ? <p className="error" role="status">Красотка посетила вас — ваше ночное действие заблокировано.</p> : null;
 
   if (isMafia(role)) {
     const fam = whisper?.family ?? {};
@@ -418,19 +420,25 @@ function NightMove({ session, r, me, card, whisper, myAnswer, sending, onAnswer 
       <div className="stack">
         <h2>Выстрел семьи</h2>
         <p className="muted small">Убийство состоится, только если вся семья выберет одного. Цифра над игроком — голоса вашей семьи.</p>
-        <Targets session={session} r={r} list={others} picked={target} badges={badges} tags={tags} disabled={(p) => sending || familyIds.includes(p)} onPick={(p) => onAnswer(role === "don" ? { target: p, ...(check ? { check } : {}) } : { target: p })} />
-        <p className={same ? "success" : "muted"} role="status">
-          {whisper === undefined ? "Связываемся с семьёй…" : same ? "Вся семья выбрала одного — выстрел состоится" : members.length > 1 ? "Договоритесь: голоса пока расходятся" : target ? "Выбор сделан — можно поменять до утра" : "Выберите цель"}
+        <Targets session={session} r={r} list={others} picked={target} badges={badges} tags={tags} disabled={(p) => sending || familyIds.includes(p)} onPick={(p) => onAnswer(role === "don" || role === "advocate" ? { target: p, ...(check ? { check } : {}) } : { target: p })} />
+        <p className={same && !whisper?.familyBlocked ? "success" : "muted"} role="status">
+          {whisper == null ? "Связываемся с семьёй…" : whisper.familyBlocked ? "Красотка посетила семью — выстрела не будет" : same ? "Вся семья выбрала одного — выстрел состоится" : members.length > 1 ? "Договоритесь: голоса пока расходятся" : target ? "Выбор сделан — можно поменять до утра" : "Выберите цель"}
         </p>
         {role === "don" && (
           <>
             <h2>Проверка Дона: кто Комиссар?</h2>
             <Targets session={session} r={r} list={others.filter((p) => !familyIds.includes(p))} picked={check} disabled={() => sending || check !== null} onPick={(p) => onAnswer({ ...(target ? { target } : {}), check: p })} />
-            {check && (
-              <p className={whisper?.check?.target === check && whisper.check.yes ? "error" : "muted"} role="status">
-                {whisper?.check?.target === check ? (whisper.check.yes ? "Это Комиссар!" : "Не Комиссар") : "Проверяем…"}
-              </p>
-            )}
+            {blockedNotice}
+            {check && !whisper?.blocked && <p className={whisper?.check?.target === check && whisper.check.yes ? "error" : "muted"} role="status">{whisper?.check?.target === check ? (whisper.check.yes ? "Это Комиссар!" : "Не Комиссар") : "Проверяем…"}</p>}
+          </>
+        )}
+        {role === "advocate" && (
+          <>
+            <h2>Кого скрываете от Комиссара?</h2>
+            <p className="muted small">Выберите себя или члена семьи. Этой ночью проверка покажет Комиссару «не мафия».</p>
+            <Targets session={session} r={r} list={[me, ...familyIds.filter((p) => r.alive.includes(p))]} picked={check} tags={{ ...tags, [me]: "это вы" }} disabled={() => sending} onPick={(p) => onAnswer({ ...(target ? { target } : {}), check: p })} />
+            {blockedNotice}
+            {check && !whisper?.blocked && <p className="success">Защищаете №{r.seats.indexOf(check) + 1} от проверки</p>}
           </>
         )}
       </div>
@@ -443,9 +451,32 @@ function NightMove({ session, r, me, card, whisper, myAnswer, sending, onAnswer 
     return (
       <div className="stack">
         <h2>Кого лечите этой ночью?</h2>
-        <p className="muted small">Одного и того же — не две ночи подряд, себя — один раз за игру. Можно поменять до утра.</p>
+        <p className="muted small">Одного и того же — не две ночи подряд, себя — один раз за игру. Спасаете одного от выстрела мафии или Маньяка.</p>
         <Targets session={session} r={r} list={r.alive} picked={target} tags={{ [me]: "это вы" }} disabled={(p) => sending || whisper === undefined || !canHeal(me, p, history)} onPick={(p) => onAnswer({ target: p })} />
-        {target && <p className="success">Лечите №{r.seats.indexOf(target) + 1}</p>}
+        {blockedNotice}
+        {target && !whisper?.blocked && <p className="success">Лечите №{r.seats.indexOf(target) + 1}</p>}
+      </div>
+    );
+  }
+  if (role === "courtesan") {
+    const last = whisper?.lastVisit ?? null;
+    return (
+      <div className="stack">
+        <h2>Кого посещаете этой ночью?</h2>
+        <p className="muted small">Ночное действие цели будет заблокировано. Одного и того же — не две ночи подряд. Визит к мафиози отменяет выстрел всей семьи.</p>
+        <Targets session={session} r={r} list={others} picked={target} disabled={(p) => sending || whisper === undefined || !canVisit(me, p, last ? [last] : [])} onPick={(p) => onAnswer({ target: p })} />
+        {target && <p className="success">Блокируете №{r.seats.indexOf(target) + 1}</p>}
+      </div>
+    );
+  }
+  if (role === "maniac") {
+    return (
+      <div className="stack">
+        <h2>Кого выбираете этой ночью?</h2>
+        <p className="muted small">Вы действуете в одиночку. Доктор может спасти вашу жертву, а Красотка — заблокировать вас.</p>
+        <Targets session={session} r={r} list={others} picked={target} disabled={() => sending} onPick={(p) => onAnswer({ target: p })} />
+        {blockedNotice}
+        {target && !whisper?.blocked && <p className="success">Ваш выбор: №{r.seats.indexOf(target) + 1}. Можно поменять до утра.</p>}
       </div>
     );
   }
@@ -453,9 +484,10 @@ function NightMove({ session, r, me, card, whisper, myAnswer, sending, onAnswer 
     return (
       <div className="stack">
         <h2>Кого проверяете?</h2>
-        <p className="muted small">Одна проверка за ночь — выбирайте внимательно.</p>
+        <p className="muted small">Одна проверка за ночь. Адвокат может скрыть мафиози — тогда результат будет «не мафия».</p>
         <Targets session={session} r={r} list={others} picked={target} disabled={() => sending || target !== null} onPick={(p) => onAnswer({ target: p })} />
-        {target && (
+        {blockedNotice}
+        {target && !whisper?.blocked && (
           <p className={whisper?.check?.target === target ? (whisper.check.yes ? "mf-verdict is-mafia" : "mf-verdict is-clean") : "muted"} role="status">
             {whisper?.check?.target === target ? (whisper.check.yes ? "№" + (r.seats.indexOf(target) + 1) + " — МАФИЯ!" : "№" + (r.seats.indexOf(target) + 1) + " — не мафия") : "Проверяем…"}
           </p>
@@ -614,7 +646,7 @@ function MafiaPlayer({ session, content, pid, myAnswer, sending, onAnswer }: Pla
     return (
       <div className="quiz-phone mf-phone">
         {head}
-        <h2>{r.winner === "city" ? "Победил город!" : r.winner === "mafia" ? "Победила мафия!" : "Партия окончена"}</h2>
+        <h2>{winnerTitle(r.winner)}</h2>
         {r.winner && <p className={won ? "success" : "muted"}>{won ? "Ваша сторона победила! 🎉" : "В этот раз не повезло"}</p>}
         {r.party < content.parties && <p className="muted">Скоро следующая партия — роли раздадут заново. Очки копятся.</p>}
         {role && (
@@ -676,14 +708,12 @@ function MafiaPlayer({ session, content, pid, myAnswer, sending, onAnswer }: Pla
       </div>
     );
   } else if (r.mode === "morning") {
-    body = <p className="mf-phone__news">{r.killed ? <>Ночью убит(а) <Who session={session} r={r} pid={r.killed} /></> : "Ночь прошла спокойно"}</p>;
+    body = <p className="mf-phone__news">{r.killed.length > 0 ? <>Ночью {r.killed.length === 1 ? "убит(а)" : "убиты"} {r.killed.map((p, i) => <span key={p}>{i > 0 ? ", " : ""}<Who session={session} r={r} pid={p} /></span>)}</> : "Ночь прошла спокойно"}</p>;
   } else {
     body = (
       <div className="stack">
-        {r.killed && r.mode === "day" && (
-          <p className="muted">
-            Ночью погиб(ла) <Who session={session} r={r} pid={r.killed} />
-          </p>
+        {r.killed.length > 0 && r.mode === "day" && (
+          <p className="muted">Ночью {r.killed.length === 1 ? "погиб(ла)" : "погибли"} {r.killed.map((p, i) => <span key={p}>{i > 0 ? ", " : ""}<Who session={session} r={r} pid={p} /></span>)}</p>
         )}
         {r.speaker && r.speakEndsAt !== null ? (
           <p className={`mf-phone__news${r.speaker === pid ? " is-me" : ""}`}>

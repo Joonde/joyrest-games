@@ -4,14 +4,15 @@
 import { leaderboardAdditions } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone, podiumLabel } from "../../core/podium";
 import { placeMoves, startRoundEntries } from "../../core/rounds";
-import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
+import type { Answer, LeaderboardEntry, LeaderboardPatch, Participant, Session, SessionChange } from "../../data/types";
 import { quizRounds, raceBonusOf, roundAt, settingsOf, type QuizContent, type QuizQuestion } from "./content";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, syncBuzz } from "../../core/buzz";
-import { auctionAnswers, emptyResult, parseResult, resultOf, score, startResult, steps } from "./logic";
+import { auctionAnswers, emptyResult, shownAnswers, parseResult, resultOf, score, startResult, steps } from "./logic";
 import { auctionBackToBets, isAuctionDraw, openBets } from "./auction";
 import { activeLevels, LEVEL_NAMES, levelVoteLeaders, parseLevelVote, parsePickMode, parseSuperVote, superPicks, tallyLevelVote, tallySuperVote, VOTE_TIME, votePassed, voteTied, voteUndecided, type LevelVote, type SuperVote } from "../../core/supergame";
 import { drawSlide, drawWinner } from "../../core/draw";
 import { pointsLabel } from "../../core/results";
+import { MAX_SCORE_DELTA } from "../../core/session";
 
 export type QuizAction = "show" | "reveal" | "board" | "total" | "next" | "podium" | "podiumNext" | "finish" | "vote" | "voteDone" | "skip" | "coin" | "levelVote" | "levelVoteDone";
 
@@ -141,7 +142,8 @@ export function actionLabel(session: Session, content: QuizContent, action: Quiz
   if (action === "next" && content.questions[session.state.step + 1]?.kind === "super") return "Суперигра";
   if (action === "next" && content.questions[session.state.step + 1]?.kind === "auction") return "Аукцион";
   if (action === "board" && endsRound(content, session.state.step)) return "Итоги раунда";
-  if (action === "show" && startsRound(content, session.state.step)) return "Начать раунд";
+  // Первый раунд игры тоже начинается с заставки раунда — кнопка называется так же (паспорт квиза, К-Н-11).
+  if (action === "show" && (startsRound(content, session.state.step) || (session.state.step === 0 && roundAt(content, 0)?.from === 0))) return "Начать раунд";
   return ACTION_LABELS[action];
 }
 
@@ -180,9 +182,13 @@ export interface StepSnapshot {
   move: Record<string, number>;
 }
 
-/** Сколько шагов помним: вся игра, но не больше этого числа и этого размера (state уходит всем телефонам). */
-export const HISTORY_MAX = 100;
-export const HISTORY_CHARS = 40_000;
+/**
+ * Сколько шагов помним для «Назад» с заставки: пять последних и не больше этого размера. Итоги шага уходят всем
+ * телефонам при каждой записи пульта, поэтому длинная стопка тормозила бы их на слабом интернете (паспорт квиза,
+ * К-Н-12). Дальше пяти шагов «Назад» гаснет.
+ */
+export const HISTORY_MAX = 5;
+export const HISTORY_CHARS = 12_000;
 
 function numbers(value: unknown): Record<string, number> {
   const out: Record<string, number> = {};
@@ -436,14 +442,14 @@ export function chooseLevel(session: Session, content: QuizContent, level: numbe
 
 /** «Пропустить суперигру»: очков нет, дальше — как после ответа (таблица или следующий вопрос). */
 export function skipSuper(session: Session): SessionChange {
-  // Прибавки прошлого вопроса («+100») больше не показываем.
-  const leaderboard: Record<string, LeaderboardEntry> = {};
+  // Прибавки прошлого вопроса («+100») больше не показываем. Очки не трогаем — только поля записи (К-Н-3).
+  const patch: Record<string, LeaderboardPatch> = {};
   for (const [pid, entry] of Object.entries(session.leaderboard)) {
-    if (entry.last || entry.move) leaderboard[pid] = { ...entry, last: 0, move: 0 };
+    if (entry.last || entry.move) patch[pid] = { last: 0, move: 0 };
   }
   return {
     state: { ...(isSuperCoin(session) ? { slide: null } : {}), stage: "reveal", revealed: true, answered: 0, result: { ...emptyResult(), ...carry(session), skipped: true } },
-    leaderboard,
+    ...withPatch(patch),
   };
 }
 
@@ -467,7 +473,8 @@ export function buzzSync(session: Session, answers: Answer[]): SessionChange | n
   if (session.state.stage !== "question") return null;
   const result = parseResult(session.state.result);
   if (!result.buzz) return null;
-  const next = syncBuzz(result.buzz, buzzOrder(answers, session.state.step));
+  // Нажатие с прошлого показа вопроса в очередь не встаёт (К-Н-6).
+  const next = syncBuzz(result.buzz, buzzOrder(shownAnswers(answers, session.state.startedAt), session.state.step));
   return next ? { state: { result: { ...asRecord(session.state.result), buzz: next } } } : null;
 }
 
@@ -486,9 +493,11 @@ export function buzzRightAnswer(session: Session, content: QuizContent, answers:
 }
 
 /** Засчитать или снять открытый ответ гостя (до показа ответа). */
-export function toggleAccepted(session: Session, key: string): SessionChange {
+export function toggleAccepted(session: Session, key: string, on?: boolean): SessionChange {
   const result = parseResult(session.state.result);
-  const accepted = result.accepted.includes(key) ? result.accepted.filter((k) => k !== key) : [...result.accepted, key];
+  // `on` — что увидел и выбрал ведущий: повтор после отказа (второй пульт успел записать) не перевернёт зачёт обратно.
+  const want = on ?? !result.accepted.includes(key);
+  const accepted = want ? (result.accepted.includes(key) ? result.accepted : [...result.accepted, key]) : result.accepted.filter((k) => k !== key);
   // Счётчик «Повторить фрагмент» сохраняем: иначе экран сыграет музыку ещё раз.
   const replay = asRecord(session.state.result).replay;
   return { state: { result: { ...result, accepted, ...carry(session), ...(typeof replay === "number" ? { replay } : {}) } } };
@@ -509,9 +518,35 @@ export function replayTrack(session: Session): SessionChange {
 }
 
 /**
+ * Части записи пульта для таблицы: только непустые (пустая запись не отправляется). Прибавка больше лимита сервера
+ * (`MAX_SCORE_DELTA`, огромная ставка аукциона) — записью целиком по копии пульта, иначе сервер отклонит всю запись.
+ */
+function withPatch(
+  patch: Record<string, LeaderboardPatch>,
+  addScore: Record<string, number> = {},
+  leaderboard: Record<string, LeaderboardEntry> = {},
+  board: Session["leaderboard"] = {},
+): Pick<SessionChange, "patch" | "addScore" | "leaderboard"> {
+  for (const [pid, delta] of Object.entries(addScore)) {
+    const entry = board[pid];
+    if (Math.abs(delta) <= MAX_SCORE_DELTA || !entry) continue;
+    leaderboard[pid] = { ...entry, ...patch[pid], score: entry.score + delta };
+    delete addScore[pid];
+    delete patch[pid];
+  }
+  return {
+    ...(Object.keys(leaderboard).length > 0 ? { leaderboard } : {}),
+    ...(Object.keys(patch).length > 0 ? { patch } : {}),
+    ...(Object.keys(addScore).length > 0 ? { addScore } : {}),
+  };
+}
+
+/**
  * Показать ответ: очки за шаг прибавляются к таблице, «last» хранит прибавку, чтобы
- * экран показал «+100», а «Назад» мог её снять. Участники, которых пульт ещё не успел
- * внести в таблицу, вносятся здесь же.
+ * экран показал «+100», а «Назад» мог её снять. Очки идут прибавкой, «+100» и стрелка — полями
+ * записи (`patch`): одновременное «+10» со второго пульта не затирается, убранный участник не
+ * возвращается (паспорт квиза, К-Н-3). Участник, которого пульт ещё не успел внести в таблицу,
+ * вносится здесь же, если получил очки за этот ответ; остальных вносит пульт сам.
  */
 export function reveal(
   session: Session,
@@ -523,7 +558,8 @@ export function reveal(
   if (!step) return {};
   const stepAnswers = answers.filter((a) => a.step === session.state.step);
   // Аукцион: ставки того же шага — не ответы на вопрос.
-  const own = step.question.kind === "auction" ? auctionAnswers(stepAnswers, session.state.startedAt) : stepAnswers;
+  // Ответ, оставшийся с прошлого показа вопроса, не считается (К-Н-6).
+  const own = step.question.kind === "auction" ? auctionAnswers(stepAnswers, session.state.startedAt) : shownAnswers(stepAnswers, session.state.startedAt);
   const board: Record<string, LeaderboardEntry> = {
     ...session.leaderboard,
     ...leaderboardAdditions(session.leaderboard, participants, session.playMode),
@@ -536,31 +572,41 @@ export function reveal(
   }
   // Стрелки «↑2»: на сколько мест сдвинулся участник после этого ответа.
   const moves = placeMoves(board, after);
+  // Новые участники — записью целиком (их ещё нет в таблице), остальные — прибавкой и полями записи.
   const leaderboard: Record<string, LeaderboardEntry> = {};
+  const patch: Record<string, LeaderboardPatch> = {};
+  const addScore: Record<string, number> = {};
   for (const [pid, entry] of Object.entries(board)) {
     const delta = deltas.get(pid) ?? 0;
     const move = moves.get(pid) ?? 0;
-    if (delta === 0 && (entry.last ?? 0) === 0 && (entry.move ?? 0) === move && session.leaderboard[pid]) continue;
-    leaderboard[pid] = { ...(after[pid] as LeaderboardEntry), move };
+    if (!session.leaderboard[pid]) {
+      if (delta !== 0) leaderboard[pid] = { ...(after[pid] as LeaderboardEntry), move };
+      continue;
+    }
+    if (delta === 0 && (entry.last ?? 0) === 0 && (entry.move ?? 0) === move) continue;
+    patch[pid] = { last: delta, move };
+    if (delta !== 0) addScore[pid] = delta;
   }
   const before = parseResult(session.state.result);
   // Гонка: победитель проходит деления к финишу (супер-трек — больше).
   const winner = step.question.kind === "buzz" ? (before.buzz?.winner ?? null) : null;
   let raceFinish: { pid: string; bonus: number } | null = null;
-  if (winner) {
-    const entry = leaderboard[winner] ?? after[winner];
-    if (entry) {
-      const race = (entry.race ?? 0) + (step.question.steps ?? 1);
-      // Первый дошедший до финиша получает бонус (один раз за игру). Бонус входит в «last» — «Назад» снимет его вместе с очками.
-      const target = settingsOf(content).raceTarget;
-      const bonus = raceBonusOf(content);
-      const finishedBefore = Object.values(board).some((e) => (e.race ?? 0) >= target);
-      if (!finishedBefore && race >= target && bonus > 0) {
-        raceFinish = { pid: winner, bonus };
-        leaderboard[winner] = { ...entry, race, score: entry.score + bonus, last: (entry.last ?? 0) + bonus };
-      } else {
-        leaderboard[winner] = { ...entry, race };
-      }
+  const fresh = winner ? leaderboard[winner] : undefined;
+  const known = winner ? session.leaderboard[winner] : undefined;
+  if (winner && (fresh || known)) {
+    const race = ((fresh ?? known)?.race ?? 0) + (step.question.steps ?? 1);
+    // Первый дошедший до финиша получает бонус (один раз за игру). Бонус входит в «last» — «Назад» снимет его вместе с очками.
+    const target = settingsOf(content).raceTarget;
+    const bonus = raceBonusOf(content);
+    const finishedBefore = Object.values(board).some((e) => (e.race ?? 0) >= target);
+    const finishes = !finishedBefore && race >= target && bonus > 0;
+    if (finishes) raceFinish = { pid: winner, bonus };
+    const delta = deltas.get(winner) ?? 0;
+    if (fresh) {
+      leaderboard[winner] = { ...fresh, race, ...(finishes ? { score: fresh.score + bonus, last: (fresh.last ?? 0) + bonus } : {}) };
+    } else {
+      patch[winner] = { ...(patch[winner] ?? { last: delta, move: moves.get(winner) ?? 0 }), race, ...(finishes ? { last: delta + bonus } : {}) };
+      if (finishes) addScore[winner] = (addScore[winner] ?? 0) + bonus;
     }
   }
   return {
@@ -570,7 +616,7 @@ export function reveal(
       answered: own.length,
       result: { ...resultOf(step.question, own, before.accepted, before.buzz, session.state.result), ...(before.auction ? { auction: before.auction } : {}), ...(raceFinish ? { raceFinish } : {}), ...carry(session) },
     },
-    leaderboard,
+    ...withPatch(patch, addScore, leaderboard, session.leaderboard),
   };
 }
 
@@ -600,7 +646,8 @@ export function nextQuestion(session: Session, content: QuizContent): SessionCha
   const direct = !settingsOf(content).intro && !newRound && q !== undefined && q.kind !== "super" && q.kind !== "auction";
   const history = pushHistory(session);
   return {
-    ...(newRound ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
+    // Старт раунда — поле записи, очки не переписываются (К-Н-3).
+    ...(newRound ? withPatch(Object.fromEntries(Object.entries(startRoundEntries(session.leaderboard)).map(([pid, e]) => [pid, { roundBase: e.roundBase ?? 0 }]))) : {}),
     state: direct
       ? { step, stage: "question", startedAt: "server", timeLimit: limitOf(q), revealed: false, answered: 0, result: { ...startResult(q), history } }
       : {
@@ -635,10 +682,16 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
     return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: carry(session) } } };
   }
   if (stage === "reveal") {
-    // Снимаем очки этого шага: при повторном показе ответа они посчитаются заново.
-    const leaderboard: Record<string, LeaderboardEntry> = {};
+    // Снимаем очки этого шага: при повторном показе ответа они посчитаются заново. Прибавкой — чужое «+10» остаётся (К-Н-3).
+    const patch: Record<string, LeaderboardPatch> = {};
+    const addScore: Record<string, number> = {};
     for (const [pid, entry] of Object.entries(session.leaderboard)) {
-      if (entry.last) leaderboard[pid] = { ...entry, score: entry.score - entry.last, last: 0, move: 0 };
+      if (entry.last) {
+        patch[pid] = { last: 0, move: 0 };
+        addScore[pid] = -entry.last;
+      }
+      // Стрелка места — тоже от этого показа ответа: снимаем и у тех, кто очков не получил (К-Н-16).
+      else if (entry.move) patch[pid] = { move: 0 };
     }
     const result = parseResult(session.state.result);
     // Гонка: снимаем и деления победителя; слово снова у него — ведущий решит ещё раз.
@@ -646,8 +699,8 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
     let buzz = result.buzz;
     if (buzz?.winner) {
       const winner = buzz.winner;
-      const entry = leaderboard[winner] ?? session.leaderboard[winner];
-      if (entry) leaderboard[winner] = { ...entry, race: Math.max(0, (entry.race ?? 0) - (q?.steps ?? 1)) };
+      const entry = session.leaderboard[winner];
+      if (entry) patch[winner] = { ...(patch[winner] ?? {}), race: Math.max(0, (entry.race ?? 0) - (q?.steps ?? 1)) };
       buzz = { ...buzz, winner: null, current: winner };
     }
     return {
@@ -657,7 +710,7 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
           revealed: false,
           result: { ...emptyResult(), accepted: result.accepted, ...(buzz ? { buzz } : {}), ...(result.auction ? { auction: result.auction } : {}), ...carry(session) },
         },
-        leaderboard,
+        ...withPatch(patch, addScore, {}, session.leaderboard),
       },
     };
   }
@@ -705,32 +758,32 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
     const snap = history[history.length - 1];
     // Снимка нет (ушёл из слишком длинной стопки) — назад дальше нельзя: иначе очки снимутся неверно.
     if (!snap || snap.step !== step - 1) return null;
-    const leaderboard: Record<string, LeaderboardEntry> = {};
+    const patch: Record<string, LeaderboardPatch> = {};
     for (const [pid, entry] of Object.entries(session.leaderboard)) {
       const base = prevRoundBase[pid];
       const roundBase = typeof base === "number" ? base : (entry.roundBase ?? 0);
       const last = snap.last[pid] ?? 0;
       const move = snap.move[pid] ?? 0;
       if (last !== (entry.last ?? 0) || move !== (entry.move ?? 0) || roundBase !== (entry.roundBase ?? 0)) {
-        leaderboard[pid] = { ...entry, last, move, ...(typeof base === "number" ? { roundBase } : {}) };
+        patch[pid] = { last, move, ...(typeof base === "number" ? { roundBase } : {}) };
       }
     }
     return {
       change: {
         state: { step: snap.step, stage: snap.stage, revealed: true, answered: snap.answered, result: { ...snap.result, history: history.slice(0, -1) } },
-        leaderboard,
+        ...withPatch(patch),
       },
     };
   }
   // Сессии, начатые до снимков шагов.
   if (Object.keys(prevRoundBase).length > 0) {
     // С заставки нового раунда — на «Общий счёт» прошлого, со счётом раунда как был.
-    const leaderboard: Record<string, LeaderboardEntry> = {};
+    const patch: Record<string, LeaderboardPatch> = {};
     for (const [pid, entry] of Object.entries(session.leaderboard)) {
       const base = prevRoundBase[pid];
-      if (typeof base === "number" && base !== (entry.roundBase ?? 0)) leaderboard[pid] = { ...entry, roundBase: base };
+      if (typeof base === "number" && base !== (entry.roundBase ?? 0)) patch[pid] = { roundBase: base };
     }
-    return { change: { state: { step: step - 1, stage: "board", revealed: true, answered: 0, result: { board: "total" } }, leaderboard } };
+    return { change: { state: { step: step - 1, stage: "board", revealed: true, answered: 0, result: { board: "total" } }, ...withPatch(patch) } };
   }
   // С «готовы?» — на таблицу предыдущего вопроса.
   return { change: { state: { step: step - 1, stage: "board", revealed: true, answered: 0, result: null } } };

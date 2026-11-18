@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useId, useState } from "react";
 import { Logo } from "../../components/Logo";
 import { ROLES, type MafiaCardStyle, type RoleId } from "./content";
+import { ExtendedRoleArt } from "./ExtendedRoleArt";
 
-/** Стиль карт игры: «Классика» — свои рисунки SVG с живыми глазами, «Нуар» — рисунки Figma AI. */
+/** Стиль карт игры: «Классика» — свои рисунки SVG с живыми глазами, «Нуар» — живописные портреты. */
 export const MafiaCardStyleContext = createContext<MafiaCardStyle>("classic");
 
-const NOIR_FILE: Record<RoleId, string> = { mafia: "mafia", don: "don", commissar: "sheriff", doctor: "doctor", civilian: "civilian" };
+const NOIR_FILE: Record<RoleId, string> = { mafia: "mafia", don: "don", advocate: "advocate", commissar: "sheriff", doctor: "doctor", courtesan: "courtesan", maniac: "maniac", civilian: "civilian" };
 const noirSrc = (name: string) => `/mafia/art/web/noir-${name}.webp`;
 
 // Персонажи «Мафии» — свои рисунки (SVG) в стиле нуар: портрет по пояс, свет со спины, тени на лице и
@@ -92,6 +93,7 @@ function Fedora({ crown, band, tilt = 0 }: { crown: string; band: string; tilt?:
 export function RoleArt({ role }: { role: RoleId }) {
   const look = useContext(MafiaCardStyleContext);
   if (look === "noir") return <img className={`mf-art mf-art--img mf-art--${role}`} src={noirSrc(NOIR_FILE[role])} alt={ROLES[role].title} loading="lazy" decoding="async" />;
+  if (role === "advocate") return <ExtendedRoleArt role={role} />;
   return <RoleArtSvg role={role} />;
 }
 
@@ -168,6 +170,28 @@ function RoleArtSvg({ role }: { role: RoleId }) {
           </g>
         </g>
       )}
+      {role === "courtesan" && (
+        <g>
+          <path d="M8 250 V0 H46 C36 52 43 110 32 162 C25 197 30 225 38 250 Z" fill="#4b101e" opacity="0.72" />
+          <path d="M192 250 V0 H154 C164 52 157 110 168 162 C175 197 170 225 162 250 Z" fill="#4b101e" opacity="0.72" />
+          <path d="M18 0 C29 55 22 112 33 160 M182 0 C171 55 178 112 167 160" stroke="#d89a9f" strokeOpacity="0.25" strokeWidth="3" fill="none" />
+          <g transform="translate(158 139)">
+            <path d="M0 0 V43 M-10 43 H10" stroke="#b58a4a" strokeWidth="3" strokeLinecap="round" />
+            <path className="mf-art__flame" d="M0 -2 C-6 -9 -2 -17 0 -21 C5 -14 5 -7 0 -2 Z" fill="#ffd27a" />
+            <ellipse cx="0" cy="3" rx="15" ry="20" fill="#ffd27a" opacity="0.12" />
+          </g>
+        </g>
+      )}
+      {role === "maniac" && (
+        <g>
+          <circle cx="158" cy="45" r="17" fill="#d9c8e8" opacity="0.55" />
+          <circle cx="164" cy="40" r="16" fill="var(--mf-bg2)" />
+          <g fill="#0c0c13" opacity="0.85"><path d="M0 250 V112 H34 V250 Z M166 250 V86 H200 V250 Z M28 250 V148 H57 V250 Z M145 250 V132 H173 V250 Z" /></g>
+          <g className="mf-art__rain" stroke="#c5b1df" strokeOpacity="0.28" strokeWidth="1.4">
+            {Array.from({ length: 12 }, (_, i) => <path key={i} d={`M${(i * 37) % 200} ${(i * 29) % 130} l-5 17`} />)}
+          </g>
+        </g>
+      )}
       {role === "civilian" && (
         <g>
           <circle cx="160" cy="44" r="16" fill="#f3ead0" opacity="0.85" />
@@ -215,6 +239,21 @@ function RoleArtSvg({ role }: { role: RoleId }) {
             <path d="M100 196 V213" stroke="#22383d" strokeWidth="3.5" />
             <rect x="130" y="196" width="22" height="26" rx="3" fill="#e8f4f2" stroke="#9ec9c2" />
             <path d="M136 204 h10 M141 199 v10" stroke="#d64545" strokeWidth="3" />
+          </g>
+        )}
+        {role === "courtesan" && (
+          <g>
+            <path d="M75 161 L100 181 L125 161 C117 157 109 156 100 157 C91 156 83 157 75 161 Z" fill="#d9a888" />
+            <path d="M68 159 L100 184 L132 159 L140 176 L120 196 L100 184 L80 196 L60 176 Z" fill="#2a1a1d" stroke="#8a5960" strokeWidth="1.5" />
+            <path d="M53 183 L76 250 M147 183 L124 250" stroke="#c07a86" strokeOpacity="0.35" strokeWidth="2" fill="none" />
+          </g>
+        )}
+        {role === "maniac" && (
+          <g>
+            <path d="M57 158 L82 196 L100 166 L118 196 L143 158 L132 250 H68 Z" fill="#17191d" stroke="#4c4654" strokeWidth="2" />
+            <path d="M82 160 L100 188 L118 160 L108 202 H92 Z" fill="#b7b0a7" />
+            <path d="M97 172 H104 L108 199 L100 207 L93 199 Z" fill="#4d1b29" />
+            <path d="M120 190 Q126 185 131 192 L128 202 Q120 201 120 190 M70 216 Q77 211 81 218 L78 226 Q70 225 70 216" fill="#7d1b29" opacity="0.85" />
           </g>
         )}
         {role === "civilian" && (
@@ -269,9 +308,49 @@ function RoleArtSvg({ role }: { role: RoleId }) {
         {role === "don" && <Face id={id} mood="sly" />}
         {role === "commissar" && <Face id={id} mood="sharp" shadow={0.2} />}
         {role === "doctor" && <Face id={id} mood="kind" />}
+        {role === "courtesan" && <Face id={id} mood="sharp" shadow={0.15} />}
+        {role === "maniac" && <Face id={id} mood="calm" shadow={0.35} />}
         {role === "civilian" && <Face id={id} mood="sleepy" />}
 
         {/* Волосы, шляпы, атрибуты */}
+        {role === "courtesan" && (
+          <g>
+            <path d="M70 104 C64 81 81 66 101 67 C124 65 137 82 130 108 L137 166 C132 178 121 174 117 157 L121 126 C126 107 122 90 111 82 C101 92 85 91 76 104 L78 153 C74 172 62 176 58 164 L67 115 Z" fill="#27191d" />
+            <path d="M73 91 C64 108 72 128 65 143 M126 89 C137 107 129 126 135 143" stroke="#5c3034" strokeWidth="4" strokeLinecap="round" fill="none" />
+            <path d="M85 110 L81 107 M115 110 L119 107" stroke="#2b1b1b" strokeWidth="1.6" strokeLinecap="round" />
+            <path d="M93 135 Q100 139 107 135" stroke="#8f3a45" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+            <ellipse className="mf-art__eyeglow" cx="91" cy="113" rx="4" ry="1.7" fill="var(--mf-accent)" opacity="0.45" />
+            <ellipse className="mf-art__eyeglow" cx="109" cy="113" rx="4" ry="1.7" fill="var(--mf-accent)" opacity="0.45" />
+            <g className="mf-art__rose" transform="translate(54 194)">
+              <path d="M0 5 L7 42" stroke="#45623d" strokeWidth="3" />
+              <path d="M4 26 Q-7 20 -8 30 Q0 33 4 26" fill="#52734a" />
+              <circle cx="0" cy="0" r="10" fill="#8f2033" />
+              <path d="M-6 -2 Q0 -10 6 -2 Q2 7 -5 4 Z" fill="#bd3548" />
+            </g>
+            <g transform="translate(134 207)">
+              <path d="M0 22 L-27 -4 Q0 -20 27 -4 Z" fill="#17131b" stroke="#d8a9b2" strokeOpacity="0.55" />
+              <path d="M0 22 L-18 -9 M0 22 L0 -15 M0 22 L18 -9" stroke="#d8a9b2" strokeOpacity="0.45" />
+              <circle cx="0" cy="22" r="3.5" fill="#e3c68c" />
+            </g>
+          </g>
+        )}
+        {role === "maniac" && (
+          <g>
+            <path d="M70 103 C67 80 82 66 102 68 C123 66 133 82 129 105 L121 89 L114 94 L106 81 L97 91 L86 82 L76 101 Z" fill="#17151b" />
+            <path d="M75 99 L86 104 M125 98 L115 104 M76 82 L66 70 M92 75 L84 63 M116 77 L127 65" stroke="#17151b" strokeWidth="4" strokeLinecap="round" />
+            <path d="M84 122 Q91 126 96 123 M104 123 Q110 126 116 122" stroke="#6f5052" strokeWidth="1.8" fill="none" opacity="0.75" />
+            <ellipse className="mf-art__eyeglow" cx="91" cy="113" rx="4" ry="1.7" fill="var(--mf-accent)" opacity="0.5" />
+            <ellipse className="mf-art__eyeglow" cx="109" cy="113" rx="4" ry="1.7" fill="var(--mf-accent)" opacity="0.5" />
+            <g transform="translate(48 199) rotate(12)">
+              <ellipse cx="0" cy="-6" rx="7" ry="10" fill="#d9a888" />
+              <path d="M-5 -11 Q0 -7 5 -10" stroke="#8b1b28" strokeWidth="2.5" fill="none" />
+              <path d="M0 0 L-5 40 L5 40 Z" fill="#b9c5cf" stroke="#e4e9ef" strokeWidth="1" />
+              <path d="M-4 23 L-5 40 L5 40 L3 22 Q0 27 -4 23 Z" fill="#8b1424" />
+              <rect x="-5" y="-12" width="10" height="16" rx="3" fill="#211a1e" />
+              <circle cx="6" cy="34" r="2" fill="#9c1829" />
+            </g>
+          </g>
+        )}
         {role === "mafia" && (
           <g>
             <ellipse className="mf-art__eyeglow" cx="91" cy="113" rx="7" ry="3" fill="var(--mf-accent)" opacity="0.5" />
@@ -393,7 +472,7 @@ export function RoleFace({ role, seat, family }: { role: RoleId; seat?: number; 
     return (
       <div className={`mf-card__face mf-card__front mf-card__front--noir mf-role--${role}`} style={{ backgroundImage: `url(${noirSrc(NOIR_FILE[role])})` }}>
         {seat ? <span className="mf-card__seat">№ {seat}</span> : null}
-        <span className={info.side === "mafia" ? "mf-card__side is-mafia" : "mf-card__side"}>{info.side === "mafia" ? "Мафия" : "Город"}</span>
+        <span className={`mf-card__side${info.side === "mafia" ? " is-mafia" : info.side === "maniac" ? " is-maniac" : ""}`}>{info.side === "mafia" ? "Мафия" : info.side === "maniac" ? "Своя сторона" : "Город"}</span>
         <div className="mf-card__noir-text">
           <h3 className="mf-card__title">{info.title}</h3>
           <p className="mf-card__power">{info.power}</p>
@@ -410,7 +489,7 @@ export function RoleFace({ role, seat, family }: { role: RoleId; seat?: number; 
       <div className="mf-card__frame" aria-hidden="true" />
       <div className="mf-card__sheen" aria-hidden="true" />
       {seat ? <span className="mf-card__seat">№ {seat}</span> : null}
-      <span className={info.side === "mafia" ? "mf-card__side is-mafia" : "mf-card__side"}>{info.side === "mafia" ? "Мафия" : "Город"}</span>
+      <span className={`mf-card__side${info.side === "mafia" ? " is-mafia" : info.side === "maniac" ? " is-maniac" : ""}`}>{info.side === "mafia" ? "Мафия" : info.side === "maniac" ? "Своя сторона" : "Город"}</span>
       <RoleArt role={role} />
       <h3 className="mf-card__title">{info.title}</h3>
       <p className="mf-card__power">{info.power}</p>

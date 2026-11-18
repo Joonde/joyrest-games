@@ -10,6 +10,11 @@ export function questionPath(questionId: string, field: QuestionField): string {
 
 export type QuestionField = "text" | "options" | "correct" | "answers" | "timeLimit" | "points" | "pictures" | "levels" | "number";
 
+/** В верном ответе есть буква или цифра: ответ из одних знаков в конструкторе — скорее опечатка. */
+function filledAnswer(a: string): boolean {
+  return /[\p{L}\p{N}]/u.test(a);
+}
+
 function duplicates(values: string[]): boolean {
   const seen = new Set<string>();
   for (const v of values.map(normalizeAnswer).filter(Boolean)) {
@@ -28,13 +33,13 @@ export function validateQuestion(q: QuizQuestion): ValidationError[] {
   if (q.kind === "super") {
     for (const problem of levelProblems(q.levels ?? [])) add("levels", problem);
   } else if (q.kind === "open" || q.kind === "buzz" || (q.kind === "auction" && q.auctionAnswer === "open")) {
-    const filled = q.answers.filter((a) => normalizeAnswer(a).length > 0);
+    const filled = q.answers.filter(filledAnswer);
     if (filled.length === 0) add("answers", q.kind === "buzz" ? "Напишите правильный ответ — его увидит ведущий." : "Добавьте хотя бы один верный ответ.");
   } else if (q.kind === "pictures") {
     const pics = q.pictures ?? [];
     if (pics.length < LIMITS.minPictures || pics.length > LIMITS.maxPictures) add("pictures", `Нужно от ${LIMITS.minPictures} до ${LIMITS.maxPictures} картинок.`);
     if (pics.some((p) => !p.imageId)) add("pictures", "Добавьте картинку в каждое поле или удалите пустое.");
-    if (pics.some((p) => !p.answers.some((a) => normalizeAnswer(a).length > 0))) add("pictures", "Напишите верный ответ к каждой картинке.");
+    if (pics.some((p) => !p.answers.some(filledAnswer))) add("pictures", "Напишите верный ответ к каждой картинке.");
   } else if (q.kind === "order") {
     if (q.options.length < LIMITS.minOrder || q.options.length > LIMITS.maxOptions) add("options", `Нужно от ${LIMITS.minOrder} до ${LIMITS.maxOptions} карточек.`);
     if (q.options.some((o) => !o.trim())) add("options", "Заполните все карточки или удалите пустые.");

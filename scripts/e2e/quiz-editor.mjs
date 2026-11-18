@@ -490,8 +490,8 @@ async function main() {
     await cardByNumber(musicStart + 1).locator(".q-card__summary").click();
     await openCard().waitFor({ timeout: WAIT });
     await page.getByRole("button", { name: "Добавить вопрос", exact: true }).first().click();
-    await page.locator(".add-question summary", { hasText: "В конце раунда" }).click();
-    await page.locator(".add-question").getByRole("button", { name: /Суперигра/ }).click();
+    // С 25 октября 2026 суперигра — не формат вопроса, а отдельная кнопка внизу окна.
+    await page.locator(".add-question").getByRole("button", { name: /Суперигра — финал раунда/ }).click();
     await settle();
     g2 = (await api("GET", `/api/games/${gameId}`, host.cookie)).data?.content?.questions ?? [];
     const supers = g2.flatMap((x, i) => (x.kind === "super" ? [[x.text, i]] : []));

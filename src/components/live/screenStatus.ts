@@ -3,21 +3,38 @@ import { SCREEN_REPORT_MS, screenRepo, type ScreenReport, type ScreenStatus } fr
 
 /**
  * Экран зала сообщает пульту о себе (CLAUDE.md, раздел 7, «Звуки»): сразу при изменении и раз в
- * 20 с. Ошибки сети не мешают игре — следующее сообщение уйдёт по таймеру.
+ * 20 с. Ошибки сети не мешают игре — следующее сообщение уйдёт по таймеру. В ответ — не закрыт ли пульт
+ * (`true` — пульт молчит дольше 30 с, паспорт общей части, Н-5).
  */
-export function useScreenReport(sessionId: string, report: ScreenReport, enabled: boolean): void {
+export function useScreenReport(sessionId: string, report: ScreenReport, enabled: boolean): boolean {
   const latest = useRef(report);
   latest.current = report;
   const key = `${report.soundReady}:${report.muted}:${report.musicBlocked}`;
+  const [pultQuiet, setPultQuiet] = useState(false);
 
   useEffect(() => {
-    if (!enabled || !screenRepo) return;
+    if (!enabled || !screenRepo) {
+      setPultQuiet(false);
+      return;
+    }
     const repo = screenRepo;
-    const send = () => void repo.report(sessionId, latest.current).catch(() => undefined);
+    let stopped = false;
+    const send = () =>
+      void repo.report(sessionId, latest.current).then(
+        (r) => {
+          if (!stopped) setPultQuiet(r.pultQuiet);
+        },
+        () => undefined,
+      );
     send();
     const timer = window.setInterval(send, SCREEN_REPORT_MS);
-    return () => window.clearInterval(timer);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
   }, [sessionId, enabled, key]);
+
+  return pultQuiet;
 }
 
 /**

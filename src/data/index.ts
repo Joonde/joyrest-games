@@ -17,6 +17,7 @@ export {
   clock,
   eventsRepo,
   gamesRepo,
+  hardwareRepo,
   mediaRepo,
   participantsRepo,
   proposalsRepo,
@@ -58,4 +59,5 @@ export {
 } from "./hooks";
 export { preloadData } from "./firebase";
 export { connection } from "./connection";
+export * from "./localHardware";
 export { Cancelled, errorCodeOf, isPermanentError, retryBriefly, retryDelay, withRetry } from "./retry";

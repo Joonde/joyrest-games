@@ -182,3 +182,20 @@ describe("аукцион в квизе: ход", () => {
     expect(isCorrect(auctionQ({ auctionAnswer: "open", answers: ["Париж"] }), "париж")).toBe(true);
   });
 });
+
+describe("аукцион: ставка убранного гостя (паспорт логики квиза, К-Н-8)", () => {
+  it("гостя убрали — его ставка не играет, отвечает следующий по ставке", () => {
+    const c = content();
+    let s = session({ a: 500, b: 100 });
+    s = applyChange(s, showQuestion(s, c), 1000);
+    const bets = [ans("b", { bet: 100 }, 1100), ans("x", { bet: 200 }, 1200)];
+    const present = (pid: string) => pid in s.leaderboard;
+    expect(auctionBets(s, c.questions[0]!, bets, present).map((b) => b.pid)).toEqual(["b"]);
+    // Без проверки — как раньше (её делает пульт).
+    expect(auctionBets(s, c.questions[0]!, bets).length).toBe(2);
+    const close = closeBets(s, c.questions[0]!, bets, undefined, present);
+    if (!close) throw new Error("нет записи");
+    s = applyChange(s, close, 2000);
+    expect(parseResult(s.state.result).auction).toMatchObject({ phase: "answer", who: "b", bet: 100 });
+  });
+});

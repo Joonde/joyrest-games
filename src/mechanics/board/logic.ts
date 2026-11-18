@@ -7,9 +7,9 @@
 import { leaderboardAdditions } from "../../core/leaderboard";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, parseBuzz, syncBuzz, type BuzzState } from "../../core/buzz";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
-import { MAX_TIME_LIMIT } from "../../core/session";
+import { MAX_REOPEN_LIMIT, MAX_SCORE_DELTA, MAX_TIME_LIMIT } from "../../core/session";
 import { drawSlide, drawWinner, type DrawEffect } from "../../core/draw";
-import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
+import type { Answer, LeaderboardEntry, LeaderboardPatch, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
 import { allCells, findCell, roundsOf, type BoardCell, type BoardContent } from "./content";
 
@@ -28,6 +28,15 @@ interface PrevPlay {
   pickerBefore: string | null;
   /** Шаг, на котором открыли клетку (её шаги убирает «Назад»). */
   openStep: number | null;
+  /**
+   * Чтобы «Назад» с поля вернул клетку как была (паспорт, С-Н-14): кому отдан кот и его цена, жребий аукциона,
+   * показанная картинка. У старых снимков нет — как раньше. Время шага сервер вернуть не даёт (только «по часам
+   * сервера» или «нет»): вопрос после двух «Назад» — без отсчёта, решает ведущий кнопками.
+   */
+  catTo?: string | null;
+  catPrice?: number;
+  auctionTie?: string[];
+  imageShown?: boolean;
 }
 
 export interface BoardResult {
@@ -57,6 +66,8 @@ export interface BoardResult {
   /** «Кот в мешке»: кому ведущий отдал вопрос (отвечает только он, увернуться нельзя) и его цена. */
   catTo: string | null;
   catPrice: number;
+  /** «Кот в мешке»: выбор телефона выбиравшего, уже записанный на экран (ведущий мог поправить `catTo`; С-Н-2). */
+  catGiven: string | null;
   /** Текущий раунд (1–3). */
   round: number;
   /**
@@ -112,6 +123,10 @@ function parsePrev(value: unknown): PrevPlay | null {
     catStep: d.catStep === true,
     pickerBefore: typeof d.pickerBefore === "string" && ID.test(d.pickerBefore) ? d.pickerBefore : null,
     openStep: typeof d.openStep === "number" && Number.isInteger(d.openStep) && d.openStep >= 0 ? d.openStep : null,
+    catTo: typeof d.catTo === "string" && ID.test(d.catTo) ? d.catTo : null,
+    catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(MAX_SCORE_DELTA, Math.max(0, Math.round(d.catPrice))) : 0,
+    auctionTie: strings(d.auctionTie),
+    imageShown: d.imageShown === true,
   };
 }
 
@@ -133,7 +148,9 @@ export function parseBoardResult(raw: unknown): BoardResult {
     armed: d.armed === true,
     openStep: typeof d.openStep === "number" && Number.isInteger(d.openStep) && d.openStep >= 0 ? d.openStep : null,
     catTo: typeof d.catTo === "string" && ID.test(d.catTo) ? d.catTo : null,
-    catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(CAT_MAX, Math.max(1, Math.round(d.catPrice))) : 0,
+    // Цена — до лимита прибавки: у аукциона это ставка, она может быть больше цены кота (`setCat` режет до `CAT_MAX`).
+    catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(MAX_SCORE_DELTA, Math.max(1, Math.round(d.catPrice))) : 0,
+    catGiven: typeof d.catGiven === "string" && ID.test(d.catGiven) ? d.catGiven : null,
     round: typeof d.round === "number" && Number.isInteger(d.round) && d.round >= 1 && d.round <= 3 ? d.round : 1,
     pausedAt: typeof d.pausedAt === "number" && Number.isFinite(d.pausedAt) && d.pausedAt > 0 ? d.pausedAt : null,
     speakSince: typeof d.speakSince === "number" && Number.isFinite(d.speakSince) && d.speakSince > 0 ? d.speakSince : null,
@@ -141,6 +158,15 @@ export function parseBoardResult(raw: unknown): BoardResult {
     imageShown: d.imageShown === true,
     auctionTie: strings(d.auctionTie),
   };
+}
+
+/**
+ * Ответ нынешнего показа шага: запись, принятая раньше времени показа (осталась с прошлого открытия клетки — стирание
+ * после «Назад» не дошло), не в счёт (паспорт, С-Н-6). Нет времени — в счёт.
+ */
+function shown(session: Session, a: Answer): boolean {
+  const started = session.state.startedAt;
+  return started === null || a.submittedAt === null || a.submittedAt >= started;
 }
 
 /** Цена «Кота в мешке» — от 1 до стольки очков. */
@@ -166,12 +192,15 @@ export function maxBet(score: number, cellPoints: number): number {
 }
 
 /**
- * Очки клетки по итогу кнопки: верно ответившему — стоимость клетки; в «Коте в мешке» — его
- * ставка, а все остальные, кто ставил, свою ставку теряют.
+ * Очки клетки по итогу кнопки: верно ответившему — стоимость клетки. Шаг с одним отвечающим и ценой (`catStep`:
+ * «Кот в мешке» и «Аукцион») — плюс цена при верном, минус при неверном или молчании (паспорт, С-Н-1). Ветка — по шагу,
+ * а не по виду клетки: аукцион без ставок, открытый всем кнопкой «кто первый», считается как обычная клетка (С-Н-15).
  */
-export function playDeltas(cell: BoardCell, result: Pick<BoardResult, "buzz" | "bets">): ScoreDelta[] {
+export function playDeltas(cell: BoardCell, result: Pick<BoardResult, "buzz" | "bets"> & Partial<Pick<BoardResult, "catStep">>): ScoreDelta[] {
   const winner = result.buzz.winner;
-  if (cell.kind !== "cat") return winner ? [{ pid: winner, delta: cell.points }] : [];
+  // Старые записи без `catStep` — как раньше, по виду клетки.
+  const priced = result.catStep ?? cell.kind === "cat";
+  if (!priced) return winner ? [{ pid: winner, delta: cell.points }] : [];
   const out: ScoreDelta[] = [];
   for (const [pid, bet] of Object.entries(result.bets)) {
     if (bet <= 0) continue;
@@ -229,7 +258,7 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
   const auction = found.cell.kind === "auction";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] };
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catGiven: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] };
   return {
     state: {
       stage: "question",
@@ -242,7 +271,7 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   };
 }
 
-/** Ставки на шаге кота: `{ bet: n }`, без отметки времени — не в счёт. */
+/** Ставки шага (`{ bet: n }`): у «Аукциона» — сколько ставок сделано, для экрана. */
 export function collectBets(answers: Answer[], step: number): Record<string, number> {
   const bets: Record<string, number> = {};
   for (const a of answers) {
@@ -261,7 +290,7 @@ export function catGiveOf(session: Session, answers: Answer[]): string | null {
   const result = parseBoardResult(session.state.result);
   const giver = result.pickerBefore;
   if (result.mode !== "bet" || !giver) return null;
-  const mine = answers.filter((a) => a.step === session.state.step && a.pid === giver).sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
+  const mine = answers.filter((a) => a.step === session.state.step && a.pid === giver && shown(session, a)).sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
   for (const a of mine) {
     const to = rec(a.value).give;
     if (typeof to === "string" && to !== giver && session.leaderboard[to]) return to;
@@ -269,11 +298,11 @@ export function catGiveOf(session: Session, answers: Answer[]): string | null {
   return null;
 }
 
-/** «Кот в мешке»: кому отдан вопрос и его цена (ведущий может поправить выбор игрока). */
-export function setCat(session: Session, to: string | null, price: number): SessionChange {
+/** «Кот в мешке»: кому отдан вопрос и его цена (ведущий может поправить выбор игрока); `given` — записан выбор телефона. */
+export function setCat(session: Session, to: string | null, price: number, given?: string): SessionChange {
   const result = parseBoardResult(session.state.result);
   const catPrice = Math.min(CAT_MAX, Math.max(1, Math.round(Number.isFinite(price) ? price : 1)));
-  return { state: { result: write({ ...result, catTo: to, catPrice }) } };
+  return { state: { result: write({ ...result, catTo: to, catPrice, ...(given !== undefined ? { catGiven: given } : {}) }) } };
 }
 
 /**
@@ -317,13 +346,15 @@ export interface AuctionDraw {
 }
 
 /** Ставки «Аукциона» по шагу: только положительные, не больше разрешённого. */
-export function auctionBets(session: Session, content: BoardContent, answers: Answer[]): Array<{ pid: string; bet: number; at: number }> {
+export function auctionBets(session: Session, content: BoardContent, answers: Answer[], present?: (pid: string) => boolean): Array<{ pid: string; bet: number; at: number }> {
   const result = parseBoardResult(session.state.result);
   const found = findCell(content, result.cell);
   if (!found) return [];
   const out: Array<{ pid: string; bet: number; at: number }> = [];
   for (const a of answers) {
-    if (a.step !== session.state.step) continue;
+    if (a.step !== session.state.step || !shown(session, a)) continue;
+    // Убранного ведущим участника ставка не в счёт (паспорт, С-Н-16; как в квизе, К-Н-8).
+    if (present && !present(a.pid)) continue;
     const raw = rec(a.value).bet;
     if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) continue;
     out.push({ pid: a.pid, bet: Math.min(Math.round(raw), maxBet(session.leaderboard[a.pid]?.score ?? 0, found.cell.points)), at: a.submittedAt ?? Number.MAX_SAFE_INTEGER });
@@ -336,17 +367,30 @@ export function auctionBets(session: Session, content: BoardContent, answers: An
  * экране зала, решение владельца 23 октября 2026; без `draw` — кто поставил раньше, как раньше). Ставок нет — выбиравший
  * клетку за её стоимость.
  */
-export function startAuction(session: Session, content: BoardContent, answers: Answer[], draw?: AuctionDraw): SessionChange | null {
+export function startAuction(session: Session, content: BoardContent, answers: Answer[], draw?: AuctionDraw, present?: (pid: string) => boolean): SessionChange | null {
   const result = parseBoardResult(session.state.result);
   const found = findCell(content, result.cell);
   if (!found || result.mode !== "auction") return null;
-  const bets = auctionBets(session, content, answers);
+  const bets = auctionBets(session, content, answers, present);
   const top = bets.reduce((m, b) => Math.max(m, b.bet), 0);
   const tied = bets.filter((b) => b.bet === top && top > 0).sort((a, b) => a.at - b.at);
   let who = tied[0]?.pid ?? result.pickerBefore;
   const tie = tied.length > 1 && draw ? tied.map((b) => b.pid) : [];
   if (tie.length > 1 && draw) who = (draw.pick ?? ((pool: string[]) => drawWinner(pool)))(tie) ?? who;
-  if (!who) return null;
+  if (!who) {
+    // Ставок нет и клетку никто не выбирал (первая клетка без жеребьёвки) — вопрос всем кнопкой «кто первый» за
+    // стоимость клетки, как обычная клетка (решение владельца 12 ноября 2026, паспорт, С-Н-4). Отсчёт запускает ведущий.
+    return {
+      state: {
+        stage: "question",
+        startedAt: "server",
+        timeLimit: null,
+        revealed: false,
+        answered: 0,
+        result: write({ ...result, mode: "buzz", buzz: EMPTY_BUZZ, bets: {}, catStep: false, armed: false, catTo: null, catPrice: found.cell.points, speakSince: null, pausedAt: null, auctionTie: [] }),
+      },
+    };
+  }
   const price = tied.length > 0 ? top : found.cell.points;
   const state: SessionChange["state"] = {
     step: session.state.step + 1,
@@ -414,7 +458,7 @@ export function boardBuzzSync(session: Session, answers: Answer[], now?: number)
   const result = parseBoardResult(session.state.result);
   if (result.mode !== "buzz" || !result.armed) return null;
   // «Кот в мешке»: слово получают только сделавшие ставку.
-  const order = buzzOrder(answers, session.state.step).filter((pid) => !result.catStep || (result.bets[pid] ?? 0) > 0);
+  const order = buzzOrder(answers.filter((a) => shown(session, a)), session.state.step).filter((pid) => !result.catStep || (result.bets[pid] ?? 0) > 0);
   const next = syncBuzz(result.buzz, order);
   if (!next) return null;
   let pausedAt = result.pausedAt;
@@ -423,7 +467,9 @@ export function boardBuzzSync(session: Session, answers: Answer[], now?: number)
     const at = answers.find((a) => a.step === session.state.step && a.pid === next.current)?.submittedAt ?? null;
     if (pausedAt === null) pausedAt = at ?? now ?? null;
     // Отсчёт на ответ — с нажатия, но не раньше, чем слово освободилось (очередь после «Неверно»).
-    speakSince = result.catStep ? null : Math.max(at ?? 0, now ?? 0) || null;
+    // После «Назад» с ответа (`noAuto`) отсчёта ответа нет: ведущий уже слышал ответ и решает сам — пульт не поставит
+    // «Неверно» по времени (паспорт, С-Н-8).
+    speakSince = result.catStep || result.noAuto ? null : Math.max(at ?? 0, now ?? 0) || null;
   } else if (!next.current) speakSince = null;
   return { state: { result: write({ ...result, buzz: next, pausedAt, speakSince }) } };
 }
@@ -486,13 +532,18 @@ export function boardWrong(session: Session, content: BoardContent, now?: number
   const fine = content.penalty && found && found.cell.kind !== "cat" ? found.cell.points : 0;
   const buzz = buzzWrong(result.buzz);
   // Слово следующему из очереди — у него свой отсчёт на ответ с этой минуты.
-  const next: BoardResult = { ...result, buzz, fines: fine > 0 ? { ...result.fines, [who]: fine } : result.fines, speakSince: buzz.current && !result.catStep && now !== undefined ? now : null };
+  const next: BoardResult = { ...result, buzz, fines: fine > 0 ? { ...result.fines, [who]: fine } : result.fines, speakSince: buzz.current && !result.catStep && !result.noAuto && now !== undefined ? now : null };
   const state: SessionChange["state"] = {};
   const { startedAt, timeLimit } = session.state;
   if (!buzz.current && now !== undefined && typeof startedAt === "number" && timeLimit !== null) {
     const frozen = result.pausedAt !== null ? Math.max(0, Math.ceil((now - result.pausedAt) / 1000)) : 0;
     const least = Math.ceil((now + RESUME_MIN_SECONDS * 1000 - startedAt) / 1000);
-    const limit = Math.min(MAX_TIME_LIMIT, Math.max(timeLimit + frozen, least));
+    // Обычный потолок — только пока время ответа с этой минуты в него укладывается: вопрос, открытый заново после
+    // долгого перерыва («+10 секунд» за потолком), иначе закрылся бы сразу после «Неверно».
+    const wanted = Math.max(timeLimit + frozen, least);
+    // Лимит уже за потолком (вопрос открыли заново, ведущий добавил время) — обратно до потолка не режем.
+    const reopened = least > MAX_TIME_LIMIT || timeLimit > MAX_TIME_LIMIT;
+    const limit = Math.min(reopened ? MAX_REOPEN_LIMIT : MAX_TIME_LIMIT, wanted);
     if (limit !== timeLimit) state.timeLimit = limit;
     next.pausedAt = null;
   }
@@ -506,17 +557,32 @@ export function boardReveal(session: Session, content: BoardContent, participant
   const found = findCell(content, result.cell);
   if (!found) return {};
   const buzz = right ? buzzRight(result.buzz) : { ...result.buzz, current: null };
-  const deltas = new Map(playDeltas(found.cell, { buzz, bets: result.bets }).map((d) => [d.pid, d.delta]));
+  const deltas = new Map(playDeltas(found.cell, { buzz, bets: result.bets, catStep: result.catStep }).map((d) => [d.pid, d.delta]));
   const board: Record<string, LeaderboardEntry> = { ...session.leaderboard, ...leaderboardAdditions(session.leaderboard, participants, session.playMode) };
+  // Очки — прибавкой, «+N» — полем записи: чужое «+10» со второго пульта не затирается, убранный не возвращается
+  // (паспорт, С-Н-7; как квиз, К-Н-3). Новый участник — записью целиком, только если получил очки.
   const leaderboard: Record<string, LeaderboardEntry> = {};
+  const patch: Record<string, LeaderboardPatch> = {};
+  const addScore: Record<string, number> = {};
   for (const [pid, entry] of Object.entries(board)) {
     const delta = deltas.get(pid) ?? 0;
-    if (delta === 0 && (entry.last ?? 0) === 0 && session.leaderboard[pid]) continue;
-    leaderboard[pid] = { ...entry, score: entry.score + delta, last: delta };
+    if (!session.leaderboard[pid]) {
+      if (delta !== 0) leaderboard[pid] = { ...entry, score: entry.score + delta, last: delta };
+      continue;
+    }
+    if (delta === 0 && (entry.last ?? 0) === 0) continue;
+    if (Math.abs(delta) > MAX_SCORE_DELTA) {
+      leaderboard[pid] = { ...entry, score: entry.score + delta, last: delta };
+      continue;
+    }
+    patch[pid] = { last: delta };
+    if (delta !== 0) addScore[pid] = delta;
   }
   return {
     state: { stage: "reveal", revealed: true, result: write({ ...result, buzz, picker: buzz.winner ?? result.picker, speakSince: null }) },
-    leaderboard,
+    ...(Object.keys(leaderboard).length > 0 ? { leaderboard } : {}),
+    ...(Object.keys(patch).length > 0 ? { patch } : {}),
+    ...(Object.keys(addScore).length > 0 ? { addScore } : {}),
   };
 }
 
@@ -524,7 +590,7 @@ export function boardReveal(session: Session, content: BoardContent, participant
 export function toBoard(session: Session): SessionChange {
   const result = parseBoardResult(session.state.result);
   if (!result.cell) return {};
-  const prev: PrevPlay = { cell: result.cell, buzz: result.buzz, bets: result.bets, fines: result.fines, picker: result.picker, catStep: result.catStep, pickerBefore: result.pickerBefore, openStep: result.openStep };
+  const prev: PrevPlay = { cell: result.cell, buzz: result.buzz, bets: result.bets, fines: result.fines, picker: result.picker, catStep: result.catStep, pickerBefore: result.pickerBefore, openStep: result.openStep, catTo: result.catTo, catPrice: result.catPrice, auctionTie: result.auctionTie, imageShown: result.imageShown };
   return {
     state: {
       step: session.state.step + 1,
@@ -533,7 +599,7 @@ export function toBoard(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }),
+      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catGiven: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }),
     },
   };
 }
@@ -560,7 +626,14 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     const found = findCell(content, result.cell);
     const minus: Record<string, number> = {};
     if (found) for (const d of playDeltas(found.cell, result)) if (d.delta !== 0) minus[d.pid] = -d.delta;
-    const buzz = result.buzz.winner ? { ...result.buzz, current: result.buzz.winner, winner: null } : result.buzz;
+    // Кот и аукцион без победителя («Неверно», «Никто не угадал»): слово снова у отвечающего — иначе ведущий, промахнувшийся
+    // по «Неверно», не мог бы засчитать «Верно» (паспорт, С-Н-13).
+    const speaker = result.catStep ? (result.catTo ?? result.buzz.order[0] ?? null) : null;
+    const buzz = result.buzz.winner
+      ? { ...result.buzz, current: result.buzz.winner, winner: null }
+      : speaker && !result.buzz.current
+        ? { ...result.buzz, current: speaker, out: result.buzz.out.filter((p) => p !== speaker) }
+        : result.buzz;
     // Отсчёт на ответ после «Назад» не идёт: ведущий уже слышал ответ и решает сам.
     const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...result, buzz, picker: result.pickerBefore, speakSince: null, noAuto: true }) } };
     if (Object.keys(minus).length > 0) change.addScore = minus;
@@ -573,7 +646,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     // Все шаги клетки (ставки, вопрос, отсчёт) убираются — назад к полю на шаг, где клетку открыли.
     const back = result.openStep !== null && result.openStep <= step ? result.openStep : result.catStep ? step - 1 : step;
     const change: SessionChange = {
-      state: { ...(session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? { slide: null } : {}), step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }) },
+      state: { ...(session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? { slide: null } : {}), step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catGiven: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }) },
     };
     if (Object.keys(refund).length > 0) change.addScore = refund;
     return { change, clear: Array.from({ length: step - back + 1 }, (_, i) => back + i) };
@@ -589,7 +662,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
         step: step - 1,
         stage: "reveal",
         revealed: true,
-        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null, armed: true, openStep: prev.openStep, round: prevRound, speakSince: null }),
+        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null, armed: true, openStep: prev.openStep, round: prevRound, speakSince: null, catTo: prev.catTo ?? null, catPrice: prev.catPrice ?? 0, auctionTie: prev.auctionTie ?? [], imageShown: prev.imageShown ?? false }),
       },
     },
   };

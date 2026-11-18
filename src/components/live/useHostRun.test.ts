@@ -134,6 +134,55 @@ describe("запись пульта (runHostChange)", () => {
     expect(calls).toBe(2);
     expect(h.cleared).toEqual([0]);
   });
+  it("«Назад» закрывает вопрос: сначала запись, потом очистка; запись не прошла — ответы на сервере остаются", async () => {
+    const h = harness();
+    const order: string[] = [];
+    const apply = h.deps.apply;
+    h.deps.apply = async (change) => {
+      order.push("apply");
+      return apply(change);
+    };
+    h.deps.clearAnswers = async (step) => {
+      order.push(`clear ${step}`);
+    };
+    expect(await run(() => ({ state: { stage: "ready" as const, startedAt: null, result: null } }), h, { clear: [0] })).toBe("done");
+    expect(order).toEqual(["apply", "clear 0"]);
+
+    // Обрыв связи на записи: раньше ответы уже были стёрты, а вопрос оставался открытым (паспорт общей части, Н-3).
+    const broken = harness({ error: Object.assign(new Error("net"), { code: "unavailable" }) });
+    const outcome = await run(() => ({ state: { stage: "ready" as const, result: null } }), broken, { clear: [0] });
+    expect(typeof outcome).toBe("object");
+    expect(broken.cleared).toEqual([]);
+  });
+
+  it("«Назад» оставляет вопрос открытым на том же шаге (переигровка): сначала очистка, потом запись", async () => {
+    const h = harness();
+    const order: string[] = [];
+    const apply = h.deps.apply;
+    h.deps.apply = async (change) => {
+      order.push("apply");
+      return apply(change);
+    };
+    h.deps.clearAnswers = async (step) => {
+      order.push(`clear ${step}`);
+    };
+    // Этап тот же («question»), шаг тот же: ответы, пришедшие сразу после записи, стирать нельзя.
+    expect(await run(() => ({ state: { startedAt: "server" as const, result: { mode: "pick", gifts: [] } } }), h, { clear: [0] })).toBe("done");
+    expect(order).toEqual(["clear 0", "apply"]);
+  });
+
+  it("очистка после записи не прошла — игра уже ушла назад, ошибки ведущему нет, вторая попытка очистки сделана", async () => {
+    const h = harness();
+    let tries = 0;
+    h.deps.clearAnswers = async () => {
+      tries++;
+      throw Object.assign(new Error("net"), { code: "unavailable" });
+    };
+    expect(await run(() => ({ state: { step: 1, stage: "ready" as const, result: null } }), h, { clear: [0] })).toBe("done");
+    expect(tries).toBe(2);
+    expect(h.server().state.step).toBe(1);
+  });
+
   it("attempts: безопасное действие повторяется, пока фон пишет итоги шага (кнопки телефонов)", async () => {
     const h = harness();
     let applies = 0;

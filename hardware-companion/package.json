@@ -1,0 +1,14 @@
+{
+  "name": "joyrest-hardware-companion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Локальный канал физических кнопок JoyRest: сопряжение, виртуальные устройства и поток нажатий.",
+  "scripts": {
+    "start": "node src/main.mjs",
+    "test": "node --test src/main.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

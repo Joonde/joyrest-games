@@ -10,7 +10,7 @@ const CARD_STYLES: Array<{ id: MafiaCardStyle; title: string; hint: string }> = 
   { id: "classic", title: "Классика JoyRest", hint: "Свои рисунки с живыми глазами и светом" },
 ];
 
-const SIZES = [6, 8, 10, 12, 16, 20];
+const SIZES = [6, 8, 10, 12, 14, 16, 20];
 
 export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaContent>) {
   const setCount = (role: keyof RoleCounts, value: number) => onChange({ ...content, counts: { ...content.counts, [role]: value } });
@@ -25,7 +25,7 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
       <section className="card stack">
         <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
-          Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные жители. Роли тайные — каждый видит свою карту только на своём телефоне. Ночью ход делают все (мирные — для вида), убийство состоится, только если вся семья мафии выберет одного. Днём ведущий даёт слово, выставляет кандидатов, город голосует тайно. Игра для {MAFIA_LIMITS.minPlayers}–{MAFIA_LIMITS.maxPlayers} игроков, каждый играет за себя.
+          Классика и расширенные роли: Красотка блокирует ночное действие, Адвокат скрывает своего от Комиссара, Маньяк играет против всех. Роли тайные — каждый видит свою карту только на своём телефоне. Ночью ход делают все (мирные — для вида), выстрел семьи состоится при едином выборе. Мафия и Маньяк могут оставить две жертвы за ночь. Игра для {MAFIA_LIMITS.minPlayers}–{MAFIA_LIMITS.maxPlayers} игроков.
         </p>
         <label className="field">
           Название города на экране
@@ -64,7 +64,7 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
               <input type="radio" name="mafia-roles" checked={content.roles === mode} disabled={!editable} onChange={() => onChange({ ...content, roles: mode })} />
               <span className="choice__text">
                 <span className="choice__title">{mode === "auto" ? "По числу игроков (рекомендуем)" : "Задать вручную"}</span>
-                <span className="choice__hint">{mode === "auto" ? "Мафии — около трети без одного, Дон и Доктор — с 7 игроков" : "Лишние места — мирные; мафии всегда меньше половины"}</span>
+                <span className="choice__hint">{mode === "auto" ? "Красотка — с 10, Маньяк — с 12, Адвокат — с 14 игроков" : "Лишние места — мирные; мафии всегда меньше половины"}</span>
               </span>
             </label>
           ))}
@@ -77,8 +77,11 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
                   <th>Игроков</th>
                   <th>{ROLES.don.title}</th>
                   <th>{ROLES.mafia.title}</th>
+                  <th>{ROLES.advocate.title}</th>
                   <th>{ROLES.commissar.title}</th>
                   <th>{ROLES.doctor.title}</th>
+                  <th>{ROLES.courtesan.title}</th>
+                  <th>{ROLES.maniac.title}</th>
                 </tr>
               </thead>
               <tbody>
@@ -89,8 +92,11 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
                       <td>{n}</td>
                       <td>{c.don}</td>
                       <td>{c.mafia}</td>
+                      <td>{c.advocate}</td>
                       <td>{c.commissar}</td>
                       <td>{c.doctor}</td>
+                      <td>{c.courtesan}</td>
+                      <td>{c.maniac}</td>
                     </tr>
                   );
                 })}
@@ -100,10 +106,10 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
         ) : (
           <div className="row board-editor__size">
             <label className="field">
-              Мафия (без Дона)
+              Мафия (без Дона и Адвоката)
               <ClampedNumber value={content.counts.mafia} min={0} max={10} fallback={2} disabled={!editable} onChange={(v) => setCount("mafia", v)} />
             </label>
-            {(["don", "commissar", "doctor"] as const).map((role) => (
+            {(["don", "advocate", "commissar", "doctor", "courtesan", "maniac"] as const).map((role) => (
               <label key={role} className="choice">
                 <input type="checkbox" checked={content.counts[role] > 0} disabled={!editable} onChange={(e) => setCount(role, e.target.checked ? 1 : 0)} />
                 <span className="choice__text">

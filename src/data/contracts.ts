@@ -5,6 +5,7 @@
  * а остальной код не меняется. Firebase-типы сюда не попадают.
  */
 import type { ProgramAction } from "../core/program";
+import type { HardwareBinding } from "../core/hardware";
 import type {
   Deck,
   DeckPage,
@@ -236,6 +237,16 @@ export interface AnswersRepository {
   list(sessionId: string, step: number): Promise<Answer[]>;
 }
 
+export type HardwareBuzzResult = "sent" | "duplicate" | "rejected";
+
+/** Физические кнопки — только свой сервер и только пульт ведущего. */
+export interface HardwareRepository {
+  list(sessionId: string): Promise<HardwareBinding[]>;
+  save(sessionId: string, binding: HardwareBinding): Promise<HardwareBinding>;
+  remove(sessionId: string, bindingId: string): Promise<void>;
+  buzz(sessionId: string, bindingId: string, eventId: string): Promise<HardwareBuzzResult>;
+}
+
 /** Часы сервера: синхронный таймер на экране зала, пульте и телефонах. */
 export interface ClockService {
   /** На сколько миллисекунд часы сервера впереди часов устройства (0, пока не измерено). */
@@ -256,7 +267,8 @@ export interface ClockService {
  * строку про экран не показывает.
  */
 export interface ScreenStatusRepository {
-  report(sessionId: string, report: ScreenReport): Promise<void>;
+  /** `pultQuiet` — пульт этой игры не открыт дольше 30 с (паспорт общей части, Н-5). */
+  report(sessionId: string, report: ScreenReport): Promise<{ pultQuiet: boolean }>;
   /** Только ведущий сессии; null — экран давно не сообщал о себе. */
   get(sessionId: string): Promise<ScreenStatus | null>;
 }

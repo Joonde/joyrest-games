@@ -3681,6 +3681,55 @@ kbd {
   color: var(--color-highlight);
 }
 
+/* Квиз: трек вопроса не скачался на экран зала (паспорт квиза, К-Н-10). Вне потока, не двигает вопрос. */
+.quiz-track-fail {
+  position: fixed;
+  top: max(1.5cqh, var(--safe-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  margin: 0;
+  padding: 0.6em 1.2em;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-highlight);
+  font-size: max(16px, 2.4cqh);
+  max-width: 90vw;
+  text-align: center;
+}
+
+/* В предпросмотре и репетиции надпись лежит поверх экрана вопроса, а не под ним. */
+.preview-screen > .quiz-track-fail {
+  position: absolute;
+  z-index: 25;
+}
+
+/* Студия, «Идёт игра»: пульт своей игры закрыт (Н-5). */
+.game-row__pult-quiet {
+  display: block;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Экран зала у ведущего: пульт закрыт дольше 30 с (паспорт общей части, Н-5). Внизу по центру, над строкой входа. */
+.hall-pult-quiet {
+  position: fixed;
+  bottom: max(9cqh, var(--safe-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  margin: 0;
+  padding: 0.5em 1.1em;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-highlight);
+  font-size: max(15px, 2cqh);
+  max-width: 90vw;
+  text-align: center;
+}
+
 /* Экран зала: браузер не дал включить музыку без касания. */
 .screen-tap {
   position: fixed;
@@ -7959,6 +8008,13 @@ ul.chips {
 
 .lotto-ticket--s5 .lotto-card__cell {
   padding-inline: 0.4cqw;
+}
+
+/* ТЗ 18 ноября 2026 (`docs/lotto-5x5-phone-spec.md`): на 5×5 позволяем адаптивному --fit уменьшить
+   длинные названия до 10 px. Короткие остаются крупными; 3×3 и 4×4 сохраняют общий минимум 12 px. */
+.lotto-ticket--s5 .lotto-card__title {
+  font-size: max(10px, calc(var(--lotto-title-size) * var(--fit, 1)));
+  line-height: 1.05;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -16811,8 +16867,11 @@ button.dance-card:active {
 /* Цвета ролей — декоративные заливки; текст на картах всегда светлый на тёмном фоне карты. */
 .mf-role--mafia, .mf-art--mafia { --mf-bg1: #4a0f17; --mf-bg2: #12050a; --mf-glow: #ff3b4a; --mf-accent: #ff5a66; --mf-suit-top: #2a1c20; --mf-suit-bottom: #0a0708; }
 .mf-role--don, .mf-art--don { --mf-bg1: #2b2108; --mf-bg2: #070503; --mf-glow: #e3c68c; --mf-accent: #e9cf93; --mf-suit-top: #1c1818; --mf-suit-bottom: #050404; }
+.mf-role--advocate, .mf-art--advocate { --mf-bg1: #172d50; --mf-bg2: #060a13; --mf-glow: #e3c68c; --mf-accent: #b9ccec; --mf-suit-top: #293e61; --mf-suit-bottom: #0b1220; }
 .mf-role--commissar, .mf-art--commissar { --mf-bg1: #12285a; --mf-bg2: #050b1c; --mf-glow: #8cc7ff; --mf-accent: #e3c68c; --mf-suit-top: #6b5440; --mf-suit-bottom: #2a2018; }
 .mf-role--doctor, .mf-art--doctor { --mf-bg1: #0e4a4c; --mf-bg2: #041a1b; --mf-glow: #7df2c8; --mf-accent: #7df2c8; --mf-suit-top: #f2faf8; --mf-suit-bottom: #b9d6d2; }
+.mf-role--courtesan, .mf-art--courtesan { --mf-bg1: #6b1930; --mf-bg2: #1c060e; --mf-glow: #e88b9e; --mf-accent: #f0b3bd; --mf-suit-top: #8d2945; --mf-suit-bottom: #2b0714; }
+.mf-role--maniac, .mf-art--maniac { --mf-bg1: #35233f; --mf-bg2: #08070d; --mf-glow: #b69acb; --mf-accent: #d1b7df; --mf-suit-top: #30343b; --mf-suit-bottom: #090b0e; }
 .mf-role--civilian, .mf-art--civilian { --mf-bg1: #4a3214; --mf-bg2: #150c04; --mf-glow: #ffcf7a; --mf-accent: #ffcf7a; --mf-suit-top: #7a5a3e; --mf-suit-bottom: #3b2a1c; }
 
 .mf-art {
@@ -16996,6 +17055,8 @@ button.dance-card:active {
 .mf-card__seat { left: 5.6cqi; }
 .mf-card__side { right: 5.6cqi; color: #a3e0b8; }
 .mf-card__side.is-mafia { color: #ff9aa2; }
+.mf-card__side.is-maniac { color: #d1b7df; }
+.mf-news__victim + .mf-news__victim { margin-top: 1.5cqh; padding-top: 1.5cqh; border-top: 1px solid rgb(227 198 140 / 0.3); }
 
 .mf-card__front .mf-art {
   /* Рисунок уступает место тексту: на узкой карте он меньше, текст не вылезает за рамку. */
@@ -26962,4 +27023,192 @@ a.finale-step__aside {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+
+
+/* ---------- Физические кнопки: серверный эмулятор пульта ---------- */
+.hardware-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hardware-panel__head h2 {
+  margin-bottom: 6px;
+}
+
+.hardware-panel__status {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--success);
+  font-size: 13px;
+}
+
+.hardware-panel__actions {
+  margin: 18px 0;
+}
+
+.hardware-wizard {
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+
+.hardware-wizard h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 30px;
+}
+
+.hardware-list {
+  border-top: 1px solid var(--border);
+}
+
+.hardware-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.9fr) minmax(260px, 1.6fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.hardware-row.is-tested {
+  color: var(--success);
+}
+
+.hardware-row__team,
+.hardware-row__device {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.hardware-row__team > div,
+.hardware-row__device {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.hardware-row__color {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 34px;
+  border-radius: 5px;
+}
+
+.hardware-row__actions {
+  justify-content: flex-end;
+  margin: 0;
+}
+
+.hardware-picker {
+  grid-column: 1 / -1;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.hardware-picker__devices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hardware-test {
+  margin: 16px 0 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--success);
+}
+
+@media (max-width: 900px) {
+  .hardware-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hardware-row__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .hardware-panel__head,
+  .hardware-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hardware-row__actions {
+    justify-content: flex-start;
+  }
+}
+
+
+/* Локальный канал «JoyRest Кнопки» */
+.hardware-companion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.hardware-companion__status strong,
+.hardware-companion__status span {
+  display: block;
+}
+
+.hardware-companion__status strong {
+  font-weight: 500;
+}
+
+.hardware-companion__pair {
+  display: flex;
+  gap: 8px;
+}
+
+.hardware-companion__pair input {
+  width: 170px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hardware-companion > .error,
+.hardware-companion > details {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.hardware-companion code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .hardware-companion {
+    grid-template-columns: 1fr;
+  }
+
+  .hardware-companion__pair input {
+    width: 100%;
+    min-width: 0;
+  }
 }

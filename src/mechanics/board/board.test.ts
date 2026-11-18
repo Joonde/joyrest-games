@@ -5,6 +5,7 @@ import type { Answer, Participant, Session, SessionChange } from "../../data/typ
 import { boardMediaIds, createBoard, findCell, parseBoard, resizeBoard, roundsOf, setRounds, type BoardContent } from "./content";
 import {
   armBuzz,
+  auctionBets,
   cellImageOf,
   setImageShown,
   boardBack,
@@ -67,7 +68,10 @@ function session(): Session {
 }
 
 let time = 1000;
-const press = (pid: string, step: number, at: number): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { buzz: true }, submittedAt: at });
+// Ответ — после показа шага: игра не считает ответы старше показа (С-Н-6). Короткое время в тестах — «через at мс
+// после последней записи», полное время часов (больше `time`) — как есть.
+const after = (at: number) => (at >= time ? at : time + at);
+const press = (pid: string, step: number, at: number): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { buzz: true }, submittedAt: after(at) });
 const apply = (s: Session, change: SessionChange | null) => applyChange(s, change ?? {}, (time += 1000));
 /** Открыть клетку и сразу «Запустить отсчёт» (ведущий прочитал вопрос). */
 const openArmed = (s: Session, c: BoardContent, id: string) => {
@@ -171,7 +175,7 @@ describe("Ставка на знания: ход", () => {
     expect(startCatQuestion(s, c)).toBeNull();
     // Выбиравший клетку отдаёт вопрос с телефона; себе — нельзя, ставок нет.
     const picked = { ...s, state: { ...s.state, result: { ...(s.state.result as object), pickerBefore: "p1" } } } as Session;
-    const give = (to: string, at: number): Answer => ({ id: `0_p1_${at}`, step: 0, pid: "p1", uid: "p1", value: { give: to }, submittedAt: at });
+    const give = (to: string, at: number): Answer => ({ id: `0_p1_${at}`, step: 0, pid: "p1", uid: "p1", value: { give: to }, submittedAt: after(at) });
     expect(catGiveOf(picked, [give("p1", 1)])).toBeNull();
     expect(catGiveOf(picked, [give("p2", 1), give("p3", 2)])).toBe("p3");
     expect(catGiveOf(picked, [{ ...give("p3", 1), pid: "p2" }])).toBeNull();
@@ -279,7 +283,7 @@ describe("Ставка на знания: ход", () => {
     expect(s.state.timeLimit).toBe(c.betTime);
     expect(boardPrimary(s, c)).toBe("auction");
     const points = findCell(c, "a1")?.cell.points ?? 0;
-    const bid = (pid: string, value: number, at: number): Answer => ({ id: `0_${pid}`, step: 0, pid, uid: pid, value: { bet: value }, submittedAt: at });
+    const bid = (pid: string, value: number, at: number): Answer => ({ id: `0_${pid}`, step: 0, pid, uid: pid, value: { bet: value }, submittedAt: after(at) });
     // У p1 счёт 0 — может поставить до стоимости клетки; p2 ставит столько же, но позже.
     s = apply(s, startAuction(s, c, [bid("p2", points, 9), bid("p1", 99999, 5), bid("p3", 10, 1)]));
     const r = parseBoardResult(s.state.result);
@@ -287,9 +291,96 @@ describe("Ставка на знания: ход", () => {
     expect(r.buzz.current).toBe("p1");
     s = apply(s, boardReveal(s, c, participants, true));
     expect(s.leaderboard.p1?.score).toBe(points);
-    // Ставок нет — отвечает выбиравший клетку за её стоимость; некому — нельзя.
-    const empty = apply(session(), openCell(session(), c, "a1"));
-    expect(startAuction(empty, c, [])).toBeNull();
+    // Ставок нет и клетку никто не выбирал — вопрос всем кнопкой «кто первый» за стоимость клетки (С-Н-4).
+    let empty = apply(session(), openCell(session(), c, "a1"));
+    empty = apply(empty, startAuction(empty, c, []));
+    const open = parseBoardResult(empty.state.result);
+    expect(open).toMatchObject({ mode: "buzz", catStep: false, armed: false, bets: {} });
+    expect(boardPrimary(empty, c)).toBe("arm");
+    empty = apply(empty, armBuzz(empty, c));
+    empty = apply(empty, boardBuzzSync(empty, [press("p2", empty.state.step, 5)]) ?? {});
+    empty = apply(empty, boardReveal(empty, c, participants, true));
+    // Как обычная клетка: верно — стоимость клетки (С-Н-15).
+    expect(empty.leaderboard.p2?.score).toBe(points);
+  });
+
+  it("аукцион: верно — плюс ставка, неверно — минус ставка, а не стоимость клетки (С-Н-1)", () => {
+    const base = content();
+    const c: BoardContent = { ...base, categories: base.categories.map((cat) => ({ ...cat, cells: cat.cells.map((cell) => (cell.id === "a1" ? { ...cell, kind: "auction" as const } : cell)) })) };
+    const points = findCell(c, "a1")?.cell.points ?? 0;
+    const rich = (): Session => ({ ...session(), leaderboard: { ...session().leaderboard, p1: { ...(session().leaderboard.p1 as Session["leaderboard"][string]), score: 1000 } } });
+    const bid = (pid: string, value: number, at: number): Answer => ({ id: `0_${pid}`, step: 0, pid, uid: pid, value: { bet: value }, submittedAt: after(at) });
+    for (const right of [true, false]) {
+      let s = rich();
+      s = apply(s, openCell(s, c, "a1"));
+      s = apply(s, startAuction(s, c, [bid("p1", 400, 5)]));
+      s = apply(s, boardReveal(s, c, participants, right));
+      expect(s.leaderboard.p1?.score).toBe(right ? 1400 : 600);
+      expect(points).not.toBe(400);
+      // «Назад» с ответа снимает ровно ставку; у аукциона после «Неверно» слово снова у отвечающего (С-Н-13).
+      s = apply(s, boardBack(s, c)!.change);
+      expect(s.leaderboard.p1?.score).toBe(1000);
+      expect(parseBoardResult(s.state.result).buzz.current).toBe("p1");
+      s = apply(s, boardReveal(s, c, participants, true));
+      expect(s.leaderboard.p1?.score).toBe(1400);
+    }
+  });
+
+  it("ответ с прошлого открытия клетки не в счёт; убранный участник не ставит (С-Н-6, С-Н-16)", () => {
+    const base = content();
+    const c: BoardContent = { ...base, categories: base.categories.map((cat) => ({ ...cat, cells: cat.cells.map((cell) => (cell.id === "a1" ? { ...cell, kind: "auction" as const } : cell)) })) };
+    let s = session();
+    s = apply(s, openCell(s, c, "a1"));
+    const old: Answer = { id: "0_p2", step: 0, pid: "p2", uid: "p2", value: { bet: 50 }, submittedAt: 1 };
+    expect(auctionBets(s, c, [old])).toEqual([]);
+    const fresh: Answer = { ...old, submittedAt: after(5) };
+    expect(auctionBets(s, c, [fresh], (pid) => pid !== "p2")).toEqual([]);
+    expect(auctionBets(s, c, [fresh]).map((b) => b.pid)).toEqual(["p2"]);
+    // Нажатие с прошлого показа в очередь не встаёт.
+    let b = openArmed(session(), c, "b0");
+    expect(boardBuzzSync(b, [press("p1", b.state.step, 1), { ...press("p3", b.state.step, 0), submittedAt: 1 }])).not.toBeNull();
+    b = apply(b, boardBuzzSync(b, [{ ...press("p3", b.state.step, 0), submittedAt: 1 }, press("p1", b.state.step, 1)]) ?? {});
+    expect(parseBoardResult(b.state.result).buzz.order).toEqual(["p1"]);
+  });
+
+  it("«Назад» после «Никто не угадал»: пульт сам «Неверно» не ставит (С-Н-8); с поля — кот с той же ценой (С-Н-14)", () => {
+    const c = { ...content(), answerTime: 10 };
+    let s = openArmed(session(), c, "a1");
+    s = apply(s, boardReveal(s, c, participants, false));
+    s = apply(s, boardBack(s, c)!.change);
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, 5)], time) ?? {});
+    expect(parseBoardResult(s.state.result).buzz.current).toBe("p1");
+    expect(parseBoardResult(s.state.result).speakSince).toBeNull();
+    expect(speakLeft(s, c, time + 60_000)).toBeNull();
+  });
+
+  it("«Назад» с поля возвращает кота с тем же отвечающим и ценой (С-Н-14)", () => {
+    const c = content();
+    let s = session();
+    s = apply(s, openCell(s, c, "b1"));
+    s = apply(s, setCat(s, "p2", 300));
+    s = apply(s, startCatQuestion(s, c));
+    s = apply(s, boardReveal(s, c, participants, true));
+    s = apply(s, toBoard(s));
+    s = apply(s, boardBack(s, c)!.change);
+    s = apply(s, boardBack(s, c)!.change);
+    expect(parseBoardResult(s.state.result)).toMatchObject({ catTo: "p2", catPrice: 300 });
+    expect(s.leaderboard.p2?.score).toBe(0);
+  });
+
+  it("выбор кота телефоном отмечен в итогах (видят все пульты); правка ведущего остаётся (С-Н-2); ставка аукциона больше 5000 видна целиком", () => {
+    const c = content();
+    let s = session();
+    s = apply(s, openCell(s, c, "b1"));
+    s = apply(s, setCat(s, "p2", 100, "p2"));
+    s = apply(s, setCat(s, "p3", 100));
+    expect(parseBoardResult(s.state.result)).toMatchObject({ catTo: "p3", catGiven: "p2" });
+    const base = content();
+    const a: BoardContent = { ...base, categories: base.categories.map((cat) => ({ ...cat, cells: cat.cells.map((cell) => (cell.id === "a1" ? { ...cell, kind: "auction" as const } : cell)) })) };
+    let t: Session = { ...session(), leaderboard: { ...session().leaderboard, p1: { ...(session().leaderboard.p1 as Session["leaderboard"][string]), score: 8000 } } };
+    t = apply(t, openCell(t, a, "a1"));
+    t = apply(t, startAuction(t, a, [{ id: "0_p1", step: 0, pid: "p1", uid: "p1", value: { bet: 8000 }, submittedAt: after(5) }]));
+    expect(parseBoardResult(t.state.result).catPrice).toBe(8000);
   });
 });
 
@@ -338,6 +429,36 @@ describe("«Ставка на знания»: пока отвечают — вр
     expect(s.state.timeLimit).toBe(c.buzzTime + 40);
     // Осталось столько же, сколько было в момент нажатия.
     expect((s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000 - (start + 43000)).toBe((c.buzzTime - 3) * 1000);
+  });
+
+  it("вопрос открыли заново после долгого перерыва («+10 секунд» за потолком) — «Неверно» не закрывает его", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    const start = s.state.startedAt ?? 0;
+    // Перерыв 20 минут при открытом вопросе, ведущий дал ещё 10 секунд: лимит уже больше обычного потолка 900 с.
+    const now = start + 1_200_000;
+    s = apply(s, { state: { timeLimit: 1210 } });
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, now + 2000)], now + 2100));
+    s = apply(s, boardWrong(s, c, now + 7000));
+    // Раньше лимит резался до 900 — срок оказывался в прошлом, остальные ответить не могли.
+    const deadline = (s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000;
+    expect(deadline - (now + 7000)).toBeGreaterThanOrEqual(5000);
+    expect(parseBoardResult(s.state.result).pausedAt).toBeNull();
+  });
+
+  it("лимит уже за потолком, а ответ уложился бы в потолок — «Неверно» не режет лимит обратно", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    const start = s.state.startedAt ?? 0;
+    // Вопрос открыли заново на 891-й секунде и ведущий добавил время: лимит 931.
+    const now = start + 891_000;
+    s = apply(s, { state: { timeLimit: 931 } });
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, now + 1000)], now + 1100));
+    s = apply(s, boardWrong(s, c, now + 2000));
+    // Раньше лимит резался до 900 — остальным оставалось ~7 секунд вместо 39.
+    expect(s.state.timeLimit).toBeGreaterThanOrEqual(931);
+    const deadline = (s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000;
+    expect(deadline - (now + 2000)).toBeGreaterThanOrEqual(38_000);
   });
 
   it("нажал в последнюю секунду — остальным всё равно не меньше 5 секунд; очередь — время стоит дальше", () => {
@@ -497,7 +618,7 @@ describe("«Ставка на знания»: «Аукцион», равные �
     s = apply(s, openCell(s, c, cell.id));
     return s;
   }
-  const bet = (pid: string, step: number, value: number, at: number): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { bet: value }, submittedAt: at });
+  const bet = (pid: string, step: number, value: number, at: number): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { bet: value }, submittedAt: after(at) });
 
   it("самая большая ставка у троих — монетка среди них, победитель отвечает за свою ставку", () => {
     const c = content();

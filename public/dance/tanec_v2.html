@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>Танцуй как звезда — v2</title>
+<style>
+  :root { --bg:#0d0a1f; --card:#1a1535; --line:#2e2757; --tx:#f3f0ff; --mut:#a59fc9; --acc:#ffc83a; --vio:#b56cff; --ok:#3ee08f; --bad:#ff5a7a; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; background:var(--bg); color:var(--tx); font:17px/1.4 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:520px; margin:0 auto; padding:18px 16px 40px; }
+  h1 { font-size:22px; margin:4px 0 2px; }
+  h1 b { color:var(--acc); }
+  .sub { color:var(--mut); font-size:14px; margin-bottom:16px; }
+  section { display:none; } section.on { display:block; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin:12px 0; }
+  .lbl { color:var(--mut); font-size:13px; text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
+  .opts { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .opt { border:1.5px solid var(--line); background:#130f29; color:var(--tx); border-radius:12px; padding:12px 10px; font-size:16px; text-align:left; }
+  .opt.sel { border-color:var(--acc); background:#2a2140; }
+  .dot { display:inline-block; width:14px; height:14px; border-radius:50%; vertical-align:-2px; margin-right:6px; }
+  button.big { width:100%; border:0; border-radius:14px; padding:16px; font-size:18px; font-weight:650; margin-top:10px;
+               background:linear-gradient(90deg,#ffb52e,#ff7ad9); color:#1b0f2c; }
+  button.big:disabled { opacity:.4; }
+  button.sec { width:100%; border:1.5px solid var(--line); background:transparent; color:var(--tx); border-radius:14px; padding:13px; font-size:16px; margin-top:8px; }
+  .huge { font-size:64px; font-weight:800; text-align:center; margin:24px 0 6px; font-variant-numeric:tabular-nums; }
+  .say { text-align:center; font-size:20px; }
+  .note { color:var(--mut); font-size:14px; }
+  .warn { color:var(--bad); }
+  .pct { font-size:64px; font-weight:800; color:var(--acc); text-align:center; line-height:1; margin:8px 0 2px; }
+  .grades { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
+  .g { background:#130f29; border-radius:10px; padding:8px; text-align:center; font-size:13px; color:var(--mut); }
+  .g b { display:block; font-size:22px; color:var(--tx); }
+  .moves { max-height:360px; overflow:auto; font-size:14px; }
+  .mv { display:flex; justify-content:space-between; padding:6px 2px; border-bottom:1px solid var(--line); }
+  .mv span:first-child { color:var(--mut); font-variant-numeric:tabular-nums; }
+  .G-PERFECT { color:var(--acc); } .G-SUPER { color:var(--ok); } .G-GOOD { color:#7fd3ff; }
+  .G-OK { color:var(--vio); } .G-МИМО { color:var(--bad); } .G-НЕТ, .G-ВНЕ { color:var(--mut); }
+  .bar { height:8px; background:#130f29; border-radius:4px; overflow:hidden; margin-top:14px; } .bar i { display:block; height:100%; width:0; background:var(--acc); }
+  .pose { font-size:26px; font-weight:700; text-align:center; margin:14px 0 4px; color:var(--acc); }
+  .why { color:var(--bad); font-size:15px; text-align:center; margin-top:10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Танцуй <b>как звезда</b></h1>
+  <div class="sub">Оценка движений v2 · калибровка тремя позами</div>
+
+  <!-- 1. выбор -->
+  <section id="s-choose" class="on">
+    <div class="card"><div class="lbl">Песня</div><div class="opts" id="songs">Загружаю…</div></div>
+    <div class="card"><div class="lbl">Ваш танцор (цвет на подсказках)</div><div class="opts" id="dancers"></div></div>
+    <div class="card note">
+      <ol>
+        <li>Откройте видео этой песни на ноутбуке, поставьте на начало и на паузу.</li>
+        <li>Телефон — в <b>правую</b> руку. Повторяете за танцором как в зеркале.</li>
+        <li>Нажмите «Начать калибровку» — телефон попросит три позы руки (~8 секунд).</li>
+        <li>Затем пойдёт отсчёт 3-2-1. На длинный сигнал <b>включите видео</b> и танцуйте.</li>
+      </ol>
+    </div>
+    <button class="big" id="b-perm" disabled>Разрешить датчики</button>
+    <button class="big" id="b-start" style="display:none">Начать калибровку</button>
+    <div class="note" id="perm-msg" style="margin-top:8px"></div>
+    <button class="sec" id="b-last" style="display:none">Показать прошлую запись</button>
+    <label class="sec" style="display:block;text-align:center">Оценить файл записи…<input type="file" id="f-rec" accept=".json,application/json" style="display:none"></label>
+  </section>
+
+  <!-- 2. калибровка: три позы -->
+  <section id="s-calib">
+    <div class="huge" id="cal-count">3</div>
+    <div class="pose" id="cal-pose">РУКА ВНИЗ</div>
+    <div class="say" id="cal-say">свободно вдоль тела, замрите</div>
+    <div class="why" id="cal-why"></div>
+  </section>
+
+  <!-- 3. отсчёт -->
+  <section id="s-count">
+    <div class="huge" id="count-n">3</div>
+    <div class="say" id="count-say">Приготовьтесь включить видео</div>
+  </section>
+
+  <!-- 4. танец -->
+  <section id="s-dance">
+    <div class="huge" id="clock">0:00</div>
+    <div class="say">Танцуйте! Запись идёт.</div>
+    <div class="bar"><i id="prog"></i></div>
+    <div class="note" id="rate" style="text-align:center;margin-top:8px"></div>
+    <button class="sec" id="b-stop" style="margin-top:40px">Закончить</button>
+  </section>
+
+  <!-- 5. итог -->
+  <section id="s-result">
+    <div class="card">
+      <div class="lbl" id="r-title">Итог</div>
+      <div class="pct" id="r-pct">—</div>
+      <div class="note" id="r-pts" style="text-align:center"></div>
+      <div class="grades" id="r-grades"></div>
+      <div class="note" id="r-info" style="margin-top:10px"></div>
+    </div>
+    <button class="big" id="b-share">Отправить запись</button>
+    <button class="sec" id="b-dl">Скачать запись (файл)</button>
+    <div class="card"><div class="lbl">Каждое движение</div><div class="moves" id="r-moves"></div></div>
+    <button class="sec" id="b-again">Ещё раз</button>
+  </section>
+</main>
+
+<script src="dance_score_v2.js"></script>
+<script src="dance_ref.js"></script>
+<script>
+"use strict";
+const COLORS = [["розовый", "#ff6fb5"], ["зелёный", "#3ee08f"], ["синий", "#5aa8ff"], ["жёлтый", "#ffd23a"]];
+let DATA = null, song = null, dancer = 0, rec = null, calibRec = null, motionOn = false, wake = null, timer = null, actx = null;
+const $ = id => document.getElementById(id);
+const show = id => document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === id));
+const now = () => performance.now() / 1000;
+const r4 = v => (v === null || v === undefined || !isFinite(v)) ? null : Math.round(v * 1e4) / 1e4;
+const POSES = [["РУКА ВНИЗ", "свободно вдоль тела, замрите"], ["РУКА ВВЕРХ", "прямо вверх одним движением, замрите"], ["В СТОРОНУ", "горизонтально в сторону, замрите"]];
+
+fetch("dance_data.json?v=" + Date.now()).then(r => r.json()).then(d => {
+  DATA = d; const box = $("songs"); box.innerHTML = "";
+  d.songs.forEach((s, i) => {
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = s.title;
+    b.onclick = () => pickSong(i); box.appendChild(b);
+  });
+  pickSong(0); $("b-perm").disabled = false;
+}).catch(e => { $("songs").innerHTML = '<span class="warn">Не загрузились данные песен: ' + e + "</span>"; });
+try { if (localStorage.getItem("tanec-last")) $("b-last").style.display = "block"; } catch (e) {}
+
+function pickSong(i) {
+  song = DATA.songs[i];
+  [...$("songs").children].forEach((b, k) => b.classList.toggle("sel", k === i));
+  dancer = 0; fillDancers();
+}
+function fillDancers() {
+  const box = $("dancers"); box.innerHTML = "";
+  for (let d = 0; d < song.dancers; d++) {
+    const b = document.createElement("button"); b.className = "opt" + (d === dancer ? " sel" : "");
+    b.innerHTML = song.dancers === 1 ? '<span class="dot" style="background:#fff"></span>единственный' : `<span class="dot" style="background:${COLORS[d][1]}"></span>${d + 1} · ${COLORS[d][0]}`;
+    b.onclick = () => { dancer = d; fillDancers(); }; box.appendChild(b);
+  }
+}
+
+function beep(freq, dur) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.frequency.value = freq; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.0001, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.6, actx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur + 0.02);
+  } catch (e) {}
+}
+
+// --- датчики: один поток событий, разметка по фазам ---
+let events = [], phase = "idle";         // idle | calib | countdown | dance
+let phaseT0 = 0;
+$("b-perm").onclick = async () => {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume && actx.resume();
+  try {
+    if (typeof DeviceMotionEvent !== "undefined" && DeviceMotionEvent.requestPermission) {
+      const a = await DeviceMotionEvent.requestPermission();
+      if (a !== "granted") throw new Error("доступ к движению не дан");
+    }
+    if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) {
+      try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
+    }
+  } catch (e) { $("perm-msg").innerHTML = '<span class="warn">' + e.message + ". Откройте страницу в Safari / Chrome и разрешите «Движение и ориентация».</span>"; return; }
+  if (!motionOn) {
+    window.addEventListener("devicemotion", onMotion);
+    motionOn = true;
+  }
+  let n = 0; const t0 = now(); const cnt = () => n++;
+  window.addEventListener("devicemotion", cnt);
+  setTimeout(() => {
+    window.removeEventListener("devicemotion", cnt);
+    const hz = n / (now() - t0);
+    if (n < 10) { $("perm-msg").innerHTML = '<span class="warn">Датчики молчат. На этом телефоне проверка не получится.</span>'; return; }
+    $("perm-msg").textContent = `Датчики работают: ${hz.toFixed(0)} раз в секунду.`;
+    $("b-perm").style.display = "none"; $("b-start").style.display = "block";
+  }, 1000);
+};
+function onMotion(e) {
+  if (phase === "idle") return;
+  const g = e.accelerationIncludingGravity, a = e.acceleration, r = e.rotationRate;
+  events.push({ ph: phase, t: r4(now() - phaseT0),
+    accg: g ? [r4(g.x), r4(g.y), r4(g.z)] : null,
+    acc: a && a.x !== null ? [r4(a.x), r4(a.y), r4(a.z)] : null,
+    rot: r && r.alpha !== null ? [r4(r.alpha), r4(r.beta), r4(r.gamma)] : null });
+}
+
+// --- калибровка: три позы по 2,5 с, проверяем сразу ---
+$("b-start").onclick = async () => {
+  try { wake = await navigator.wakeLock.request("screen"); } catch (e) {}
+  events = []; phase = "calib"; phaseT0 = now();
+  show("s-calib"); $("cal-why").textContent = "";
+  const PROMPTS = [0.0, 2.5, 5.0];
+  for (let k = 0; k < 3; k++) {
+    $("cal-pose").textContent = POSES[k][0];
+    $("cal-say").textContent = POSES[k][1];
+    beep(660, 0.15);
+    let left = 3; $("cal-count").textContent = left;
+    await new Promise(res => {
+      timer = setInterval(() => {
+        left--;
+        if (left > 0) { $("cal-count").textContent = left; beep(660, 0.15); }
+        else { clearInterval(timer); beep(990, 0.25); res(); }
+      }, 1000);
+    });
+  }
+  // проверяем калибровку на собранных событиях
+  phase = "idle";
+  const calEv = events.filter(e => e.ph === "calib").map(strip);
+  const cal = DanceScoreV2.calibrate(toEv(calEv));
+  if (!cal.ok) {
+    $("cal-why").textContent = cal.why.join(" · ") || "не получилось — попробуйте ещё раз";
+    $("cal-pose").textContent = "ЕЩЁ РАЗ";
+    $("cal-say").textContent = "вернитесь назад и повторите калибровку";
+    return;
+  }
+  calibRec = calEv;
+  countdown();
+};
+function strip(e) { return { t: e.t, accg: e.accg, acc: e.acc, rot: e.rot }; }
+function toEv(list) {
+  return { t: list.map(e => e.t), accg: list.map(e => e.accg),
+           acc: list.every(e => !e.acc) ? null : list.map(e => e.acc),
+           rot: list.map(e => e.rot) };
+}
+
+function countdown() {
+  phase = "countdown"; phaseT0 = now();
+  show("s-count"); let k = 3; $("count-n").textContent = k; $("count-say").textContent = "Приготовьтесь включить видео"; beep(660, 0.15);
+  timer = setInterval(() => {
+    k--;
+    if (k > 0) { $("count-n").textContent = k; beep(660, 0.15); return; }
+    clearInterval(timer); beep(990, 0.6); $("count-n").textContent = "▶"; $("count-say").textContent = "Включайте видео!";
+    setTimeout(startDance, 700);
+  }, 1000);
+}
+function startDance() {
+  phase = "dance"; phaseT0 = now();
+  show("s-dance");
+  timer = setInterval(() => {
+    const s = now() - phaseT0, L = song.end + 2.5;
+    $("clock").textContent = Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+    $("prog").style.width = Math.min(100, 100 * s / L) + "%";
+    const evs = events.filter(e => e.ph === "dance");
+    const n = evs.length, dt = n > 1 ? evs[n - 1].t - evs[0].t : 1;
+    $("rate").textContent = `датчики: ${(n / Math.max(dt, 1)).toFixed(0)} раз/с`;
+    if (s > L) finish();
+  }, 250);
+}
+$("b-stop").onclick = () => finish();
+function finish() {
+  clearInterval(timer); phase = "idle";
+  if (!events.some(e => e.ph === "dance")) return;
+  beep(440, 0.3);
+  try { wake && wake.release(); } catch (e) {}
+  const dance = events.filter(e => e.ph === "dance").map(strip);
+  rec = { v: 2, ua: navigator.userAgent, song: song.key, dancer: dancer + 1, made: new Date().toISOString(),
+          start: 0.0, end: r4(dance.length ? dance[dance.length - 1].t : 0),
+          calib_events: calibRec, events: dance };
+  try { localStorage.setItem("tanec-last", JSON.stringify(rec)); } catch (e) {}
+  result();
+}
+
+function result() {
+  show("s-result"); $("r-pct").textContent = "…"; $("r-moves").innerHTML = ""; $("r-grades").innerHTML = "";
+  const s = DATA.songs.find(x => x.key === rec.song) || song;
+  setTimeout(() => {
+    let R;
+    try { R = DanceRef.scoreRecording(DanceScoreV2, rec, s, DATA.rate); }
+    catch (e) { $("r-pct").textContent = "—"; $("r-info").innerHTML = '<span class="warn">' + e.message + "</span>"; return; }
+    if (!R.ok) { $("r-pct").textContent = "—"; $("r-info").innerHTML = '<span class="warn">' + (R.why.join(" · ") || "не получилось") + "</span>"; return; }
+    $("r-pct").textContent = R.percent + "%";
+    $("r-pts").textContent = `${R.points} очков из ${R.max} · ${R.cards.filter(c => c.score !== null).length} движений`;
+    for (const [, n] of DanceScoreV2.GRADES.concat([[0, "НЕТ СВЯЗИ"]])) {
+      const el = document.createElement("div"); el.className = "g";
+      el.innerHTML = `<b class="G-${n.split(" ")[0]}">${R.counts[n] || 0}</b>${n}`;
+      $("r-grades").appendChild(el);
+    }
+    $("r-info").textContent = `Задержка видео ${R.lag >= 0 ? "+" : ""}${R.lag.toFixed(2)} с` +
+      (R.flip ? " · калибровка была перевёрнута (учтено)" : "") +
+      (R.events.length ? ` · события: ${R.events.map(e => e[0]).join(", ")}` : "");
+    const box = $("r-moves");
+    R.cards.forEach((c, i) => {
+      const el = document.createElement("div"); el.className = "mv";
+      const tt = Math.floor(c.t / 60) + ":" + (c.t % 60).toFixed(1).padStart(4, "0");
+      el.innerHTML = `<span>${i + 1}. ${tt}${c.golden ? " ★" : ""} ${c.cmd || ""}</span><span class="G-${c.grade.split(" ")[0]}">${c.grade}${c.score !== null ? " · " + c.score : ""}</span>`;
+      box.appendChild(el);
+    });
+  }, 50);
+}
+function recFile() {
+  const name = `tanec2-${rec.song}-${(rec.made || "").slice(0, 16).replace(/[:T]/g, "-")}.json`;
+  return new File([JSON.stringify(rec)], name, { type: "application/json" });
+}
+$("b-share").onclick = async () => {
+  const f = recFile();
+  if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f], title: f.name }); return; } catch (e) { if (e.name === "AbortError") return; } }
+  download(f);
+};
+$("b-dl").onclick = () => download(recFile());
+function download(f) { const u = URL.createObjectURL(f), a = document.createElement("a"); a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 2000); }
+$("b-again").onclick = () => { rec = null; events = []; show("s-choose"); try { if (localStorage.getItem("tanec-last")) $("b-last").style.display = "block"; } catch (e) {} };
+$("b-last").onclick = () => { try { rec = JSON.parse(localStorage.getItem("tanec-last")); result(); } catch (e) {} };
+$("f-rec").onchange = ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  f.text().then(t => { rec = JSON.parse(t); rec.start = 0.0; if (!rec.dancer) rec.dancer = 1; result(); });
+};
+</script>
+</body>
+</html>

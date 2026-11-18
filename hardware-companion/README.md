@@ -59,3 +59,17 @@ npm test
 6. В SSE получено то же событие с совпадающим `eventId`.
 
 Это подтверждает только локальный канал и виртуальный адаптер. Совместимость с физическими Bluetooth/USB-моделями ещё не проверена.
+
+
+## Flic Hub
+
+Добавлен первый адаптер реального оборудования: Flic 2 / Flic Duo через Flic Hub и официальный Flic Hub Studio SDK.
+
+- Модуль для Hub: `adapters/flic-hub/main.js`.
+- Инструкция: `adapters/flic-hub/README.md`.
+- Запуск с доступом из локальной сети: `JOYREST_HARDWARE_HOST=0.0.0.0 npm start`.
+- Отдельный ключ адаптера печатается в консоли; не сохраняйте его в репозитории.
+- События: `buttonAdded`, `buttonConnected`, `buttonReady`, `buttonDisconnected`, `buttonDown`.
+- Каждая кнопка идентифицируется по Bluetooth-адресу; повтор `eventId` не создаёт второе событие.
+
+Физическое испытание пока не выполнено: нужен Flic Hub и кнопка. Это не прямое подключение Flic к Bluetooth-компьютеру и не USB-вариант.

@@ -125,3 +125,43 @@ test("одновременные нажатия двух устройств до
     await companion.close();
   }
 });
+
+
+test("Flic Hub: устройство появляется по адресу, buttonDown идёт в SSE, повтор отклоняется", async () => {
+  const { companion, base } = await fixture();
+  const controller = new AbortController();
+  try {
+    const address = "AA:BB:CC:DD:EE:FF";
+    const send = (type, sequence = "0") => fetch(`${base}/api/adapters/flic/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-JoyRest-Adapter-Key": companion.adapterKey },
+      body: JSON.stringify({ type, bdaddr: address, sequence }),
+    });
+    assert.equal((await fetch(`${base}/api/adapters/flic/events`, { method: "POST", body: "{}" })).status, 401);
+    assert.equal((await send("added")).status, 200);
+    const token = await pair(base, companion.pairingCode);
+    const devices = await (await fetch(`${base}/api/devices`, { headers: { Authorization: `Bearer ${token}` } })).json();
+    const flic = devices.devices.find((item) => item.hardwareId === "flic-AABBCCDDEEFF");
+    assert.equal(flic.alias, "Flic EEFF");
+    assert.equal(flic.connected, true);
+
+    const stream = await fetch(`${base}/api/events`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
+    const reader = stream.body.getReader();
+    await reader.read();
+    const down = await send("down", "press-1");
+    assert.equal(down.status, 200);
+    const event = await down.json();
+    assert.equal(event.hardwareId, "flic-AABBCCDDEEFF");
+    assert.equal(event.eventId, "flic-AABBCCDDEEFF-press-1");
+    const delivered = new TextDecoder().decode((await reader.read()).value);
+    assert.match(delivered, /flic-AABBCCDDEEFF-press-1/);
+    assert.deepEqual((await (await send("down", "press-1")).json()).result, "duplicate");
+    await reader.cancel();
+    assert.equal((await send("disconnected")).status, 200);
+    const after = await (await fetch(`${base}/api/devices`, { headers: { Authorization: `Bearer ${token}` } })).json();
+    assert.equal(after.devices.find((item) => item.hardwareId === "flic-AABBCCDDEEFF").connected, false);
+  } finally {
+    controller.abort();
+    await companion.close();
+  }
+});

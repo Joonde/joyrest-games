@@ -9,11 +9,6 @@ const PAIR_ATTEMPTS_MAX = 5;
 const ALLOWED_ORIGINS = new Set(["https://games.joy-rest.ru", "https://test.games.joy-rest.ru"]);
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/;
 
-const demoDevices = [
-  { source: "bluetooth", hardwareId: "bt-demo-1", alias: "BT кнопка 1", connected: true, battery: 100, features: ["press"] },
-  { source: "usb", hardwareId: "usb-demo-1", alias: "USB №1", connected: true, battery: null, features: ["press"] },
-];
-
 function json(res, status, value, origin) {
   const body = JSON.stringify(value);
   res.writeHead(status, {
@@ -60,12 +55,24 @@ function tokenOf(req) {
   return value.startsWith("Bearer ") ? value.slice(7) : "";
 }
 
-export async function startHardwareCompanion({ port = 43127, host = "127.0.0.1", now = Date.now } = {}) {
+export async function startHardwareCompanion({ port = 43127, host = "127.0.0.1", now = Date.now, adapterKey = randomBytes(16).toString("hex") } = {}) {
   let pairingCode = String(Number(randomBytes(4).readUInt32BE(0) % 1_000_000)).padStart(6, "0");
   const sessions = new Map();
   const pairAttempts = new Map();
   const listeners = new Set();
   const pings = new Map();
+  const adapterEvents = new Set();
+  const devices = [
+    { source: "bluetooth", hardwareId: "bt-demo-1", alias: "BT кнопка 1", connected: true, battery: 100, features: ["press"] },
+    { source: "usb", hardwareId: "usb-demo-1", alias: "USB №1", connected: true, battery: null, features: ["press"] },
+  ];
+  const emitPress = (device, eventId) => {
+    const event = { type: "press", source: device.source, hardwareId: device.hardwareId, eventId, localPressedAt: now() };
+    for (const listener of listeners) {
+      if (!listener.destroyed && !listener.writableEnded) listener.write(`event: press\ndata: ${JSON.stringify(event)}\n\n`);
+    }
+    return event;
+  };
   const server = http.createServer(async (req, res) => {
     const origin = allowedOrigin(req.headers.origin);
     if (origin === null) {
@@ -116,6 +123,53 @@ export async function startHardwareCompanion({ port = 43127, host = "127.0.0.1",
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/adapters/flic/events") {
+      if (req.headers["x-joyrest-adapter-key"] !== adapterKey) {
+        json(res, 401, { error: "adapter-key-invalid" }, origin);
+        return;
+      }
+      try {
+        const body = await bodyOf(req);
+        const address = typeof body.bdaddr === "string" ? body.bdaddr.replace(/[^A-Fa-f0-9]/g, "").toUpperCase() : "";
+        if (!/^[A-F0-9]{12}$/.test(address)) {
+          json(res, 400, { error: "invalid-button-address" }, origin);
+          return;
+        }
+        const hardwareId = `flic-${address}`;
+        let device = devices.find((item) => item.hardwareId === hardwareId);
+        if (!device && body.type !== "disconnected") {
+          device = { source: "bluetooth", hardwareId, alias: `Flic ${address.slice(-4)}`, connected: true, battery: null, features: ["press"] };
+          devices.push(device);
+        }
+        if (body.type === "disconnected") {
+          if (device) device.connected = false;
+          json(res, 200, { ok: true }, origin);
+          return;
+        }
+        if (device) device.connected = true;
+        if (body.type !== "down" || !device) {
+          json(res, 200, { ok: true, device }, origin);
+          return;
+        }
+        const sequence = typeof body.sequence === "string" || typeof body.sequence === "number" ? String(body.sequence) : randomBytes(8).toString("hex");
+        if (!/^[A-Za-z0-9_-]{1,40}$/.test(sequence)) {
+          json(res, 400, { error: "invalid-event-sequence" }, origin);
+          return;
+        }
+        const eventId = `flic-${address}-${sequence}`;
+        if (adapterEvents.has(eventId)) {
+          json(res, 200, { result: "duplicate" }, origin);
+          return;
+        }
+        adapterEvents.add(eventId);
+        const event = emitPress(device, eventId);
+        json(res, 200, event, origin);
+      } catch {
+        json(res, 400, { error: "invalid-json" }, origin);
+      }
+      return;
+    }
+
     const token = tokenOf(req);
     const expires = sessions.get(token) ?? 0;
     if (expires <= now()) {
@@ -125,7 +179,7 @@ export async function startHardwareCompanion({ port = 43127, host = "127.0.0.1",
     }
 
     if (req.method === "GET" && url.pathname === "/api/devices") {
-      json(res, 200, { adapter: "virtual", devices: demoDevices }, origin);
+      json(res, 200, { adapter: "virtual", devices }, origin);
       return;
     }
 
@@ -158,21 +212,12 @@ export async function startHardwareCompanion({ port = 43127, host = "127.0.0.1",
       }
       try {
         const body = await bodyOf(req);
-        const device = demoDevices.find((item) => item.source === body.source && item.hardwareId === body.hardwareId);
+        const device = devices.find((item) => item.source === body.source && item.hardwareId === body.hardwareId);
         if (!device) {
           json(res, 404, { error: "device-not-found" }, origin);
           return;
         }
-        const event = {
-          type: "press",
-          source: device.source,
-          hardwareId: device.hardwareId,
-          eventId: `event-${randomBytes(10).toString("hex")}`,
-          localPressedAt: now(),
-        };
-        for (const listener of listeners) {
-          if (!listener.destroyed && !listener.writableEnded) listener.write(`event: press\ndata: ${JSON.stringify(event)}\n\n`);
-        }
+        const event = emitPress(device, `event-${randomBytes(10).toString("hex")}`);
         json(res, 200, event, origin);
       } catch {
         json(res, 400, { error: "invalid-json" }, origin);
@@ -193,6 +238,7 @@ export async function startHardwareCompanion({ port = 43127, host = "127.0.0.1",
   return {
     server,
     port: actualPort,
+    adapterKey,
     get pairingCode() {
       return pairingCode;
     },
@@ -209,10 +255,12 @@ export async function startHardwareCompanion({ port = 43127, host = "127.0.0.1",
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   void (async () => {
-    const companion = await startHardwareCompanion();
-    console.log(`JoyRest Кнопки: http://127.0.0.1:${companion.port}`);
+    const host = process.env.JOYREST_HARDWARE_HOST ?? "127.0.0.1";
+    const companion = await startHardwareCompanion({ host });
+    console.log(`JoyRest Кнопки: http://${host}:${companion.port}`);
     console.log(`Код сопряжения: ${companion.pairingCode}`);
-    console.log("Адаптер: virtual (демонстрационные Bluetooth и USB)");
+    console.log("Адаптеры: virtual и Flic Hub");
+    if (host !== "127.0.0.1") console.log(`Ключ адаптера Flic Hub: ${companion.adapterKey}`);
     const stop = async () => {
       await companion.close();
       process.exit(0);

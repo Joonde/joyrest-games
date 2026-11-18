@@ -1304,3 +1304,22 @@ POST /api/sessions/:id/hardware-buzz
 - архитектурная граница: компоненты используют только `src/data/index.ts`.
 
 Итог: **2622/2622 теста пройдено**, `npm run build` и `npm run build:server` успешны. Реальные аппаратные адаптеры остаются следующим отдельным этапом.
+
+
+## 35. Первый реальный адаптер: Flic Hub (19 ноября 2026)
+
+Выбран официальный путь без реверс-инжиниринга: **Flic 2 / Flic Duo → Flic Hub → Flic Hub Studio → JoyRest Кнопки**.
+
+Добавлено:
+
+- `POST /api/adapters/flic/events` с отдельным ключом адаптера;
+- события `added`, `connected`, `disconnected`, `down`;
+- стабильный `hardwareId = flic-<Bluetooth-адрес>`;
+- `eventId = flic-<адрес>-<sequence>` с защитой от повторной доставки;
+- модуль `hardware-companion/adapters/flic-hub/main.js` для Flic Hub Studio;
+- запуск `JOYREST_HARDWARE_HOST=0.0.0.0` для доступа Hub по локальной сети;
+- инструкция `hardware-companion/adapters/flic-hub/README.md`.
+
+Проверки: **5/5 тестов локальной программы**, `node --check adapters/flic-hub/main.js`, `npm run typecheck`, `npm run build`, `npm run build:server`.
+
+**Ограничение:** физическое испытание требует Flic Hub и кнопку. Это вариант через Hub, а не прямое BLE-подключение кнопки к компьютеру и не USB-приёмник. USB-адаптер остаётся следующим этапом.

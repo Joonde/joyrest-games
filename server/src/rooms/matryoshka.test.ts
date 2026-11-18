@@ -1,5 +1,5 @@
 /**
- * «Игры Матрёшки» в настоящей игровой комнате (`engine.ts`, docs/matryoshka.md): реестр (только test), команды с этапом
+ * «Игры Матрёшки» в настоящей игровой комнате (`engine.ts`, docs/matryoshka.md): основной реестр, команды с этапом
  * (двойное касание и второй пульт → `moved`), пауза движка (в «Замри!» все отпустили, пачки на паузе выброшены), снимок →
  * восстановление, `delayed`, потоки (личное — только своё, экран — без тайн и ≤ 4 КБ на 100) и сквозные игры ботами на 6, 12, 50
  * и 100 игроков — до пьедестала, в финале ровно F, баллы ведущему (`room_play`, «сыграна до конца»).
@@ -158,8 +158,8 @@ function tickStats(all: number[]): { median: number; p99: number; max: number } 
 }
 
 describe("«Игры Матрёшки» в игровой комнате", () => {
-  it("комната — только на тестовой версии, пока нет экранов (Блок 3a); «без связи» 3 с, пачка раз в 1 с", () => {
-    expect(roomGames().has("matryoshka")).toBe(false);
+  it("комната доступна в основном реестре; «без связи» 3 с, пачка раз в 1 с", () => {
+    expect(roomGames().has("matryoshka")).toBe(true);
     expect(roomGames({ check: true }).has("matryoshka")).toBe(true);
     expect(roomGames().has("bublikator")).toBe(true);
     expect(matryoshka.offlineMs).toBe(3000);

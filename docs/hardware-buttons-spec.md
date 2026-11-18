@@ -2,7 +2,7 @@
 
 **Статус:** концепт, интерактивный макет и серверный MVP с эмулятором в production; реальные адаптеры Bluetooth/USB ещё не реализованы.
 **Дата:** 18 ноября 2026 года.
-**Реализация и выкладка:** миграция `0049_hardware_buttons.sql`, host-only API в `server/src/live.ts`, репозиторий `src/data/server/hardware.ts`, вкладка пульта и эмулятор `src/components/live/HardwarePanel.tsx`, локальная программа `hardware-companion/` и клиент `src/data/localHardware.ts`. На время пилота эмулятор включён по умолчанию, `VITE_HARDWARE_EMULATOR=false` скрывает его. Production: `c4a92b3fcb904b7b566b7721c9c2e516965e636b`, `/health` успешен. Полный набор на временной UTF-8 PostgreSQL: **2622/2622 теста пройдено**; CI и полные сборки успешны. Следующий этап — адаптеры реальных устройств.
+**Реализация и выкладка:** миграция `0049_hardware_buttons.sql`, host-only API в `server/src/live.ts`, репозиторий `src/data/server/hardware.ts`, вкладка пульта и эмулятор `src/components/live/HardwarePanel.tsx`, локальная программа `hardware-companion/` и клиент `src/data/localHardware.ts`. На время пилота эмулятор включён по умолчанию, `VITE_HARDWARE_EMULATOR=false` скрывает его. Production: `a0d65eeca3c712495d8dba5e35c468b71dcb9eec`, `/health` успешен. Полный набор на временной UTF-8 PostgreSQL: **2622/2622 теста пройдено**; CI и полные сборки успешны. Следующий этап — адаптеры реальных устройств.
 **Продукт:** игровая платформа JoyRest, пульт ведущего.
 **Макет:** `hardware-buttons-mockup/`.
 **Документ является основным порядком работы:** перед реализацией нового этапа сначала проверить соответствующие разделы и актуальный код; изменения решений фиксировать здесь в том же PR.

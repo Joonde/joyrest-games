@@ -145,7 +145,7 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     return (Array.isArray(raw) ? String(raw[0]) : String(raw ?? "")).split(";")[0] ?? "";
   }
 
-  const call = (method: "GET" | "POST" | "DELETE", path: string, cookie: string, payload?: object) =>
+  const call = (method: "GET" | "POST" | "PUT" | "DELETE", path: string, cookie: string, payload?: object) =>
     app.inject({
       method,
       url: path,
@@ -159,7 +159,7 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     return { cookie: cookieOf(res), uid: res.json().uid };
   }
 
-  async function newSession(id: string, playMode: "solo" | "teams" = "solo"): Promise<string> {
+  async function newSession(id: string, playMode: "solo" | "teams" = "solo", snapshot?: unknown): Promise<string> {
     const res = await call("POST", "/api/sessions", host, {
       id,
       gameId: null,
@@ -168,7 +168,7 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
       screenMode: "laptop",
       themeId: "joyrest",
       mechanic: "quiz",
-      gameSnapshot: { title: "Квиз", content: { questions: [] } },
+      gameSnapshot: snapshot ?? { title: "Квиз", content: { questions: [] } },
     });
     expect(res.statusCode, res.body).toBe(200);
     return res.json().code;
@@ -243,7 +243,7 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await answer("b")).json()).toEqual({ result: "sent" });
     expect((await answer("c")).json()).toEqual({ result: "rejected" });
     const list = (await call("GET", "/api/sessions/sess2/answers/0", host)).json();
-    expect(list).toEqual([{ id: `0_${guest.uid}`, step: 0, pid: guest.uid, uid: guest.uid, value: "b", submittedAt: clock }]);
+    expect(list).toEqual([{ id: `0_${guest.uid}`, step: 0, pid: guest.uid, uid: guest.uid, value: "b", submittedAt: clock, source: "phone" }]);
     expect((await call("GET", "/api/sessions/sess2/answers/0", guest.cookie)).statusCode).toBe(403);
 
     // Своё видно, чужое — нет.
@@ -731,6 +731,76 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     const thief = await device();
     expect((await call("POST", `/api/sessions/rej2/participants/${vera.uid}/claim`, thief.cookie)).statusCode).toBe(409);
     expect((await call("POST", "/api/auth/device", vera.cookie)).json().uid).toBe(vera.uid);
+  });
+
+  it("физические кнопки: host-only привязка, серверный buzz, повтор и замена устройства", async () => {
+    await newSession("hw1", "solo", { title: "Квиз", content: { questions: [{ kind: "buzz" }] } });
+    const guest = await device();
+    expect((await call("POST", `/api/sessions/hw1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня", teamId: null })).statusCode).toBe(200);
+    const bindingBody = { participantId: guest.uid, source: "bluetooth", hardwareId: "bt-one", alias: "Кнопка 1" };
+    expect((await call("PUT", "/api/sessions/hw1/hardware-bindings/bind1", guest.cookie, bindingBody)).statusCode).toBe(403);
+    const bound = await call("PUT", "/api/sessions/hw1/hardware-bindings/bind1", host, bindingBody);
+    expect(bound.statusCode, bound.body).toBe(200);
+    expect(bound.json()).toMatchObject({ id: "bind1", sessionId: "hw1", participantId: guest.uid, source: "bluetooth", hardwareId: "bt-one" });
+    expect((await call("GET", "/api/sessions/hw1/hardware-bindings", guest.cookie)).statusCode).toBe(403);
+    expect((await call("GET", "/api/sessions/hw1/hardware-bindings", host)).json()).toHaveLength(1);
+
+    // До открытия подходящего шага ведущий тоже получает отказ; гость не может подделать аппаратное нажатие.
+    expect((await call("POST", "/api/sessions/hw1/hardware-buzz", host, { bindingId: "bind1", eventId: "event0" })).json()).toEqual({ result: "rejected" });
+    await call("POST", "/api/sessions/hw1/phase", host, { phase: "playing" });
+    expect((await call("POST", "/api/sessions/hw1/apply", host, { state: { stage: "question", startedAt: "server", result: { buzz: {} } } })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/hw1/hardware-buzz", guest.cookie, { bindingId: "bind1", eventId: "event1" })).statusCode).toBe(403);
+    expect((await call("POST", "/api/sessions/hw1/hardware-buzz", host, { bindingId: "bind1", eventId: "event1" })).json()).toEqual({ result: "sent" });
+    expect((await call("POST", "/api/sessions/hw1/hardware-buzz", host, { bindingId: "bind1", eventId: "event1" })).json()).toEqual({ result: "duplicate" });
+    expect((await call("POST", "/api/sessions/hw1/hardware-buzz", host, { bindingId: "bind1", eventId: "event2" })).json()).toEqual({ result: "rejected" });
+    const answers = (await call("GET", "/api/sessions/hw1/answers/0", host)).json();
+    expect(answers).toHaveLength(1);
+    expect(answers[0]).toMatchObject({ pid: guest.uid, uid: guest.uid, value: { buzz: true }, source: "bluetooth" });
+
+    // Новая кнопка участника заменяет прежнюю; после очистки шага работает уже только новая.
+    expect((await call("PUT", "/api/sessions/hw1/hardware-bindings/bind2", host, { ...bindingBody, source: "usb", hardwareId: "usb-one", alias: "USB №1" })).statusCode).toBe(200);
+    expect((await call("GET", "/api/sessions/hw1/hardware-bindings", host)).json()).toHaveLength(1);
+    expect((await call("POST", "/api/sessions/hw1/hardware-buzz", host, { bindingId: "bind1", eventId: "event3" })).json()).toEqual({ result: "rejected" });
+    await call("DELETE", "/api/sessions/hw1/answers/0", host);
+    expect((await call("POST", "/api/sessions/hw1/hardware-buzz", host, { bindingId: "bind2", eventId: "event4" })).json()).toEqual({ result: "sent" });
+    await call("DELETE", "/api/sessions/hw1/hardware-bindings/bind2", host);
+    expect((await call("POST", "/api/sessions/hw1/hardware-buzz", host, { bindingId: "bind2", eventId: "event5" })).json()).toEqual({ result: "rejected" });
+  });
+
+  it("физическая кнопка не отвечает на обычный вопрос квиза", async () => {
+    await newSession("hw2", "solo", { title: "Квиз", content: { questions: [{ kind: "choice" }] } });
+    const guest = await device();
+    await call("POST", `/api/sessions/hw2/participants/${guest.uid}/join`, guest.cookie, { name: "Боря", teamId: null });
+    await call("PUT", "/api/sessions/hw2/hardware-bindings/bind-normal", host, { participantId: guest.uid, source: "usb", hardwareId: "usb-normal", alias: "USB" });
+    await call("POST", "/api/sessions/hw2/phase", host, { phase: "playing" });
+    await call("POST", "/api/sessions/hw2/apply", host, { state: { stage: "question", startedAt: "server", timeLimit: 20 } });
+    expect((await call("POST", "/api/sessions/hw2/hardware-buzz", host, { bindingId: "bind-normal", eventId: "normal-event" })).json()).toEqual({ result: "rejected" });
+    expect((await call("GET", "/api/sessions/hw2/answers/0", host)).json()).toEqual([]);
+  });
+
+  it("физические кнопки: одновременные нажатия не теряются, один eventId не дублируется", async () => {
+    await newSession("hw3", "solo", { title: "Квиз", content: { questions: [{ kind: "buzz" }] } });
+    const first = await device();
+    const second = await device();
+    await call("POST", `/api/sessions/hw3/participants/${first.uid}/join`, first.cookie, { name: "Аня", teamId: null });
+    await call("POST", `/api/sessions/hw3/participants/${second.uid}/join`, second.cookie, { name: "Боря", teamId: null });
+    await call("PUT", "/api/sessions/hw3/hardware-bindings/hw-first", host, { participantId: first.uid, source: "bluetooth", hardwareId: "bt-first", alias: "BT 1" });
+    await call("PUT", "/api/sessions/hw3/hardware-bindings/hw-second", host, { participantId: second.uid, source: "usb", hardwareId: "usb-second", alias: "USB 2" });
+    await call("POST", "/api/sessions/hw3/phase", host, { phase: "playing" });
+    await call("POST", "/api/sessions/hw3/apply", host, { state: { stage: "question", startedAt: "server", result: { buzz: {} } } });
+    const both = await Promise.all([
+      call("POST", "/api/sessions/hw3/hardware-buzz", host, { bindingId: "hw-first", eventId: "parallel-first" }),
+      call("POST", "/api/sessions/hw3/hardware-buzz", host, { bindingId: "hw-second", eventId: "parallel-second" }),
+    ]);
+    expect(both.map((res) => res.json()).sort((a, b) => String(a.result).localeCompare(String(b.result)))).toEqual([{ result: "sent" }, { result: "sent" }]);
+    expect((await call("GET", "/api/sessions/hw3/answers/0", host)).json()).toHaveLength(2);
+
+    const duplicate = await Promise.all([
+      call("POST", "/api/sessions/hw3/hardware-buzz", host, { bindingId: "hw-first", eventId: "parallel-first" }),
+      call("POST", "/api/sessions/hw3/hardware-buzz", host, { bindingId: "hw-first", eventId: "parallel-first" }),
+    ]);
+    expect(duplicate.map((res) => res.json())).toEqual([{ result: "duplicate" }, { result: "duplicate" }]);
+    expect((await call("GET", "/api/sessions/hw3/answers/0", host)).json()).toHaveLength(2);
   });
 
   it("часы сервера", async () => {

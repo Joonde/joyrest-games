@@ -27,6 +27,7 @@ import { WindowLimiter } from "./lead";
 import { randomBytes } from "node:crypto";
 import { isOnline } from "../../src/core/presence";
 import { actorOf, apiGuard, deviceCookie, identityOf, tokenHash, type Identity } from "./auth";
+import { canHardwareBuzz, type HardwareSource } from "../../src/core/hardware";
 
 export interface LiveOptions {
   sql: Sql;
@@ -513,6 +514,8 @@ interface AnswerRow {
   uid: string;
   value: unknown;
   submitted_at: Date | null;
+  /** Телефон по умолчанию; физический источник появляется из миграции 0049. */
+  source?: "phone" | HardwareSource;
 }
 
 function answerOf(row: AnswerRow) {
@@ -523,6 +526,29 @@ function answerOf(row: AnswerRow) {
     uid: row.uid,
     value: row.value ?? null,
     submittedAt: row.submitted_at ? row.submitted_at.getTime() : null,
+    source: row.source ?? "phone",
+  };
+}
+
+interface HardwareBindingRow {
+  id: string;
+  session_id: string;
+  participant_id: string;
+  source: HardwareSource;
+  hardware_id: string;
+  alias: string;
+}
+
+const HARDWARE_COLUMNS = ["id", "session_id", "participant_id", "source", "hardware_id", "alias"];
+
+function hardwareBindingOf(row: HardwareBindingRow) {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    participantId: row.participant_id,
+    source: row.source,
+    hardwareId: row.hardware_id,
+    alias: row.alias,
   };
 }
 
@@ -1476,6 +1502,113 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       return { ok: true };
     });
 
+    // ---------------------------------------------------------------- физические кнопки
+
+    api.get<{ Params: { id: string } }>("/api/sessions/:id/hardware-bindings", async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      const rows = await sql<HardwareBindingRow[]>`
+        select ${sql(HARDWARE_COLUMNS)} from hardware_bindings where session_id = ${hosted.row.id} order by created_at, id`;
+      return rows.map(hardwareBindingOf);
+    });
+
+    api.put<{ Params: { id: string; bindingId: string }; Body: unknown }>("/api/sessions/:id/hardware-bindings/:bindingId", { bodyLimit: SMALL_BODY }, async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      if (normalizeState(hosted.row.state).phase === "finished") return fail(reply, 409, "failed-precondition");
+      const body = isRecord(request.body) ? request.body : {};
+      const { source, hardwareId, participantId } = body;
+      const alias = typeof body.alias === "string" ? body.alias.trim().slice(0, 40) : "";
+      if (
+        !ID.test(request.params.bindingId) ||
+        (source !== "bluetooth" && source !== "usb") ||
+        typeof hardwareId !== "string" ||
+        !ID.test(hardwareId) ||
+        typeof participantId !== "string" ||
+        !ID.test(participantId) ||
+        !alias
+      ) return fail(reply, 400, "invalid-argument");
+      const participant = await loadParticipant(hosted.row.id, participantId);
+      if (!participant) return { result: "rejected" };
+      const row = await sql.begin(async (tx) => {
+        // Замена кнопки участника и перенос кнопки другому участнику — одна транзакция.
+        await tx`
+          delete from hardware_bindings
+          where session_id = ${hosted.row.id} and participant_id = ${participantId} and id <> ${request.params.bindingId}`;
+        await tx`
+          delete from hardware_bindings
+          where session_id = ${hosted.row.id} and source = ${source} and hardware_id = ${hardwareId} and id <> ${request.params.bindingId}`;
+        const [saved] = await tx<HardwareBindingRow[]>`
+          insert into hardware_bindings (id, session_id, participant_id, source, hardware_id, alias, updated_at)
+          values (${request.params.bindingId}, ${hosted.row.id}, ${participantId}, ${source}, ${hardwareId}, ${alias}, now())
+          on conflict (id) do update set participant_id = excluded.participant_id, source = excluded.source,
+            hardware_id = excluded.hardware_id, alias = excluded.alias, updated_at = now()
+          returning ${tx(HARDWARE_COLUMNS)}`;
+        return saved;
+      });
+      return hardwareBindingOf(row);
+    });
+
+    api.delete<{ Params: { id: string; bindingId: string } }>("/api/sessions/:id/hardware-bindings/:bindingId", async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      await sql`delete from hardware_bindings where session_id = ${hosted.row.id} and id = ${request.params.bindingId}`;
+      return { ok: true };
+    });
+
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/hardware-buzz", { bodyLimit: SMALL_BODY }, async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const { bindingId, eventId } = body;
+      if (typeof bindingId !== "string" || !ID.test(bindingId) || typeof eventId !== "string" || !ID.test(eventId)) {
+        return fail(reply, 400, "invalid-argument");
+      }
+      const time = now();
+      type BuzzOutcome = { status: "rejected" | "duplicate" } | { status: "sent"; answer: AnswerRow };
+      let outcome: BuzzOutcome;
+      try {
+        outcome = await sql.begin<BuzzOutcome>(async (tx) => {
+          const [fresh] = await tx<{ state: unknown; mechanic: string | null; game_snapshot: unknown }[]>`
+            select state, mechanic, game_snapshot from sessions where id = ${hosted.row.id} for share`;
+          if (!fresh) return { status: "rejected" };
+          const [binding] = await tx<(HardwareBindingRow & { captain_uid: string })[]>`
+            select ${tx(HARDWARE_COLUMNS.map((column) => `b.${column}`))}, p.captain_uid
+            from hardware_bindings b
+            join participants p on p.session_id = b.session_id and p.id = b.participant_id
+            where b.session_id = ${hosted.row.id} and b.id = ${bindingId}`;
+          if (!binding) return { status: "rejected" };
+          const state = normalizeState(fresh.state);
+          if (!permissions.canSubmitAnswer(state, state.step, now())) return { status: "rejected" };
+          if (!canHardwareBuzz(fresh.mechanic, fresh.game_snapshot, state, binding.participant_id)) return { status: "rejected" };
+          const [previous] = await tx<{ hardware_binding_id: string | null }[]>`
+            select hardware_binding_id from answers where session_id = ${hosted.row.id} and hardware_event_id = ${eventId}`;
+          if (previous) return { status: previous.hardware_binding_id === binding.id ? "duplicate" : "rejected" };
+          const step = state.step;
+          const staleBefore = new Date(state.startedAt ?? 0);
+          const [answer] = await tx<AnswerRow[]>`
+            insert into answers (session_id, step, pid, uid, value, submitted_at, source, hardware_event_id, hardware_binding_id)
+            values (${hosted.row.id}, ${step}, ${binding.participant_id}, ${binding.captain_uid}, ${tx.json({ buzz: true })},
+              ${new Date(time)}, ${binding.source}, ${eventId}, ${binding.id})
+            on conflict (session_id, step, pid) do update set uid = excluded.uid, value = excluded.value,
+              submitted_at = excluded.submitted_at, source = excluded.source,
+              hardware_event_id = excluded.hardware_event_id, hardware_binding_id = excluded.hardware_binding_id
+            where answers.submitted_at < ${staleBefore}
+            returning step, pid, uid, value, submitted_at, source`;
+          return answer ? { status: "sent", answer } : { status: "rejected" };
+        });
+      } catch (error) {
+        // Два одинаковых eventId могли встретиться на уникальном индексе одновременно.
+        if (isRecord(error) && error.code === "23505") return { result: "duplicate" };
+        throw error;
+      }
+      if (outcome.status === "sent") {
+        hub.publish(`answers:${hosted.row.id}`, { type: "answer", answer: answerOf(outcome.answer) });
+        return { result: "sent" };
+      }
+      return { result: outcome.status };
+    });
+
     // ---------------------------------------------------------------- ответы
 
     api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/answers", { bodyLimit: SMALL_BODY }, async (request, reply) => {
@@ -1535,7 +1668,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const hosted = await hostedSession(request, reply);
       if (!hosted) return reply;
       const rows = await sql<AnswerRow[]>`
-        select step, pid, uid, value, submitted_at from answers where session_id = ${hosted.row.id} and step = ${Number(request.params.step) || 0}`;
+        select step, pid, uid, value, submitted_at, source from answers where session_id = ${hosted.row.id} and step = ${Number(request.params.step) || 0}`;
       return rows.map(answerOf);
     });
 
@@ -1545,7 +1678,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const session = await loadSession(request.params.id);
       if (!session) return fail(reply, 404, "not-found");
       const rows = await sql<AnswerRow[]>`
-        select step, pid, uid, value, submitted_at from answers
+        select step, pid, uid, value, submitted_at, source from answers
         where session_id = ${session.id} and step = ${Number(request.params.step) || 0} and pid = ${request.params.pid}`;
       const row = rows[0];
       if (!row) return fail(reply, 404, "not-found");
@@ -1682,7 +1815,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       };
       return stream(request, reply, `answers:${hosted.row.id}`, onStep, async () => {
         const rows = await sql<AnswerRow[]>`
-          select step, pid, uid, value, submitted_at from answers where session_id = ${hosted.row.id} and step = ${step}`;
+          select step, pid, uid, value, submitted_at, source from answers where session_id = ${hosted.row.id} and step = ${step}`;
         return { type: "snapshot", answers: rows.map(answerOf) };
       });
     });

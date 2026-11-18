@@ -19,6 +19,7 @@ function parseAnswer(value: unknown): Answer | null {
     uid: asText(d.uid),
     value: d.value ?? null,
     submittedAt: typeof d.submittedAt === "number" ? d.submittedAt : null,
+    source: d.source === "bluetooth" || d.source === "usb" ? d.source : "phone",
   };
 }
 

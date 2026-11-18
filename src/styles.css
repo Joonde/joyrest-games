@@ -26957,3 +26957,191 @@ a.finale-step__aside {
   align-items: center;
   gap: 7px;
 }
+
+
+/* ---------- Физические кнопки: серверный эмулятор пульта ---------- */
+.hardware-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hardware-panel__head h2 {
+  margin-bottom: 6px;
+}
+
+.hardware-panel__status {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--success);
+  font-size: 13px;
+}
+
+.hardware-panel__actions {
+  margin: 18px 0;
+}
+
+.hardware-wizard {
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+
+.hardware-wizard h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 30px;
+}
+
+.hardware-list {
+  border-top: 1px solid var(--border);
+}
+
+.hardware-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.9fr) minmax(260px, 1.6fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.hardware-row.is-tested {
+  color: var(--success);
+}
+
+.hardware-row__team,
+.hardware-row__device {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.hardware-row__team > div,
+.hardware-row__device {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.hardware-row__color {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 34px;
+  border-radius: 5px;
+}
+
+.hardware-row__actions {
+  justify-content: flex-end;
+  margin: 0;
+}
+
+.hardware-picker {
+  grid-column: 1 / -1;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.hardware-picker__devices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hardware-test {
+  margin: 16px 0 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--success);
+}
+
+@media (max-width: 900px) {
+  .hardware-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hardware-row__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .hardware-panel__head,
+  .hardware-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hardware-row__actions {
+    justify-content: flex-start;
+  }
+}
+
+
+/* Локальный канал «JoyRest Кнопки» */
+.hardware-companion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.hardware-companion__status strong,
+.hardware-companion__status span {
+  display: block;
+}
+
+.hardware-companion__status strong {
+  font-weight: 500;
+}
+
+.hardware-companion__pair {
+  display: flex;
+  gap: 8px;
+}
+
+.hardware-companion__pair input {
+  width: 170px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hardware-companion > .error,
+.hardware-companion > details {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.hardware-companion code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .hardware-companion {
+    grid-template-columns: 1fr;
+  }
+
+  .hardware-companion__pair input {
+    width: 100%;
+    min-width: 0;
+  }
+}

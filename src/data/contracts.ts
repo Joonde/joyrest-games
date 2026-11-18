@@ -5,6 +5,7 @@
  * а остальной код не меняется. Firebase-типы сюда не попадают.
  */
 import type { ProgramAction } from "../core/program";
+import type { HardwareBinding } from "../core/hardware";
 import type {
   Deck,
   DeckPage,
@@ -234,6 +235,16 @@ export interface AnswersRepository {
   clearStep(sessionId: string, step: number): Promise<void>;
   /** Только пульт: свежий список ответов шага с сервера (перед подсчётом очков). */
   list(sessionId: string, step: number): Promise<Answer[]>;
+}
+
+export type HardwareBuzzResult = "sent" | "duplicate" | "rejected";
+
+/** Физические кнопки — только свой сервер и только пульт ведущего. */
+export interface HardwareRepository {
+  list(sessionId: string): Promise<HardwareBinding[]>;
+  save(sessionId: string, binding: HardwareBinding): Promise<HardwareBinding>;
+  remove(sessionId: string, bindingId: string): Promise<void>;
+  buzz(sessionId: string, bindingId: string, eventId: string): Promise<HardwareBuzzResult>;
 }
 
 /** Часы сервера: синхронный таймер на экране зала, пульте и телефонах. */

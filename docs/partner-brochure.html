@@ -7,230 +7,43 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
 * { margin:0; padding:0; box-sizing:border-box; }
-body {
-  background: #171310;
-  color: #f0e6d2;
-  font-family: 'Inter', sans-serif;
-  line-height: 1.5;
-}
-.page {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 50px;
-  border: 1.5px solid #c8a45d;
-  position: relative;
-}
-.gold-line {
-  width: 240px; height: 1.5px; background: #c8a45d; margin: 10px auto;
-}
-h1 {
-  font-family: 'Playfair Display', serif;
-  font-size: 42px;
-  color: #e3c98f;
-  text-align: center;
-  letter-spacing: 6px;
-}
-.subtitle {
-  text-align: center;
-  color: #a8977f;
-  font-size: 14px;
-  margin-top: 6px;
-}
-.tagline {
-  text-align: center;
-  font-size: 15px;
-  margin: 18px 0 30px;
-  color: #f0e6d2;
-}
-.slot {
-  background: #211a14;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  overflow: hidden;
-}
-.slot-header {
-  background: #c8a45d;
-  padding: 12px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.slot-header span.time {
-  color: #171310;
-  font-weight: 700;
-  font-size: 13px;
-}
-.slot-header h3 {
-  font-family: 'Playfair Display', serif;
-  color: #171310;
-  font-size: 22px;
-}
-.slot-body {
-  padding: 20px 24px;
-}
-.slot-body .audience {
-  color: #e3c98f;
-  font-weight: 700;
-  font-size: 13px;
-  margin-bottom: 8px;
-}
-.slot-body .games, .slot-body .earn {
-  font-size: 14px;
-  margin-bottom: 6px;
-}
-.slot-body .earn { color: #a8977f; }
-.slot-body .tag { color: #c8a45d; font-size: 13px; margin-top: 8px; }
-
-.advantages { margin-top: 30px; }
-.advantages h2 {
-  font-family: 'Playfair Display', serif;
-  color: #e3c98f;
-  text-align: center;
-  font-size: 22px;
-  margin-bottom: 20px;
-}
-.adv-item {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 14px;
-  align-items: flex-start;
-}
-.adv-item .dot {
-  width: 6px; height: 6px;
-  background: #c8a45d;
-  border-radius: 50%;
-  margin-top: 8px;
-  flex-shrink: 0;
-}
-.adv-item strong {
-  color: #e3c98f;
-  font-size: 14px;
-}
-.adv-item p {
-  color: #a8977f;
-  font-size: 13px;
-}
-
-.page2 { margin-top: 40px; }
-.page2 h2 {
-  font-family: 'Playfair Display', serif;
-  color: #e3c98f;
-  text-align: center;
-  font-size: 28px;
-}
-.base-rate {
-  background: #2a2118;
-  border-radius: 10px;
-  padding: 18px 24px;
-  margin: 20px 0;
-}
-.base-rate .label {
-  color: #e3c98f;
-  font-weight: 700;
-  font-size: 13px;
-}
-.base-rate p {
-  font-size: 14px;
-  margin-top: 4px;
-}
-.base-rate small {
-  color: #a8977f;
-  font-size: 12px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 20px 0;
-  font-size: 13px;
-}
-thead th {
-  background: #c8a45d;
-  color: #171310;
-  padding: 10px 12px;
-  text-align: center;
-  font-weight: 700;
-}
-thead th:first-child { text-align: left; }
-tbody td {
-  padding: 10px 12px;
-  text-align: center;
-  border-bottom: 1px solid #2a2118;
-}
-tbody td:first-child { text-align: left; font-weight: 600; }
-tbody tr:nth-child(odd) td { background: #211a14; }
-tbody .total td { color: #e3c98f; font-weight: 700; }
-
-.big-evening {
-  background: #2a2118;
-  border-radius: 10px;
-  padding: 24px;
-  margin: 24px 0;
-  text-align: center;
-}
-.big-evening h3 {
-  font-family: 'Playfair Display', serif;
-  color: #e3c98f;
-  font-size: 20px;
-  margin-bottom: 8px;
-}
-.big-evening .divider {
-  width: 180px; height: 1px; background: #c8a45d; margin: 0 auto 14px;
-}
-.big-evening p { font-size: 14px; margin-bottom: 6px; }
-.big-evening .highlight {
-  color: #e3c98f;
-  font-size: 13px;
-  margin-top: 10px;
-}
-
-.economics {
-  background: #211a14;
-  border-radius: 10px;
-  padding: 20px 24px;
-  margin: 20px 0;
-}
-.economics h4 {
-  color: #e3c98f;
-  font-size: 15px;
-  margin-bottom: 10px;
-}
-.economics p { font-size: 13px; margin-bottom: 6px; }
-
-.terms { margin-top: 24px; }
-.terms h3 {
-  font-family: 'Playfair Display', serif;
-  color: #e3c98f;
-  text-align: center;
-  font-size: 20px;
-  margin-bottom: 16px;
-}
-.term-item {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-  align-items: flex-start;
-}
-.term-item .dot {
-  width: 5px; height: 5px;
-  background: #c8a45d;
-  border-radius: 50%;
-  margin-top: 7px;
-  flex-shrink: 0;
-}
-.term-item p { font-size: 13px; color: #f0e6d2; }
-
-.footer {
-  text-align: center;
-  color: #a8977f;
-  font-size: 12px;
-  margin-top: 30px;
-}
-
-@media print {
-  body { background: #171310; }
-  .page { border: 1.5px solid #c8a45d; margin: 0; page-break-after: always; }
-}
+body { background:#171310; color:#f0e6d2; font-family:'Inter',sans-serif; line-height:1.5; }
+.page { max-width:960px; margin:40px auto; padding:48px; border:1.5px solid #c8a45d; }
+.gold-line { width:240px; height:1.5px; background:#c8a45d; margin:10px auto; }
+h1 { font-family:'Playfair Display',serif; font-size:42px; color:#e3c98f; text-align:center; letter-spacing:6px; }
+.subtitle { text-align:center; color:#a8977f; font-size:14px; margin-top:6px; }
+.tagline { text-align:center; font-size:15px; margin:18px 0 30px; }
+.slot { background:#211a14; border-radius:10px; margin-bottom:20px; overflow:hidden; }
+.slot-header { background:#c8a45d; padding:12px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; }
+.slot-header span.time { color:#171310; font-weight:700; font-size:13px; }
+.slot-header h3 { font-family:'Playfair Display',serif; color:#171310; font-size:22px; }
+.slot-body { padding:20px 24px; }
+.slot-body .audience { color:#e3c98f; font-weight:700; font-size:13px; margin-bottom:8px; }
+.slot-body .games,.slot-body .earn { font-size:14px; margin-bottom:6px; }
+.slot-body .earn { color:#a8977f; }
+.slot-body .tag { color:#c8a45d; font-size:13px; margin-top:8px; }
+.advantages { margin-top:30px; }
+.advantages h2,.terms h3 { font-family:'Playfair Display',serif; color:#e3c98f; text-align:center; font-size:22px; margin-bottom:20px; }
+.adv-item,.term-item { display:flex; gap:12px; margin-bottom:14px; align-items:flex-start; }
+.dot { width:6px; height:6px; background:#c8a45d; border-radius:50%; margin-top:8px; flex-shrink:0; }
+.adv-item strong { color:#e3c98f; font-size:14px; }
+.adv-item p { color:#a8977f; font-size:13px; }
+.term-item p { font-size:13px; }
+.page2 h2 { font-family:'Playfair Display',serif; color:#e3c98f; text-align:center; font-size:28px; }
+h3.slot-title { background:#c8a45d; color:#171310; padding:10px 16px; font-size:15px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; border-radius:6px 6px 0 0; margin-top:26px; }
+h3.slot-title small { font-weight:400; font-size:12px; }
+table { width:100%; border-collapse:collapse; font-size:13px; background:#211a14; margin-bottom:6px; }
+th { background:#2a2118; color:#f0e6d2; padding:8px 10px; text-align:center; font-size:12px; }
+th:first-child,td:first-child { text-align:left; }
+td { padding:8px 10px; text-align:center; color:#e3c98f; font-weight:600; }
+td:first-child { color:#f0e6d2; font-weight:500; font-size:12.5px; }
+.note { background:#2a2118; border-radius:8px; padding:14px 18px; font-size:12.5px; margin:20px 0; }
+.note b { color:#c8a45d; font-weight:600; }
+.rec { background:#211a14; border-radius:10px; padding:18px 22px; margin:18px 0; }
+.rec h4 { color:#e3c98f; font-size:15px; margin-bottom:10px; }
+.rec p { font-size:13px; margin-bottom:6px; }
+.footer { text-align:center; color:#a8977f; font-size:12px; margin-top:30px; }
+@media print { .page { margin:0; page-break-after:always; } }
 </style>
 </head>
 <body>
@@ -242,10 +55,7 @@ tbody .total td { color: #e3c98f; font-weight: 700; }
   <p class="tagline">Три временных слота — три разные аудитории для вашей кассы</p>
 
   <div class="slot">
-    <div class="slot-header">
-      <span class="time">Сб · Вс  11:00–13:00</span>
-      <h3>УТРО ВЫХОДНЫХ</h3>
-    </div>
+    <div class="slot-header"><span class="time">Сб · Вс  11:00–13:00</span><h3>УТРО ВЫХОДНЫХ</h3></div>
     <div class="slot-body">
       <div class="audience">Семьи, мамы с детьми · формат завтрака и бранча</div>
       <div class="games">Семейный квиз · «Сладкие приключения» · музыкальное лото · детский квиз с экрана</div>
@@ -255,26 +65,20 @@ tbody .total td { color: #e3c98f; font-weight: 700; }
   </div>
 
   <div class="slot">
-    <div class="slot-header">
-      <span class="time">Пн–Чт  19:00–21:00</span>
-      <h3>ВЕЧЕР БУДНИ</h3>
-    </div>
+    <div class="slot-header"><span class="time">Пн–Чт  19:00–21:00</span><h3>ВЕЧЕР БУДНИ</h3></div>
     <div class="slot-body">
       <div class="audience">После работы · нужен отдых, а не нагрузка на мозг</div>
-      <div class="games">«Узнай по нотам» · «Что скажет большинство» · «Держи пари» · музыкальное лото</div>
+      <div class="games">«Узнай по нотам» · «Что скажет большинство» · «Держи пари» · музыкальное лото · мафия (до 16 чел.)</div>
       <div class="earn">Тянем людей в дни, когда зал пуст: барный чек вместо нулевой выручки</div>
       <div class="tag">Лёгкие, весёлые форматы: музыка, интуиция, юмор — без эрудиционного напряжения</div>
     </div>
   </div>
 
   <div class="slot">
-    <div class="slot-header">
-      <span class="time">Пт–Вс  19:00–22:00</span>
-      <h3>ВЫХОДНОЙ ВЕЧЕР</h3>
-    </div>
+    <div class="slot-header"><span class="time">Пт–Вс  19:00–22:00</span><h3>ВЫХОДНОЙ ВЕЧЕР</h3></div>
     <div class="slot-body">
       <div class="audience">Большой зал · максимальная загрузка</div>
-      <div class="games">«Своя игра» по командам · «Миллион на кону» · квиз-марафон · «Вечер JoyRest»</div>
+      <div class="games">«Своя игра» по командам · «Миллион на кону» · квиз-марафон · «Вечер JoyRest» · мафия (до 16 чел.)</div>
       <div class="earn">Командные форматы на 30–50+ гостей: игроки собирают друзей, зал заполнен стабильно</div>
       <div class="tag">Шоу-форматы с экрана и игрой со зрительного зала — событие, ради которого бронируют стол</div>
     </div>
@@ -282,127 +86,69 @@ tbody .total td { color: #e3c98f; font-weight: 700; }
 
   <div class="advantages">
     <h2>Почему JoyRest, а не «просто ведущий»</h2>
-    <div class="adv-item">
-      <div class="dot"></div>
-      <div><strong>Своя игровая платформа</strong><p>37 игр: гости играют со своих телефонов, вход по QR, живые таблицы — без бланков и бумажек. У ведущих без платформы — 5–6 проверенных игр «с листа».</p></div>
-    </div>
-    <div class="adv-item">
-      <div class="dot"></div>
-      <div><strong>Стабильность</strong><p>Пул ведущих JoyRest: замена заболевшего — наш риск, а не ваш. Регулярный вечер всегда состоится.</p></div>
-    </div>
-    <div class="adv-item">
-      <div class="dot"></div>
-      <div><strong>Разнообразие без выгорания</strong><p>Ротируем форматы: гости не увидят ту же игру дважды, возвращаются снова.</p></div>
-    </div>
-    <div class="adv-item">
-      <div class="dot"></div>
-      <div><strong>Любая аудитория</strong><p>Детские, семейные, музыкальные, командные телешоу — один партнёр закрывает все слоты.</p></div>
-    </div>
+    <div class="adv-item"><div class="dot"></div><div><strong>Своя игровая платформа</strong><p>37 игр: гости играют со своих телефонов, вход по QR, живые таблицы — без бланков и бумажек.</p></div></div>
+    <div class="adv-item"><div class="dot"></div><div><strong>Стабильность</strong><p>Пул ведущих JoyRest: замена заболевшего — наш риск, а не ваш.</p></div></div>
+    <div class="adv-item"><div class="dot"></div><div><strong>Разнообразие без выгорания</strong><p>Ротируем форматы: гости не увидят ту же игру дважды.</p></div></div>
+    <div class="adv-item"><div class="dot"></div><div><strong>Любая аудитория</strong><p>Детские, семейные, музыкальные, командные телешоу — один партнёр закрывает все слоты.</p></div></div>
   </div>
-
-  <p class="footer">joy-rest.ru · Telegram: @joyrest · joyrest@mail.ru</p>
+  <p class="footer">joy-rest.ru · Telegram: @joyrest_manager · joyrest@mail.ru</p>
 </div>
 
 <div class="page page2">
   <h2>Условия и цены</h2>
-  <p class="subtitle" style="margin-top:8px">Гибридная модель: минимум за ведущего + премия за результат</p>
+  <p class="subtitle" style="margin-top:8px">Цена зависит от количества гостей, времени и формата мероприятия</p>
 
-  <div class="base-rate">
-    <div class="label">БАЗА</div>
-    <p>5 000 ₽ / час работы ведущего · минимальный заказ 2 часа = 10 000 ₽ за вечер</p>
-    <small>В базу включено: ведущий, игровая платформа JoyRest, сценарий, экран зала, вход гостей по QR, таблица итогов.</small>
-  </div>
-
-  <p class="subtitle" style="margin: 20px 0 10px; color: #e3c98f; font-size: 15px;">KPI-премия на выбор заведения</p>
+  <h3 class="slot-title"><span>УТРО ВЫХОДНЫХ, 1,5 ч</span><small>база 7 500 ₽</small></h3>
   <table>
-    <thead>
-      <tr>
-        <th>Пришло гостей</th>
-        <th>10</th>
-        <th>20</th>
-        <th>30</th>
-        <th>40</th>
-        <th>50</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Вариант А: 10% с оборота, чек 1 500</td>
-        <td>+1 200</td>
-        <td>+3 000</td>
-        <td>+4 500</td>
-        <td>+7 200</td>
-        <td>+10 000</td>
-      </tr>
-      <tr>
-        <td>Вариант Б: 300 ₽ за каждого гостя</td>
-        <td>+3 000</td>
-        <td>+6 000</td>
-        <td>+9 000</td>
-        <td>+12 000</td>
-        <td>+15 000</td>
-      </tr>
-      <tr class="total">
-        <td>ИТОГО А (база 10 000 ₽)</td>
-        <td>11 200</td>
-        <td>13 000</td>
-        <td>14 500</td>
-        <td>17 200</td>
-        <td>20 000</td>
-      </tr>
-      <tr class="total">
-        <td>ИТОГО Б (база 10 000 ₽)</td>
-        <td>13 000</td>
-        <td>16 000</td>
-        <td>19 000</td>
-        <td>22 000</td>
-        <td>25 000</td>
-      </tr>
-    </tbody>
+    <tr><th>ФОРМАТ · гостей →</th><th>10</th><th>15</th><th>20</th><th>25</th><th>30</th><th>35+</th></tr>
+    <tr><td>1. Гибрид: 7 500 + 300×гость</td><td>10 500</td><td>12 000</td><td>13 500</td><td>15 000</td><td>16 500</td><td>18 000</td></tr>
+    <tr><td>2. Фикс за вечер</td><td>12 000</td><td>12 000</td><td>12 000</td><td>12 000</td><td>12 000</td><td>12 000</td></tr>
+    <tr><td>3. За гостя: 1 000×гость</td><td>10 000</td><td>15 000</td><td>20 000</td><td>25 000</td><td>30 000</td><td>35 000</td></tr>
+    <tr><td>4. Фикс 7 500 + 500×свыше 15</td><td>10 000</td><td>10 000</td><td>10 000</td><td>12 500</td><td>15 000</td><td>17 500</td></tr>
+    <tr><td>5. Выездной + 10% оборота</td><td>16 400</td><td>17 150</td><td>17 900</td><td>18 650</td><td>19 400</td><td>20 150</td></tr>
   </table>
-  <p style="font-size:12px; color:#a8977f; margin-bottom:16px">Учёт гостей — автоматический: вход по QR на платформе JoyRest, количество видно обеим сторонам. KPI-премия в варианте Б — до 12 000 ₽.</p>
 
-  <div class="big-evening">
-    <h3>Мы растём только вместе с вашим залом</h3>
-    <div class="divider"></div>
-    <p><strong>Большой вечер:</strong> 35+ гостей → 700 ₽ за каждого (без базы и потолка)</p>
-    <p>Пример: 50 гостей = 35 000 ₽ нам; у заведения остаётся 40 000 ₽ при выручке 75 000 ₽. Порог считается QR-входом автоматически, без споров.</p>
-    <p class="highlight">При 20 гостях вы платите 16 000 ₽ вместо 24 900 ₽ за выездной пакет. Наша премия растёт только от вашего трафика — поэтому качество ведения для нас не опция, а выгода.</p>
+  <h3 class="slot-title"><span>ВЕЧЕР БУДНИ, 2 ч</span><small>база 10 000 ₽</small></h3>
+  <table>
+    <tr><th>ФОРМАТ · гостей →</th><th>10</th><th>15</th><th>20</th><th>25</th><th>30</th><th>35+</th></tr>
+    <tr><td>1. Гибрид: 10 000 + 300×гость</td><td>13 000</td><td>14 500</td><td>16 000</td><td>17 500</td><td>19 000</td><td>20 500</td></tr>
+    <tr><td>2. Фикс за вечер</td><td>16 000</td><td>16 000</td><td>16 000</td><td>16 000</td><td>16 000</td><td>16 000</td></tr>
+    <tr><td>3. За гостя: 1 000×гость</td><td>10 000</td><td>15 000</td><td>20 000</td><td>25 000</td><td>30 000</td><td>35 000</td></tr>
+    <tr><td>4. Фикс 10 000 + 500×свыше 15</td><td>10 000</td><td>10 000</td><td>12 500</td><td>15 000</td><td>17 500</td><td>20 000</td></tr>
+    <tr><td>5. Выездной + 10% оборота</td><td>21 400</td><td>22 150</td><td>22 900</td><td>23 650</td><td>24 400</td><td>25 150</td></tr>
+  </table>
+
+  <h3 class="slot-title"><span>ВЕЧЕР ВЫХОДНЫХ, 2,5 ч</span><small>база 12 500 ₽ · фикс 16 000 ₽</small></h3>
+  <table>
+    <tr><th>ФОРМАТ · гостей →</th><th>10</th><th>15</th><th>20</th><th>25</th><th>30</th><th>35+</th></tr>
+    <tr><td>1. Гибрид: 12 500 + 300×гость</td><td>15 500</td><td>17 000</td><td>18 500</td><td>20 000</td><td>21 500</td><td>23 000</td></tr>
+    <tr><td>2. Фикс за вечер</td><td>16 000</td><td>16 000</td><td>16 000</td><td>16 000</td><td>16 000</td><td>16 000</td></tr>
+    <tr><td>3. За гостя: 1 000×гость</td><td>12 500</td><td>15 000</td><td>20 000</td><td>25 000</td><td>30 000</td><td>35 000</td></tr>
+    <tr><td>4. Фикс 12 500 + 500×свыше 15</td><td>12 500</td><td>12 500</td><td>15 000</td><td>17 500</td><td>20 000</td><td>22 500</td></tr>
+    <tr><td>5. Выездной + 10% оборота</td><td>26 400</td><td>27 150</td><td>27 900</td><td>28 650</td><td>29 400</td><td>30 150</td></tr>
+  </table>
+
+  <div class="note">
+    Включено: ведущий, платформа JoyRest, сценарий, экран зала, QR-вход, таблица итогов.<br>
+    <b>Минимум — 10 000 ₽ за вечер. При 35+ гостях: 700 ₽/гость (форматы 1 и 3).</b>
   </div>
 
-  <div class="economics">
-    <h4>Почему это выгодно заведению</h4>
-    <p>· 20 гостей × 1 500 ₽ = 30 000 ₽ выручки; нам 13–16 тыс., вам 14–17 тыс. с пустого буднего дня</p>
-    <p>· Дешевле фиксированного пакета выезда (19 900–24 900 ₽) при малой посадке, честно при большой</p>
-    <p>· Мы заинтересованы собирать людей: премия растёт с каждым гостем. Точка выбора: чек до 3 000 ₽ — вариант А дешевле для вас, выше — вариант Б.</p>
+  <div class="rec">
+    <h4>Какой формат когда выгоден</h4>
+    <p>· <b>10–15 гостей:</b> формат 4 — минимальный чек для вас, мы всё равно в плюсе за счёт регулярности.</p>
+    <p>· <b>20–25 гостей:</b> формат 1 (гибрид) или 2 (фикс) — предсказуемый бюджет, мы делим результат с вами.</p>
+    <p>· <b>30+ гостей:</b> формат 3 (за гостя) — мы максимально заинтересованы собрать полный зал.</p>
   </div>
 
   <div class="terms">
     <h3>Наши условия — честные</h3>
-    <div class="term-item">
-      <div class="dot"></div>
-      <p>Не берём процент с вашей выручки: ни с банкета, ни с бара, ни с кухни.</p>
-    </div>
-    <div class="term-item">
-      <div class="dot"></div>
-      <p>Процент — только когда клиент пришёл по нашей рекомендации: 10% от банкета бронируемого у вас праздника (рыночная агентская комиссия 10–20%).</p>
-    </div>
-    <div class="term-item">
-      <div class="dot"></div>
-      <p>Рекламу вечера ведём совместно: наши каналы + ваши. Материалы для соцсетей и постеры — наши.</p>
-    </div>
-    <div class="term-item">
-      <div class="dot"></div>
-      <p>Замена ведущего в день события — наш риск и наша задача.</p>
-    </div>
-    <div class="term-item">
-      <div class="dot"></div>
-      <p>Ваше заведение — наша площадка по умолчанию для частных заказов в этом районе.</p>
-    </div>
+    <div class="term-item"><div class="dot"></div><p>Не берём процент с вашей выручки: ни с банкета, ни с бара, ни с кухни.</p></div>
+    <div class="term-item"><div class="dot"></div><p>Процент — только когда клиент пришёл по нашей рекомендации: 10% от банкета (рыночная комиссия 10–20%).</p></div>
+    <div class="term-item"><div class="dot"></div><p>Рекламу ведём совместно: наши каналы + ваши. Материалы для соцсетей и постеры — наши.</p></div>
+    <div class="term-item"><div class="dot"></div><p>Замена ведущего в день события — наш риск и наша задача.</p></div>
+    <div class="term-item"><div class="dot"></div><p>Ваше заведение — наша площадка по умолчанию для частных заказов в этом районе.</p></div>
   </div>
-
   <p class="footer">Расписание и форматы обсуждаем под ваш зал · пилотный месяц — с любыми условиями выше</p>
 </div>
-
 </body>
 </html>

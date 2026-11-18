@@ -7943,6 +7943,13 @@ ul.chips {
   padding-inline: 0.4cqw;
 }
 
+/* ТЗ 18 ноября 2026 (`docs/lotto-5x5-phone-spec.md`): на 5×5 позволяем адаптивному --fit уменьшить
+   длинные названия до 10 px. Короткие остаются крупными; 3×3 и 4×4 сохраняют общий минимум 12 px. */
+.lotto-ticket--s5 .lotto-card__title {
+  font-size: max(10px, calc(var(--lotto-title-size) * var(--fit, 1)));
+  line-height: 1.05;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lotto-ticket .lotto-card__cell {
     transition: none;

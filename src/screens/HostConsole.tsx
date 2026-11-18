@@ -131,6 +131,8 @@ function Console({ session }: { session: Session }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  /** Подготовка комнаты после общего подтверждения, но до sessionsRepo.finish; у обычных игр отсутствует. */
+  const finishPrepare = useRef<(() => Promise<void>) | undefined>(undefined);
   const [confirmAward, setConfirmAward] = useState(false);
   // Мероприятие из блоков: «Завершить игру» в блоке — конец блока (перерыв), а не конец вечера.
   const [confirmBlock, setConfirmBlock] = useState(false);
@@ -237,10 +239,13 @@ function Console({ session }: { session: Session }) {
       apply: (change: SessionChange) => sessionsRepo.apply(session.id, change),
       clearAnswers: (step: number) => answersRepo.clearStep(session.id, step),
       freshAnswers: (step: number) => answersRepo.list(session.id, step),
-      requestFinish: () => {
+      requestFinish: (prepare) => {
         const p = latest.current.program;
         if (p?.at === "block" && latest.current.state.phase === "playing") setConfirmBlock(true);
-        else setConfirmFinish(true);
+        else {
+          finishPrepare.current = prepare;
+          setConfirmFinish(true);
+        }
       },
     }),
     [session.id],
@@ -267,8 +272,11 @@ function Console({ session }: { session: Session }) {
     setBusy(true);
     setError(null);
     try {
+      // Комнатная игра сначала подтверждает свой finish и записывает итоги; отмена окна не запускает prepare.
+      if (finishPrepare.current) await finishPrepare.current();
       // Завершение сразу сохраняет компактные итоги для «Истории игр».
       await sessionsRepo.finish(latest.current, phones);
+      finishPrepare.current = undefined;
       setConfirmFinish(false);
       // После награждения — «Спасибо»: чаевые ведущему, отзыв и канал (решение владельца 15 октября 2026).
       // Ведущий может убрать слайд — под ним итоги игры.
@@ -448,7 +456,7 @@ function Console({ session }: { session: Session }) {
                   {program ? `Начать вечер: «${program.blocks[0]?.title ?? ""}»` : "Начать игру"}
                 </button>
                 {/* Передумали или сессия создана по ошибке — закрыть, не начиная игру. */}
-                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => setConfirmFinish(true)}>
+                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => { finishPrepare.current = undefined; setConfirmFinish(true); }}>
                   Завершить сессию без игры
                 </button>
               </>
@@ -509,7 +517,7 @@ function Console({ session }: { session: Session }) {
             {phase === "playing" && (
               <>
                 <JoinCard session={session} link={link} compact onCopy={() => void copyLink()} />
-                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => (inBlock ? setConfirmBlock(true) : setConfirmFinish(true))}>
+                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => { finishPrepare.current = undefined; if (inBlock) setConfirmBlock(true); else setConfirmFinish(true); }}>
                   {inBlock ? "Завершить блок досрочно" : program ? "Завершить вечер досрочно" : "Завершить игру досрочно"}
                 </button>
               </>
@@ -581,7 +589,7 @@ function Console({ session }: { session: Session }) {
         busy={busy}
         error={error}
         onConfirm={() => void finish()}
-        onCancel={() => setConfirmFinish(false)}
+        onCancel={() => { finishPrepare.current = undefined; setConfirmFinish(false); }}
       >
         <p>
           {session.state.phase === "lobby"

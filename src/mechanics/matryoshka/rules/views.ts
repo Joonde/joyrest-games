@@ -586,15 +586,55 @@ export function flushPersonal(s: MatState, env: ViewEnv & Pick<Env, "send">): vo
 
 // ------------------------------------------------------------------ пульт
 
+/** Один публичный срок текущего этапа для пульта; скрытые будущие моменты сюда не попадают. */
+function hostEndsAt(s: MatState, now: number): number | null {
+  if (s.phase === "trial" && s.trial) {
+    const tr = s.trial;
+    if (tr.stage !== "play") return srv(s, tr.stageEnds);
+    const p = tr.play;
+    if (p?.kind === "freeze") return srv(s, p.runEnds);
+    if (p?.kind === "ginger") {
+      const sub = gingerSub(p, now);
+      return srv(s, sub === "pick" ? p.pickEnds : sub === "unbox" ? p.unboxEnds : sub === "trace" ? p.traceEnds : null);
+    }
+    if (p?.kind === "rope") {
+      const sub = ropeSub(p, now);
+      return srv(s, sub === "split" ? p.splitEnds : sub === "pull" ? p.attemptEnds : sub === "rest" ? p.restEnds : null);
+    }
+    if (p?.kind === "hopscotch") {
+      const r = p.rows[p.row];
+      const sub = hopSub(p, now);
+      return srv(s, sub === "brave" ? r?.braveEnds ?? null : sub === "jump" ? r?.jumpEnds ?? null : sub === "choose" ? r?.chooseEnds ?? null : sub === "crack" ? r?.crackEnds ?? null : null);
+    }
+    return null;
+  }
+  if (s.phase === "chance") return srv(s, s.chance?.stageEnds ?? null);
+  if (s.phase === "dobivka" && s.dobivka) {
+    const d = s.dobivka;
+    if (d.stage !== "rows") return srv(s, d.stageEnds);
+    const r = d.rows.at(-1);
+    return srv(s, r ? (r.fell === null ? r.chooseEnds : r.crackEnds) : d.stageEnds);
+  }
+  if (s.phase === "final" && s.final?.stage === "duel") return srv(s, s.final.duel?.stageEnds ?? null);
+  return null;
+}
+
 export function hostView(s: MatState, env: ViewEnv): HostView {
   const now = gameNow(s, env);
   const tr = s.trial;
+  const lobbyCount = Object.values(s.members).filter((m) => !m.gone).length;
+  const plannedF = lobbyCount >= 6 ? Math.max(2, Math.min(s.content.finalists, Math.floor(lobbyCount / 2))) : s.content.finalists;
   const view: HostView = {
     moment: moment(s),
     phase: s.phase,
     stage: s.phase === "trial" ? (tr?.stage ?? "-") : s.phase === "chance" ? (s.chance?.stage ?? "-") : s.phase === "dobivka" ? (s.dobivka?.stage ?? "-") : s.phase === "final" ? (s.final?.stage ?? "-") : s.phase,
+    style: s.content.style,
+    lives: s.content.lives,
+    board: s.board,
+    pausedAt: env.paused ? srv(s, now) : null,
+    endsAt: hostEndsAt(s, now),
     can: available(s),
-    F: s.F,
+    F: s.phase === "lobby" ? plannedF : s.F,
     inGame: inGame(s).length,
     out: outCount(s),
     fans: fans(s).length,

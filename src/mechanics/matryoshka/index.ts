@@ -6,6 +6,8 @@ import type { MatContent } from "./rules/types";
 import { MatryoshkaPlayerView } from "./phone/lazy";
 import { MatryoshkaScreenLazy } from "./screen/lazy";
 import { MatryoshkaEditor, MatryoshkaHostControls } from "./views";
+import { validateMatryoshka } from "./editor/validate";
+import { MatryoshkaPreviewLazy } from "./sim/lazy";
 
 /**
  * «Игры Матрёшки» (ТЗ «Три игры», Блок 3; docs/matryoshka.md): дворовые испытания на вылет, болельщики, финал «Камень,
@@ -30,7 +32,8 @@ export const matryoshka: Mechanic<MatContent, never> = {
   ScreenView: MatryoshkaScreenLazy,
   PlayerView: MatryoshkaPlayerView,
   HostControls: MatryoshkaHostControls,
+  roomPreview: MatryoshkaPreviewLazy,
   steps: () => [{ id: "room", answerable: false }],
   score: () => [],
-  validate: () => [],
+  validate: validateMatryoshka,
 };

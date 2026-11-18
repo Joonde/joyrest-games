@@ -95,8 +95,11 @@ export interface SessionControl {
   clearAnswers(step: number): Promise<void>;
   /** Свежие ответы шага с сервера: перед подсчётом очков, чтобы не потерять пришедшие в последнюю секунду. */
   freshAnswers(step: number): Promise<Answer[]>;
-  /** Спросить подтверждение и завершить игру. */
-  requestFinish(): void;
+  /**
+   * Спросить подтверждение и завершить игру. `prepare` — необязательная подготовка после согласия, но до закрытия сессии
+   * (у игры в комнате: завершить комнату и записать итоги). Ошибка prepare не закрывает сессию.
+   */
+  requestFinish(prepare?: () => Promise<void>): void;
 }
 
 export interface HostControlsProps<Content> extends ViewProps<Content> {

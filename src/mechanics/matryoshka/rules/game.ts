@@ -1007,6 +1007,8 @@ function dropPlayer(s: MatState, m: Member, env: Env): void {
 }
 
 export function command(s: MatState, cmd: string, raw: unknown, env: Env): Outcome {
+  // На паузе меняется только табло; ход игры, состав и итоги ждут «Продолжить» (guard для старого/второго пульта).
+  if (env.paused && cmd !== "board") return { ok: false, error: "paused" };
   const before = moment(s);
   const out = runCommand(s, cmd, raw, env);
   // Этап не сменился («+10 секунд», «Табло», «Вернуть»…) — счётчик в `moment`: второе касание со старым этапом — `moved`.

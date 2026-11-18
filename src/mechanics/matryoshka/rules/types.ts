@@ -418,6 +418,13 @@ export interface HostView {
   phase: Phase;
   stage: string;
   can: Record<string, boolean>;
+  style: Style;
+  lives: 1 | 2;
+  board: boolean;
+  /** Момент паузы по часам сервера; все отсчёты пульта стоят на нём. */
+  pausedAt: number | null;
+  /** Конец текущего публичного отсчёта по часам сервера; null — таймера нет. */
+  endsAt: number | null;
   F: number;
   inGame: number;
   out: number;
@@ -425,5 +432,11 @@ export interface HostView {
   piggy: number;
   target: { A: number; T: number; need: number; seeding: boolean } | null;
   players: Array<{ pid: string; num: number; name: string; role: Role; hearts: number; online: boolean; outAt: string | null; late: boolean }>;
+  plan: TrialKind[];
+  played: boolean[];
+  trialIndex: number;
+  startCount: number;
+  returnable: string[];
+  standings?: Array<{ pid: string; num: number; name: string; place: number; points: number; removed: boolean }>;
   [field: string]: unknown;
 }

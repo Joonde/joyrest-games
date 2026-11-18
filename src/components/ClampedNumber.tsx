@@ -7,6 +7,8 @@ interface Props {
   /** Что подставить, если поле оставили пустым. */
   fallback: number;
   disabled?: boolean;
+  /** Шаг стрелок браузера; ручной ввод не ограничивается этим шагом. */
+  step?: number;
   onChange: (value: number) => void;
 }
 
@@ -14,7 +16,7 @@ interface Props {
  * Числовое поле, которое не мешает набирать: пока человек печатает, видно то, что он ввёл
  * («1» на пути к «15»), а в границы число приводится, когда он уходит с поля.
  */
-export function ClampedNumber({ value, min, max, fallback, disabled, onChange }: Props) {
+export function ClampedNumber({ value, min, max, fallback, disabled, step, onChange }: Props) {
   const [draft, setDraft] = useState(String(value));
   const [editing, setEditing] = useState(false);
   useEffect(() => {
@@ -34,6 +36,7 @@ export function ClampedNumber({ value, min, max, fallback, disabled, onChange }:
       inputMode="numeric"
       min={min}
       max={max}
+      step={step}
       value={draft}
       disabled={disabled}
       onFocus={() => setEditing(true)}

@@ -1590,14 +1590,13 @@ function SuperEditor({
         {(q.superVote === true || pickMode === "vote") && (
           <label className="field">
             Время на голосование, секунд
-            <input
-              type="number"
-              inputMode="numeric"
+            <ClampedNumber
+              value={q.voteTime ?? VOTE_TIME.def}
               min={VOTE_TIME.min}
               max={VOTE_TIME.max}
               step={5}
-              value={q.voteTime ?? VOTE_TIME.def}
-              onChange={(e) => onChange({ voteTime: Math.min(VOTE_TIME.max, Math.max(VOTE_TIME.min, Number.parseInt(e.target.value, 10) || VOTE_TIME.def)) })}
+              fallback={VOTE_TIME.def}
+              onChange={(voteTime) => onChange({ voteTime })}
             />
           </label>
         )}
@@ -1627,14 +1626,13 @@ function SuperEditor({
           <>
           <label className="field">
             Очки за верный ответ
-            <input
-              type="number"
-              inputMode="numeric"
+            <ClampedNumber
+              value={l.points}
               min={SUPER_LIMITS.minPoints}
               max={SUPER_LIMITS.maxPoints}
               step={50}
-              value={l.points || ""}
-              onChange={(e) => setLevel(i, { points: Number.parseInt(e.target.value, 10) || 0 })}
+              fallback={0}
+              onChange={(points) => setLevel(i, { points })}
             />
             <span className="muted small">{penaltyFor(penalty, i, l.points) > 0 ? `Ошибка — минус ${penaltyFor(penalty, i, l.points)}` : "Ошибка без штрафа"}</span>
           </label>

@@ -18,6 +18,7 @@ import { SlideView } from "../components/live/SlideView";
 import { useServerNow } from "../components/live/useServerNow";
 import { useHallMusic } from "../components/music/useHallMusic";
 import { builtinMusicOf } from "../components/music/builtinMusic";
+import { bedControlVisible } from "../components/music/bedControl";
 import { useScreenReport } from "../components/live/screenStatus";
 import {
   playSound,
@@ -137,9 +138,9 @@ function ScreenControls({ toStudio, toPick, bed }: { toStudio: (() => void) | nu
         {/* Подпись — что сделает кнопка, а не что сейчас: «Звук включён» путало ведущих. */}
         {muted || !ready ? "Включить звук" : "Выключить звук"}
       </button>
-      {/* Громкость только фоновой музыки (лобби, перерыв): остальной звук мероприятия не тише (22 октября 2026). */}
+      {/* Общая bed-шина: фон платформы или собственная музыка игры («Матрёшка», «Бубликатор»), эффекты не тише. */}
       {bed && !muted && (
-        <label className="screen-bed" title="Только фоновая музыка платформы. Музыка ведущего и звуки игры — как были.">
+        <label className="screen-bed" title="Только фоновая музыка игры и платформы. Музыка ведущего и звуковые эффекты — как были.">
           <span className="screen-bed__label">🎵 Фон {bedVolume}%</span>
           <input
             type="range"
@@ -253,7 +254,7 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
       <ScreenControls
         toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null}
         toPick={isHost && phase !== "finished" ? () => setRepicking(true) : null}
-        bed={builtinNow && soundReady}
+        bed={bedControlVisible(mechanic?.ownMusic, builtinNow, soundReady)}
       />
       {isHost && (
         <ConfirmDialog

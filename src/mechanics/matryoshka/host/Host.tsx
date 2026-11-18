@@ -316,7 +316,7 @@ function PlayMetrics({ v, kind }: { v: HostView; kind: TrialKind }) {
   }
   if (kind === "rope") {
     const x = rec(t?.rope);
-    return <Metrics items={[["Попытка", num(x?.attempt) + 1], ["Узел", num(x?.knot)], ["Победы", arr(x?.wins).map((n) => num(n)).join(" : ")]]} />;
+    return <Metrics items={[["Попытка", Math.max(1, num(x?.attempt) + 1)], ["Узел", num(x?.knot)], ["Победы", arr(x?.wins).map((n) => num(n)).join(" : ")]]} />;
   }
   const x = rec(t?.hop);
   return <Metrics items={[["Ряд", num(x?.row) + 1], ["Смельчаки", num(x?.braves)], ["Выбрали", num(x?.picked)], ["Упали", num(x?.fallen)]]} />;
@@ -334,7 +334,7 @@ function Chance(p: BoardProps & { disabled: boolean }) {
     {done && returned.length > 0 && <div className="math-names">{returned.map((pid) => <span key={pid}>{playerName(v, pid)} · 1 сердечко</span>)}</div>}
     {v.can.next && <button type="button" className="btn btn--block" disabled={disabled} onClick={() => void run("next")}>{nextLabel(v)}</button>}
     {v.can.return && <button type="button" className="btn btn--secondary btn--block" disabled={disabled} onClick={() => p.openPlayers(true)}>Вернуть игрока</button>}
-    {v.can["to-final"] && <button type="button" className="btn btn--secondary btn--block" disabled={disabled} onClick={() => void run("to-final")}>К финалу</button>}
+    {v.can["to-final"] && <button type="button" className="btn btn--secondary btn--block" disabled={disabled} onClick={() => ask({ title: "Перейти к финалу?", text: "Оставшиеся испытания не будут сыграны. Сетка построится по фактическому числу игроков.", label: "К финалу", cmd: "to-final" })}>К финалу</button>}
     {v.can.back && <button type="button" className="btn btn--quiet btn--block" disabled={disabled} onClick={() => ask({ title: "Отменить «Второй шанс»?", text: "Вернёмся к итогам третьего испытания. Вернувшиеся снова станут болельщиками; при повторе будет следующий вопрос.", label: "К итогам испытания", cmd: "back" })}>↶ Назад к итогам третьего испытания</button>}
   </section>;
 }
@@ -367,7 +367,7 @@ function Final(p: BoardProps & { disabled: boolean }) {
   return <section className="math-sec">
     <Timer v={v} serverNow={p.serverNow} pausedAt={p.pausedAt} />
     <div className="math-duel"><Duelist v={v} pid={a} score={wins[0] ?? 0} online={arr(d.online)[0] !== false} /><strong>{wins[0] ?? 0} : {wins[1] ?? 0}</strong><Duelist v={v} pid={b} score={wins[1] ?? 0} online={arr(d.online)[1] !== false} /></div>
-    <p className="small muted">Раунд {num(d.roundNo)} · {over ? `победил ${playerName(v, str(d.winner))}` : d.stage === "show" ? "жесты показаны" : d.stage === "bets" ? "ставки болельщиков" : "жесты скрыты"}</p>
+    <p className="small muted">Раунд {Math.max(1, num(d.roundNo))} · {over ? `победил ${playerName(v, str(d.winner))}` : d.stage === "show" ? "жесты показаны" : d.stage === "bets" ? "ставки болельщиков" : "жесты скрыты"}</p>
     {v.can.duel && <button type="button" className="btn btn--block" disabled={disabled} onClick={() => void run("duel")}>{duelLabel(v)}</button>}
     {v.can.rerun && <button type="button" className="btn btn--secondary btn--block" disabled={disabled} onClick={() => ask({ title: "Переиграть раунд?", text: "Текущий раунд и его показанный итог будут отменены. Ставки перед дуэлью сохранятся.", label: "Переиграть раунд", cmd: "rerun" })}>Переиграть раунд</button>}
     {v.can.forfeit && <div className="math-forfeit"><span>Если игрок не может продолжить — он проиграет всю дуэль:</span><div><button type="button" className="btn btn--quiet" disabled={disabled} onClick={() => ask({ title: `Засчитать победу: ${playerName(v, b)}?`, text: `${playerName(v, a)} проиграет всю дуэль, не только текущий раунд.`, label: "Засчитать победу", cmd: "forfeit", args: { pid: a } })}>Победа: {playerName(v, b)}</button><button type="button" className="btn btn--quiet" disabled={disabled} onClick={() => ask({ title: `Засчитать победу: ${playerName(v, a)}?`, text: `${playerName(v, b)} проиграет всю дуэль, не только текущий раунд.`, label: "Засчитать победу", cmd: "forfeit", args: { pid: b } })}>Победа: {playerName(v, a)}</button></div></div>}

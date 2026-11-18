@@ -165,13 +165,15 @@ function Console({ session }: { session: Session }) {
   // через таблицу лидеров (с номером при одинаковых именах и с капитаном команды).
   useEffect(() => {
     if (session.state.phase === "finished") return;
+    // У «Матрёшки» таблицу ведёт пульт комнаты: опоздавшие болельщики не должны возвращаться сюда с нулём очков.
+    if (session.mechanic === "matryoshka") return;
     const additions = leaderboardAdditions(session.leaderboard, participants, session.playMode);
     // Только что убранного ведущим не возвращаем: событие «участник удалён» может прийти позже таблицы.
     for (const pid of Object.keys(additions)) if (Date.now() - (removedRecently.get(pid) ?? 0) < 15_000) delete additions[pid];
     if (Object.keys(additions).length > 0) {
       sessionsRepo.upsertLeaderboard(session.id, additions).catch(() => setError("Не удалось обновить список игроков."));
     }
-  }, [participants, session.id, session.leaderboard, session.playMode, session.state.phase]);
+  }, [participants, session.id, session.mechanic, session.leaderboard, session.playMode, session.state.phase]);
 
   // Капитан команды вышел (телефон давно молчит) — капитаном становится следующий участник.
   const participantsRef = useRef(participants);

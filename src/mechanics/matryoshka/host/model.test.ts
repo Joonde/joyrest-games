@@ -51,9 +51,25 @@ describe("пульт Матрёшки: модель", () => {
       p1: { name: "Б", kind: "player", score: 60 },
       p2: { name: "В", kind: "player", score: 50 },
     });
-    const filled = { ...board, ...leaderboardChange(v, board) };
+    const filled: Leaderboard = { ...board, p1: { name: "Б", kind: "player", score: 60 }, p2: { name: "В", kind: "player", score: 50 } };
     expect(leaderboardChange(v, filled)).toEqual({});
     expect(syncsLeaderboard(v)).toBe(true);
+  });
+
+  it("удаляет опоздавшего болельщика из таблицы и не возвращает его в места", () => {
+    const w = new World(6);
+    const base = w.host();
+    const late = { ...base.players[0]!, pid: "late", late: true, role: "fan" as const };
+    const v = { ...base, phase: "podium" as const, players: [...base.players, late], standings: [
+      { pid: "p1", num: 2, name: "Б", place: 1, points: 60, removed: false },
+    ] };
+    const board: Leaderboard = { late: { name: "Опоздавший", kind: "player", score: 0 } };
+    expect(leaderboardChange(v, board)).toEqual({
+      p1: { name: "Б", kind: "player", score: 60 },
+      late: null,
+    });
+    const withoutLate = { p1: { name: "Б", kind: "player" as const, score: 60 } };
+    expect(leaderboardChange(v, withoutLate)).toEqual({});
   });
 
   it("различает молчаливый moved и понятные отказы", () => {

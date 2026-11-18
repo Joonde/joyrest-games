@@ -119,14 +119,17 @@ export function syncsLeaderboard(v: HostView): boolean {
   return (v.phase === "final" || v.phase === "podium" || v.phase === "finished") && Array.isArray(v.standings);
 }
 
-/** Итоги solo: запись по pid, опоздавших в standings нет; другие записи пульта не трогаем. */
-export function leaderboardChange(v: HostView, board: Leaderboard): Record<string, LeaderboardEntry> {
+/** Итоги solo: запись по pid; опоздавшие болельщики удаляются из платформенной таблицы и не попадают в результаты. */
+export function leaderboardChange(v: HostView, board: Leaderboard): Record<string, LeaderboardEntry | null> {
   if (!Array.isArray(v.standings)) return {};
-  const change: Record<string, LeaderboardEntry> = {};
+  const change: Record<string, LeaderboardEntry | null> = {};
   for (const row of v.standings) {
     const current = board[row.pid];
     if (current && current.name === row.name && current.kind === "player" && current.score === row.points && current.group === undefined) continue;
     change[row.pid] = { name: row.name, kind: "player", score: row.points };
+  }
+  for (const player of v.players) {
+    if (player.late && board[player.pid]) change[player.pid] = null;
   }
   return change;
 }

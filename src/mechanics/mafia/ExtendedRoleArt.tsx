@@ -35,8 +35,8 @@ export function ExtendedRoleArt({ role }: { role: ExtendedRoleId }) {
 
 type Id = (name: string) => string;
 
-function Eyes({ mood = "calm" }: { mood?: "calm" | "sharp" | "sly" }) {
-  const brow = mood === "sharp" ? "M83 105 L96 102 M104 102 L117 105" : mood === "sly" ? "M83 104 L96 108 M104 108 L117 103" : "M84 104 Q90 101 96 104 M104 104 Q110 101 116 104";
+function Eyes({ mood = "calm" }: { mood?: "calm" | "sharp" | "sly" | "tired" }) {
+  const brow = mood === "sharp" ? "M83 105 L96 102 M104 102 L117 105" : mood === "sly" ? "M83 104 L96 108 M104 108 L117 103" : mood === "tired" ? "M84 105 Q90 104 96 101 M104 101 Q110 104 116 105" : "M84 104 Q90 101 96 104 M104 104 Q110 101 116 104";
   return (
     <g>
       <path d={brow} stroke="#352219" strokeWidth="2.8" strokeLinecap="round" fill="none" />
@@ -54,7 +54,7 @@ function Eyes({ mood = "calm" }: { mood?: "calm" | "sharp" | "sly" }) {
   );
 }
 
-function FaceBase({ id, children, mood = "calm" }: { id: Id; children?: React.ReactNode; mood?: "calm" | "sharp" | "sly" }) {
+function FaceBase({ id, children, mood = "calm" }: { id: Id; children?: React.ReactNode; mood?: "calm" | "sharp" | "sly" | "tired" }) {
   return (
     <g>
       <ellipse cx="72" cy="118" rx="5" ry="9" fill="#d9a888" />
@@ -64,7 +64,7 @@ function FaceBase({ id, children, mood = "calm" }: { id: Id; children?: React.Re
       <path d="M113 80 C125 88 128 99 128 110 C127 130 116 146 100 146 C112 136 117 121 116 104 C115 92 113 84 113 80 Z" fill="#9f6758" opacity="0.35" />
       <Eyes mood={mood} />
       <path d="M100 115 C98 122 97 126 100 128 C102 129 104 128 104 127" stroke="#a8745a" strokeWidth="2" fill="none" strokeLinecap="round" />
-      <path d={mood === "sly" ? "M91 135 Q100 139 110 132" : mood === "sharp" ? "M91 135 L109 134" : "M92 134 Q100 140 108 134"} stroke="#803c3c" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      <path d={mood === "sly" ? "M91 135 Q100 139 110 132" : mood === "sharp" ? "M91 135 L109 134" : mood === "tired" ? "M92 137 Q100 131 108 137" : "M92 134 Q100 140 108 134"} stroke="#803c3c" strokeWidth="2.5" strokeLinecap="round" fill="none" />
       {children}
     </g>
   );
@@ -83,20 +83,22 @@ function Courtesan({ id }: { id: Id }) {
         <ellipse cx="0" cy="3" rx="17" ry="23" fill="#ffd27a" opacity="0.12" />
       </g>
       <g className="mf-art__body">
-        <path d="M18 250 C25 195 54 164 100 158 C146 164 175 195 182 250 Z" fill={`url(#${id("suit")})`} />
-        <path d="M61 164 L100 214 L139 164 C126 158 115 156 100 157 C85 156 74 158 61 164 Z" fill={`url(#${id("skin")})`} />
-        <path d="M61 164 L100 214 L82 250 M139 164 L100 214 L118 250" stroke="#e3c68c" strokeOpacity="0.55" strokeWidth="2" fill="none" />
+        <path d="M10 250 C18 191 51 162 100 158 C149 162 182 191 190 250 Z" fill={`url(#${id("suit")})`} />
+        <path d="M72 160 L100 181 L128 160 C118 157 109 156 100 157 C91 156 82 157 72 160 Z" fill={`url(#${id("skin")})`} />
+        <path d="M68 159 L100 185 L132 159 L142 176 L121 197 L100 184 L79 197 L58 176 Z" fill="#2a1a1d" stroke="#725054" strokeWidth="1.5" />
+        <path d="M52 178 L75 250 M148 178 L125 250" stroke="#6e4850" strokeOpacity="0.45" strokeWidth="2" fill="none" />
         <path d="M145 169 C165 186 176 210 180 250 H170 C165 211 154 186 137 175 Z" fill={`url(#${id("rim")})`} />
-        <FaceBase id={id} mood="sly">
-          <ellipse cx="84" cy="127" rx="6" ry="3" fill="#d7767f" opacity="0.25" />
-          <ellipse cx="116" cy="127" rx="6" ry="3" fill="#d7767f" opacity="0.25" />
+        <path d="M69 108 C58 91 66 69 98 65 C128 62 142 82 134 108 L143 174 C139 188 123 185 118 163 L122 129 C130 111 125 91 111 82 C102 93 84 91 75 105 L79 159 C75 180 60 187 54 174 L65 119 Z" fill="#27191d" />
+        <FaceBase id={id} mood="sharp">
+          <path d="M83 121 Q91 124 96 122 M104 122 Q111 125 118 121 M88 141 L85 145 M112 141 L115 145" stroke="#9b6e60" strokeWidth="1.4" fill="none" opacity="0.7" />
+          <path d="M85 110 L80 107 M88 108 L86 104 M115 110 L120 107 M112 108 L114 104" stroke="#2b1b1b" strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M92 134 Q100 139 108 134 Q100 143 92 134 Z" fill="#8f3a45" opacity="0.85" />
         </FaceBase>
+        <ellipse className="mf-art__eyeglow" cx="91" cy="113" rx="7" ry="3" fill="var(--mf-accent)" opacity="0.75" />
+        <ellipse className="mf-art__eyeglow" cx="109" cy="113" rx="7" ry="3" fill="var(--mf-accent)" opacity="0.75" />
         <path d="M69 108 C62 83 77 65 99 66 C124 62 139 82 130 111 C127 93 119 86 111 82 C103 93 84 91 75 105 L75 133 C66 126 64 116 69 108 Z" fill="#27191d" />
-        <path d="M72 91 C58 108 70 131 62 145 M127 88 C143 104 130 126 139 142" stroke="#5c3034" strokeWidth="6" strokeLinecap="round" fill="none" />
-        <g fill="none" stroke="#e3c68c" strokeWidth="1.5">
-          <path d="M84 158 Q100 174 116 158" />
-          <circle cx="100" cy="170" r="3" fill="#e3c68c" />
-        </g>
+        <path d="M72 91 C58 108 70 131 62 145 M127 88 C143 104 130 126 139 142 M75 74 L64 61 M122 72 L136 58" stroke="#5c3034" strokeWidth="5" strokeLinecap="round" fill="none" />
+        <path d="M82 161 Q100 170 118 161" stroke="#3b2428" strokeWidth="4" fill="none" />
         <g className="mf-art__rose" transform="translate(57 190)">
           <path d="M0 5 L8 47" stroke="#45623d" strokeWidth="3" />
           <path d="M4 27 Q-8 19 -9 31 Q0 34 4 27 M6 35 Q18 25 19 38 Q12 42 6 35" fill="#52734a" />
@@ -126,26 +128,28 @@ function Maniac({ id }: { id: Id }) {
       <g stroke="#c5b1df" strokeOpacity="0.22" strokeWidth="1.4" className="mf-art__rain">
         {Array.from({ length: 12 }, (_, i) => <path key={i} d={`M${(i * 37) % 200} ${(i * 29) % 130} l-5 17`} />)}
       </g>
-      <g className="mf-art__body">
-        <path d="M17 250 C23 186 57 158 100 157 C143 158 177 186 183 250 Z" fill={`url(#${id("suit")})`} />
-        <path d="M56 158 L82 195 L100 166 L118 195 L144 158 L132 250 H68 Z" fill="#17191d" stroke="#4c4654" strokeWidth="2" />
-        <path d="M82 160 L100 188 L118 160 L108 202 H92 Z" fill="#b7b0a7" />
-        <path d="M97 172 H104 L108 199 L100 207 L93 199 Z" fill="#4d1b29" />
+      <g className="mf-art__body" transform="translate(-3 3) rotate(4 100 170)">
+        <path d="M13 250 C18 188 54 160 100 157 C146 159 181 188 187 250 Z" fill={`url(#${id("suit")})`} />
+        <path d="M52 159 L79 197 L100 166 L121 197 L148 156 L136 250 H64 Z" fill="#17191d" stroke="#4c4654" strokeWidth="2" />
+        <path d="M82 160 L100 188 L118 160 L108 202 H92 Z" fill="#a9a29a" />
+        <path d="M97 172 H104 L108 199 L100 207 L93 199 Z" fill="#3b252d" />
         <path d="M144 170 C165 187 176 213 180 250 H170 C165 211 154 186 137 175 Z" fill={`url(#${id("rim")})`} />
-        <FaceBase id={id} mood="sharp" />
+        <path d="M119 188 Q126 183 131 191 L128 202 Q119 201 119 188 M71 214 Q78 209 82 217 L78 225 Q70 224 71 214" fill="#6f1422" opacity="0.85" />
+        <FaceBase id={id} mood="tired">
+          <path d="M83 121 Q90 126 96 123 M104 123 Q111 127 118 121" stroke="#6f5052" strokeWidth="2.4" fill="none" opacity="0.8" />
+        </FaceBase>
+        <ellipse className="mf-art__eyeglow" cx="91" cy="113" rx="7" ry="3" fill="var(--mf-accent)" opacity="0.85" />
+        <ellipse className="mf-art__eyeglow" cx="109" cy="113" rx="7" ry="3" fill="var(--mf-accent)" opacity="0.85" />
         <path d="M70 103 C67 80 82 66 102 68 C123 66 133 82 129 105 L121 89 L114 94 L106 81 L97 91 L86 82 L76 101 Z" fill="#17151b" />
-        <path d="M75 99 L86 104 M125 98 L115 104" stroke="#17151b" strokeWidth="5" strokeLinecap="round" />
-        <g transform="translate(132 193)">
-          <path d="M0 14 C-7 29 10 37 3 55" stroke="#b79a68" strokeWidth="2" fill="none" />
-          <circle cx="0" cy="0" r="15" fill="#24232a" stroke="#c1a878" strokeWidth="3" />
-          <circle cx="0" cy="0" r="10.5" fill="#d8c9ae" opacity="0.85" />
-          <path d="M0 0 L-1 -7 M0 0 L6 3" stroke="#3a2c2b" strokeWidth="1.8" strokeLinecap="round" />
-          <circle className="mf-art__sparkle" cx="-8" cy="-9" r="2" fill="#fff4d5" />
-        </g>
+        <path d="M75 99 L86 104 M125 98 L115 104 M75 81 L64 68 M91 74 L83 60 M117 76 L129 62" stroke="#17151b" strokeWidth="4.5" strokeLinecap="round" />
         <g transform="translate(48 199) rotate(12)">
+          <ellipse cx="0" cy="-6" rx="8" ry="11" fill={`url(#${id("skin")})`} />
+          <path d="M-6 -12 Q0 -7 6 -11 M-5 -5 Q0 0 5 -4" stroke="#8b1b28" strokeWidth="3" fill="none" />
           <path d="M0 0 L-5 40 L5 40 Z" fill="#b9c5cf" stroke="#e4e9ef" strokeWidth="1" />
-          <path d="M0 5 V34" stroke="#6f7a86" />
+          <path d="M-4 23 L-5 40 L5 40 L3 22 Q0 27 -4 23 Z" fill="#8b1424" />
+          <path d="M0 5 V22" stroke="#6f7a86" />
           <rect x="-5" y="-12" width="10" height="16" rx="3" fill="#211a1e" />
+          <circle cx="6" cy="34" r="2.2" fill="#9c1829" />
         </g>
       </g>
     </g>

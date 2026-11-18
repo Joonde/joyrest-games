@@ -67,7 +67,8 @@ describe("защита выкладки", () => {
       "set -euo pipefail",
       `ROOT_DIR=${JSON.stringify(dir)}; DEPLOY_DIR="$ROOT_DIR/deploy"; SHA_RE='^[0-9a-f]{40}$'; ACTIVE_MINUTES=30; APP_REPO=x`,
       'mkdir -p "$DEPLOY_DIR"',
-      'need_root() { :; }; ensure_dirs() { :; }; die() { echo "die: $*" >&2; exit 1; }',
+      // Саму файловую блокировку здесь не проверяем: на macOS нет системной команды flock.
+      'need_root() { :; }; ensure_dirs() { :; }; flock() { :; }; die() { echo "die: $*" >&2; exit 1; }',
       'log() { echo "$*" >> "$ROOT_DIR/log"; }; notify() { echo "$*" >> "$ROOT_DIR/notify"; }',
       'active_games() { cat "$ROOT_DIR/active" 2>/dev/null; }',
       'release_value() { echo ""; }; env_link() { echo "$ROOT_DIR/none"; }; health_ok() { return 1; }',

@@ -16793,8 +16793,11 @@ button.dance-card:active {
 /* Цвета ролей — декоративные заливки; текст на картах всегда светлый на тёмном фоне карты. */
 .mf-role--mafia, .mf-art--mafia { --mf-bg1: #4a0f17; --mf-bg2: #12050a; --mf-glow: #ff3b4a; --mf-accent: #ff5a66; --mf-suit-top: #2a1c20; --mf-suit-bottom: #0a0708; }
 .mf-role--don, .mf-art--don { --mf-bg1: #2b2108; --mf-bg2: #070503; --mf-glow: #e3c68c; --mf-accent: #e9cf93; --mf-suit-top: #1c1818; --mf-suit-bottom: #050404; }
+.mf-role--advocate, .mf-art--advocate { --mf-bg1: #172d50; --mf-bg2: #060a13; --mf-glow: #e3c68c; --mf-accent: #b9ccec; --mf-suit-top: #293e61; --mf-suit-bottom: #0b1220; }
 .mf-role--commissar, .mf-art--commissar { --mf-bg1: #12285a; --mf-bg2: #050b1c; --mf-glow: #8cc7ff; --mf-accent: #e3c68c; --mf-suit-top: #6b5440; --mf-suit-bottom: #2a2018; }
 .mf-role--doctor, .mf-art--doctor { --mf-bg1: #0e4a4c; --mf-bg2: #041a1b; --mf-glow: #7df2c8; --mf-accent: #7df2c8; --mf-suit-top: #f2faf8; --mf-suit-bottom: #b9d6d2; }
+.mf-role--courtesan, .mf-art--courtesan { --mf-bg1: #6b1930; --mf-bg2: #1c060e; --mf-glow: #e88b9e; --mf-accent: #f0b3bd; --mf-suit-top: #8d2945; --mf-suit-bottom: #2b0714; }
+.mf-role--maniac, .mf-art--maniac { --mf-bg1: #35233f; --mf-bg2: #08070d; --mf-glow: #b69acb; --mf-accent: #d1b7df; --mf-suit-top: #30343b; --mf-suit-bottom: #090b0e; }
 .mf-role--civilian, .mf-art--civilian { --mf-bg1: #4a3214; --mf-bg2: #150c04; --mf-glow: #ffcf7a; --mf-accent: #ffcf7a; --mf-suit-top: #7a5a3e; --mf-suit-bottom: #3b2a1c; }
 
 .mf-art {
@@ -16978,6 +16981,8 @@ button.dance-card:active {
 .mf-card__seat { left: 5.6cqi; }
 .mf-card__side { right: 5.6cqi; color: #a3e0b8; }
 .mf-card__side.is-mafia { color: #ff9aa2; }
+.mf-card__side.is-maniac { color: #d1b7df; }
+.mf-news__victim + .mf-news__victim { margin-top: 1.5cqh; padding-top: 1.5cqh; border-top: 1px solid rgb(227 198 140 / 0.3); }
 
 .mf-card__front .mf-art {
   /* Рисунок уступает место тексту: на узкой карте он меньше, текст не вылезает за рамку. */

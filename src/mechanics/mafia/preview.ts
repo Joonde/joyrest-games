@@ -89,17 +89,24 @@ export const mafiaPreview: PreviewDriver<MafiaContent> = ({ session, content, pa
       return { label: "Пульт: «Наступает ночь» — город засыпает", change: startNight(session) };
     case "morning": {
       const night = r.nights.length;
+      const commissar = firstWith(r.alive, roles, "commissar");
+      const maniac = firstWith(r.alive, roles, "maniac");
+      const visit = night % 2 === 1 ? (maniac ?? commissar) : (commissar ?? maniac);
       if (answers.length === 0) {
         const victim = victimOf(r.alive, roles);
+        const maniacVictim = r.alive.find((p) => p !== maniac && p !== victim && !isMafia(roles[p])) ?? r.alive.find((p) => p !== maniac && p !== victim) ?? null;
         const heal = healOf(night, r.seats, roles);
-        const commissar = firstWith(r.alive, roles, "commissar");
         const suspect = r.alive.find((p) => isMafia(roles[p])) ?? null;
+        const advocate = firstWith(r.alive, roles, "advocate");
         const list = r.alive.map((pid) => {
           const role = roles[pid];
           if (role === "don") return { pid, value: { target: victim ?? "", ...(commissar ? { check: commissar } : {}) } };
+          if (role === "advocate") return { pid, value: { target: victim ?? "", check: advocate ?? pid } };
           if (role === "mafia") return { pid, value: { target: victim ?? "" } };
           if (role === "doctor") return { pid, value: heal && r.alive.includes(heal) ? { target: heal } : {} };
           if (role === "commissar") return { pid, value: { target: suspect ?? "" } };
+          if (role === "courtesan") return { pid, value: visit ? { target: visit } : {} };
+          if (role === "maniac") return { pid, value: maniacVictim ? { target: maniacVictim } : {} };
           // Мирные нажимают для вида — со стороны никто не поймёт, кто действовал.
           return { pid, value: { target: r.alive.find((p) => p !== pid) ?? "" } };
         });
@@ -108,17 +115,23 @@ export const mafiaPreview: PreviewDriver<MafiaContent> = ({ session, content, pa
       const { choices, donCheck } = nightChoices(answers, r.alive);
       const doctor = firstWith(r.alive, roles, "doctor");
       const don = firstWith(r.alive, roles, "don");
+      const advocate = firstWith(r.alive, roles, "advocate");
       const history: Array<string | null> = [];
-      for (let k = 1; k < night; k++) history.push(doctor ? healOf(k, r.seats, roles) : null);
-      const outcome = resolveNight(roles, r.alive, choices, history, don ? (donCheck[don] ?? null) : null);
+      const visits: Array<string | null> = [];
+      for (let k = 1; k < night; k++) {
+        history.push(doctor ? healOf(k, r.seats, roles) : null);
+        visits.push(k % 2 === 1 ? (maniac ?? commissar) : (commissar ?? maniac));
+      }
+      const outcome = resolveNight(roles, r.alive, choices, history, don ? (donCheck[don] ?? null) : null, advocate ? (donCheck[advocate] ?? null) : null, visits);
       return {
-        label: outcome.victim ? `Пульт: «Наступает утро» — ночью убит ${name(outcome.victim)}` : "Пульт: «Наступает утро» — тихая ночь: Доктор спас",
+        label: outcome.victims.length > 0 ? `Пульт: «Наступает утро» — ночью убиты: ${outcome.victims.map(name).join(", ")}` : "Пульт: «Наступает утро» — тихая ночь",
         change: morning(session, content, outcome, roles),
       };
     }
     case "finish": {
       if (!r.winner) return null;
-      return { label: r.winner === "city" ? "Пульт: «Открыть роли» — победил город" : "Пульт: «Открыть роли» — победила мафия", change: finishGame(session, content, roles, r.winner) };
+      const label = r.winner === "city" ? "победил город" : r.winner === "mafia" ? "победила мафия" : "победил Маньяк";
+      return { label: `Пульт: «Открыть роли» — ${label}`, change: finishGame(session, content, roles, r.winner) };
     }
     // Следующие партии — так же; предпросмотр показывает одну и сразу награждение.
     default:

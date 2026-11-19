@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111118" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111118'/%3E%3Cpath d='M15 42 28 14h8l13 28h-8l-9-20-9 20z' fill='%23f065a7'/%3E%3C/svg%3E" />
+    <title>Танцевальный батл — конструктор и игра</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__top">
+        <span class="brand">JoyRest · проверенный сценарий</span>
+        <span class="status"><i></i> 13 профильных тестов</span>
+      </div>
+      <h1>Танцевальный батл<br /><span>от настройки до результата</span></h1>
+      <p>Настоящие компоненты приложения: конструктор, экран зала, пульт и телефоны. Выберите состояние — рядом написано, что именно делает ведущий.</p>
+    </header>
+
+    <main>
+      <section class="workflow" aria-labelledby="workflow-title">
+        <h2 id="workflow-title">Весь сценарий</h2>
+        <ol class="workflow__steps">
+          <li><b>1</b><span>Настроить карточки</span></li>
+          <li><b>2</b><span>Выбрать выступление</span></li>
+          <li><b>3</b><span>Запустить музыку</span></li>
+          <li><b>4</b><span>Собрать голоса</span></li>
+          <li><b>5</b><span>Показать результат</span></li>
+        </ol>
+      </section>
+
+      <nav id="gallery-tabs" class="gallery-tabs" aria-label="Состояния конструктора и игры"></nav>
+
+      <section class="viewer" aria-live="polite">
+        <div class="viewer__copy">
+          <p id="eyebrow" class="eyebrow"></p>
+          <h2 id="state-title"></h2>
+          <p id="description" class="description"></p>
+          <div class="details">
+            <div>
+              <h3>Что делает ведущий</h3>
+              <ul id="host-actions"></ul>
+            </div>
+            <div>
+              <h3>Что происходит в игре</h3>
+              <ul id="game-actions"></ul>
+            </div>
+          </div>
+          <div class="viewer__nav">
+            <button id="prev" type="button" class="button button--secondary">← Назад</button>
+            <span id="counter"></span>
+            <button id="next" type="button" class="button">Дальше →</button>
+          </div>
+        </div>
+        <figure class="viewer__figure">
+          <button id="zoom" class="viewer__image-button" type="button" aria-label="Увеличить снимок">
+            <img id="state-image" src="" alt="" />
+          </button>
+          <figcaption id="state-caption"></figcaption>
+        </figure>
+      </section>
+
+      <dialog id="lightbox" class="lightbox" aria-label="Увеличенный макет">
+        <div class="lightbox__bar">
+          <span id="lightbox-title"></span>
+          <button id="lightbox-close" class="button button--secondary" type="button">Закрыть ×</button>
+        </div>
+        <div class="lightbox__scroll"><img id="lightbox-image" src="" alt="" /></div>
+      </dialog>
+
+      <section class="rules" aria-labelledby="rules-title">
+        <h2 id="rules-title">Что меняется заранее и во время игры</h2>
+        <div class="rules__grid">
+          <article>
+            <h3>В конструкторе</h3>
+            <ul>
+              <li>Оценки, очки батла и время голосования.</li>
+              <li>Тип, стиль, название и подсказка карточки.</li>
+              <li>Видео, треки, фрагменты и звучание.</li>
+              <li>Три трека специального ремикса по 3–15 секунд.</li>
+              <li>Добавление, удаление и возврат карточки в течение 7 секунд.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>На пульте во время игры</h3>
+            <ul>
+              <li>Выбор карточки и переходы между этапами.</li>
+              <li>Пауза, продолжение и запуск сначала.</li>
+              <li>Открытие голосования и показ результата.</li>
+              <li>Выбор победителя при ничьей и возврат «Назад».</li>
+              <li>Переход к следующей команде и награждение.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>Важно помнить</h3>
+            <ul>
+              <li>Новая настройка применяется к следующим запускам; текущей сессией управляет пульт.</li>
+              <li>Голосуют капитаны, участники подсказывают им.</li>
+              <li>Для ссылок на видео нужен интернет и разрешение встраивания.</li>
+              <li>Файл на устройстве хранится только на этом устройстве.</li>
+              <li>Участники не загружают свои видео — это вне текущего формата.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer>Снимки получены из настоящих компонентов JoyRest после проверки в Chromium. Это локальная галерея, не production.</footer>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

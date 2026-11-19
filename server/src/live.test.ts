@@ -304,6 +304,47 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/sessions/teams1/participants/teamA", member.cookie)).json().captainUid).toBe(member.uid);
   });
 
+  it("Гонка: капитан получает только своё слово, участник и экран — ни одного, пульт — все", async () => {
+    const task = (id: string, answer: string) => ({ id, kind: "task", text: "Покажи слово", solo: "", options: ["", "", "", ""], correct: -1, answer, points: 100, seconds: 0 });
+    const created = await call("POST", "/api/sessions", host, {
+      id: "survival-secret",
+      gameTitle: "Гонка",
+      playMode: "teams",
+      screenMode: "laptop",
+      themeId: "joyrest",
+      mechanic: "survival",
+      gameSnapshot: { title: "Гонка", content: { rounds: [task("now", "слон | жираф"), task("future", "тигр | лев")] } },
+    });
+    expect(created.statusCode, created.body).toBe(200);
+    const code = created.json().code as string;
+    const capA = await device();
+    const capB = await device();
+    const member = await device();
+    const screen = await device();
+    await call("POST", "/api/sessions/survival-secret/teams", capA.cookie, { id: "teamA", name: "A" });
+    await call("POST", "/api/sessions/survival-secret/teams", capB.cookie, { id: "teamB", name: "B" });
+    await call("POST", `/api/sessions/survival-secret/participants/${capA.uid}/join`, capA.cookie, { name: "Капитан A", teamId: "teamA" });
+    await call("POST", `/api/sessions/survival-secret/participants/${capB.uid}/join`, capB.cookie, { name: "Капитан B", teamId: "teamB" });
+    await call("POST", `/api/sessions/survival-secret/participants/${member.uid}/join`, member.cookie, { name: "Участник", teamId: "teamA" });
+    await call("POST", "/api/sessions/survival-secret/phase", host, { phase: "playing" });
+    expect((await call("POST", "/api/sessions/survival-secret/apply", host, { state: { stage: "question", startedAt: "server", result: { round: 0, phase: "play", order: ["teamA", "teamB"] } } })).statusCode).toBe(200);
+    const answers = (body: { gameSnapshot: { content: { rounds: Array<{ answer: string; hasWords?: boolean }> } } }) => body.gameSnapshot.content.rounds.map((round) => round.answer);
+    const hostView = (await call("GET", "/api/sessions/survival-secret", host)).json();
+    const aView = (await call("GET", "/api/sessions/survival-secret", capA.cookie)).json();
+    const bView = (await call("GET", "/api/sessions/survival-secret", capB.cookie)).json();
+    const memberView = (await call("GET", "/api/sessions/survival-secret", member.cookie)).json();
+    const screenView = (await call("GET", "/api/sessions/survival-secret", screen.cookie)).json();
+    expect(answers(hostView)).toEqual(["слон | жираф", "тигр | лев"]);
+    expect(answers(aView)).toEqual(["слон", ""]);
+    expect(answers(bView)).toEqual(["жираф", ""]);
+    expect(answers(memberView)).toEqual(["", ""]);
+    expect(answers(screenView)).toEqual(["", ""]);
+    expect(memberView.gameSnapshot.content.rounds[0].hasWords).toBe(true);
+    expect(JSON.stringify(aView)).not.toContain("жираф");
+    expect(JSON.stringify(aView)).not.toContain("тигр");
+    expect(answers((await call("GET", `/api/sessions/by-code/${code}`, capA.cookie)).json())).toEqual(["слон", ""]);
+  });
+
   it("фотоотчёт: ведущий снимает до 3 фото, переснимает и удаляет; гость не может ни снять, ни посмотреть", async () => {
     await newSession("ph1");
     const webp = (fill: number) => Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4, 0), Buffer.from("WEBP"), Buffer.alloc(3000, fill)]);

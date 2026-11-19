@@ -28,6 +28,7 @@ import { randomBytes } from "node:crypto";
 import { isOnline } from "../../src/core/presence";
 import { actorOf, apiGuard, deviceCookie, identityOf, tokenHash, type Identity } from "./auth";
 import { canHardwareBuzz, type HardwareSource } from "../../src/core/hardware";
+import { survivalEventFor, survivalSessionFor } from "./survivalPrivacy";
 
 export interface LiveOptions {
   sql: Sql;
@@ -263,8 +264,13 @@ function blockGameId(row: SessionRow): string | null {
   return program?.at === "block" ? (program.blocks[program.index]?.gameId ?? null) : null;
 }
 
-function sessionOf(row: SessionRow) {
-  return {
+interface SessionViewer {
+  uid: string | null;
+  full: boolean;
+}
+
+function sessionOf(row: SessionRow, viewer: SessionViewer = { uid: null, full: false }) {
+  const session = {
     id: row.id,
     code: row.code,
     hostId: row.host_id,
@@ -274,8 +280,8 @@ function sessionOf(row: SessionRow) {
     mechanic: row.mechanic,
     gameSnapshot: row.game_snapshot ?? null,
     themeId: row.theme_id,
-    playMode: row.play_mode === "teams" ? "teams" : "solo",
-    screenMode: row.screen_mode === "remote" || row.screen_mode === "none" ? row.screen_mode : "laptop",
+    playMode: (row.play_mode === "teams" ? "teams" : "solo") as "teams" | "solo",
+    screenMode: (row.screen_mode === "remote" || row.screen_mode === "none" ? row.screen_mode : "laptop") as "remote" | "none" | "laptop",
     state: normalizeState(row.state),
     leaderboard: normalizeBoard(row.leaderboard),
     createdAt: row.created_at ? row.created_at.getTime() : null,
@@ -286,6 +292,7 @@ function sessionOf(row: SessionRow) {
     branding: parseBranding(row.branding ?? null),
     version: row.version,
   };
+  return survivalSessionFor(session, viewer.uid, viewer.full);
 }
 
 /** Изменение пульта: какие поля состояния и записи таблицы меняются. */
@@ -703,6 +710,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     }
 
     const actor = (who: Identity) => (who.user ? actorOf(who.user) : null);
+    const viewer = (who: Identity, hostId: string): SessionViewer => ({
+      uid: who.uid,
+      full: permissions.canControlSession(who.uid, { hostId }) || permissions.isAdmin(actor(who)),
+    });
 
     async function loadSession(id: string): Promise<SessionRow | null> {
       if (!ID.test(id)) return null;
@@ -887,7 +898,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const rows = await sql<SessionRow[]>`
           select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
           where code = ${code} and host_id = ${host} order by (phase <> 'finished') desc, created_at desc limit 1`;
-        return rows[0] ? sessionOf(rows[0]) : fail(reply, 404, "not-found");
+        return rows[0] ? sessionOf(rows[0], viewer(who, rows[0].host_id)) : fail(reply, 404, "not-found");
       }
       // Гости и экран зала: по коду — только незавершённая сессия. Перебор кодов ограничен числом
       // промахов: 20 за 10 минут на устройство, 200 на адрес (весь зал за одним Wi‑Fi не промахивается).
@@ -898,7 +909,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const rows = await sql<SessionRow[]>`
         select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
         where code = ${code} and phase in ('lobby', 'playing') order by created_at desc limit 1`;
-      if (rows[0]) return sessionOf(rows[0]);
+      if (rows[0]) return sessionOf(rows[0], viewer(who, rows[0].host_id));
       codeMissesByDevice.take(who.uid, at);
       codeMissesByIp.take(request.ip, at);
       return fail(reply, 404, "not-found");
@@ -912,7 +923,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (host !== who.uid && !permissions.isAdmin(actor(who))) return fail(reply, 403, "permission-denied");
       const rows = await sql<SessionRow[]>`
         select ${sql(SESSION_COLUMNS)}, version::int as version from sessions where host_id = ${host} order by created_at desc limit 50`;
-      return rows.map(sessionOf);
+      return rows.map((row) => sessionOf(row, viewer(who, row.host_id)));
     });
 
     // «Игры сейчас»: идущие и ждущие гостей игры плюс две последние завершённые у каждого ведущего —
@@ -998,7 +1009,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!row) return fail(reply, 404, "not-found");
       // Опрос без потока: не изменилось — пустой ответ.
       if (request.query.since !== undefined && Number(request.query.since) === row.version) return reply.code(204).send();
-      return sessionOf(row);
+      return sessionOf(row, viewer(who, row.host_id));
     });
 
     api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/apply", { bodyLimit: SMALL_BODY * 8 }, async (request, reply) => {
@@ -1150,7 +1161,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
           where id = ${row.id}`;
         const steps = [...new Set(archived.map((x) => -(x.step + 100_000 * (parsed.index + 1)) - 1))];
         const fresh = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${row.id}`;
-        return { session: fresh[0] ? sessionOf(fresh[0]) : null, steps };
+        // Внутренний полный снимок: перед отправкой каждый поток персонализирует его отдельно.
+        return { session: fresh[0] ? sessionOf(fresh[0], { uid: row.host_id, full: true }) : null, steps };
       });
       if (outcome === "missing" || outcome === "conflict" || outcome === "active") return outcome;
       // Голоса «помощи зала» прошлого блока не переходят в новый (шаги снова с нуля).
@@ -1722,7 +1734,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
      * «Я жив» — событие `ping` раз в keepAliveMs: прокси и мобильные сети не рвут тихое соединение,
      * а браузер по нему видит, что поток жив.
      */
-    async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
+    async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>, transform: (event: object) => object = (event) => event) {
       // Приложение останавливается (вход проверяли, пока шла остановка): поток не открываем — браузер повторит.
       if (!openStreams.admit()) {
         reply.code(503).send({ error: "unavailable" });
@@ -1748,7 +1760,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
           res.destroy();
           return;
         }
-        res.write(sseFrame(event));
+        res.write(sseFrame(transform(event)));
       };
       let ready = false;
       const queued: object[] = [];
@@ -1790,10 +1802,12 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!who) return reply;
       const row = await loadSession(request.params.id);
       if (!row) return fail(reply, 404, "not-found");
+      const own = viewer(who, row.host_id);
       return stream(request, reply, `session:${row.id}`, () => true, async () => {
         const fresh = await loadSession(row.id);
-        return { type: "snapshot", session: fresh ? sessionOf(fresh) : null };
-      });
+        // Полный снимок существует только внутри сервера; transform выдаёт каждому свою часть.
+        return { type: "snapshot", session: fresh ? sessionOf(fresh, { uid: row.host_id, full: true }) : null };
+      }, (event) => survivalEventFor(event, own.uid, own.full));
     });
 
     api.get<{ Params: { id: string } }>("/api/stream/participants/:id", async (request, reply) => {

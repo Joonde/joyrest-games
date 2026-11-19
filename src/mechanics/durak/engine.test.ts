@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { createDurak } from "./content";
 import { apply, beats, botAction, canTransfer, deal, newDeck, playable, rankOf, timeoutActions, viewOf, waitingFor, type DurakAction, type DurakOptions, type Game } from "./engine";
+import { engineOptions, parseView } from "./logic";
 
-const OPTS: DurakOptions = { transfer: false, noTransferFirst: true, throwers: "all", spades: false, partners: null };
+const OPTS: DurakOptions = { transfer: false, noTransferFirst: true, throwers: "all", spades: false, pogony: true, partners: null };
 
 /** Детерминированный «случай» для тестов. */
 function seeded(seed: number): () => number {
@@ -194,6 +196,27 @@ describe("конец партии", () => {
     expect(g.over).toBe(true);
     expect(g.loser).toBe("b");
     expect(g.pogony).toBe(2);
+  });
+
+  it("выключенные погоны не начисляются даже за последние шестёрки", () => {
+    let g = game({ a: ["6S", "6C"], b: ["7S", "7C", "AD"] }, { deck: [], trump: "D", trumpCard: "7D", opts: { ...OPTS, pogony: false } });
+    g = ok(apply(g, "a", { a: "attack", c: ["6S", "6C"] }));
+    g = ok(apply(g, "b", { a: "defend", c: "7S", t: 0 }));
+    g = ok(apply(g, "b", { a: "defend", c: "7C", t: 1 }));
+    expect(g.over).toBe(true);
+    expect(g.loser).toBe("b");
+    expect(g.pogony).toBe(0);
+  });
+
+  it("настройка доходит до движка, а старые сохранённые партии остаются совместимыми", () => {
+    const content = createDurak();
+    content.pogony = false;
+    expect(engineOptions(content, ["a", "b"]).pogony).toBe(false);
+    content.pogony = true;
+    expect(engineOptions(content, ["a", "b"]).pogony).toBe(true);
+    const legacy = viewOf(game({ a: ["6S"], b: ["7S"] }));
+    const raw = { ...legacy, opts: { ...legacy.opts, pogony: undefined } };
+    expect(parseView(raw)?.opts.pogony).toBe(true);
   });
 
   it("последние карты ушли одновременно — ничья", () => {

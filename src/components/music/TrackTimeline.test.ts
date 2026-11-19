@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Clip } from "../../core/clip";
-import { playbackPoint } from "./TrackTimeline";
+import { dragPlaybackAction, playbackPoint } from "./TrackTimeline";
 
 const clip: Clip = {
   trackId: "track",
@@ -30,5 +30,11 @@ describe("таймлайн: позиция звука при движении к
     const without = { ...clip, chorusStart: null };
     expect(playbackPoint(without, "chorusStart")).toBe(0);
     expect(playbackPoint(without, "chorusEnd")).toBe(13);
+  });
+
+  it("из состояния «стоп» запускает фрагмент, а во время игры только перематывает", () => {
+    expect(dragPlaybackAction(null)).toBe("play");
+    expect(dragPlaybackAction("guess")).toBe("seek");
+    expect(dragPlaybackAction("chorus")).toBe("seek");
   });
 });

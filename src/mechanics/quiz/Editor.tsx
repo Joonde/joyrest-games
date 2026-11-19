@@ -12,6 +12,7 @@ import {
   changeKind,
   clipOf,
   correctSet,
+  DEFAULTS,
   FORMAT_BLOCKS,
   usesAnswers,
   hasOptions,
@@ -1193,16 +1194,15 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         {q.kind !== "buzz" && (
         <label className="field">
           Время, секунд
-          <input
-            type="number"
-            inputMode="numeric"
+          <ClampedNumber
+            value={q.timeLimit}
             min={LIMITS.minTime}
             max={LIMITS.maxTime}
             step={5}
-            value={q.timeLimit || ""}
-            aria-invalid={has("timeLimit")}
-            aria-describedby={describedBy("timeLimit")}
-            onChange={(e) => onChange({ timeLimit: numberValue(e.target.value) })}
+            fallback={DEFAULTS[q.kind].timeLimit}
+            ariaInvalid={has("timeLimit")}
+            ariaDescribedBy={describedBy("timeLimit")}
+            onChange={(timeLimit) => onChange({ timeLimit })}
           />
           <FieldErrors errors={errors} field="timeLimit" questionId={q.id} />
         </label>

@@ -10,6 +10,7 @@ import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { activeCount, countsFor, MAFIA_LIMITS, ROLES, type MafiaContent, type RoleId } from "./content";
 import { hostKey, keysOf, loadManual, rolesFromCards, rolesFromHost, saveManual, sealDeal, sealWhispers } from "./deal";
+import { seal, unseal } from "./seal";
 import {
   abortGame,
   ACTION_LABELS,
@@ -94,7 +95,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
   const seat = (pid: string) => r.seats.indexOf(pid) + 1;
   // Время идёт всегда: от него считаются таймеры речи, которые ставит пульт.
   const now = useServerNow(500, true);
-  const own = answers.filter((a) => a.step === step);
+  const own = useMemo(() => answers.filter((a) => a.step === step), [answers, step]);
 
   // Ключи телефонов: на раздаче — из текущих ответов, потом — один раз с сервера.
   const [keys, setKeys] = useState<Record<string, string>>({});
@@ -180,17 +181,39 @@ export function MafiaHostControls({ session, content, answers, participants, con
 
   // Ночь: выбор каждого, блокировки, защита Адвоката и итог «если утро сейчас».
   const locks = useRef(new Map<string, string>());
+  const [locksReady, setLocksReady] = useState(false);
+  const checkLocksKey = JSON.stringify(r.checkLocks);
+  useEffect(() => {
+    let live = true;
+    setLocksReady(false);
+    void (async () => {
+      const restored = new Map(locks.current);
+      for (const [pid, text] of Object.entries(r.checkLocks)) {
+        const key = keys[pid];
+        if (!key) continue;
+        const target = await unseal(key, text);
+        if (typeof target !== "string") continue;
+        const role = roles?.[pid];
+        if (role === "commissar" || role === "don") restored.set(`${step}:${role === "commissar" ? "c" : "d"}:${pid}`, target);
+      }
+      locks.current = restored;
+      if (live) setLocksReady(true);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [checkLocksKey, keys, step, roles]);
   const night = useMemo(() => {
-    if (r.mode !== "night" || !roles) return null;
+    if (!locksReady || r.mode !== "night" || !roles) return null;
     const raw = nightChoices(own, r.alive, manual);
     const { choices, donCheck } = lockChecks(locks.current, step, roles, raw.choices, raw.donCheck);
     return { choices, donCheck, outcome: resolveNight(roles, r.alive, choices, history, don ? (donCheck[don] ?? null) : null, advocate ? (donCheck[advocate] ?? null) : null, visits) };
-  }, [r.mode, roles, own, r.alive.join(","), manual, step, history.join(","), visits.join(","), don, advocate]);
+  }, [locksReady, r.mode, roles, own, r.alive.join(","), manual, step, history.join(","), visits.join(","), don, advocate]);
 
   // Ночные подсказки телефонам: семья, проверки, блокировки и история ролей — у всех одной длины.
   const synced = useRef("");
   useEffect(() => {
-    if (r.mode !== "night" || stage !== "question" || !roles || !night || Object.keys(keys).length === 0) return;
+    if (!locksReady || r.mode !== "night" || stage !== "question" || !roles || !night || Object.keys(keys).length === 0) return;
     const items = whispers(roles, r.alive, night.choices, night.donCheck, history, visits, night.outcome);
     const plain = `${step}:${JSON.stringify(items)}`;
     if (plain === synced.current) return;
@@ -199,12 +222,18 @@ export function MafiaHostControls({ session, content, answers, participants, con
         const sealed = await sealWhispers(items, keys);
         const cur = latest.current;
         if (cur.state.step !== step || cur.state.stage !== "question") return;
-        await control.apply({ ...nightSync(cur, sealed, own.length), expect: { phase: "playing", step, stage: "question" } });
+        const sealedLocks = { ...parseMafiaResult(cur.state.result).checkLocks };
+        for (const [pid, role] of Object.entries(roles)) {
+          const key = keys[pid];
+          const target = role === "commissar" ? night.choices[pid] : role === "don" ? night.donCheck[pid] : null;
+          if (key && target && !sealedLocks[pid]) sealedLocks[pid] = await seal(key, target);
+        }
+        await control.apply({ ...nightSync(cur, sealed, own.length, sealedLocks), expect: { phase: "playing", step, stage: "question" } });
         synced.current = plain;
       })().catch(() => undefined);
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [r.mode, stage, roles, night, keys, step]);
+  }, [locksReady, r.mode, stage, roles, night, keys, step]);
 
   function nextSession(): Promise<void> {
     return new Promise((resolve) => {

@@ -327,7 +327,14 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     await call("POST", `/api/sessions/survival-secret/participants/${capB.uid}/join`, capB.cookie, { name: "Капитан B", teamId: "teamB" });
     await call("POST", `/api/sessions/survival-secret/participants/${member.uid}/join`, member.cookie, { name: "Участник", teamId: "teamA" });
     await call("POST", "/api/sessions/survival-secret/phase", host, { phase: "playing" });
-    expect((await call("POST", "/api/sessions/survival-secret/apply", host, { state: { stage: "question", startedAt: "server", result: { round: 0, phase: "play", order: ["teamA", "teamB"] } } })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/survival-secret/apply", host, {
+      state: { stage: "question", startedAt: "server", result: { round: 0, phase: "play", order: ["teamA", "teamB"] } },
+      // Как startSurvival: таблица знает капитанов команд, по ним сервер персонализирует снимок.
+      leaderboard: {
+        teamA: { name: "A", kind: "team", score: 0, captainUid: capA.uid },
+        teamB: { name: "B", kind: "team", score: 0, captainUid: capB.uid },
+      },
+    })).statusCode).toBe(200);
     const answers = (body: { gameSnapshot: { content: { rounds: Array<{ answer: string; hasWords?: boolean }> } } }) => body.gameSnapshot.content.rounds.map((round) => round.answer);
     const hostView = (await call("GET", "/api/sessions/survival-secret", host)).json();
     const aView = (await call("GET", "/api/sessions/survival-secret", capA.cookie)).json();

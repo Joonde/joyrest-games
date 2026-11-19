@@ -40,6 +40,27 @@
   .bar { height:8px; background:#130f29; border-radius:4px; overflow:hidden; margin-top:14px; } .bar i { display:block; height:100%; width:0; background:var(--acc); }
   .pose { font-size:26px; font-weight:700; text-align:center; margin:14px 0 4px; color:var(--acc); }
   .why { color:var(--bad); font-size:15px; text-align:center; margin-top:10px; }
+  /* живые эффекты */
+  #fx { position:relative; height:190px; margin-top:8px; overflow:hidden; }
+  #fx-grade { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+              font-size:52px; font-weight:900; letter-spacing:1px; opacity:0; transform:scale(0.6); }
+  #fx-grade.pop { animation:pop 0.9s ease-out; }
+  @keyframes pop {
+    0% { opacity:0; transform:scale(0.5) rotate(-6deg); }
+    18% { opacity:1; transform:scale(1.25) rotate(2deg); }
+    35% { transform:scale(1.0) rotate(0deg); }
+    75% { opacity:1; }
+    100% { opacity:0; transform:scale(1.05); }
+  }
+  .fx-PERFECT { color:var(--acc); text-shadow:0 0 24px #ffc83a88; }
+  .fx-SUPER { color:var(--ok); text-shadow:0 0 24px #3ee08f88; }
+  .fx-GOOD { color:#7fd3ff; text-shadow:0 0 20px #7fd3ff66; }
+  .fx-OK { color:var(--vio); text-shadow:0 0 20px #b56cff66; }
+  .fx-МИМО { color:var(--bad); text-shadow:0 0 20px #ff5a7a66; font-size:40px; }
+  #fx-combo { position:absolute; top:4px; right:8px; font-size:22px; font-weight:800; color:var(--acc);
+              opacity:0; transition:opacity .3s; text-shadow:0 0 14px #ffc83a99; }
+  #fx-points { text-align:center; font-size:30px; font-weight:800; color:var(--tx); font-variant-numeric:tabular-nums; }
+  #fx-points b { color:var(--acc); }
 </style>
 </head>
 <body>
@@ -82,8 +103,13 @@
 
   <!-- 4. танец -->
   <section id="s-dance">
+    <div id="fx-points"><b>0</b> очков</div>
+    <div id="fx">
+      <div id="fx-grade"></div>
+      <div id="fx-combo"></div>
+    </div>
     <div class="huge" id="clock">0:00</div>
-    <div class="say">Танцуйте! Запись идёт.</div>
+    <div class="say">Танцуйте! Повторяйте за человечком!</div>
     <div class="bar"><i id="prog"></i></div>
     <div class="note" id="rate" style="text-align:center;margin-top:8px"></div>
     <button class="sec" id="b-stop" style="margin-top:40px">Закончить</button>
@@ -1076,6 +1102,31 @@
   const LAGS = [];
   for (let l = -0.35; l <= 0.7501; l += 0.05) LAGS.push(Math.round(l * 100) / 100);
 
+  // гауссово сглаживание огибающей — допуск к человеческому джиттеру тайминга (σ = 0.28 с)
+  function gsmooth(a, sigma) {
+    const r = Math.round(3 * sigma);
+    const k = [];
+    let sum = 0;
+    for (let i = -r; i <= r; i++) { const v = Math.exp(-0.5 * i * i / (sigma * sigma)); k.push(v); sum += v; }
+    const n = a.length, out = new Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = 0;
+      for (let j = -r; j <= r; j++) s += k[j + r] * a[Math.min(n - 1, Math.max(0, i + j))];
+      out[i] = s / sum;
+    }
+    return out;
+  }
+  const znorm = (a) => {
+    const n = a.length;
+    let m = 0;
+    for (const q of a) m += q;
+    m /= n;
+    let s = 0;
+    for (const q of a) s += (q - m) * (q - m);
+    s = Math.sqrt(s / n);
+    if (s < 1e-6) return a.map(() => 0);
+    return a.map((q) => (q - m) / s);
+  };
   function scoreCard(F, ref, m, opts) {
     const s = m.start, e = m.end;
     const idx = [];
@@ -1118,11 +1169,13 @@
       if (cover(lag) < 0.8) continue;
       const gv = interp(F.t, F.vert, tq0.map((q) => q + lag));
       const gm = interp(F.t, F.mag, tq0.map((q) => q + lag));
-      const r = 0.6 * pearson(rv, gv) + 0.4 * pearson(rm, gm);
+      const SG = 14;   // 14·0.02 с = 0.28 с
+      const r = 0.6 * pearson(znorm(gsmooth(rv, SG)), znorm(gsmooth(gv, SG))) +
+                0.4 * pearson(znorm(gsmooth(rm, SG)), znorm(gsmooth(gm, SG)));
       if (best === null || r > best.r) best = { r, lag, gm };
     }
     if (!best) return { total: 0, kind: "nodata", lag: 0 };
-    const shape = clip01((best.r - 0.15) / 0.6) * 100;
+    const shape = clip01((best.r - 0.05) / 0.5) * 100;
     // ритм: F1 пиков mag
     const rp = peaks(rm), gp = peaks(best.gm);
     const tol = Math.round(0.15 * RATE);
@@ -1141,14 +1194,14 @@
     }
     const prec = gp.length ? hitg / gp.length : 0.0;
     const rhythm = (prec + recall > 0 ? 2 * prec * recall / (prec + recall) : 0) * 100;
-    // сила: отношение амплитуд
+    // сила: широкий коридор погрешности (резкость/амплитуда не наказываются)
     const ratio = rms(best.gm) / (rms(rm) + 1e-9);
     let strength;
-    if (0.6 <= ratio && ratio <= 2.2) strength = 100.0;
-    else if (ratio < 0.6) strength = clip01((ratio - 0.15) / 0.45) * 100;
-    else strength = Math.max(50, Math.min(100, 100 - (ratio - 2.2) * 25));
-    let total = shape * (0.55 + 0.45 * (0.6 * rhythm + 0.4 * strength) / 100);
-    if (ratio < 0.2) total = 0.0;
+    if (0.35 <= ratio && ratio <= 3.0) strength = 100.0;
+    else if (ratio < 0.35) strength = clip01((ratio - 0.1) / 0.25) * 100;
+    else strength = Math.max(60, Math.min(100, 100 - (ratio - 3.0) * 12));
+    // итог: рисунок (нормированная корреляция) — основа; ритм — усилитель
+    const total = shape * (0.65 + 0.35 * (0.7 * rhythm + 0.3 * strength) / 100);
     return { total, shape, rhythm, strength, lag: best.lag, ratio, r: best.r, kind: "move" };
   }
 
@@ -1345,18 +1398,114 @@ function countdown() {
     setTimeout(startDance, 700);
   }, 1000);
 }
+let live = null;   // { shown:Set, pts, combo, F, ref, moves, holdCap, actMed }
 function startDance() {
   phase = "dance"; phaseT0 = now();
   show("s-dance");
-  timer = setInterval(() => {
-    const s = now() - phaseT0, L = song.end + 2.5;
-    $("clock").textContent = Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
-    $("prog").style.width = Math.min(100, 100 * s / L) + "%";
-    const evs = events.filter(e => e.ph === "dance");
-    const n = evs.length, dt = n > 1 ? evs[n - 1].t - evs[0].t : 1;
-    $("rate").textContent = `датчики: ${(n / Math.max(dt, 1)).toFixed(0)} раз/с`;
-    if (s > L) finish();
-  }, 250);
+  $("fx-points").innerHTML = "<b>0</b> очков";
+  $("fx-combo").style.opacity = 0;
+  const refMoves = DanceRef.buildRef(song, DATA.rate);
+  live = { shown: new Set(), pts: 0, combo: 0, ref: refMoves.refs[Math.min(dancer, refMoves.refs.length - 1)],
+           moves: refMoves.moves, F: null, cal: null };
+  // калибровка уже пройдена — считаем её один раз
+  try { live.cal = DanceScoreV2.calibrate(toEv(calibRec)); } catch (e) { live.cal = null; }
+  timer = setInterval(tickDance, 400);
+}
+function tickDance() {
+  const s = now() - phaseT0, L = song.end + 2.5;
+  $("clock").textContent = Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+  $("prog").style.width = Math.min(100, 100 * s / L) + "%";
+  const dance = events.filter(e => e.ph === "dance");
+  const n = dance.length, dt = n > 1 ? dance[n - 1].t - dance[0].t : 1;
+  $("rate").textContent = `датчики: ${(n / Math.max(dt, 1)).toFixed(0)} раз/с`;
+  // живые эффекты: оцениваем карточки, которые уже завершились (+допуск на задержку)
+  if (live.cal && n > 100) {
+    try {
+      const ev = toEv(dance.map(e => ({ t: e.t, accg: e.accg, acc: e.acc, rot: e.rot })));
+      live.F = DanceScoreV2.phoneFeatures(ev, "v2", live.cal);
+      if (live.F) {
+        if (!live.holdCap) {
+          const act = [];
+          for (const m of live.moves) {
+            if (m.name === "держи") continue;
+            const idx = [];
+            for (let i = 0; i < live.ref.t50.length; i++) if (live.ref.t50[i] >= m.start && live.ref.t50[i] < m.end) idx.push(i);
+            if (idx.length < 8) continue;
+            const tq = idx.map(i => live.ref.t50[i]);
+            if (tq[tq.length - 1] > live.F.t[live.F.t.length - 1]) continue;
+            let r = 0;
+            const gm = interpLive(live.F.t, live.F.mag, tq);
+            for (const q of gm) r += q * q;
+            act.push(Math.sqrt(r / gm.length));
+          }
+          act.sort((a, b) => a - b);
+          live.holdCap = act.length ? Math.max(4.0, 0.45 * act[act.length >> 1]) : 4.0;
+        }
+        for (const m of live.moves) {
+          if (live.shown.has(m.i) || m.start + (m.end - m.start) + 0.5 > s) continue;
+          const x = DanceRef.scoreCard(live.F, live.ref, m, { holdCap: live.holdCap });
+          live.shown.add(m.i);
+          if (x && x.kind !== "nodata") {
+            const [g, p] = DanceScoreV2.grade(x.total);
+            live.pts += p * (m.gold ? 2 : 1);
+            showFx(g, m.gold);
+          }
+        }
+      }
+    } catch (e) { /* следующий тик */ }
+  }
+  if (s > L) finish();
+}
+function interpLive(t, v, xq) {
+  const out = new Array(xq.length);
+  let j = 1;
+  for (let i = 0; i < xq.length; i++) {
+    const x = xq[i];
+    if (x <= t[0]) { out[i] = v[0]; continue; }
+    if (x >= t[t.length - 1]) { out[i] = v[v.length - 1]; continue; }
+    while (t[j] < x) j++;
+    while (j > 1 && t[j - 1] > x) j--;
+    const u = (x - t[j - 1]) / (t[j] - t[j - 1]);
+    out[i] = v[j - 1] + u * (v[j] - v[j - 1]);
+  }
+  return out;
+}
+function showFx(grade, gold) {
+  const el = $("fx-grade");
+  el.textContent = (gold ? "★ " : "") + grade + (gold ? " ★" : "");
+  el.className = "fx-" + grade.split(" ")[0];
+  void el.offsetWidth;              // перезапуск анимации
+  el.classList.add("pop");
+  if (grade === "PERFECT" || grade === "SUPER") {
+    live.combo++;
+    jingle(grade === "PERFECT" ? [660, 880, 1320] : [660, 990]);
+    if (live.combo >= 3) {
+      $("fx-combo").textContent = "🔥 серия ×" + live.combo;
+      $("fx-combo").style.opacity = 1;
+    }
+  } else if (grade === "МИМО") {
+    live.combo = 0;
+    $("fx-combo").style.opacity = 0;
+    jingle([220, 165]);
+  } else {
+    jingle([520]);
+  }
+  $("fx-points").innerHTML = "<b>" + live.pts + "</b> очков";
+}
+function jingle(freqs) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    freqs.forEach((f, k) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = f; o.type = "triangle";
+      o.connect(g); g.connect(actx.destination);
+      const t = actx.currentTime + k * 0.09;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      o.start(t); o.stop(t + 0.25);
+    });
+  } catch (e) {}
 }
 $("b-stop").onclick = () => finish();
 function finish() {

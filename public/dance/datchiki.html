@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Датчики — прототип</title>
+<style>
+/* Макет: один экран, крупные кнопки под большой палец; серая «приборная» панель с одним акцентом */
+:root{
+  --bg:#0f1116; --panel:#171a22; --line:#262b37; --fg:#e8eaf0; --mute:#8b93a7;
+  --acc:#5cf2ff; --ok:#7CE38B; --bad:#ff6b6b; --warn:#ffcf5c;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 24px}
+h1{font-size:20px;margin:0 0 4px;letter-spacing:.01em}
+.sub{color:var(--mute);font-size:13px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.kv{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.kv b{color:var(--mute);font-weight:500;font-family:var(--sans)}
+button{font:600 16px var(--sans);padding:14px 18px;border-radius:12px;border:0;background:var(--acc);color:#071015;width:100%}
+button.sec{background:var(--line);color:var(--fg)}
+button:disabled{opacity:.45}
+.big{font-size:44px;font-weight:700;text-align:center;letter-spacing:.02em;margin:8px 0;min-height:56px}
+.hint{text-align:center;color:var(--mute);font-size:14px;min-height:20px}
+.st{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;background:var(--line);color:var(--mute)}
+.st.ok{background:#17351f;color:var(--ok)} .st.bad{background:#3a1b1b;color:var(--bad)} .st.warn{background:#3a3016;color:var(--warn)}
+.bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .1s linear}
+textarea{width:100%;height:90px;background:#0b0d12;color:var(--mute);border:1px solid var(--line);border-radius:8px;font:12px var(--mono);padding:8px}
+.log{font:12px var(--mono);color:var(--mute);white-space:pre-wrap;max-height:160px;overflow:auto}
+a.dl{display:block;text-align:center;padding:14px;border-radius:12px;background:var(--line);color:var(--fg);text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<h1>Датчики — прототип «Танцуй как звезда»</h1>
+<div class="sub">Шаг 1 из плана: проверяем, что живой телефон даёт то, что ждёт алгоритм. Держи телефон в правой руке, как во время танца.</div>
+
+<div class="card" id="c1">
+  <div class="row" style="justify-content:space-between"><b>1. Датчики</b><span class="st" id="st1">не запрошены</span></div>
+  <div class="kv" style="margin:10px 0">
+    <b>частота</b><span id="hz">—</span>
+    <b>гравитация</b><span id="accg">—</span>
+    <b>ускорение без гравитации</b><span id="acc">—</span>
+    <b>гироскоп</b><span id="rot">—</span>
+    <b>браузер</b><span id="ua">—</span>
+  </div>
+  <button id="b1">Разрешить датчики</button>
+</div>
+
+<div class="card" id="c2">
+  <div class="row" style="justify-content:space-between"><b>2. Калибровка</b><span class="st" id="st2">—</span></div>
+  <div class="big" id="pose">—</div>
+  <div class="hint" id="phint">Три позы по очереди. Замирай на секунду в каждой.</div>
+  <div class="bar" style="margin:10px 0"><i id="pbar"></i></div>
+  <div class="log" id="clog"></div>
+  <button id="b2" disabled>Начать калибровку</button>
+</div>
+
+<div class="card" id="c3">
+  <div class="row" style="justify-content:space-between"><b>3. Запись танца (<span id="durTxt">78</span> с)</b><span class="st" id="st3">—</span></div>
+  <div class="big" id="dance">—</div>
+  <div class="hint" id="dhint">Телефон сам говорит, куда должна прийти рука: «вниз» — вдоль тела, «в сторону» — прямая рука на уровне плеча, «вверх» — прямо вверх, «держи» — не двигайся. Рука всегда прямая и ходит сбоку от тела, не вперёд. На экран смотреть не нужно. Сначала проговорит порядок, потом отсчёт, потом танец под метроном. «Медленно» — команда раз в секунду, «Как в игре» — в два раза быстрее. Включи звук на телефоне.</div>
+  <div class="bar" style="margin:10px 0"><i id="dbar"></i></div>
+  <div class="kv" style="margin:8px 0"><b>наклон руки сейчас</b><span id="tilt">—</span><b>событий записано</b><span id="n">0</span></div>
+  <div class="row" style="gap:8px;margin-bottom:8px"><button class="sec" id="spSlow" style="flex:1">Медленно ✓</button><button class="sec" id="spGame" style="flex:1">Как в игре</button></div>
+  <button id="b3" disabled>Начать запись</button>
+</div>
+
+<div class="card" id="c5">
+  <div class="row" style="justify-content:space-between"><b>Проверка «точки» (48 с)</b><span class="st" id="st5">—</span></div>
+  <div class="big" id="free">—</div>
+  <div class="hint" id="fhint">Калибровка не нужна. Держи телефон как удобно — как на празднике. Телефон голосом скажет: замри у груди, покрути телефон на месте, потом от груди вверх, вперёд, в сторону, вниз и каждый раз обратно к груди. Включи звук.</div>
+  <div class="bar" style="margin:10px 0"><i id="fbar"></i></div>
+  <button id="b5" disabled>Начать проверку</button>
+</div>
+
+<div class="card" id="c4">
+  <div class="row" style="justify-content:space-between"><b>4. Отправить запись</b><span class="st" id="st4">—</span></div>
+  <div class="hint" style="text-align:left;margin-bottom:8px">Файл с сырыми данными датчиков. Скачай и пришли в чат — я прогоню его через алгоритм.</div>
+  <a class="dl" id="dl" hidden download="datchiki.json">Скачать запись</a>
+  <button class="sec" id="b4" disabled style="margin-top:8px">Скопировать как текст</button>
+  <textarea id="out" hidden readonly></textarea>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const BPM = 118, BEAT = 60 / BPM;
+let ori = null;   // последняя ориентация телефона от системы (DeviceOrientation): alpha, beta, gamma, °
+let ev = [], t0 = null, phase = "idle", calEv = [], danceEv = [], lastT = 0, rates = [];
+let calib = null, calStart = 0, danceStart = 0, freeEv = [], freeStart = 0;
+
+// ---------- датчики ----------
+function onMotion(e) {
+  const t = (e.timeStamp || performance.now()) / 1000;
+  if (t0 === null) t0 = t;
+  const g = e.accelerationIncludingGravity, a = e.acceleration, r = e.rotationRate;
+  const rec = { t: +(t - t0).toFixed(4),
+    accg: g ? [g.x, g.y, g.z] : null,
+    acc: (a && a.x !== null) ? [a.x, a.y, a.z] : null,
+    rot: (r && r.alpha !== null) ? [r.alpha, r.beta, r.gamma] : null, ori };
+  if (lastT) rates.push(1 / Math.max(1e-3, (t - lastT)));
+  lastT = t;
+  if (phase === "cal") calEv.push(rec);
+  if (phase === "free") freeEv.push({ ...rec, t: +(((e.timeStamp || performance.now()) - freeStart) / 1000).toFixed(4) });
+  if (phase === "dance") { danceEv.push({ ...rec, t: +((e.timeStamp || performance.now()) - danceStart).toFixed(4) / 1000 }); $("n").textContent = danceEv.length; }
+  if (rates.length > 60) rates.shift();
+  if ((calEv.length + danceEv.length + rates.length) % 10 === 0) {
+    $("hz").textContent = rates.length ? Math.round(rates.reduce((x, y) => x + y) / rates.length) + " Гц" : "—";
+    $("accg").textContent = rec.accg ? rec.accg.map(v => (v ?? 0).toFixed(1)).join("  ") : "нет";
+    $("acc").textContent = rec.acc ? rec.acc.map(v => v.toFixed(1)).join("  ") : "НЕТ (пойдём через гироскоп)";
+    $("rot").textContent = rec.rot ? rec.rot.map(v => v.toFixed(0)).join("  ") : "НЕТ";
+    if (calib && rec.accg) $("tilt").textContent = tiltOf(rec.accg).toFixed(0) + "°";
+  }
+}
+$("ua").textContent = (navigator.userAgent.match(/(iPhone|iPad|Android)[^;)]*/) || ["?"])[0];
+$("b1").onclick = async () => {
+  try {
+    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+      const p = await DeviceMotionEvent.requestPermission();
+      if (p !== "granted") { setSt("st1", "bad", "запрещено"); $("st1").title = ""; return hint1("Доступ запрещён. В Safari: Настройки → Safari → Движение и ориентация, либо открой страницу заново."); }
+    }
+    window.addEventListener("devicemotion", onMotion, { passive: true });
+    try {   // ориентация — только для проверки «точки»; нет её — не страшно
+      if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") await DeviceOrientationEvent.requestPermission();
+      window.addEventListener("deviceorientation", e => { if (e.alpha !== null) ori = [e.alpha, e.beta, e.gamma]; }, { passive: true });
+    } catch (e) {}
+    setSt("st1", "ok", "работают"); $("b1").disabled = true; $("b2").disabled = false; $("b5").disabled = false;
+    setTimeout(() => { if (!rates.length) { setSt("st1", "bad", "нет событий"); hint1("Датчики не шлют события. Открой страницу в Safari или Chrome с адреса https://…, не из вложенного окна."); } }, 2000);
+  } catch (e) { setSt("st1", "bad", "ошибка"); hint1("Не удалось: " + e.message); }
+};
+function hint1(s) { $("c1").querySelector(".kv").insertAdjacentHTML("afterend", '<div class="hint" style="text-align:left;color:var(--bad)">' + s + "</div>"); }
+function setSt(id, cls, txt) { const s = $(id); s.className = "st " + cls; s.textContent = txt; }
+
+// ---------- калибровка (перенос scoring.calibrate, LOGIC.md §2) ----------
+const norm = v => Math.hypot(v[0], v[1], v[2]);
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const angle = (a, b) => Math.acos(Math.max(-1, Math.min(1, dot(a, b) / (norm(a) * norm(b) + 1e-9)))) * 180 / Math.PI;
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+
+function calibrate(events, prompts) {
+  let E = events.filter(e => e.accg && e.rot && e.accg.every(Number.isFinite) && e.rot.every(Number.isFinite));
+  if (E.length < 30) return { ok: false, why: ["телефон не присылает данные датчиков"] };
+  E.sort((a, b) => a.t - b.t); E = E.filter((e, i) => i === 0 || e.t - E[i - 1].t > 1e-6);
+  const t = E.map(e => e.t), g = E.map(e => e.accg), r = E.map(e => e.rot), n = t.length;
+  if (n < 10 || t[n - 1] - t[0] < 1) return { ok: false, why: ["телефон прислал слишком мало данных — повтори калибровку"] };
+  const w = Math.min(n, Math.max(1, Math.round(0.2 * n / Math.max(1e-6, t[n - 1] - t[0]))));
+  const gs = g.map((_, i) => { const a = Math.max(0, i - Math.floor(w / 2)), b = Math.min(n, a + w); const s = [0, 0, 0]; for (let k = a; k < b; k++) for (let q = 0; q < 3; q++) s[q] += g[k][q]; return s.map(v => v / (b - a)); });
+  const still = gs.map((v, i) => { let k = i; while (k < n - 1 && t[k] < t[i] + 0.4) k++; return Math.abs(norm(g[i]) - 9.81) < 0.8 && angle(v, gs[k]) < 5; });
+  const names = ["рука вниз", "рука вверх", "рука в сторону"]; const segs = [], why = []; let cursor = 0, sideBad = null;
+  for (let k = 0; k < 3; k++) {
+    let i = t.findIndex(x => x >= Math.max(prompts[k] + 0.2, cursor)); if (i < 0) i = n; let found = null;
+    while (i < n) {
+      if (!still[i]) { i++; continue; }
+      let j = i; while (j < n && still[j]) j++;
+      if (t[j - 1] - t[i] >= 0.5) {
+        const v = [0, 0, 0]; for (let q = i; q < j; q++) for (let c = 0; c < 3; c++) v[c] += g[q][c] / (j - i);
+        if (k === 0 || (k === 1 && angle(v, segs[0].v) > 60) || (k === 2 && angle(v, segs[0].v) >= 55 && angle(v, segs[0].v) <= 125 && angle(v, segs[1].v) > 25)) { found = { v, i, j }; break; }
+        if (k === 2 && angle(v, segs[1].v) > 25) sideBad = angle(v, segs[0].v);
+      }
+      i = j;
+    }
+    if (!found) { why.push(k === 2 && sideBad !== null ? `рука не в сторону: вытяни руку горизонтально в сторону и замри (сейчас ${sideBad.toFixed(0)}° от «рука вниз», нужно 55–125°)` : `не дождались позы «${names[k]}» — замри на секунду`); break; }
+    segs.push(found); cursor = t[found.j - 1];
+    if (k === 1 && angle(segs[0].v, found.v) < 140) { why.push(`не получилось: на первом шаге рука должна свободно висеть вдоль тела, на втором — прямо вверх, одним движением за 1–2 секунды (сейчас разница ${angle(segs[0].v, found.v).toFixed(0)}°, нужно ≥140°)`); break; }
+  }
+  if (segs.length < 3 || why.length) return { ok: false, why };
+  const dn = segs[0].v, up = segs[1].v, sd = segs[2].v;
+  const a = segs[0].j - 1, b = segs[1].i; let turned = 0;
+  for (let q = a; q < b; q++) turned += norm(r[q]) * (t[q + 1] - t[q]);
+  const ratio = turned / Math.max(1, angle(g[a], g[b]));
+  let rotScale;
+  if (ratio < 0.05) rotScale = 57.2958; else if (ratio > 0.5) rotScale = 1; else return { ok: false, why: ["не получилось распознать поворот руки — повтори: рука вниз, замри, потом плавно вверх"], ratio };
+  let f = sub(up, dn); const nf = norm(f); f = f.map(v => v / nf);
+  const p = dot(sd, f); let s = sub(sd, f.map(v => v * p)); const ns = norm(s) + 1e-9; s = s.map(v => v / ns);
+  return { ok: true, why: [], f, n: cross(f, s), upAngle: angle(dn, up), rotScale, ratio, gyroUnits: rotScale === 1 ? "°/с" : "рад/с" };
+}
+function tiltOf(accg) { const gu = accg.map(v => v / (norm(accg) + 1e-9)); return angle(calib.f, gu.map(v => -v)); }
+
+// расписание калибровки: подсказки на 0 / 2,5 / 5 с, запись до 8 с
+$("b2").onclick = () => {
+  calEv = []; phase = "cal"; calStart = performance.now(); setSt("st2", "warn", "идёт"); $("b2").disabled = true; $("clog").textContent = ""; unlockVoice();
+  const P = [[0, "РУКА ВНИЗ", "свободно вдоль тела, замри"], [2.5, "РУКА ВВЕРХ", "прямо вверх одним движением, замри"], [5, "В СТОРОНУ", "горизонтально в сторону, замри"]];
+  const tick = () => {
+    const s = (performance.now() - calStart) / 1000;
+    const cur = P.filter(p => s >= p[0]).pop(); if ($("pose").textContent !== cur[1]) say(cur[1].toLowerCase(), 1.1); $("pose").textContent = cur[1]; $("phint").textContent = cur[2];
+    $("pbar").style.width = Math.min(100, s / 8 * 100) + "%";
+    if (s < 8) requestAnimationFrame(tick); else finishCal();
+  };
+  requestAnimationFrame(tick);
+};
+function finishCal() {
+  phase = "idle"; const c0 = calEv.length ? calEv[0].t : 0;
+  const res = calibrate(calEv.map(e => ({ ...e, t: e.t - c0 })), [0, 2.5, 5]);
+  if (res.ok) {
+    calib = res; setSt("st2", "ok", "готово"); $("pose").textContent = "✓"; $("phint").textContent = "Калибровка принята.";
+    $("clog").textContent = `вниз→вверх ${res.upAngle.toFixed(0)}°, гироскоп в ${res.gyroUnits} (ratio ${res.ratio.toFixed(2)}), событий ${calEv.length}`;
+    $("b3").disabled = false; $("b2").textContent = "Повторить калибровку"; $("b2").disabled = false;
+  } else {
+    setSt("st2", "bad", "повтори"); $("pose").textContent = "✗"; $("phint").textContent = res.why[0] || "повтори";
+    $("clog").textContent = `событий ${calEv.length}`; $("b2").textContent = "Повторить калибровку"; $("b2").disabled = false;
+  }
+}
+
+// ---------- запись танца: чёткие позы по голосу (118 уд/мин, 38 тактов по 2 доли, первая доля на 0,40 с; «медленно» — всё ×2) ----------
+let actx = null;
+// голос: телефон сам говорит команды — на экран смотреть не нужно
+const VOICE = { lang: "ru-RU", ok: () => "speechSynthesis" in window };
+function say(text, rate) {
+  if (!VOICE.ok()) return;
+  try { const u = new SpeechSynthesisUtterance(text); u.lang = VOICE.lang; u.rate = rate || 1.15; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+}
+function unlockVoice() { if (VOICE.ok()) try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(" "); u.lang = VOICE.lang; u.volume = 0; speechSynthesis.speak(u); } catch (e) {} }
+function click(acc) { if (!actx) return; const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = acc ? 1200 : 800; g.gain.value = .25; o.connect(g); g.connect(actx.destination); o.start(); g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + .08); o.stop(actx.currentTime + .09); }
+const T0 = 0.40, COUNT_IN = 4;
+// танец из чётких поз (свой эталон — /home/claude/sim/poseref.py, BLOCKS там же; менять только вместе).
+// Позы различаются высотой руки: ВНИЗ — вдоль тела, В СТОРОНУ — прямая рука на уровне плеча, ВВЕРХ — прямо вверх.
+// Рука всегда прямая и идёт в сторону от тела (не вперёд). Каждая команда — куда рука должна прийти на этой доле.
+const BLOCKS = [[2, "вниз", "вниз"], [4, "вверх", "вниз"], [4, "в сторону", "вниз"], [4, "в сторону", "в сторону"],
+  [4, "вверх", "в сторону"], [2, "вверх", "вверх"], [4, "вверх", "вниз"], [4, "в сторону", "вниз"],
+  [4, "вверх", "в сторону"], [2, "в сторону", "в сторону"], [2, "вверх", "вниз"], [2, "вниз", "вниз"]];
+const TARGETS = [].concat(...BLOCKS.map(([n, a, b]) => Array.from({ length: n * 2 }, (_, i) => i % 2 ? b : a)));
+const ROUTINE = Array(TARGETS.length / 2).fill("pose");   // 38 тактов, как у эталона стенда
+const LEAD = 0.28;                                         // слово звучит за 0,28 с до доли
+function plan() {
+  return BLOCKS.map(([n, a, b]) => `${n} т.: ${a === b ? "держи «" + a + "»" : a + " – " + b}`);
+}
+// темп: «медленно» — всё растянуто в K раз (команда раз в ~1 с); анализ сжимает запись обратно к темпу эталона
+let K = 2;
+const durOf = k => k * (T0 + ROUTINE.length * 2 * BEAT);   // 78 с медленно, 39 с как в игре
+let DUR = durOf(K);
+function setSpeed(k) { K = k; DUR = durOf(K); $("durTxt").textContent = Math.round(DUR); $("spSlow").textContent = "Медленно" + (k === 2 ? " ✓" : ""); $("spGame").textContent = "Как в игре" + (k === 1 ? " ✓" : ""); }
+$("spSlow").onclick = () => { if (phase !== "dance") setSpeed(2); };
+$("spGame").onclick = () => { if (phase !== "dance") setSpeed(1); };
+$("b3").onclick = () => {
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
+  unlockVoice();
+  danceEv = []; setSt("st3", "warn", "слушай порядок"); $("b3").disabled = true; $("b2").disabled = true;
+  $("dance").textContent = "Слушай"; $("dhint").textContent = plan().join(" · ");
+  say("Рука прямая, ходит сбоку от тела. Вниз — вдоль тела. В сторону — на уровне плеча. Вверх — прямо вверх. Держи — не двигайся. Начинаем после отсчёта.", 1.1);
+  const DB = BEAT * K, DT0 = T0 * K; $("spSlow").disabled = $("spGame").disabled = true;
+  const pressed = performance.now() + 7500; danceStart = pressed + COUNT_IN * DB * 1000; let beat = -99, said = -99;
+  const tick = () => {
+    const now = performance.now(); const s = (now - danceStart) / 1000;
+    if (now < pressed) { requestAnimationFrame(tick); return; }
+    if (s < 0) {                                           // отсчёт 4 доли перед записью — голосом
+      const b = Math.floor((now - pressed) / 1000 / DB); if (b !== beat) { beat = b; click(b === 0); const n = COUNT_IN - b; $("dance").textContent = String(n); say(String(n), 1.3); $("dhint").textContent = "приготовься — телефон в правой руке"; setSt("st3", "warn", "отсчёт"); }
+      requestAnimationFrame(tick); return;
+    }
+    if (phase !== "dance") phase = "dance";
+    const b = Math.floor((s - DT0) / DB);                  // доля с момента музыки
+    const bs = Math.floor((s - DT0 + LEAD) / DB);          // доля, которую пора ОБЪЯВИТЬ
+    if (bs >= 0 && bs !== said && bs < TARGETS.length) { said = bs;
+      const w = TARGETS[bs], prev = bs > 0 ? TARGETS[bs - 1] : null;
+      if (w !== prev) say(w, 1.3);                         // новая поза — называем её
+      else if (bs % 4 === 0) say("держи", 1.3); }          // та же поза — раз в два такта «держи»
+    if (b >= 0 && b !== beat) { beat = b; click(b % 2 === 0); const bar = Math.floor(b / 2), m = ROUTINE[Math.min(bar, ROUTINE.length - 1)];
+      $("dance").textContent = TARGETS[Math.min(b, TARGETS.length - 1)].toUpperCase(); $("dhint").textContent = `такт ${bar + 1} из ${ROUTINE.length}`; }
+    $("dbar").style.width = Math.min(100, s / DUR * 100) + "%";
+    if (s < DUR) requestAnimationFrame(tick); else finishDance();
+  };
+  requestAnimationFrame(tick);
+};
+function finishDance() {
+  phase = "idle"; setSt("st3", "ok", `${danceEv.length} событий`); $("dance").textContent = "✓"; $("dhint").textContent = "Готово."; $("b3").disabled = false; $("b2").disabled = false; $("spSlow").disabled = $("spGame").disabled = false;
+  const nAcc = danceEv.filter(e => e.acc).length, nRot = danceEv.filter(e => e.rot).length;
+  const data = { version: 1, ua: navigator.userAgent, bpm: BPM, made: new Date().toISOString(),
+    calib: { events: calEv, prompts: [0, 2.5, 5], result: calib && { ok: true, f: calib.f, n: calib.n, rotScale: calib.rotScale, ratio: calib.ratio, upAngle: calib.upAngle } },
+    dance: { events: danceEv, ref: "poses-v1", blocks: BLOCKS, t0: T0, slow: K, hasAcc: nAcc / Math.max(1, danceEv.length), hasRot: nRot / Math.max(1, danceEv.length), rateHz: danceEv.length / DUR } };
+  const txt = JSON.stringify(data); $("out").value = txt;
+  const url = URL.createObjectURL(new Blob([txt], { type: "application/json" }));
+  $("dl").href = url; $("dl").download = "datchiki.json"; $("dl").hidden = false; $("b4").disabled = false; setSt("st4", "ok", Math.round(txt.length / 1024) + " КБ");
+}
+// ---------- проверка «точки»: телефон как точка в пространстве, независимо от того, как его держат ----------
+// [секунда, что на экране, что сказать, метка шага для разбора]
+const FREE = [[0, "У ГРУДИ, ЗАМРИ", "Прижми телефон к груди и замри", "chest"], [3, "КРУТИ НА МЕСТЕ", "Крути телефон на месте, как угодно, но не уводи руку", "twist"],
+  [13, "У ГРУДИ, ЗАМРИ", "Снова к груди и замри", "chest"]];
+["вверх", "вперёд", "в сторону", "вниз", "вверх", "вперёд", "в сторону", "вниз"].forEach((w, i) => {
+  const t = 16 + i * 4; FREE.push([t, w.toUpperCase(), w, w], [t + 2, "К ГРУДИ", "к груди", "chest"]); });
+const FREE_DUR = 48;
+$("b5").onclick = () => {
+  unlockVoice(); freeEv = []; let step = -1;
+  $("b5").disabled = $("b2").disabled = $("b3").disabled = true; setSt("st5", "warn", "приготовься");
+  $("free").textContent = "3"; say("Проверка. Держи телефон как удобно. Через три секунды начинаем.", 1.1);
+  freeStart = performance.now() + 3500;
+  const tick = () => {
+    const s = (performance.now() - freeStart) / 1000;
+    if (s < 0) { requestAnimationFrame(tick); return; }
+    if (phase !== "free") { phase = "free"; setSt("st5", "warn", "идёт"); }
+    let k = 0; while (k + 1 < FREE.length && FREE[k + 1][0] <= s) k++;
+    if (k !== step) { step = k; $("free").textContent = FREE[k][1]; $("fhint").textContent = `шаг ${k + 1} из ${FREE.length}`; say(FREE[k][2], 1.15); }
+    $("fbar").style.width = Math.min(100, s / FREE_DUR * 100) + "%";
+    if (s < FREE_DUR) requestAnimationFrame(tick); else finishFree();
+  };
+  requestAnimationFrame(tick);
+};
+function finishFree() {
+  phase = "idle"; say("Готово", 1.1); setSt("st5", "ok", `${freeEv.length} событий`); $("free").textContent = "✓"; $("fhint").textContent = "Готово. Скачай запись ниже и пришли в чат.";
+  $("b5").disabled = false; $("b2").disabled = false; if (calib) $("b3").disabled = false;
+  const data = { version: 1, kind: "free", ua: navigator.userAgent, made: new Date().toISOString(), free: { events: freeEv, steps: FREE, dur: FREE_DUR } };
+  const txt = JSON.stringify(data); $("out").value = txt;
+  $("dl").href = URL.createObjectURL(new Blob([txt], { type: "application/json" })); $("dl").download = "tochka.json";
+  $("dl").hidden = false; $("b4").disabled = false; setSt("st4", "ok", Math.round(txt.length / 1024) + " КБ");
+}
+$("b4").onclick = async () => { $("out").hidden = false; try { await navigator.clipboard.writeText($("out").value); $("b4").textContent = "Скопировано"; } catch (e) { $("out").select(); $("b4").textContent = "Выдели и скопируй текст ниже"; } };
+})();
+</script>
+</body>
+</html>

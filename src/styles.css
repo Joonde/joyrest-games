@@ -27216,3 +27216,177 @@ a.finale-step__aside {
     min-width: 0;
   }
 }
+
+
+/* «Танцуй иначе»: выбор усложнения и специальный музыкальный раунд. */
+.dance-card--special,
+.db-card--special {
+  background-image: url("/dance/art/web/card-battle.webp");
+  --db-tag: #efb0ce;
+}
+
+.db-video__art--special {
+  --db-art: url("/dance/art/web/card-battle.webp");
+}
+
+.db-modifier {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(2.4 * var(--u));
+}
+
+.db-modifiers {
+  width: min(100%, calc(110 * var(--u)));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(1.6 * var(--u));
+}
+
+.db-modifier-card {
+  min-height: calc(22 * var(--u));
+  padding: calc(2 * var(--u));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(0.8 * var(--u));
+  border: 1px solid color-mix(in srgb, var(--db-gold) 42%, transparent);
+  border-radius: calc(1.4 * var(--u));
+  background: rgba(20, 15, 23, 0.76);
+}
+
+.db-modifier-card__n {
+  color: var(--db-gold);
+  font-size: calc(1.2 * var(--u));
+  letter-spacing: 0.12em;
+}
+
+.db-modifier-card b {
+  color: var(--db-gold-hi);
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: calc(2.8 * var(--u));
+  line-height: 1.05;
+}
+
+.db-modifier-card > span:last-child {
+  color: var(--db-soft);
+  font-size: calc(1.25 * var(--u));
+  line-height: 1.35;
+}
+
+.db-remix {
+  position: absolute;
+  z-index: 2;
+  top: calc(1.2 * var(--u));
+  right: calc(1.2 * var(--u));
+  left: calc(26 * var(--u));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(0.7 * var(--u));
+}
+
+.db-remix__segment {
+  padding: calc(0.8 * var(--u));
+  border: 1px solid rgba(227, 198, 140, 0.2);
+  border-radius: calc(0.8 * var(--u));
+  color: var(--db-soft);
+  background: rgba(13, 11, 16, 0.75);
+  font-size: calc(1.1 * var(--u));
+  text-align: center;
+}
+
+.db-remix__segment b {
+  color: var(--db-gold);
+}
+
+.db-remix__segment.is-current {
+  border-color: var(--db-gold);
+  color: var(--db-gold-hi);
+  box-shadow: 0 0 calc(2 * var(--u)) rgba(227, 198, 140, 0.14);
+}
+
+.db-remix__segment.is-past {
+  opacity: 0.55;
+}
+
+.db-remix__timer {
+  color: var(--db-gold-hi);
+  font-size: calc(1.6 * var(--u));
+  font-weight: 700;
+  text-align: center;
+}
+
+.db-modifier-phone {
+  display: grid;
+  gap: 10px;
+}
+
+.db-modifier-phone__item {
+  overflow: hidden;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.18));
+  border-radius: 15px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.05));
+}
+
+.db-modifier-phone__item.is-on {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 2px var(--color-highlight);
+}
+
+.db-modifier-phone__pick,
+.db-modifier-phone__item > b,
+.db-modifier-phone__item > span {
+  display: block;
+}
+
+.db-modifier-phone__pick {
+  width: 100%;
+  min-height: 68px;
+  padding: 13px 15px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.db-modifier-phone__item > b,
+.db-modifier-phone__item > span {
+  margin: 0 15px;
+}
+
+.db-modifier-phone__item > b {
+  margin-top: 13px;
+}
+
+.db-modifier-phone__item > span {
+  margin-top: 4px;
+  margin-bottom: 13px;
+}
+
+.db-modifier-phone__item b {
+  font-size: 16px;
+}
+
+.db-modifier-phone__item span {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.db-modifier-phone__pick:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: -3px;
+}
+
+.db-modifier-phone > .btn {
+  margin-top: 4px;
+}
+
+@media (max-width: 700px) {
+  .db-modifiers {
+    grid-template-columns: 1fr;
+  }
+}

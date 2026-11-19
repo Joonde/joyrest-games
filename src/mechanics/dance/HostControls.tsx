@@ -7,9 +7,9 @@ import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { KIND_EMOJI, KIND_TITLES, type DanceContent } from "./content";
+import { DANCE_MODIFIERS, isTeamBattle, KIND_EMOJI, KIND_TITLES, type DanceContent } from "./content";
 import { styleById } from "./styles";
-import { canVote, cardOf, control as videoControl, danceBack, dancePrimary, nextTurn, parseDanceResult, pickCard, pickFromAnswers, resolveTie, showResult, startPick, startVote, turnPid } from "./logic";
+import { canVote, cardOf, control as videoControl, danceBack, dancePrimary, modifierVotes, nextTurn, parseDanceResult, performanceElapsed, pickCard, pickFromAnswers, remixAt, remixDuration, resolveTie, showResult, startPerformance, startPick, startVote, turnPid, winningModifier } from "./logic";
 import { CardGrid } from "./views";
 
 /** Момент игры для повтора касания (без паузы и «Сначала» плеера). */
@@ -18,19 +18,19 @@ function danceMoment(s: Session): string {
   return JSON.stringify([r.mode, r.card, r.turn, r.played.length, r.tie.length]);
 }
 
-/**
- * Пульт «Танцевального батла»: «Начать игру» → команда выбирает карточку (на телефоне капитана или
- * касанием здесь) → выступление (видео или трек на экране: «Пауза», «Сначала») → «Оценивать» →
- * «Показать итог» → «Следующая команда». Все карточки сыграны — награждение.
- */
+/** Пульт обычных и специальных карточек «Танцевального батла». */
 export function DanceHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<DanceContent>) {
   const { busy, error, latest, run, quiet } = useHostRun(session, control, rehearsal, { moment: danceMoment });
   const { stage, step } = session.state;
   const r = parseDanceResult(session.state.result);
   const card = cardOf(content, r.card);
-  const now = useServerNow(250, r.mode === "vote" && stage === "question");
-  const left = r.mode === "vote" && stage === "question" ? secondsLeft(session.state, now) : null;
+  const specialPerform = card?.kind === "special" && r.mode === "perform";
+  const timed = (r.mode === "modifier" || r.mode === "vote") && stage === "question";
+  const now = useServerNow(250, timed || specialPerform);
+  const left = timed ? secondsLeft(session.state, now) : specialPerform && card ? Math.max(0, Math.ceil(remixDuration(card) - performanceElapsed(session, content, now))) : null;
   const own = answers.filter((a) => a.step === step);
+  const modifiers = r.mode === "modifier" ? modifierVotes(r, own, step) : new Map();
+  const currentRemix = specialPerform && card ? remixAt(card, performanceElapsed(session, content, now)) : null;
 
   // Капитан выбрал карточку — сразу на экран.
   const pickKey = stage === "question" && r.mode === "pick" ? own.map((a) => a.id).join(",") : "";
@@ -41,7 +41,11 @@ export function DanceHostControls({ session, content, answers, participants, con
   }, [pickKey, busy, session.state.startedAt]);
 
   // Счётчик голосов для экрана (не чаще раза в 2 с).
-  const votes = r.mode === "vote" ? own.filter((a) => canVote(r, card, a.pid)).length : -1;
+  const votes = r.mode === "modifier"
+    ? [...modifiers.values()].reduce((sum, value) => sum + value, 0)
+    : r.mode === "vote"
+      ? own.filter((a) => canVote(r, card, a.pid)).length
+      : -1;
   useEffect(() => {
     if (votes < 0 || votes === (session.state.answered ?? 0) || rehearsal) return;
     const timer = window.setTimeout(() => {
@@ -62,13 +66,26 @@ export function DanceHostControls({ session, content, answers, participants, con
     return showResult(s, content, all);
   }
 
+  async function performNow(s: Session): Promise<SessionChange> {
+    let all: Answer[] = answers;
+    try {
+      all = await control.freshAnswers(step);
+    } catch {
+      // по пришедшим; ничья и пустое голосование разрешаются чистой логикой одинаково.
+    }
+    return startPerformance(s, content, all);
+  }
+
   const action = dancePrimary(session, content);
-  const backPlan = danceBack(session);
+  const backPlan = danceBack(session, content);
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
+  const modifier = DANCE_MODIFIERS.find((item) => item.id === r.modifier);
+  const leadingModifier = DANCE_MODIFIERS.find((item) => item.id === winningModifier(r, own, step)) ?? DANCE_MODIFIERS[0]!;
   const labels: Record<typeof action, string> = {
     start: "Начать игру",
     waitPick: "Ждём выбор капитана…",
-    vote: card?.kind === "battle" ? "Голосовать: кто победил" : "Оценивать выступление",
+    perform: `Начать батл: ${leadingModifier.title}`,
+    vote: isTeamBattle(card) ? "Голосовать: кто победил" : "Оценивать выступление",
     result: "Показать итог",
     resolveTie: "Ничья — выберите победителя выше",
     next: "Следующая команда",
@@ -78,6 +95,7 @@ export function DanceHostControls({ session, content, answers, participants, con
   };
   function perform() {
     if (action === "start") void run((s) => startPick(s, participants));
+    if (action === "perform") void run(performNow);
     if (action === "vote") void run((s) => startVote(s, content));
     if (action === "result") void run(resultNow);
     if (action === "next") void run((s) => nextTurn(s, participants));
@@ -107,9 +125,28 @@ export function DanceHostControls({ session, content, answers, participants, con
             {styleById(card.style) ? ` · ${styleById(card.style)?.title}` : ""}
             {card.title ? ` · ${card.title}` : ""}
           </p>
-          <p>{card.kind === "battle" ? "Выступают все команды по очереди" : <>Выступает <NameText name={name(r.performer)} /></>}</p>
+          {r.mode === "modifier" ? (
+            <>
+              <p>Капитаны выбирают усложнение. При равенстве побеждает вариант выше в списке, без голосов — «Только руки».</p>
+              <ul className="buzz-queue buzz-queue--plain">
+                {DANCE_MODIFIERS.map((item) => (
+                  <li key={item.id} className={leadingModifier.id === item.id ? "is-now" : ""}>
+                    <span className="buzz-queue__name">{item.title}</span>
+                    <span className="buzz-queue__state">{modifiers.get(item.id) ?? 0}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p>{isTeamBattle(card) ? "Выступают все команды по очереди" : <>Выступает <NameText name={name(r.performer)} /></>}</p>
+          )}
+          {specialPerform && modifier && (
+            <div className="notice small">
+              Правило зала: <strong>{modifier.title}</strong> · {currentRemix ? `музыка ${currentRemix.index + 1} из ${card.remix.length}` : "ремикс завершён"}
+            </div>
+          )}
           {card.note && <p className="muted small">{card.note}</p>}
-          {r.mode === "vote" && stage === "question" && (
+          {timed && (
             <div className="host-quiz__live">
               <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
                 {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
@@ -117,6 +154,12 @@ export function DanceHostControls({ session, content, answers, participants, con
               <span>
                 Голосов: <strong>{votes}</strong>
               </span>
+            </div>
+          )}
+          {specialPerform && (
+            <div className="host-quiz__live">
+              <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">{left === 0 ? "Ремикс завершён" : `${left} с`}</span>
+              <span>{r.paused ? "Пауза" : "Выступление идёт"}</span>
             </div>
           )}
           {r.mode === "result" && r.tie.length > 0 && (
@@ -160,16 +203,16 @@ export function DanceHostControls({ session, content, answers, participants, con
           <div className="row dance-host__media">
             {/* Ролик по ссылке паузу с пульта не принимает (плеер чужой) — только «Сначала». */}
             {card.video.source !== "link" && (
-              <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => videoControl(s, { paused: !r.paused }))}>
+              <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => videoControl(s, { paused: !r.paused }, content))}>
                 {r.paused ? "▶ Продолжить" : "⏸ Пауза"}
               </button>
             )}
-            <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => videoControl(s, { replay: true }))}>
+            <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => videoControl(s, { replay: true }, content))}>
               ⟲ Сначала
             </button>
           </div>
         )}
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => danceBack(s)?.change ?? null, backPlan.clear)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => danceBack(s, content)?.change ?? null, backPlan.clear)}>
           Назад
         </button>
       </div>

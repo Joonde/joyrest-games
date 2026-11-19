@@ -1,4 +1,4 @@
-// Конструктор «Танцевального батла»: карточки Батл / Танец / Караоке, видео (файл или ссылка), трек.
+// Конструктор «Танцевального батла»: карточки Батл / Танец / Караоке / Танцуй иначе, видео и музыка.
 import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { insertBack } from "../../components/undoRemove";
@@ -8,12 +8,13 @@ import { saveLocalVideo } from "../../components/media/localVideo";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
 import { clipFields, parseClip } from "../../core/clip";
 import type { EditorProps } from "../types";
-import { DANCE_LIMITS, embedUrl, KIND_EMOJI, KIND_TITLES, newCard, type DanceCard, type DanceContent, type DanceKind, type VideoSource } from "./content";
+import { DANCE_LIMITS, DANCE_MODIFIERS, embedUrl, KIND_EMOJI, KIND_TITLES, newCard, parseRemixClip, type DanceCard, type DanceContent, type DanceKind, type VideoSource } from "./content";
 import { validateDance } from "./validate";
 import { Fold } from "../../components/Fold";
 import { DANCE_STYLES, styleById } from "./styles";
+import { tracksRepo } from "../../data";
 
-const KINDS: DanceKind[] = ["dance", "karaoke", "battle"];
+const KINDS: DanceKind[] = ["dance", "karaoke", "battle", "special"];
 
 export function DanceEditor({ content, onChange, editable }: EditorProps<DanceContent>) {
   const [openId, setOpenId] = useState<string | null>(content.cards[0]?.id ?? null);
@@ -50,7 +51,7 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
       <section className="card">
         <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
-          Команды по очереди выбирают карточку. Танец — на экране видео, команда повторяет движения. Караоке — видео с текстом, участник поёт. Батл — играет трек, выступают все команды. Танец и караоке оценивают другие команды, в батле капитаны голосуют за лучшую команду (за свою нельзя).
+          Команды по очереди выбирают карточку. Танец — на экране видео, команда повторяет движения. Караоке — видео с текстом, участник поёт. Батл — играет трек, выступают все команды. «Танцуй иначе» — капитаны выбирают усложнение, затем три музыкальных фрагмента меняют друг друга. Победителя батлов выбирают капитаны (за свою команду нельзя).
         </p>
         <div className="row board-editor__size">
           <label className="field">
@@ -132,7 +133,8 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
               key={kind}
               type="button"
               className="tile"
-              disabled={content.cards.length >= DANCE_LIMITS.cards}
+              disabled={content.cards.length >= DANCE_LIMITS.cards || (kind === "special" && !tracksRepo)}
+              title={kind === "special" && !tracksRepo ? "Нужна музыкальная библиотека на своём сервере JoyRest" : undefined}
               onClick={() => {
                 const card = newCard(kind);
                 onChange({ ...latest.current, cards: [...latest.current.cards, card] });
@@ -161,7 +163,20 @@ function CardForm({ card, editable, errors, onChange, onRemove }: { card: DanceC
     <div className="stack stack--tight">
       <div className="seg" role="group" aria-label="Что это">
         {KINDS.map((kind) => (
-          <button key={kind} type="button" className={card.kind === kind ? "seg__btn is-on" : "seg__btn"} aria-pressed={card.kind === kind} disabled={!editable} onClick={() => onChange({ kind })}>
+          <button
+            key={kind}
+            type="button"
+            className={card.kind === kind ? "seg__btn is-on" : "seg__btn"}
+            aria-pressed={card.kind === kind}
+            disabled={!editable || (kind === "special" && !tracksRepo)}
+            title={kind === "special" && !tracksRepo ? "Нужна музыкальная библиотека на своём сервере JoyRest" : undefined}
+            onClick={() => onChange((current) => {
+              if (kind === current.kind) return current;
+              // У специальной карточки другое медиа: нельзя случайно оставить видео или одиночный трек.
+              if (kind === "special" || current.kind === "special") return { ...newCard(kind, current.style), id: current.id, title: current.title, note: current.note };
+              return { ...current, kind };
+            })}
+          >
             {KIND_EMOJI[kind]} {KIND_TITLES[kind]}
           </button>
         ))}
@@ -179,13 +194,30 @@ function CardForm({ card, editable, errors, onChange, onRemove }: { card: DanceC
       </label>
       <label className="field">
         Название (видно на экране)
-        <input value={card.title} maxLength={DANCE_LIMITS.title} disabled={!editable} placeholder={card.kind === "karaoke" ? "Песня — исполнитель" : card.kind === "dance" ? "Название танца" : "Тема батла"} onChange={(e) => onChange({ title: e.target.value })} />
+        <input value={card.title} maxLength={DANCE_LIMITS.title} disabled={!editable} placeholder={card.kind === "karaoke" ? "Песня — исполнитель" : card.kind === "dance" ? "Название танца" : card.kind === "special" ? "Например: Неожиданный ремикс" : "Тема батла"} onChange={(e) => onChange({ title: e.target.value })} />
       </label>
       <label className="field">
         Подсказка (необязательно)
-        <input value={card.note} maxLength={DANCE_LIMITS.note} disabled={!editable} placeholder="Выходит вся команда / поёт один участник" onChange={(e) => onChange({ note: e.target.value })} />
+        <input value={card.note} maxLength={DANCE_LIMITS.note} disabled={!editable} placeholder={card.kind === "special" ? "Смотрите на экран и перестраивайтесь под музыку" : "Выходит вся команда / поёт один участник"} onChange={(e) => onChange({ note: e.target.value })} />
       </label>
 
+      {card.kind === "special" ? (
+        <fieldset className="stack stack--tight">
+          <legend>Специальный раунд</legend>
+          <p className="muted small">Сначала капитаны выберут одно усложнение. Потом все команды выступят под три фрагмента — музыка сменится автоматически. Длина каждого: 3–15 секунд.</p>
+          {!tracksRepo && <p className="notice small">Для этого раунда нужна музыкальная библиотека на своём сервере JoyRest. На этой площадке выберите обычный батл, танец или караоке.</p>}
+          <div className="pick-chips" aria-label="Усложнения в этом раунде">
+            {DANCE_MODIFIERS.map((modifier) => <span key={modifier.id} className="pick-chip" title={modifier.hint}>{modifier.title}</span>)}
+          </div>
+          {card.remix.map((clip, index) => (
+            <Fold key={index} title={`Музыка ${index + 1} из 3`} value={clip.trackId ? `${clip.length} с · трек выбран` : "выберите трек"} open={!clip.trackId || index === 0}>
+              <p className="muted small">{index === 0 ? "Начало выступления." : index === 1 ? "Первая неожиданная смена стиля." : "Финальная смена стиля и завершение ремикса."}</p>
+              <TrackTimeline clip={clip} disabled={!editable} onChange={(next) => onChange((current) => ({ ...current, remix: current.remix.map((item, i) => i === index ? parseRemixClip(next) : item) }))} />
+            </Fold>
+          ))}
+        </fieldset>
+      ) : (
+        <>
       <fieldset className="stack stack--tight">
         <legend>Видео {card.kind === "battle" ? "(для батла не обязательно)" : ""}</legend>
         <div className="seg" role="group" aria-label="Откуда видео">
@@ -239,6 +271,8 @@ function CardForm({ card, editable, errors, onChange, onRemove }: { card: DanceC
 
       {(card.kind === "battle" || card.video.source === "none" || card.trackId) && (
         <TrackTimeline clip={parseClip(card)} disabled={!editable} onChange={(clip) => onChange((c) => ({ ...c, ...(clipFields(clip) as Partial<DanceCard>) }))} />
+      )}
+        </>
       )}
 
       {errors.map((m) => (

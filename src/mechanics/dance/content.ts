@@ -1,12 +1,31 @@
-// «Танцевальный батл»: карточки Батл / Танец / Караоке. Команды по очереди выбирают карточку,
-// выступают, другие команды оценивают (танец, караоке — от 10 до 100) или голосуют (батл).
+// «Танцевальный батл»: карточки Батл / Танец / Караоке / Танцуй иначе. Команды по очереди выбирают карточку,
+// выступают, другие команды оценивают (танец, караоке — от 10 до 100) или голосуют (батл и специальный раунд).
 // Видео: ссылка (YouTube, VK, Rutube), файл на устройстве экрана зала или видео JoyRest на сервере (`server`: в `url` — id
 // видео, загружают владелец и заместитель — решение владельца 15 октября 2026).
 import { clipFields, parseClip, type Clip } from "../../core/clip";
 import { isStyleId } from "./styles";
 
-export type DanceKind = "battle" | "dance" | "karaoke";
+export type DanceKind = "battle" | "dance" | "karaoke" | "special";
 export type VideoSource = "none" | "file" | "link" | "server";
+export type DanceModifier = "hands" | "robot" | "slow";
+
+export const DANCE_MODIFIERS: Array<{ id: DanceModifier; title: string; hint: string }> = [
+  { id: "hands", title: "Только руки", hint: "Ноги не двигаются — работают руки, жесты и мимика." },
+  { id: "robot", title: "Как роботы", hint: "Резкие движения и паузы, никакой плавности." },
+  { id: "slow", title: "Замедление", hint: "Танцуем вполовину медленнее музыки." },
+];
+
+export const REMIX_COUNT = 3;
+export const REMIX_LIMITS = { minLength: 3, maxLength: 15, defaultLength: 8 } as const;
+
+export function isDanceModifier(value: unknown): value is DanceModifier {
+  return value === "hands" || value === "robot" || value === "slow";
+}
+
+/** Обычный и специальный батл: финальное голосование за другую команду и очки победителю. */
+export function isTeamBattle(card: DanceCard | null): boolean {
+  return card?.kind === "battle" || card?.kind === "special";
+}
 
 /** Видео из базы → формат механики: ссылка — как есть (до `urlMax`), видео JoyRest — id, файл — только название. */
 export function parseVideo(raw: unknown, urlMax: number): { source: VideoSource; url: string; name: string } {
@@ -39,6 +58,8 @@ export interface DanceCard {
   chorusLength: number;
   join: Clip["join"];
   confetti: boolean;
+  /** «Танцуй иначе»: три коротких музыкальных фрагмента; у остальных карточек пусто. */
+  remix: Clip[];
 }
 
 export interface DanceContent {
@@ -48,14 +69,14 @@ export interface DanceContent {
   /** Оценка выступления: от и до. */
   minRate: number;
   maxRate: number;
-  /** Секунд на оценку. */
+  /** Секунд на оценку и на выбор усложнения. */
   voteTime: number;
 }
 
 export const DANCE_LIMITS = { cards: 60, title: 80, note: 200, url: 500, minPoints: 10, maxPoints: 1000, minVote: 10, maxVote: 120 } as const;
 
-export const KIND_TITLES: Record<DanceKind, string> = { battle: "Батл", dance: "Танец", karaoke: "Караоке" };
-export const KIND_EMOJI: Record<DanceKind, string> = { battle: "⚡", dance: "💃", karaoke: "🎤" };
+export const KIND_TITLES: Record<DanceKind, string> = { battle: "Батл", dance: "Танец", karaoke: "Караоке", special: "Танцуй иначе" };
+export const KIND_EMOJI: Record<DanceKind, string> = { battle: "⚡", dance: "💃", karaoke: "🎤", special: "✨" };
 
 function id(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
@@ -64,19 +85,35 @@ function id(): string {
 
 const CLIP = () => clipFields(parseClip({})) as Pick<DanceCard, "trackId" | "trackStart" | "trackLength" | "fadeIn" | "fadeOut" | "chorusStart" | "chorusLength" | "join" | "confetti">;
 
-export function newCard(kind: DanceKind, style = ""): DanceCard {
-  return { id: id(), kind, style, title: "", note: "", video: { source: kind === "battle" ? "none" : "link", url: "", name: "" }, ...CLIP() };
-}
-
-export function createDance(): DanceContent {
-  return { cards: [newCard("dance"), newCard("karaoke"), newCard("battle")], battlePoints: 100, minRate: 10, maxRate: 100, voteTime: 30 };
-}
-
 function rec(v: unknown): Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
 const int = (v: unknown, def: number, min: number, max: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : def);
+
+/** Короткий участок ремикса: неизвестные и битые поля нормализуются общим музыкальным парсером. */
+export function parseRemixClip(raw: unknown): Clip {
+  const source = rec(raw);
+  const clip = parseClip({ ...source, trackLength: source.trackLength ?? source.length ?? REMIX_LIMITS.defaultLength });
+  return { ...clip, length: int(clip.length, REMIX_LIMITS.defaultLength, REMIX_LIMITS.minLength, REMIX_LIMITS.maxLength), confetti: false };
+}
+
+export function newCard(kind: DanceKind, style = ""): DanceCard {
+  return {
+    id: id(),
+    kind,
+    style,
+    title: "",
+    note: "",
+    video: { source: kind === "battle" || kind === "special" ? "none" : "link", url: "", name: "" },
+    remix: kind === "special" ? Array.from({ length: REMIX_COUNT }, () => parseRemixClip({})) : [],
+    ...CLIP(),
+  };
+}
+
+export function createDance(): DanceContent {
+  return { cards: [newCard("dance"), newCard("karaoke"), newCard("battle")], battlePoints: 100, minRate: 10, maxRate: 100, voteTime: 30 };
+}
 
 export function parseDance(raw: unknown): DanceContent {
   const d = rec(raw);
@@ -86,14 +123,16 @@ export function parseDance(raw: unknown): DanceContent {
     let cid = typeof c.id === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(c.id) ? c.id : `d${i + 1}`;
     while (seen.has(cid)) cid += "_";
     seen.add(cid);
-    const kind: DanceKind = c.kind === "battle" || c.kind === "karaoke" ? c.kind : "dance";
+    const kind: DanceKind = c.kind === "battle" || c.kind === "karaoke" || c.kind === "special" ? c.kind : "dance";
+    const rawRemix = Array.isArray(c.remix) ? c.remix : [];
     return {
       id: cid,
       kind,
       style: isStyleId(c.style) ? c.style : "",
       title: str(c.title, DANCE_LIMITS.title),
       note: str(c.note, DANCE_LIMITS.note),
-      video: parseVideo(c.video, DANCE_LIMITS.url),
+      video: kind === "special" ? { source: "none" as const, url: "", name: "" } : parseVideo(c.video, DANCE_LIMITS.url),
+      remix: kind === "special" ? Array.from({ length: REMIX_COUNT }, (_, index) => parseRemixClip(rawRemix[index])) : [],
       ...(clipFields(parseClip(c)) as ReturnType<typeof CLIP>),
     };
   });
@@ -107,8 +146,9 @@ export function parseDance(raw: unknown): DanceContent {
   };
 }
 
+/** Все музыкальные зависимости: обычный трек карточки и три участка специального ремикса. */
 export function danceTrackIds(content: DanceContent): string[] {
-  return [...new Set(content.cards.flatMap((c) => (c.trackId ? [c.trackId] : [])))];
+  return [...new Set(content.cards.flatMap((c) => [c.trackId, ...c.remix.map((clip) => clip.trackId)].filter((id): id is string => Boolean(id))))];
 }
 
 /**

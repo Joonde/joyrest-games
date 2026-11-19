@@ -1,0 +1,11 @@
+.mate-editor, .mate-editor .card, .mate-editor .choice__text { min-width: 0; }
+.mate-option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+.mate-option .field { min-width: 0; width: 100%; }
+.mate-option .field input { min-width: 0; width: 100%; }
+.mate-option > .btn { min-width: 44px; min-height: 44px; }
+.mate-editor .seg { min-width: 0; }
+.mate-editor .seg__btn { min-width: 0; white-space: normal; }
+@media (max-width: 420px) {
+  .mate-option { grid-template-columns: auto minmax(0, 1fr); }
+  .mate-option > .btn { grid-column: 2; justify-self: end; }
+}

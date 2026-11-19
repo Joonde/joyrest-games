@@ -3016,11 +3016,78 @@ kbd {
   right: max(16px, var(--safe-right));
   z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
   max-width: calc(100vw - 32px);
   gap: 8px;
   transition: opacity 0.3s ease;
+}
+
+.screen-controls__panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.screen-controls__toggle {
+  display: none;
+}
+
+/* На светлых самостоятельных сценах прозрачная вторичная кнопка теряла и текст, и фон. */
+.screen-controls .btn--secondary,
+.screen-controls .screen-bed {
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(10px);
+}
+
+/* Узкое окно предпросмотра: компактная кнопка вместо четырёх плашек поверх игровой шапки. */
+@media (max-width: 700px) {
+  .screen-controls {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .screen-controls__toggle {
+    display: inline-flex;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(280px, calc(100vw - 32px));
+    padding: 8px;
+    border: 1px solid var(--color-highlight);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-bg) 96%, transparent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .screen-controls.is-open .screen-controls__panel {
+    display: flex;
+  }
+
+  .screen-controls__panel .btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel .screen-bed {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel .screen-bed input[type="range"] {
+    width: 100%;
+    min-height: 24px;
+  }
 }
 
 /* Самостоятельная игра («Олимп») на телефоне: свой экран во всю высоту. */

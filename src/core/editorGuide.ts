@@ -15,6 +15,7 @@ import { GUIDE_HUNDRED } from "./editorGuide/hundred";
 import { GUIDE_LOTTO } from "./editorGuide/lotto";
 import { GUIDE_MAFIA } from "./editorGuide/mafia";
 import { GUIDE_MILLIONAIRE } from "./editorGuide/millionaire";
+import { GUIDE_MATRYOSHKA } from "./editorGuide/matryoshka";
 import { GUIDE_PERUDO } from "./editorGuide/perudo";
 import { GUIDE_QUEST } from "./editorGuide/quest";
 import { GUIDE_SPY } from "./editorGuide/spy";
@@ -353,5 +354,6 @@ export const EDITOR_GUIDES: EditorGuide[] = [
   GUIDE_PERUDO,
   GUIDE_WINE,
   GUIDE_BUBLIKATOR,
+  GUIDE_MATRYOSHKA,
   GUIDE_EVENING,
 ];

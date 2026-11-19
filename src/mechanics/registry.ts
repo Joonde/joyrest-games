@@ -1,5 +1,6 @@
 import { aquarium } from "./aquarium";
 import { bublikator } from "./bublikator";
+import { matryoshka } from "./matryoshka";
 import { board } from "./board";
 import { DEMO_BOARD } from "./board/demo";
 import { checkers } from "./checkers";
@@ -57,7 +58,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(aquarium), register(bublikator), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(aquarium), register(bublikator), register(matryoshka), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -86,6 +87,7 @@ const HINTS: Record<string, string> = {
   hundred: "Табло популярных ответов, как в телешоу: розыгрыш «Жми первым!», команда отвечает, три ошибки — шанс соперника, двойная, тройная, «Игра наоборот» и «Большая игра». Режим «Весь зал»: все пишут ответы с телефона. Свои проценты — «Опрос гостей заранее».",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки, «Кот в мешке» (вопрос другому игроку) и «Аукцион» со ставками.",
   bublikator: "Экипажи кораблей: у каждого гостя приборы с дурацкими названиями и приказы про приборы товарищей — кричите и крутите. Три перелёта, события, тайный диверсант.",
+  matryoshka: "Дворовые игры на вылет: «Замри!», «Пряник», «Стулья», «Канат», «Классики». Выбывшие болеют и угадывают, финалисты играют «Камень, ножницы, бумага». 20–25 минут, 6–100 гостей.",
   aquarium: "Перерыв с раскраской: гости раскрашивают на телефонах рыбок или ёлочные игрушки — рисунки оживают в 3D-аквариуме или на ёлке на экране зала. По мотивам Paper Aquarium (MrMoT9I).",
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
@@ -263,6 +265,8 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   { mechanic: aquarium.id, title: "Ёлка", hint: "Перерыв с раскраской: гости раскрашивают ёлочные игрушки — те повисают на ёлке. Куранты с отсчётом до Нового года, Дед Мороз на санях.", content: { ...aquarium.create(), scene: "tree" }, playMode: "solo" },
   { mechanic: bublikator.id, title: bublikator.title, hint: "Экипажи кораблей кричат друг другу приказы: 3 перелёта по 4 минуты, события, тайный диверсант. Только команды и экран зала.", content: { ...bublikator.create(), saboteur: true }, playMode: "teams", ageRating: "12+" },
   { mechanic: bublikator.id, title: `${bublikator.title}: для детей`, hint: "Детская сложность: приборы — картинки (лягушка, банан, ракета), всегда 3 прибора, без диверсанта, 2 перелёта по 3 минуты.", content: { ...bublikator.create(), difficulty: "kids", legs: 2, legMinutes: 3 }, playMode: "teams", ageRating: "0+" },
+  { mechanic: matryoshka.id, title: `${matryoshka.title}: Солнечный двор`, hint: "Дети и дневные праздники: 2 сердечка, широкая полоса у «Пряника», пять испытаний, «Второй шанс», финал на 4.", content: { ...matryoshka.create(), style: "sunny" }, playMode: "solo", ageRating: "0+" },
+  { mechanic: matryoshka.id, title: `${matryoshka.title}: Ночной двор`, hint: "Взрослые: неоновый двор, 1 сердечко, узкая полоса у «Пряника», пять испытаний, «Второй шанс», финал на 4.", content: { ...matryoshka.create(), style: "night", lives: 1 }, playMode: "solo", ageRating: "12+" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
 

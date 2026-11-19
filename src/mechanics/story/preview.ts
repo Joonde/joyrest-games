@@ -4,7 +4,7 @@ import type { PreviewDriver } from "../preview";
 import { SECTION_TITLES, type StoryContent } from "./content";
 import { endingNext, endingReveal, endingStart, endingVote, endingWrite } from "./ending";
 import { liesNext, liesReveal, liesStart, liesWrite } from "./lies";
-import { authorOf, kindOf, nextPart, nextStory, parseStoryResult, peopleOf, personName, revealAuthor, sameText, startGuessing, startWriting, storyPrimary, teamOfPhone, withEnding, withLies, withWords } from "./logic";
+import { authorOfStory, kindOf, nextPart, nextStory, parseStoryResult, peopleOf, personName, revealAuthor, sameText, startGuessing, startWriting, storyPrimary, teamOfPhone, withEnding, withLies, withWords } from "./logic";
 import { finishRating, newSentence, showSentence, spinWheel, startRating, wordsIntro } from "./words";
 
 // Тексты тестовых гостей (по номеру телефона).
@@ -80,7 +80,7 @@ export const storyPreview: PreviewDriver<StoryContent> = ({ session, content, pa
     case "reveal": {
       const story = r.stories[r.current];
       if (!story) return null;
-      const author = authorOf(story.text, written);
+      const author = authorOfStory(story, written);
       if (answers.length === 0) {
         // Первую угадывают все, вторую — один, третью — никто (очки автору).
         const guessers = phones.filter((p) => p.id !== author);

@@ -76,7 +76,7 @@ export function emptyResult(deckStyle: DeckStyle = "classic"): DurakResult {
 function parseOpts(raw: unknown): DurakOptions {
   const d = record(raw);
   const partners = Array.isArray(d.partners) ? d.partners.map((g) => strings(g)).filter((g) => g.length > 0) : null;
-  return { transfer: d.transfer === true, noTransferFirst: d.noTransferFirst !== false, throwers: d.throwers === "neighbors" ? "neighbors" : "all", spades: d.spades === true, partners: partners && partners.length > 0 ? partners : null };
+  return { transfer: d.transfer === true, noTransferFirst: d.noTransferFirst !== false, throwers: d.throwers === "neighbors" ? "neighbors" : "all", spades: d.spades === true, pogony: d.pogony !== false, partners: partners && partners.length > 0 ? partners : null };
 }
 
 function suit(value: unknown): Suit {
@@ -181,6 +181,7 @@ export function engineOptions(content: DurakContent, seats: string[]): DurakOpti
     noTransferFirst: content.noTransferFirst,
     throwers: content.throwers,
     spades: content.spades,
+    pogony: content.pogony,
     partners: partnerGroups(content, seats),
   };
 }

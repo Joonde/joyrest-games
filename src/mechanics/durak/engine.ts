@@ -51,6 +51,8 @@ export interface DurakOptions {
   throwers: "all" | "neighbors";
   /** «Пики пиками»: пику бьют только пикой. */
   spades: boolean;
+  /** Считать погоны, если последние карты вышедшего — только шестёрки. */
+  pogony: boolean;
   /** Партнёры: группы мест; партнёру не подкидывают, проигрывает команда дурака. */
   partners: string[][] | null;
 }
@@ -381,7 +383,7 @@ function settle(g: Game): Game {
     g.over = true;
     g.loser = left[0] ?? null;
     g.draw = left.length === 0;
-    if (g.loser && g.lastExit && g.lastExit.cards.length > 0 && g.lastExit.cards.every((c) => rankOf(c) === 6)) g.pogony = g.lastExit.cards.length;
+    if (g.opts.pogony && g.loser && g.lastExit && g.lastExit.cards.length > 0 && g.lastExit.cards.every((c) => rankOf(c) === 6)) g.pogony = g.lastExit.cards.length;
     return g;
   }
   let attacker = took ? nextActive(g, defender) : defender;

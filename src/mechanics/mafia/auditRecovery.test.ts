@@ -9,6 +9,7 @@ import {
   mafiaBack,
   morning,
   nightChoices,
+  nightSync,
   paddedAll,
   parseMafiaResult,
   resolveNight,
@@ -146,5 +147,28 @@ describe("QA: ошибочные ответы и совместимость", ()
     expect(packed.b?.familyBlocked).toBe(true);
     expect(packed.c?.blocked).toBeUndefined();
     expect(packed.b?.blocked).toBe(true);
+  });
+});
+
+
+describe("QA: первая проверка в зашифрованном состоянии", () => {
+  it("nightSync сохраняет цель зашифрованной и парсер не теряет её", async () => {
+    const key = newKey();
+    const locked = await seal(key, "c");
+    const change = nightSync(started(), {}, 0, { c: locked });
+    const r = parseMafiaResult(change.state?.result);
+    expect(r.checkLocks.c).toBe(locked);
+    expect(r.checkLocks.c).not.toBe("c");
+    expect(await unseal(key, r.checkLocks.c)).toBe("c");
+    expect(await unseal(newKey(), r.checkLocks.c)).toBeNull();
+    expect(parseMafiaResult(change.state?.result).checkLocks).toEqual(r.checkLocks);
+  });
+
+  it("новая ночь не переносит цель проверки из прошлой ночи", async () => {
+    const key = newKey();
+    const locked = await seal(key, "c");
+    const previous = applyChange(started(), nightSync(started(), {}, 0, { c: locked }), 5);
+    const next = parseMafiaResult(startNight(previous).state?.result);
+    expect(next.checkLocks).toEqual({});
   });
 });

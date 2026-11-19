@@ -1,23 +1,22 @@
 // Ход «Танцевального батла» — чистые функции.
 //
-// Шаг выбора (`question`, режим `pick`): капитан команды, чья очередь, выбирает карточку на телефоне
-// (`{ card }`) или ведущий касается её на пульте → выступление (`reveal`, режим `perform`: видео или
-// трек на экране) → шаг оценки (`question`, режим `vote`, таймер): танец и караоке — другие команды
-// ставят от 10 до 100 (`{ rate }`), команде — среднее; батл — голос за лучшую команду (`{ team }`),
-// победителю — очки батла → итог (`reveal`, `result`) → следующая команда.
+// Обычная карточка: pick → perform → vote → result. Специальная «Танцуй иначе»: pick → modifier
+// (капитаны выбирают усложнение) → perform (три музыкальных фрагмента) → vote → result.
+// Очки и финальное голосование специальной карточки совпадают с обычным батлом.
 import { leaderboardAdditions, scoringParticipants } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
-import type { DanceCard, DanceContent } from "./content";
+import { DANCE_MODIFIERS, isDanceModifier, isTeamBattle, type DanceCard, type DanceContent, type DanceModifier } from "./content";
 
-export type DanceMode = "pick" | "perform" | "vote" | "result";
+export type DanceMode = "pick" | "modifier" | "perform" | "vote" | "result";
 
 interface Prev {
   card: string;
   performer: string | null;
   turn: number;
   scores: Record<string, number>;
+  modifier: DanceModifier | null;
 }
 
 export interface DanceResult {
@@ -31,6 +30,10 @@ export interface DanceResult {
   scores: Record<string, number>;
   /** Ничья в батле: ведущий выбирает победителя. */
   tie: string[];
+  /** Выбранное залом усложнение специального раунда. */
+  modifier: DanceModifier | null;
+  /** Секунды выступления, накопленные до текущего запуска или паузы. */
+  elapsed: number;
   /** Ведущий: «Сначала» (видео или трек), «Пауза». */
   replay: number;
   paused: boolean;
@@ -56,12 +59,14 @@ export function parseDanceResult(raw: unknown): DanceResult {
     played: ids(d.played),
     card: pid(d.card),
     performer: pid(d.performer),
-    mode: d.mode === "perform" || d.mode === "vote" || d.mode === "result" ? d.mode : "pick",
+    mode: d.mode === "modifier" || d.mode === "perform" || d.mode === "vote" || d.mode === "result" ? d.mode : "pick",
     scores: nums(d.scores),
     tie: ids(d.tie),
+    modifier: isDanceModifier(d.modifier) ? d.modifier : null,
+    elapsed: typeof d.elapsed === "number" && Number.isFinite(d.elapsed) && d.elapsed > 0 ? Math.min(3600, d.elapsed) : 0,
     replay: typeof d.replay === "number" ? d.replay : 0,
     paused: d.paused === true,
-    prev: typeof p.card === "string" ? { card: p.card, performer: pid(p.performer), turn: typeof p.turn === "number" ? p.turn : 0, scores: nums(p.scores) } : null,
+    prev: typeof p.card === "string" ? { card: p.card, performer: pid(p.performer), turn: typeof p.turn === "number" ? p.turn : 0, scores: nums(p.scores), modifier: isDanceModifier(p.modifier) ? p.modifier : null } : null,
   };
 }
 
@@ -91,7 +96,7 @@ function orderOf(session: Session, participants: Participant[], r: DanceResult):
   return [...new Set([...r.order.filter((p) => known.has(p)), ...joined, ...Object.keys(session.leaderboard)])];
 }
 
-export type DanceAction = "start" | "waitPick" | "vote" | "result" | "resolveTie" | "next" | "podium" | "podiumNext" | "finish";
+export type DanceAction = "start" | "waitPick" | "perform" | "vote" | "result" | "resolveTie" | "next" | "podium" | "podiumNext" | "finish";
 
 export function dancePrimary(session: Session, content: DanceContent): DanceAction {
   const { stage } = session.state;
@@ -99,6 +104,7 @@ export function dancePrimary(session: Session, content: DanceContent): DanceActi
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
   if (stage === "ready") return "start";
   if (r.mode === "pick") return content.cards.every((c) => r.played.includes(c.id)) ? (hasPodium(session.leaderboard) ? "podium" : "finish") : "waitPick";
+  if (r.mode === "modifier") return "perform";
   if (r.mode === "perform") return "vote";
   if (r.mode === "vote") return "result";
   // Ничья в батле — сначала ведущий называет победителя.
@@ -112,20 +118,23 @@ export function dancePrimary(session: Session, content: DanceContent): DanceActi
 export function startPick(session: Session, participants: Participant[]): SessionChange {
   const r = parseDanceResult(session.state.result);
   return {
-    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, order: orderOf(session, participants, r), mode: "pick", card: null }) },
+    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, order: orderOf(session, participants, r), mode: "pick", card: null, modifier: null, elapsed: 0 }) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
 }
 
-/** Карточка выбрана (капитан или ведущий) — выступление. */
+/** Карточка выбрана (капитан или ведущий) — выступление или голосование за усложнение. */
 export function pickCard(session: Session, content: DanceContent, cardId: string, participants: Participant[]): SessionChange {
   const r = parseDanceResult(session.state.result);
   const card = cardOf(content, cardId);
   if (!card || r.played.includes(cardId) || r.mode !== "pick") return {};
   // Очередь меняется только при смене хода (иначе телефон и пульт разойдутся, чья очередь).
   const order = r.order.length > 0 ? r.order : orderOf(session, participants, r);
+  const result = write({ ...r, order, card: cardId, performer: turnPid({ ...r, order }), mode: card.kind === "special" ? "modifier" : "perform", modifier: null, elapsed: 0, replay: 0, paused: false, scores: {}, tie: [] });
   return {
-    state: { stage: "reveal", revealed: false, result: write({ ...r, order, card: cardId, performer: turnPid({ ...r, order }), mode: "perform", replay: 0, paused: false, scores: {}, tie: [] }) },
+    state: card.kind === "special"
+      ? { stage: "question", startedAt: "server", timeLimit: content.voteTime, revealed: false, answered: 0, result }
+      : { stage: "reveal", revealed: false, result },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
 }
@@ -145,15 +154,80 @@ export function pickFromAnswers(session: Session, content: DanceContent, answers
   return change.state ? change : null;
 }
 
+/** Голоса за усложнение: только команды текущей очереди и значения из белого списка. */
+export function modifierVotes(r: DanceResult, answers: Answer[], step: number): Map<DanceModifier, number> {
+  const votes = new Map<DanceModifier, number>();
+  for (const a of answers) {
+    if (a.step !== step || !r.order.includes(a.pid)) continue;
+    const modifier = rec(a.value).modifier;
+    if (!isDanceModifier(modifier)) continue;
+    votes.set(modifier, (votes.get(modifier) ?? 0) + 1);
+  }
+  return votes;
+}
+
+/** Большинство; при равенстве и без голосов — порядок DANCE_MODIFIERS, одинаковый на всех устройствах. */
+export function winningModifier(r: DanceResult, answers: Answer[], step: number): DanceModifier {
+  const votes = modifierVotes(r, answers, step);
+  let winner: DanceModifier = "hands";
+  for (const item of DANCE_MODIFIERS) if ((votes.get(item.id) ?? 0) > (votes.get(winner) ?? 0)) winner = item.id;
+  return winner;
+}
+
+export function remixDuration(card: DanceCard | null): number {
+  return card?.kind === "special" ? card.remix.reduce((sum, clip) => sum + clip.length, 0) : 0;
+}
+
+/** Прошло с начала специального выступления по серверным меткам, с учётом накопленной паузы. */
+export function performanceElapsed(session: Session, content: DanceContent, now = Date.now()): number {
+  const r = parseDanceResult(session.state.result);
+  const card = cardOf(content, r.card);
+  const total = remixDuration(card);
+  if (!card || card.kind !== "special") return 0;
+  const running = !r.paused && typeof session.state.startedAt === "number" ? Math.max(0, (now - session.state.startedAt) / 1000) : 0;
+  return Math.max(0, Math.min(total, r.elapsed + running));
+}
+
+/** Текущий участок и смещение внутри него — для синхронной смены и открытия экрана посреди ремикса. */
+export function remixAt(card: DanceCard | null, elapsed: number): { clip: DanceCard["remix"][number]; index: number; offset: number } | null {
+  if (!card || card.kind !== "special" || card.remix.length === 0) return null;
+  const at = Number.isFinite(elapsed) ? Math.max(0, elapsed) : 0;
+  let start = 0;
+  for (let index = 0; index < card.remix.length; index += 1) {
+    const clip = card.remix[index]!;
+    if (at < start + clip.length || index === card.remix.length - 1) return { clip, index, offset: Math.max(0, Math.min(clip.length, at - start)) };
+    start += clip.length;
+  }
+  return null;
+}
+
+/** Завершить голосование за усложнение и начать ремикс. */
+export function startPerformance(session: Session, content: DanceContent, answers: Answer[]): SessionChange {
+  const r = parseDanceResult(session.state.result);
+  const card = cardOf(content, r.card);
+  if (!card || card.kind !== "special" || r.mode !== "modifier") return {};
+  const modifier = winningModifier(r, answers, session.state.step);
+  return {
+    state: {
+      stage: "reveal",
+      startedAt: "server",
+      timeLimit: remixDuration(card),
+      revealed: false,
+      answered: 0,
+      result: write({ ...r, mode: "perform", modifier, elapsed: 0, replay: 0, paused: false }),
+    },
+  };
+}
+
 export function startVote(session: Session, content: DanceContent): SessionChange {
   const r = parseDanceResult(session.state.result);
   return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: content.voteTime, revealed: false, answered: 0, result: write({ ...r, mode: "vote", paused: true }) } };
 }
 
-/** Кто может голосовать: все команды, кроме выступающей (в батле — кроме своей при голосе). */
+/** Кто может голосовать в финале: все команды, кроме выступающей (в батле — кроме своей при голосе). */
 export function canVote(r: DanceResult, card: DanceCard | null, voter: string): boolean {
   if (!card || !r.order.includes(voter)) return false;
-  return card.kind === "battle" || voter !== r.performer;
+  return isTeamBattle(card) || voter !== r.performer;
 }
 
 /** Голоса батла: команда → число голосов. */
@@ -171,19 +245,19 @@ export function battleVotes(r: DanceResult, answers: Answer[], step: number): Ma
 /** Ничья в батле: лидеры с равным числом голосов (больше одного) — решает ведущий. */
 export function battleTie(content: DanceContent, r: DanceResult, answers: Answer[], step: number): string[] {
   const card = cardOf(content, r.card);
-  if (!card || card.kind !== "battle") return [];
+  if (!isTeamBattle(card)) return [];
   const votes = battleVotes(r, answers, step);
   const max = Math.max(0, ...votes.values());
   const top = [...votes.entries()].filter(([, n]) => n === max && max > 0).map(([t]) => t);
   return top.length > 1 ? top : [];
 }
 
-/** Очки по голосам: танец и караоке — среднее оценок выступающей команде; батл — победителю (ничья — решает ведущий). */
+/** Очки по голосам: танец и караоке — среднее; обычный и специальный батл — победителю. */
 export function tally(content: DanceContent, r: DanceResult, answers: Answer[], step: number): Record<string, number> {
   const card = cardOf(content, r.card);
   if (!card) return {};
   const own = answers.filter((a) => a.step === step && canVote(r, card, a.pid));
-  if (card.kind === "battle") {
+  if (isTeamBattle(card)) {
     const votes = battleVotes(r, own, step);
     const max = Math.max(0, ...votes.values());
     const winners = [...votes.entries()].filter(([, n]) => n === max && max > 0).map(([t]) => t);
@@ -226,13 +300,28 @@ export function nextTurn(session: Session, participants: Participant[] = []): Se
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...r, order, played: [...r.played, r.card], prev: { card: r.card, performer: r.performer, turn: r.turn, scores: r.scores }, card: null, performer: null, mode: "pick", scores: {}, tie: [], turn, replay: 0, paused: false }),
+      result: write({ ...r, order, played: [...r.played, r.card], prev: { card: r.card, performer: r.performer, turn: r.turn, scores: r.scores, modifier: r.modifier }, card: null, performer: null, mode: "pick", scores: {}, tie: [], turn, modifier: null, elapsed: 0, replay: 0, paused: false }),
     },
   };
 }
 
-export function control(session: Session, patch: { replay?: true; paused?: boolean }): SessionChange {
+/** Пауза/продолжение/повтор. Для специального раунда время вычисляется по серверным меткам. */
+export function control(session: Session, patch: { replay?: true; paused?: boolean }, content: DanceContent, now = Date.now()): SessionChange {
   const r = parseDanceResult(session.state.result);
+  const card = cardOf(content, r.card);
+  if (card?.kind === "special" && r.mode === "perform") {
+    const total = remixDuration(card);
+    if (patch.replay) {
+      return { state: { startedAt: "server", timeLimit: total, result: write({ ...r, replay: r.replay + 1, paused: false, elapsed: 0 }) } };
+    }
+    if (patch.paused === true && !r.paused) {
+      const elapsed = performanceElapsed(session, content, now);
+      return { state: { startedAt: null, timeLimit: null, result: write({ ...r, paused: true, elapsed }) } };
+    }
+    if (patch.paused === false && r.paused) {
+      return { state: { startedAt: "server", timeLimit: Math.max(0, total - r.elapsed), result: write({ ...r, paused: false }) } };
+    }
+  }
   return { state: { result: write({ ...r, replay: patch.replay ? r.replay + 1 : r.replay, paused: patch.paused ?? (patch.replay ? false : r.paused) }) } };
 }
 
@@ -241,13 +330,17 @@ export interface DanceBack {
   clear?: number[];
 }
 
-export function danceBack(session: Session): DanceBack | null {
+export function danceBack(session: Session, content?: DanceContent): DanceBack | null {
   const { stage, step } = session.state;
   const r = parseDanceResult(session.state.result);
   if (stage === "podium") return { change: podiumBack(session) };
   if (stage === "ready") return null;
-  if (r.mode === "perform") return { change: { state: { stage: "question", startedAt: "server", result: write({ ...r, mode: "pick", card: null, performer: null }) } }, clear: [step] };
-  if (r.mode === "vote") return { change: { state: { step: step - 1, stage: "reveal", startedAt: null, timeLimit: null, result: write({ ...r, mode: "perform", paused: false }) } }, clear: [step] };
+  if (r.mode === "modifier" || r.mode === "perform") return { change: { state: { stage: "question", startedAt: "server", timeLimit: null, result: write({ ...r, mode: "pick", card: null, performer: null, modifier: null, elapsed: 0, paused: false }) } }, clear: [step] };
+  if (r.mode === "vote") {
+    const card = content ? cardOf(content, r.card) : null;
+    const special = card?.kind === "special";
+    return { change: { state: { step: step - 1, stage: "reveal", startedAt: special ? "server" : null, timeLimit: special ? remixDuration(card) : null, result: write({ ...r, mode: "perform", paused: false, elapsed: 0 }) } }, clear: [step] };
+  }
   if (r.mode === "result") {
     const minus = Object.fromEntries(Object.entries(r.scores).map(([p, n]) => [p, -n]));
     // Итог прошлого выступления, открытый «Назад» с выбора: время голосования уже не вернуть — голосование
@@ -262,7 +355,7 @@ export function danceBack(session: Session): DanceBack | null {
   const prev = r.prev;
   return {
     change: {
-      state: { step: step - 1, stage: "reveal", revealed: true, startedAt: null, timeLimit: null, result: write({ ...r, played: r.played.filter((c) => c !== prev.card), card: prev.card, performer: prev.performer, turn: prev.turn, scores: prev.scores, mode: "result", prev: null }) },
+      state: { step: step - 1, stage: "reveal", revealed: true, startedAt: null, timeLimit: null, result: write({ ...r, played: r.played.filter((c) => c !== prev.card), card: prev.card, performer: prev.performer, turn: prev.turn, scores: prev.scores, mode: "result", modifier: prev.modifier, elapsed: 0, prev: null }) },
     },
     clear: [step],
   };

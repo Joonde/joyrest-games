@@ -6,7 +6,7 @@ import { leaderboardAdditions, scoringParticipants } from "../../core/leaderboar
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { fillTemplate, SECTION_HINTS, SECTION_TITLES, type StoryContent } from "./content";
-import { authorOf, kindOf, nextPart, withEnding, withLies, nextStory, parseStoryResult, peopleOf, personName, revealAuthor, startGuessing, startWriting, storyBack, storyPrimary, teamOfPhone, toggleHidden, withWords, writtenStories } from "./logic";
+import { authorOfStory, kindOf, nextPart, withEnding, withLies, nextStory, parseStoryResult, peopleOf, personName, revealAuthor, startGuessing, startWriting, storyBack, storyPrimary, teamOfPhone, toggleHidden, withWords, writtenStories } from "./logic";
 import { endingNext, endingReveal, endingStart, endingVote, endingWrite, fakeOf, writtenEndings } from "./ending";
 import { liesNext, liesReveal, liesStart, liesWrite, writtenFacts } from "./lies";
 import { finishRating, newSentence, showSentence, spinWheel, startRating, tallyStars, wordOf, wordsIntro } from "./words";
@@ -97,7 +97,7 @@ export function StoryHostControls({ session, content, answers, participants, con
   const all = writtenStories(source, { ...r, hidden: [] });
   const shown = all.filter((s) => !r.hidden.includes(s.id));
   const story = r.stories[r.current];
-  const author = story ? authorOf(story.text, all) : null;
+  const author = story ? authorOfStory(story, all) : null;
   const votes = answers.filter((a) => a.step === step && a.pid !== author).length;
 
   function nextSession(): Promise<void> {

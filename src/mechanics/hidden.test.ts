@@ -23,9 +23,9 @@ describe("игры в игровой комнате без своего серв
     expect(firebase.some((m) => m.id === "evening")).toBe(false);
     expect(firebase.some((m) => m.id === "quiz")).toBe(true);
     expect(demoGamesNow(false).some((d) => d.mechanic === "bublikator")).toBe(false);
-    expect(demoGamesNow(false).length).toBe(demoGames.filter((d) => d.mechanic !== "bublikator").length);
+    expect(demoGamesNow(false).length).toBe(demoGames.filter((d) => getMechanic(d.mechanic)?.room !== true).length);
     // Игры в комнате — только с флагом `room` (сейчас одна).
-    expect(selectableMechanics.filter((m) => getMechanic(m.id)?.room).map((m) => m.id)).toEqual(["bublikator"]);
+    expect(selectableMechanics.filter((m) => getMechanic(m.id)?.room).map((m) => m.id)).toEqual(["bublikator", "matryoshka"]);
   });
   it("уже добавленный «Бубликатор» без комнат не запускается: карточка и запуск — «только на своём сервере» (проверка 2d, №5)", () => {
     expect(launchBlocked("bublikator", false)).toBe("Эта игра работает только на своём сервере JoyRest");
@@ -33,7 +33,7 @@ describe("игры в игровой комнате без своего серв
     expect(launchBlocked("quiz", false)).toBeNull();
     expect(launchBlocked(null, false)).toBeNull();
     // Остальные игры без комнат запускаются как раньше.
-    expect(selectableMechanics.filter((m) => launchBlocked(m.id, false) !== null).map((m) => m.id)).toEqual(["bublikator"]);
+    expect(selectableMechanics.filter((m) => launchBlocked(m.id, false) !== null).map((m) => m.id)).toEqual(["bublikator", "matryoshka"]);
   });
 });
 

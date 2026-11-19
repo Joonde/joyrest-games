@@ -1,7 +1,7 @@
 import type { PreviewDriver } from "../preview";
 import { scoringIds } from "../preview";
-import type { DanceContent } from "./content";
-import { cardOf, dancePrimary, nextTurn, parseDanceResult, pickFromAnswers, resolveTie, showResult, startPick, startVote, turnPid } from "./logic";
+import { DANCE_MODIFIERS, isTeamBattle, type DanceContent } from "./content";
+import { cardOf, dancePrimary, nextTurn, parseDanceResult, pickFromAnswers, resolveTie, showResult, startPerformance, startPick, startVote, turnPid } from "./logic";
 
 export const dancePreview: PreviewDriver<DanceContent> = ({ session, content, participants, answers }) => {
   const teams = scoringIds(participants);
@@ -16,12 +16,15 @@ export const dancePreview: PreviewDriver<DanceContent> = ({ session, content, pa
       if (answers.length === 0) return { label: "Капитан выбирает карточку", answers: [{ pid: who, value: { card: card.id } }] };
       return { label: "Выступление: на экране видео или трек", change: pickFromAnswers(session, content, answers, participants) };
     }
+    case "perform":
+      if (answers.length === 0) return { label: "Капитаны выбирают усложнение", answers: teams.map((pid, index) => ({ pid, value: { modifier: DANCE_MODIFIERS[index % DANCE_MODIFIERS.length]?.id ?? "hands" } })) };
+      return { label: "Пульт: начать специальный батл", change: startPerformance(session, content, answers) };
     case "vote":
       return { label: "Пульт: «Оценивать выступление»", change: startVote(session, content) };
     case "result": {
       const card = cardOf(content, r.card);
       if (answers.length === 0 && card) {
-        if (card.kind === "battle") {
+        if (isTeamBattle(card)) {
           return { label: "Капитаны голосуют, кто победил", answers: teams.map((pid, i) => ({ pid, value: { team: i === 1 ? (teams.at(0) ?? pid) : (teams.at(1) ?? pid) } })) };
         }
         const span = content.maxRate - content.minRate;

@@ -4,7 +4,7 @@
 import { leaderboardAdditions } from "../../core/leaderboard";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
-import { ROLES, type MafiaContent, type RoleCounts, type RoleId, type Winner } from "./content";
+import { MAFIA_LIMITS, ROLES, type MafiaContent, type RoleCounts, type RoleId, type Winner } from "./content";
 
 export type MafiaMode = "deal" | "roles" | "meet" | "day" | "vote" | "verdict" | "night" | "morning" | "over";
 
@@ -33,6 +33,8 @@ export interface MafiaResult {
   hostSeal: string | null;
   /** Ночные подсказки — у всех живых одинаковой длины, чтобы никого не выдать. */
   whisper: Record<string, string>;
+  /** Первая цель проверки Комиссара/Дона за ночь — зашифрована ключом соответствующего телефона. */
+  checkLocks: Record<string, string>;
   /** Шаги прошлых ночей с действиями: по ним пульт знает историю Доктора и Красотки. */
   nights: number[];
   /** Сколько живых уже нажали ночью или проголосовали (для экрана; без имён). */
@@ -94,6 +96,7 @@ export function emptyResult(): MafiaResult {
     sealed: {},
     hostSeal: null,
     whisper: {},
+    checkLocks: {},
     nights: [],
     done: 0,
     killed: [],
@@ -135,6 +138,7 @@ export function parseMafiaResult(raw: unknown): MafiaResult {
     sealed: stringMap(d.sealed),
     hostSeal: typeof d.hostSeal === "string" ? d.hostSeal : null,
     whisper: stringMap(d.whisper),
+    checkLocks: stringMap(d.checkLocks),
     nights: Array.isArray(d.nights) ? d.nights.filter((n): n is number => typeof n === "number") : [],
     done: typeof d.done === "number" ? d.done : 0,
     // Старые сохранённые партии хранили одну жертву строкой — превращаем её в список.
@@ -177,7 +181,7 @@ export function seatsOf(session: Session, participants: Participant[]): string[]
   const players = participants.filter((p) => p.kind === "player");
   const joined = new Map(players.map((p) => [p.id, p.joinedAt ?? 0]));
   const ids = new Set([...Object.keys(session.leaderboard), ...players.map((p) => p.id)]);
-  return [...ids].sort((a, b) => (joined.get(a) ?? Number.MAX_SAFE_INTEGER) - (joined.get(b) ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b));
+  return [...ids].sort((a, b) => (joined.get(a) ?? Number.MAX_SAFE_INTEGER) - (joined.get(b) ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b)).slice(0, MAFIA_LIMITS.maxPlayers);
 }
 
 /** Случайная раздача ролей. `random` — 0..1 (в тестах — свой). */
@@ -681,15 +685,15 @@ export function startNight(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: { ...r, mode: "night", changeable: true, nights: [...r.nights, step], whisper: {}, done: 0, killed: [], out: null, tally: null, nominees: [], speaker: null, speakEndsAt: null, speakKind: null, undo: snapshot(session, r) },
+      result: { ...r, mode: "night", changeable: true, nights: [...r.nights, step], whisper: {}, checkLocks: {}, done: 0, killed: [], out: null, tally: null, nominees: [], speaker: null, speakEndsAt: null, speakKind: null, undo: snapshot(session, r) },
     },
   };
 }
 
 /** Ночные подсказки и счётчик нажатий (пишет пульт по мере ответов). */
-export function nightSync(session: Session, whisper: Record<string, string>, done: number): SessionChange {
+export function nightSync(session: Session, whisper: Record<string, string>, done: number, checkLocks?: Record<string, string>): SessionChange {
   const r = parseMafiaResult(session.state.result);
-  return { state: { result: { ...r, whisper, done } } };
+  return { state: { result: { ...r, whisper, done, checkLocks: checkLocks ?? r.checkLocks } } };
 }
 
 /** «Наступает утро»: все жертвы ночи (или тихая ночь), проверка победы трёх сторон. */

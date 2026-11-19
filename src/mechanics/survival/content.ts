@@ -18,8 +18,10 @@ export interface SurvivalRound {
   /** Варианты (вопрос с вариантами и вопрос войнушки). */
   options: string[];
   correct: number;
-  /** Ответ для открытого вопроса (через «|» — несколько верных) или подсказка ведущему к заданию. */
+  /** Ответ для открытого вопроса (через «|» — несколько верных), слова задания или личное слово от сервера. */
   answer: string;
+  /** У задания есть тайные слова; позволяет не отправлять их экрану и другим участникам. */
+  hasWords?: boolean;
   points: number;
   /** Время на ответ, секунд (задание — без таймера). */
   seconds: number;
@@ -95,6 +97,7 @@ export function parseSurvival(raw: unknown): SurvivalContent {
       options: Array.from({ length: 4 }, (_, k) => str(Array.isArray(r.options) ? r.options[k] : "", SURVIVAL_LIMITS.option)),
       correct: int(r.correct, -1, -1, 3),
       answer: str(r.answer, SURVIVAL_LIMITS.answer),
+      hasWords: kind === "task" && (r.hasWords === true || taskWords({ kind, answer: str(r.answer, SURVIVAL_LIMITS.answer) }).length > 0),
       points: int(r.points, 100, 0, SURVIVAL_LIMITS.maxPoints),
       seconds: int(r.seconds, kind === "task" ? 0 : 30, 0, SURVIVAL_LIMITS.maxSeconds),
     };
@@ -139,6 +142,11 @@ export function taskWords(round: Pick<SurvivalRound, "kind" | "answer">): string
     .split("|")
     .map((w) => w.trim())
     .filter(Boolean);
+}
+
+/** Есть ли в задании тайные слова, включая персональный снимок без чужих слов. */
+export function hasTaskWords(round: Pick<SurvivalRound, "kind" | "answer" | "hasWords">): boolean {
+  return round.kind === "task" && (round.hasWords === true || taskWords(round).length > 0);
 }
 
 /** Тайное слово команды в задании (null — слов нет или команды нет в очереди). */

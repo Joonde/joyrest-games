@@ -23,6 +23,7 @@ import {
   parseMafiaResult,
   resolveNight,
   roleCard,
+  seatsOf,
   startDay,
   startMeet,
   startDeal,
@@ -341,5 +342,14 @@ describe("мафия: история лечения (QA 23 октября 2026)"
     expect(canHeal("d", "e", history)).toBe(true);
     // Себя — один раз: второй раз не считается, но и не мешает лечить другого.
     expect(healHistory("d", [{ d: "d" }, { d: "e" }, { d: "d" }, { d: "f" }])).toEqual(["d", "e", null, "f"]);
+  });
+});
+
+
+describe("мафия: лимит игроков", () => {
+  it("собирает не больше 30 мест даже при 31+ участниках", () => {
+    const many = Array.from({ length: 35 }, (_, i) => ({ id: `p${i}`, name: `Игрок ${i}`, kind: "player" as const, teamId: null, captainUid: `p${i}`, joinedAt: i + 1 }));
+    expect(seatsOf(session(), many)).toHaveLength(30);
+    expect(seatsOf(session(), many).slice(-1)).toEqual(["p29"]);
   });
 });

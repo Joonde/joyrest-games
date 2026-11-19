@@ -1,0 +1,7 @@
+.matpv-tools { display: flex; flex-direction: column; gap: 8px; }
+.matpv-tools .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.matpv-tools .seg__btn { min-height: 44px; min-width: 0; white-space: normal; }
+.matpv-host { width: min(100%, 520px); margin: 0 auto; }
+.matpv-phone { padding: 0; height: min(70dvh, 760px); max-height: none; }
+.matpv-phone .mtp { min-height: 100%; }
+.matpv-screen > .mts { position: absolute; }

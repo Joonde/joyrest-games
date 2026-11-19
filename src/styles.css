@@ -3016,11 +3016,78 @@ kbd {
   right: max(16px, var(--safe-right));
   z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
   max-width: calc(100vw - 32px);
   gap: 8px;
   transition: opacity 0.3s ease;
+}
+
+.screen-controls__panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.screen-controls__toggle {
+  display: none;
+}
+
+/* На светлых самостоятельных сценах прозрачная вторичная кнопка теряла и текст, и фон. */
+.screen-controls .btn--secondary,
+.screen-controls .screen-bed {
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(10px);
+}
+
+/* Узкое окно предпросмотра: компактная кнопка вместо четырёх плашек поверх игровой шапки. */
+@media (max-width: 700px) {
+  .screen-controls {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .screen-controls__toggle {
+    display: inline-flex;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(280px, calc(100vw - 32px));
+    padding: 8px;
+    border: 1px solid var(--color-highlight);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-bg) 96%, transparent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .screen-controls.is-open .screen-controls__panel {
+    display: flex;
+  }
+
+  .screen-controls__panel .btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel .screen-bed {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel .screen-bed input[type="range"] {
+    width: 100%;
+    min-height: 24px;
+  }
 }
 
 /* Самостоятельная игра («Олимп») на телефоне: свой экран во всю высоту. */
@@ -7943,10 +8010,14 @@ ul.chips {
   padding-inline: 0.4cqw;
 }
 
-/* ТЗ 18 ноября 2026 (`docs/lotto-5x5-phone-spec.md`): на 5×5 позволяем адаптивному --fit уменьшить
-   длинные названия до 10 px. Короткие остаются крупными; 3×3 и 4×4 сохраняют общий минимум 12 px. */
+/* ТЗ 18 ноября 2026, уточнение после браузерной приёмки 19 ноября (`docs/lotto-5x5-phone-spec.md`):
+   минимум 12 px, а клетка растёт по высоте вместо обрезания длинного названия после четвёртой строки. */
 .lotto-ticket--s5 .lotto-card__title {
-  font-size: max(10px, calc(var(--lotto-title-size) * var(--fit, 1)));
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  font-size: max(12px, calc(var(--lotto-title-size) * var(--fit, 1)));
   line-height: 1.05;
 }
 
@@ -27143,5 +27214,179 @@ a.finale-step__aside {
   .hardware-companion__pair input {
     width: 100%;
     min-width: 0;
+  }
+}
+
+
+/* «Танцуй иначе»: выбор усложнения и специальный музыкальный раунд. */
+.dance-card--special,
+.db-card--special {
+  background-image: url("/dance/art/web/card-battle.webp");
+  --db-tag: #efb0ce;
+}
+
+.db-video__art--special {
+  --db-art: url("/dance/art/web/card-battle.webp");
+}
+
+.db-modifier {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(2.4 * var(--u));
+}
+
+.db-modifiers {
+  width: min(100%, calc(110 * var(--u)));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(1.6 * var(--u));
+}
+
+.db-modifier-card {
+  min-height: calc(22 * var(--u));
+  padding: calc(2 * var(--u));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(0.8 * var(--u));
+  border: 1px solid color-mix(in srgb, var(--db-gold) 42%, transparent);
+  border-radius: calc(1.4 * var(--u));
+  background: rgba(20, 15, 23, 0.76);
+}
+
+.db-modifier-card__n {
+  color: var(--db-gold);
+  font-size: calc(1.2 * var(--u));
+  letter-spacing: 0.12em;
+}
+
+.db-modifier-card b {
+  color: var(--db-gold-hi);
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: calc(2.8 * var(--u));
+  line-height: 1.05;
+}
+
+.db-modifier-card > span:last-child {
+  color: var(--db-soft);
+  font-size: calc(1.25 * var(--u));
+  line-height: 1.35;
+}
+
+.db-remix {
+  position: absolute;
+  z-index: 2;
+  top: calc(1.2 * var(--u));
+  right: calc(1.2 * var(--u));
+  left: calc(26 * var(--u));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(0.7 * var(--u));
+}
+
+.db-remix__segment {
+  padding: calc(0.8 * var(--u));
+  border: 1px solid rgba(227, 198, 140, 0.2);
+  border-radius: calc(0.8 * var(--u));
+  color: var(--db-soft);
+  background: rgba(13, 11, 16, 0.75);
+  font-size: calc(1.1 * var(--u));
+  text-align: center;
+}
+
+.db-remix__segment b {
+  color: var(--db-gold);
+}
+
+.db-remix__segment.is-current {
+  border-color: var(--db-gold);
+  color: var(--db-gold-hi);
+  box-shadow: 0 0 calc(2 * var(--u)) rgba(227, 198, 140, 0.14);
+}
+
+.db-remix__segment.is-past {
+  opacity: 0.55;
+}
+
+.db-remix__timer {
+  color: var(--db-gold-hi);
+  font-size: calc(1.6 * var(--u));
+  font-weight: 700;
+  text-align: center;
+}
+
+.db-modifier-phone {
+  display: grid;
+  gap: 10px;
+}
+
+.db-modifier-phone__item {
+  overflow: hidden;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.18));
+  border-radius: 15px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.05));
+}
+
+.db-modifier-phone__item.is-on {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 2px var(--color-highlight);
+}
+
+.db-modifier-phone__pick,
+.db-modifier-phone__item > b,
+.db-modifier-phone__item > span {
+  display: block;
+}
+
+.db-modifier-phone__pick {
+  width: 100%;
+  min-height: 68px;
+  padding: 13px 15px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.db-modifier-phone__item > b,
+.db-modifier-phone__item > span {
+  margin: 0 15px;
+}
+
+.db-modifier-phone__item > b {
+  margin-top: 13px;
+}
+
+.db-modifier-phone__item > span {
+  margin-top: 4px;
+  margin-bottom: 13px;
+}
+
+.db-modifier-phone__item b {
+  font-size: 16px;
+}
+
+.db-modifier-phone__item span {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.db-modifier-phone__pick:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: -3px;
+}
+
+.db-modifier-phone > .btn {
+  margin-top: 4px;
+}
+
+@media (max-width: 700px) {
+  .db-modifiers {
+    grid-template-columns: 1fr;
   }
 }

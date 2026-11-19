@@ -41,6 +41,7 @@ import { SoundPad } from "../components/live/SoundPad";
 import { AddTimeButton } from "../components/live/AddTimeButton";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { useServerNow } from "../components/live/useServerNow";
+import { HardwarePanel } from "../components/live/HardwarePanel";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
 import { joinSlide, thanksSlide } from "../core/slides";
@@ -555,6 +556,7 @@ function Console({ session }: { session: Session }) {
         {tab === "music" && <MusicPanel session={session} onApply={apply} />}
         {tab === "slides" && <SlidesPanel session={session} onApply={apply} />}
         {tab === "people" && <PeopleCard session={session} participants={participants} phones={phones} onToast={showToast} />}
+        {tab === "hardware" && <HardwarePanel session={session} onToast={showToast} />}
         {(error ?? dataError) && (
           <p className="error" role="alert">
             {error ?? dataError}
@@ -729,7 +731,7 @@ function LobbyNames({ session, onMore }: { session: Session; onMore: () => void 
   );
 }
 
-type PultTab = "game" | "sounds" | "music" | "slides" | "people";
+type PultTab = "game" | "sounds" | "music" | "slides" | "people" | "hardware";
 
 const PULT_TABS: Array<{ id: PultTab; label: string; icon: IconName; screenOnly?: boolean }> = [
   { id: "game", label: "Игра", icon: "game" },
@@ -737,6 +739,7 @@ const PULT_TABS: Array<{ id: PultTab; label: string; icon: IconName; screenOnly?
   { id: "music", label: "Музыка", icon: "music", screenOnly: true },
   { id: "slides", label: "Слайды", icon: "slides", screenOnly: true },
   { id: "people", label: "Гости", icon: "people" },
+  { id: "hardware", label: "Кнопки", icon: "game" },
 ];
 
 /**

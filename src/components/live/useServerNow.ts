@@ -7,6 +7,12 @@ import { clock } from "../../data";
  * закрывает приём ответов. Телефоны гостей не тратят на это запись и чтение: их часы и так
  * сверены с интернетом, а лишняя секунда на телефоне ничего не решает.
  */
+export function serverNowForRender(enabled: boolean, sampledNow: number, currentNow: number): number {
+  // Таймер только запускает следующий рендер. На первом кадре после enabled=false → true сохранённое
+  // sampledNow могло быть записано при открытии страницы: например, пульт лото тогда показывал лишние минуты.
+  return enabled ? currentNow : sampledNow;
+}
+
 export function useServerNow(tickMs = 250, enabled = true): number {
   const [now, setNow] = useState(() => Date.now() + clock.offset());
 
@@ -16,5 +22,5 @@ export function useServerNow(tickMs = 250, enabled = true): number {
     return () => window.clearInterval(timer);
   }, [tickMs, enabled]);
 
-  return now;
+  return serverNowForRender(enabled, now, Date.now() + clock.offset());
 }

@@ -55,7 +55,24 @@ const FADE_IN_LABELS: Record<number, string> = { 0: "Сразу громко", 2
 const FADE_OUT_LABELS: Record<number, string> = { 0: "Обрыв", 3: "Затухание 3 с", 6: "Затухание 6 с" };
 const JOIN_LABELS: Record<ClipJoin, string> = { cut: "Сразу", cross: "Склейка", sting: "Отбивка" };
 
-type Handle = "start" | "end" | "chorusStart" | "chorusEnd";
+export type Handle = "start" | "end" | "chorusStart" | "chorusEnd";
+
+const END_PREVIEW_SECONDS = 2;
+
+/** Позиция, к которой надо перемотать звук при движении этого края таймлайна. */
+export function playbackPoint(clip: Clip, which: Handle): number {
+  if (which === "start") return clip.start;
+  if (which === "chorusStart") return clip.chorusStart ?? 0;
+  // На самой конечной границе ontimeupdate сразу остановит звук: даём короткое прослушивание хвоста.
+  const start = which === "end" ? clip.start : (clip.chorusStart ?? 0);
+  const length = which === "end" ? clip.length : clip.chorusLength;
+  return Math.max(start, start + length - END_PREVIEW_SECONDS);
+}
+
+/** Что сделать со звуком при движении таймлайна: запустить с места или лишь перемотать играющий фрагмент. */
+export function dragPlaybackAction(listening: "guess" | "chorus" | null): "play" | "seek" {
+  return listening === null ? "play" : "seek";
+}
 
 /**
  * `answer` — «Музыка на ответ»: один отрывок, который играет на показе верного ответа (без угадывания, припева и конфетти).
@@ -68,6 +85,7 @@ export function TrackTimeline({ clip, onChange, disabled, answer = false }: { cl
   const wave = useRef<HTMLDivElement>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const stopAt = useRef(0);
+  const pendingSeek = useRef<number | null>(null);
   const latest = useRef(clip);
   latest.current = clip;
 
@@ -109,13 +127,38 @@ export function TrackTimeline({ clip, onChange, disabled, answer = false }: { cl
   function onPointerMove(event: ReactPointerEvent) {
     if (!drag) return;
     const sec = secondsAt(event.clientX);
-    onChange(moveHandle(latest.current, drag, sec, knownDuration));
+    const next = moveHandle(latest.current, drag, sec, knownDuration);
+    onChange(next);
+
+    // При движении края звук всегда переходит к новой позиции. Если фрагмент был остановлен,
+    // запускаем его сразу с этого места; если уже играл — просто перематываем.
+    const el = audio.current;
+    if (!el) return;
+    const section = drag === "start" || drag === "end" ? "guess" : "chorus";
+    const action = dragPlaybackAction(listening);
+    if (listening !== section) setListening(section);
+    stopAt.current = section === "guess" ? next.start + next.length : (next.chorusStart ?? 0) + next.chorusLength;
+    pendingSeek.current = playbackPoint(next, drag);
+    if (action === "play") el.src = `${tracksRepo?.fileUrl(next.trackId ?? "")}#t=${pendingSeek.current}`;
+    const seek = () => {
+      if (pendingSeek.current === null) return;
+      try {
+        el.currentTime = pendingSeek.current;
+        pendingSeek.current = null;
+      } catch {
+        // Браузер пока не готов искать по файлу — повторим по loadedmetadata следующего события.
+      }
+    };
+    if (el.readyState > 0) seek();
+    else el.addEventListener("loadedmetadata", seek, { once: true });
+    if (action === "play") void el.play().catch(() => setListening(null));
   }
 
   /** Прослушать участок: играет прямо по касанию (iPhone), конец — по таймеру позиции. */
   function listen(which: "guess" | "chorus") {
     if (!tracksRepo || !clip.trackId) return;
     const el = (audio.current ??= new Audio());
+    pendingSeek.current = null;
     if (listening === which) {
       el.pause();
       setListening(null);
@@ -124,8 +167,9 @@ export function TrackTimeline({ clip, onChange, disabled, answer = false }: { cl
     const from = which === "guess" ? clip.start : (clip.chorusStart ?? 0);
     const to = which === "guess" ? guessEnd : chorusEnd;
     stopAt.current = to;
-    // Фрагмент медиа-адреса «#t=начало,конец» — браузер сам начнёт с нужной секунды.
-    el.src = `${tracksRepo.fileUrl(clip.trackId)}#t=${from},${to}`;
+    // Начало в медиа-адресе позволяет стартовать сразу по касанию; конец задаёт только stopAt,
+    // чтобы после движения конечного ползунка браузер не останавливал звук на старой границе.
+    el.src = `${tracksRepo.fileUrl(clip.trackId)}#t=${from}`;
     el.ontimeupdate = () => {
       if (el.currentTime >= stopAt.current) {
         el.pause();

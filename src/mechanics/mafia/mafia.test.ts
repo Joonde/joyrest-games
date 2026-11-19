@@ -63,13 +63,16 @@ const players: Participant[] = ids.map((id, i) => ({ id, name: `Игрок ${id}
 const ans = (step: number, pid: string, value: unknown): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt: 10 });
 
 describe("мафия: роли", () => {
-  it("число ролей по числу игроков", () => {
-    expect(autoCounts(6)).toEqual({ mafia: 1, don: 0, commissar: 1, doctor: 0 });
-    expect(autoCounts(8)).toEqual({ mafia: 1, don: 1, commissar: 1, doctor: 1 });
-    expect(autoCounts(12)).toEqual({ mafia: 2, don: 1, commissar: 1, doctor: 1 });
-    expect(autoCounts(20)).toEqual({ mafia: 4, don: 1, commissar: 1, doctor: 1 });
-    const custom = countsFor({ ...createMafia(), roles: "custom", counts: { mafia: 9, don: 1, commissar: 1, doctor: 1 } }, 8);
-    expect(custom.mafia + custom.don).toBeLessThan(4);
+  it("число ролей по числу игроков, включая новые роли в общем лимите семьи", () => {
+    expect(autoCounts(6)).toEqual({ mafia: 1, don: 0, advocate: 0, commissar: 1, doctor: 0, courtesan: 0, maniac: 0 });
+    expect(autoCounts(8)).toEqual({ mafia: 1, don: 1, advocate: 0, commissar: 1, doctor: 1, courtesan: 0, maniac: 0 });
+    expect(autoCounts(12)).toEqual({ mafia: 2, don: 1, advocate: 0, commissar: 1, doctor: 1, courtesan: 1, maniac: 1 });
+    expect(autoCounts(20)).toEqual({ mafia: 3, don: 1, advocate: 1, commissar: 1, doctor: 1, courtesan: 1, maniac: 1 });
+    const custom = countsFor(
+      { ...createMafia(), roles: "custom", counts: { mafia: 9, don: 1, advocate: 1, commissar: 1, doctor: 1, courtesan: 1, maniac: 1 } },
+      8,
+    );
+    expect(custom.mafia + custom.don + custom.advocate).toBeLessThan(4);
   });
 
   it("раздача: все роли ровно один раз, остальные мирные", () => {
@@ -135,6 +138,23 @@ describe("мафия: ночь", () => {
     expect(resolveNight(roles, ids, { a: "e" }, [], "f").donCheck).toEqual({ target: "f", yes: false });
     // Тот же пациент вторую ночь — лечение не действует.
     expect(resolveNight(roles, ids, { a: "e", b: "e", d: "e" }, ["e"]).victim).toBe("e");
+  });
+
+  it("Красотка блокирует семью, Адвокат скрывает от Комиссара, Маньяк добавляет вторую жертву", () => {
+    const extended: Record<string, RoleId> = { a: "advocate", b: "mafia", c: "commissar", d: "doctor", e: "courtesan", f: "maniac", g: "civilian", h: "civilian" };
+    const blocked = resolveNight(extended, ids, { a: "g", b: "g", e: "b", f: "h", c: "a" }, [], null, "a");
+    expect(blocked).toMatchObject({
+      familyBlocked: true,
+      mafiaTarget: null,
+      maniacTarget: "h",
+      victims: ["h"],
+      advocateProtect: "a",
+      comCheck: { target: "a", yes: false },
+    });
+    const two = resolveNight(extended, ids, { a: "g", b: "g", f: "h" }, []);
+    expect(two.victims).toEqual(["g", "h"]);
+    expect(winnerOf(extended, ["f", "g"])).toBe("maniac");
+    expect(winnerOf(extended, ["a", "f", "g", "h"])).toBeNull();
   });
 
   it("победа: мафии нет — город, мафии не меньше остальных — мафия", () => {
@@ -256,7 +276,7 @@ describe("мафия: ход партии на пульте", () => {
     const outcome = resolveNight(roles, r.alive, { a: "c", b: "c" }, []);
     s = applyChange(s, morning(s, content, outcome, roles), 12);
     r = parseMafiaResult(s.state.result);
-    expect(r.killed).toBe("c");
+    expect(r.killed).toEqual(["c"]);
     expect(r.nights).toEqual([3]);
     expect(mafiaPrimary(s)).toBe("day");
     s = applyChange(s, startDay(s), 13);

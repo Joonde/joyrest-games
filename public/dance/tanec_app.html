@@ -343,7 +343,9 @@
   }
   function calibrate(evRaw, prompts = [0.0, 2.5, 5.0]) {
     const ev0 = cleanEvents(toEvents(evRaw));
-    const fail = (why) => ({ ok: false, why, f: [0, 1, 0], n: [0, 0, 1] });
+    const dbg = { событий: 0, поз: [], углы: [], rot_ratio: null };
+    const fail = (why) => ({ ok: false, why, f: [0, 1, 0], n: [0, 0, 1], debug: dbg });
+    dbg.событий = ev0.t.length;
     if (ev0.t.length < 30) return fail(["телефон не присылает данные датчиков"]);
     const t = ev0.t, g = ev0.accg, r = ev0.rot;
     if (t.length < 10 || t[t.length - 1] - t[0] < 1.0) return fail(["телефон прислал слишком мало данных — повтори калибровку"]);
@@ -387,6 +389,12 @@
         }
         i = j;
       }
+        dbg.поз.push(found ? +(t[found[2] - 1] - t[found[1]]).toFixed(2) : null);
+      if (found && segs.length) {
+        const v = [0, 0, 0];
+        for (let q = found[1]; q < found[2]; q++) { v[0] += g[q][0]; v[1] += g[q][1]; v[2] += g[q][2]; }
+        dbg.углы.push(+angleDeg([v[0] / (found[2] - found[1]), v[1] / (found[2] - found[1]), v[2] / (found[2] - found[1])], segs[segs.length - 1][0]).toFixed(0));
+      } else dbg.углы.push(null);
       if (!found) {
         why.push(k === 2 && sideBad !== null
           ? `рука не в сторону: вытяни руку горизонтально в сторону и замри (сейчас ${sideBad.toFixed(0)}° от «рука вниз», нужно 55–125°)`
@@ -411,6 +419,7 @@
     let turned = 0;
     if (b > a) for (let i = a; i < b; i++) turned += norm(r[i]) * (t[i + 1] - t[i]);
     const ratio = turned / Math.max(1.0, angleDeg(g[a], g[b]));
+    dbg.rot_ratio = +ratio.toFixed(3);
     if (ratio < 0.05) rotScale = 57.2958;
     else if (ratio > 0.5) rotScale = 1.0;
     else return fail(["не получилось распознать поворот руки — повтори: рука вниз, замри, потом плавно вверх"]);
@@ -1374,6 +1383,12 @@ $("b-start").onclick = async () => {
   const cal = DanceScoreV2.calibrate(toEv(calEv));
   if (!cal.ok) {
     $("cal-why").textContent = cal.why.join(" · ") || "не получилось — попробуйте ещё раз";
+    try {
+      const d = cal.debug || {};
+      $("cal-why").textContent += "\n[диагностика: событий " + (d.событий || 0) +
+        ", длит. поз " + JSON.stringify(d.поз) + ", углы " + JSON.stringify(d.угли) +
+        (d.rot_ratio ? ", rot_ratio " + d.rot_ratio : "") + "]";
+    } catch (e) {}
     $("cal-pose").textContent = "ЕЩЁ РАЗ";
     $("cal-say").textContent = "вернитесь назад и повторите калибровку";
     return;

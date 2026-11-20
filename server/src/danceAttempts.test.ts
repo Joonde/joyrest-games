@@ -74,6 +74,7 @@ describe.skipIf(!url)("записи «Танцуй как звезда» на Po
   });
 
   it("удаление старой сессии не стирает запись для калибровки", async () => {
+    await sql`delete from participants where session_id = 'session1'`;
     await sql`delete from sessions where id = 'session1'`;
     expect((await sql`select count(*)::int as n from dance_attempts where id = 'attempt0001'`)[0]?.n).toBe(1);
   });

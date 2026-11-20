@@ -27,6 +27,7 @@ import type {
   DecksRepository,
   DrawingsRepository,
   PollsRepository,
+  DanceAttemptsRepository,
   StaffRepository,
   ResultsRepository,
   RoomsRepository,
@@ -70,6 +71,7 @@ import { serverBrandingsRepository } from "./server/brandings";
 import { serverDecksRepository } from "./server/decks";
 import { serverDrawingsRepository } from "./server/drawings";
 import { serverPollsRepository } from "./server/polls";
+import { serverDanceAttemptsRepository } from "./server/danceAttempts";
 import { serverResultsRepository } from "./server/results";
 import { serverRoomsRepository } from "./server/rooms";
 import { serverSessionsRepository } from "./server/sessions";
@@ -119,6 +121,8 @@ export const decksRepo: DecksRepository | null = server ? serverDecksRepository 
 export const drawingsRepo: DrawingsRepository | null = server ? serverDrawingsRepository : null;
 /** «Опрос гостей заранее» для «Что скажет большинство» — только свой сервер. */
 export const pollsRepo: PollsRepository | null = server ? serverPollsRepository : null;
+/** Проверки движений и записи для калибровки — только свой сервер. */
+export const danceAttemptsRepo: DanceAttemptsRepository | null = server ? serverDanceAttemptsRepository : null;
 /** Конец игры: чаевые и отзывы — только свой сервер. */
 export const finaleRepo: FinaleRepository | null = agency ? serverFinaleRepository : null;
 /** Видео JoyRest — только свой сервер. */

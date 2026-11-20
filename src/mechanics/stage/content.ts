@@ -4,6 +4,7 @@
 // на устройстве экрана зала (как в «Танцевальном батле»).
 import { parseVideo, type VideoSource } from "../dance/content";
 import { VERSUS, WHO } from "./who";
+import { motionDance } from "./dances";
 
 export type StageVariant = "dance" | "karaoke";
 export type TileKind = "perform" | "battle";
@@ -27,6 +28,8 @@ export interface StageTile {
   /** Задание или подсказка на экране. */
   note: string;
   video: { source: VideoSource; url: string; name: string };
+  /** Проверка движений телефоном: ключ одной из шести хореографий; null — обычное выступление. */
+  motionSong: string | null;
 }
 
 export interface StageContent {
@@ -55,7 +58,7 @@ export function newCategory(title = ""): StageCategory {
 }
 
 export function newTile(cat: string, points: number, kind: TileKind = "perform"): StageTile {
-  return { id: newId("t"), cat, points, kind, who: "a2", vs: "m-w", title: "", note: "", video: { source: "none", url: "", name: "" } };
+  return { id: newId("t"), cat, points, kind, who: "a2", vs: "m-w", title: "", note: "", video: { source: "none", url: "", name: "" }, motionSong: null };
 }
 
 export function createStage(variant: StageVariant = "dance"): StageContent {
@@ -104,6 +107,7 @@ export function parseStage(raw: unknown): StageContent {
       title: str(t.title, STAGE_LIMITS.title),
       note: str(t.note, STAGE_LIMITS.note),
       video: parseVideo(t.video, STAGE_LIMITS.url),
+      motionSong: t.kind === "battle" ? null : (motionDance(t.motionSong)?.key ?? null),
     });
   }
   return {

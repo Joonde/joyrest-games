@@ -30,6 +30,7 @@ export {
   decksRepo,
   drawingsRepo,
   pollsRepo,
+  danceAttemptsRepo,
   gameFoldersRepo,
   teamRepo,
   screenRepo,

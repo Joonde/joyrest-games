@@ -12,6 +12,7 @@ import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
 import { tileOf, type StageContent, type StageTile } from "./content";
+import type { DanceAttemptSummary } from "./dances";
 
 export type StageMode = "pick" | "perform" | "vote" | "result";
 export type VideoCmd = "play" | "pause" | "back" | "fwd" | "stop";
@@ -61,6 +62,8 @@ export interface StageResult {
   prev: Prev | null;
   /** Стопка прошлых ходов (старые — первыми): «Назад» с выбора плитки возвращает последний, сколько бы раз ни нажали. */
   history: Prev[];
+  /** Зачтённая проверка движений: id попытки, телефон, процент и очки в общий зачёт. */
+  motion: { id: string; pid: string; percent: number; points: number } | null;
 }
 
 /** Сколько ходов можно отмотать «Назад» подряд. */
@@ -102,6 +105,11 @@ export function parseStageResult(raw: unknown): StageResult {
   // Старые сессии: только `prev` (один ход назад) — стопка из него одного.
   const single = parsePrev(d.prev);
   const history = Array.isArray(d.history) ? d.history.map(parsePrev).filter((x): x is Prev => x !== null).slice(-STAGE_HISTORY) : single ? [single] : [];
+  const motion = rec(d.motion);
+  const motionId = typeof motion.id === "string" && ID.test(motion.id) ? motion.id : null;
+  const motionPid = pid(motion.pid);
+  const motionPercent = typeof motion.percent === "number" && Number.isFinite(motion.percent) ? Math.max(0, Math.min(100, Math.round(motion.percent))) : null;
+  const motionPoints = typeof motion.points === "number" && Number.isFinite(motion.points) ? Math.max(0, Math.round(motion.points)) : null;
   return {
     order: ids(d.order),
     turn: typeof d.turn === "number" && Number.isInteger(d.turn) && d.turn >= 0 ? d.turn : 0,
@@ -123,6 +131,7 @@ export function parseStageResult(raw: unknown): StageResult {
     battlesOpen: d.battlesOpen === true,
     prev: history[history.length - 1] ?? null,
     history,
+    motion: motionId && motionPid && motionPercent !== null && motionPoints !== null ? { id: motionId, pid: motionPid, percent: motionPercent, points: motionPoints } : null,
   };
 }
 
@@ -200,7 +209,7 @@ export function stagePrimary(session: Session, content: StageContent): StageActi
 }
 
 function fresh(r: StageResult): StageResult {
-  return { ...r, full: false, video: { n: 0, cmd: "play", paused: false }, gifts: [], votes: {}, scores: {}, outcome: null, winner: null, changeable: false, hype: -1 };
+  return { ...r, full: false, video: { n: 0, cmd: "play", paused: false }, gifts: [], votes: {}, scores: {}, outcome: null, winner: null, changeable: false, hype: -1, motion: null };
 }
 
 /** «Начать игру»: очередь команд, выбор первой плитки. */
@@ -293,6 +302,22 @@ export function finishPerform(session: Session, content: StageContent, answers: 
   }
   const change: SessionChange = { state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "result", scores, gifts, outcome: performed ? "done" : "skip", full: false, video: { ...r.video, n: r.video.n + 1, cmd: "stop", paused: true } }) } };
   if (Object.keys(scores).length > 0) change.addScore = scores;
+  return change;
+}
+
+/** Зачесть сохранённую на сервере проверку движений: процент от очков плитки команде выступающего. */
+export function finishMotion(session: Session, content: StageContent, attempt: DanceAttemptSummary): SessionChange {
+  const r = parseStageResult(session.state.result);
+  const tile = tileOf(content, r.tile);
+  if (!tile?.motionSong || r.mode !== "perform" || attempt.sessionId !== session.id || attempt.tileId !== tile.id || attempt.songKey !== tile.motionSong) return {};
+  if (r.performer && (session.playMode === "teams" ? attempt.teamId !== r.performer : attempt.pid !== r.performer)) return {};
+  const percent = Math.max(0, Math.min(100, Math.round(attempt.percent)));
+  const points = r.performer ? Math.round((tile.points * percent) / 100) : 0;
+  const scores = r.performer ? { [r.performer]: points } : {};
+  const change: SessionChange = {
+    state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "result", scores, gifts: [], outcome: "done", motion: { id: attempt.id, pid: attempt.pid, percent, points }, full: false, video: { ...r.video, n: r.video.n + 1, cmd: "stop", paused: true } }) },
+  };
+  if (points > 0 && r.performer) change.addScore = scores;
   return change;
 }
 

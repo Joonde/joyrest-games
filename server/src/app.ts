@@ -25,6 +25,7 @@ import { registerStaff } from "./staff";
 import { registerTeam } from "./team";
 import { registerTracks, type TrackLimits } from "./tracks";
 import { registerVideos, type VideoLimits } from "./videos";
+import { registerDanceAttempts } from "./danceAttempts";
 import { registerFinale, registerSiteReviews, saveSiteReview } from "./finale";
 import { registerPhotos } from "./photos";
 import { registerBranding } from "./branding";
@@ -184,6 +185,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null, limits: options.trackLimits });
     registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null, limits: options.videoLimits });
+    registerDanceAttempts(app, { sql: options.sql, isSite });
     registerDecks(app, { ...options.decks, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDrawings(app, { ...options.drawings, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerPolls(app, { sql: options.sql, isSite });

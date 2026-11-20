@@ -17,6 +17,7 @@ import { Dancer, Dancers } from "./figures";
 import { battlesLocked, HYPE_MS, hypeText, parseStageResult, turnPid, type StageResult } from "./logic";
 import { StageVideo } from "./video";
 import { versusOf, whoOf } from "./who";
+import { motionDance } from "./dances";
 import "./stage.css";
 
 /** Ответ телефона: подарить симпатию или голос в батле. */
@@ -331,6 +332,7 @@ export function StageScreenView({ session, content }: ViewProps<StageContent>) {
             <NameText name={nameOf(session, r.performer)} />
           </span>
           <strong className="stage-result__points">{r.outcome === "skip" ? "Не вышли" : `+${gain}`}</strong>
+          {r.motion && <span className="stage-result__motion">Точность движений: {r.motion.percent}%</span>}
           {r.gifts.length > 0 && r.outcome === "done" && (
             <span className="stage-result__gift">
               <Heart className="stage-result__heart" /> из них симпатия зала: +{r.gifts.length * content.gift}
@@ -380,7 +382,16 @@ export function StageScreenView({ session, content }: ViewProps<StageContent>) {
         )}
       </div>
       <div className="stage-perform__main">
-        {hasVideo ? (
+        {tile.motionSong ? (
+          <div className="stage-motion-screen">
+            <Dancers figs={motionDance(tile.motionSong)?.figs ?? whoOf(tile.who).figs} className="stage-motion-screen__dancers" />
+            <div className="stage-motion-screen__text">
+              <span>Проверка движений</span>
+              <strong>{motionDance(tile.motionSong)?.title ?? tile.title}</strong>
+              <p>Телефон в правую руку · калибровка · танец · результат на платформе</p>
+            </div>
+          </div>
+        ) : hasVideo ? (
           <div className="stage-video">
             <StageVideo tile={tile} video={r.video} />
           </div>
@@ -470,6 +481,14 @@ export function StagePlayerView({ session, content, pid, role, myAnswer, sending
             <strong>Ваш выход!</strong>
             <span>{tile.kind === "battle" ? versusOf(tile.vs).label : `${karaoke ? "Поют" : "Танцуют"}: ${whoOf(tile.who).label}`}</span>
           </div>
+          {tile.motionSong && (
+            <div className="stack stack--tight">
+              <a className="btn btn--block stage-motion-link" href={`/dance/tanec_app.html?session=${encodeURIComponent(session.id)}&code=${encodeURIComponent(session.code)}&tile=${encodeURIComponent(tile.id)}&song=${encodeURIComponent(tile.motionSong)}`}>
+                Проверить движения
+              </a>
+              <p className="muted small">Откроются калибровка и запись. После результата вернитесь сюда — ведущий зачтёт процент в общий счёт.</p>
+            </div>
+          )}
         </div>
       );
     }

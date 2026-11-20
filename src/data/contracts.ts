@@ -11,6 +11,7 @@ import type {
   DeckPage,
   PollForm,
   PollSummary,
+  DanceAttemptSummary,
   SavedBranding,
   AvailabilityEntry,
   CalendarMember,
@@ -524,6 +525,11 @@ export interface PollsRepository {
   /** Новый или правка (id от браузера): вопросы, открыт ли приём, объединения и подписи групп. */
   save(poll: { id: string; gameId: string; title: string; questions: PollForm["questions"]; open: boolean; edits: PollSummary["edits"] }): Promise<void>;
   remove(id: string): Promise<void>;
+}
+
+/** Проверки движений «Танцуй как звезда» (только свой сервер). */
+export interface DanceAttemptsRepository {
+  list(sessionId: string, tileId: string): Promise<DanceAttemptSummary[]>;
 }
 
 /** Конец игры: чаевые ведущему, отзывы гостей (только свой сервер). */

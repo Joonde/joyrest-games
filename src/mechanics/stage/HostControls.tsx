@@ -1,4 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { danceAttemptsRepo } from "../../data";
+import type { DanceAttemptSummary } from "./dances";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useHostRun } from "../../components/live/useHostRun";
 import { usePultDraft } from "../../components/live/usePultDraft";
@@ -9,7 +11,7 @@ import { resultKey, secondsLeft } from "../../core/session";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { tileOf, VARIANT_TITLES, type StageContent } from "./content";
-import { battleWaiting, countVotes, defaultOpponent, openBattles, finishPerform, liveGifts, liveVotes, nextTurn, parseStageResult, pickTile, setBattleWinner, stageBack, stagePrimary, startGame, startVote, toggleFull, turnPid, videoCommand, type VideoCmd } from "./logic";
+import { battleWaiting, countVotes, defaultOpponent, openBattles, finishMotion, finishPerform, liveGifts, liveVotes, nextTurn, parseStageResult, pickTile, setBattleWinner, stageBack, stagePrimary, startGame, startVote, toggleFull, turnPid, videoCommand, type VideoCmd } from "./logic";
 import { canSeek } from "./video";
 import { StageField, tileLabel } from "./views";
 import "./stage.css";
@@ -36,6 +38,32 @@ export function StageHostControls({ session, content, answers, participants, con
   const left = r.mode === "vote" && stage === "question" ? secondsLeft(session.state, now) : null;
   const own = answers.filter((a) => a.step === step);
   const answersKey = own.map((a) => `${a.id}:${a.submittedAt ?? 0}:${JSON.stringify(a.value)}`).join("|");
+  const [attempts, setAttempts] = useState<DanceAttemptSummary[]>([]);
+  const motionKey = tile?.motionSong && r.mode === "perform" ? `${session.id}:${tile.id}:${tile.motionSong}:${step}` : null;
+  useEffect(() => {
+    if (!motionKey) {
+      setAttempts([]);
+      return;
+    }
+    let stopped = false;
+    const sessionId = motionKey.split(":")[0] ?? "";
+    const tileId = motionKey.split(":")[1] ?? "";
+    const load = async () => {
+      try {
+        if (!danceAttemptsRepo) return;
+        const data = await danceAttemptsRepo.list(sessionId, tileId);
+        if (!stopped) setAttempts(data);
+      } catch {
+        // Пульт продолжает работать и без новых результатов; следующий опрос через 4 секунды.
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 4000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [motionKey]);
 
   // Симпатия и голоса батла — на экран (не чаще раза в 1,5 с); пока ведущий записывает своё — ждём.
   useEffect(() => {
@@ -186,6 +214,27 @@ export function StageHostControls({ session, content, answers, participants, con
           </p>
           {tile.title && <p className="muted small">{content.variant === "karaoke" ? "Песня" : "Трек"}: {tile.title}</p>}
           {tile.note && <p className="muted small">{tile.note}</p>}
+
+          {r.mode === "perform" && tile.motionSong && (
+            <section className="stage-attempts" aria-live="polite">
+              <p className="stage-player__title">Проверки движений</p>
+              {attempts.length === 0 ? <p className="muted small">Пока нет сохранённых результатов. Гость открывает проверку на своём телефоне.</p> : (
+                <ul>
+                  {attempts.map((attempt) => {
+                    const ownSide = session.playMode === "teams" ? attempt.teamId === r.performer : attempt.pid === r.performer;
+                    return (
+                      <li key={attempt.id}>
+                        <span><strong>{attempt.playerName || "Игрок"}</strong> · {attempt.percent}% · танцор {attempt.dancer}</span>
+                        <button type="button" className="btn btn--secondary" disabled={busy || !ownSide} title={ownSide ? "Зачесть результат" : "Этот результат не принадлежит выступающей команде"} onClick={() => void run((s) => finishMotion(s, content, attempt))}>
+                          Зачесть +{Math.round((tile.points * attempt.percent) / 100)}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          )}
 
           {r.mode === "perform" && screen && hasVideo && (
             <div className="stage-player">

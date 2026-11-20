@@ -8,16 +8,16 @@
 <style>
   :root { --bg:#0d0a1f; --card:#1a1535; --line:#2e2757; --tx:#f3f0ff; --mut:#a59fc9; --acc:#ffc83a; --vio:#b56cff; --ok:#3ee08f; --bad:#ff5a7a; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { margin:0; background:var(--bg); color:var(--tx); font:17px/1.4 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif; }
-  main { max-width:520px; margin:0 auto; padding:18px 16px 40px; }
+  html,body { margin:0; max-width:100%; overflow-x:hidden; background:var(--bg); color:var(--tx); font:17px/1.4 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif; }
+  main { width:100%; max-width:520px; margin:0 auto; padding:18px 16px 40px; }
   h1 { font-size:22px; margin:4px 0 2px; }
   h1 b { color:var(--acc); }
   .sub { color:var(--mut); font-size:14px; margin-bottom:16px; }
   section { display:none; } section.on { display:block; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin:12px 0; }
   .lbl { color:var(--mut); font-size:13px; text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
-  .opts { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .opt { border:1.5px solid var(--line); background:#130f29; color:var(--tx); border-radius:12px; padding:12px 10px; font-size:16px; text-align:left; }
+  .opts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .opt { min-width:0; overflow-wrap:anywhere; border:1.5px solid var(--line); background:#130f29; color:var(--tx); border-radius:12px; padding:12px 10px; font-size:16px; text-align:left; }
   .opt.sel { border-color:var(--acc); background:#2a2140; }
   .dot { display:inline-block; width:14px; height:14px; border-radius:50%; vertical-align:-2px; margin-right:6px; }
   button.big { width:100%; border:0; border-radius:14px; padding:16px; font-size:18px; font-weight:650; margin-top:10px;
@@ -40,6 +40,20 @@
   .bar { height:8px; background:#130f29; border-radius:4px; overflow:hidden; margin-top:14px; } .bar i { display:block; height:100%; width:0; background:var(--acc); }
   .pose { font-size:26px; font-weight:700; text-align:center; margin:14px 0 4px; color:var(--acc); }
   .why { color:var(--bad); font-size:15px; text-align:center; margin-top:10px; }
+  .hero-neon { height:190px; display:flex; align-items:flex-end; justify-content:center; margin:4px 0 10px; }
+  .hero-neon img { height:100%; max-width:88%; object-fit:contain; filter:drop-shadow(0 0 3px #efffff) drop-shadow(0 0 14px var(--hero-glow,#45e3dc)) drop-shadow(0 0 30px var(--hero-glow,#45e3dc)); animation:hero-float 1.6s ease-in-out infinite; }
+  @keyframes hero-float { 0%,100% { transform:translateY(0) rotate(-1deg) } 50% { transform:translateY(-8px) rotate(1deg) } }
+  .score-pop { animation:score-in .7s ease-out both; }
+  @keyframes score-in { from { transform:scale(.72) } to { transform:scale(1) } }
+  .mv { animation:move-in .25s ease-out both; }
+  @keyframes move-in { from { opacity:0; transform:translateX(-8px) } to { opacity:1; transform:translateX(0) } }
+  .save-status { text-align:center; margin-top:10px; font-size:14px; color:var(--ok); min-height:22px; }
+  .records { max-height:240px; overflow:auto; }
+  .record { display:grid; grid-template-columns:1fr auto; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .record small { color:var(--mut); display:block; }
+  .record strong { color:var(--acc); font-size:20px; }
+  .back-platform { display:block; width:100%; border:1.5px solid var(--line); background:transparent; color:var(--tx); border-radius:14px; padding:13px; font-size:16px; margin-top:8px; text-align:center; text-decoration:none; }
+  @media (prefers-reduced-motion:reduce) { .hero-neon img,.score-pop,.mv { animation:none; } }
 </style>
 </head>
 <body>
@@ -91,6 +105,7 @@
 
   <!-- 5. итог -->
   <section id="s-result">
+    <div class="hero-neon" id="r-hero" aria-hidden="true"></div>
     <div class="card">
       <div class="lbl" id="r-title">Итог</div>
       <div class="pct" id="r-pct">—</div>
@@ -100,6 +115,10 @@
     </div>
     <button class="big" id="b-share">Отправить запись</button>
     <button class="sec" id="b-dl">Скачать запись (файл)</button>
+    <div class="save-status" id="r-save" role="status"></div>
+    <button class="sec" id="b-retry-save" style="display:none">Повторить сохранение на платформе</button>
+    <a class="sec back-platform" id="b-back" style="display:none" href="/">Вернуться к игре</a>
+    <div class="card" id="r-records-card" style="display:none"><div class="lbl">Таблица рекордов этой плитки</div><div class="records" id="r-records"></div></div>
     <div class="card"><div class="lbl">Каждое движение</div><div class="moves" id="r-moves"></div></div>
     <div class="card"><details><summary class="lbl" style="cursor:pointer">Диагностика (для разработчика)</summary>
       <div class="note" id="r-diag" style="font-family:monospace;font-size:12px;white-space:pre-wrap;margin-top:8px"></div>
@@ -1075,8 +1094,14 @@
 <script>
 "use strict";
 const COLORS = [["розовый", "#ff6fb5"], ["зелёный", "#3ee08f"], ["синий", "#5aa8ff"], ["жёлтый", "#ffd23a"]];
-let DATA = null, song = null, dancer = 0, rec = null, calibRec = null, motionOn = false, wake = null, timer = null, actx = null;
+let DATA = null, song = null, dancer = 0, rec = null, calibRec = null, motionOn = false, wake = null, timer = null, actx = null, lastResult = null;
+const PLATFORM = new URLSearchParams(location.search);
+const PLATFORM_SESSION = PLATFORM.get("session") || "";
+const PLATFORM_TILE = PLATFORM.get("tile") || "";
+const PLATFORM_SONG = PLATFORM.get("song") || "";
+const PLATFORM_CODE = PLATFORM.get("code") || "";
 const $ = id => document.getElementById(id);
+if (PLATFORM_CODE) { $("b-back").href = `/play/${encodeURIComponent(PLATFORM_CODE)}`; }
 const show = id => document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === id));
 const now = () => performance.now() / 1000;
 const r4 = v => (v === null || v === undefined || !isFinite(v)) ? null : Math.round(v * 1e4) / 1e4;
@@ -1088,7 +1113,10 @@ Promise.resolve((() => { const EMBEDDED_DATA = {"rate":15,"songs":[{"key":"baila
     const b = document.createElement("button"); b.className = "opt"; b.textContent = s.title;
     b.onclick = () => pickSong(i); box.appendChild(b);
   });
-  pickSong(0); $("b-perm").disabled = false;
+  const fixedSong = PLATFORM_SONG ? d.songs.findIndex(s => s.key === PLATFORM_SONG) : -1;
+  pickSong(fixedSong >= 0 ? fixedSong : 0);
+  if (fixedSong >= 0) [...box.children].forEach(b => { b.disabled = true; });
+  $("b-perm").disabled = false;
 }).catch(e => { $("songs").innerHTML = '<span class="warn">Не загрузились данные песен: ' + e + "</span>"; });
 try { if (localStorage.getItem("tanec-last")) $("b-last").style.display = "block"; } catch (e) {}
 
@@ -1230,6 +1258,81 @@ function finish() {
   result();
 }
 
+function resultHero() {
+  const kind = dancer % 2 === 0 ? "man" : "woman";
+  const img = document.createElement("img");
+  img.src = `/stage/art/${kind}-3.webp`;
+  img.style.setProperty("--hero-glow", COLORS[dancer][1]);
+  $("r-hero").replaceChildren(img);
+}
+function celebrate(R) {
+  const perfect = R.counts.PERFECT || 0;
+  if (perfect > 0 && navigator.vibrate) navigator.vibrate([45, 35, 80]);
+  if ("speechSynthesis" in window) {
+    const phrase = R.percent >= 85 ? "Отлично!" : R.percent >= 70 ? "Очень хорошо!" : R.percent >= 50 ? "Хорошо!" : "Ещё одна попытка!";
+    const utter = new SpeechSynthesisUtterance(phrase); utter.lang = "ru-RU"; utter.rate = 1.05;
+    speechSynthesis.cancel(); speechSynthesis.speak(utter);
+  }
+  const started = performance.now(), duration = 850;
+  $("r-pct").classList.add("score-pop");
+  const tick = now => {
+    const p = Math.min(1, (now - started) / duration), eased = 1 - Math.pow(1 - p, 3);
+    $("r-pct").textContent = Math.round(R.percent * eased) + "%";
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function sampled(list, limit) {
+  if (list.length <= limit) return list;
+  return Array.from({ length: limit }, (_, i) => list[Math.round(i * (list.length - 1) / (limit - 1))]);
+}
+function uploadRecording() {
+  return { ...rec, events: sampled(rec.events || [], 6000), calib_events: sampled(rec.calib_events || [], 1200), sampling: { sourceEvents: (rec.events || []).length, uploadedEvents: Math.min(6000, (rec.events || []).length) } };
+}
+async function loadRecords() {
+  if (!PLATFORM_SESSION || !PLATFORM_TILE) return;
+  try {
+    const response = await fetch(`/api/dance-attempts?sessionId=${encodeURIComponent(PLATFORM_SESSION)}&tileId=${encodeURIComponent(PLATFORM_TILE)}`, { credentials: "same-origin", cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json(), attempts = (data.attempts || []).sort((a, b) => b.percent - a.percent || b.createdAt - a.createdAt).slice(0, 10);
+    const box = $("r-records"); box.replaceChildren();
+    attempts.forEach((attempt, i) => {
+      const row = document.createElement("div"); row.className = "record";
+      const who = document.createElement("span"), score = document.createElement("strong");
+      who.textContent = `${i + 1}. ${attempt.playerName || "Игрок"}`;
+      const meta = document.createElement("small"); meta.textContent = `Танцор ${attempt.dancer} · ${new Date(attempt.createdAt).toLocaleString("ru-RU")}`; who.appendChild(meta);
+      score.textContent = attempt.percent + "%"; row.append(who, score); box.appendChild(row);
+    });
+    $("r-records-card").style.display = attempts.length ? "block" : "none";
+  } catch (e) {}
+}
+async function saveAttempt() {
+  if (!lastResult) return;
+  if (!PLATFORM_SESSION || !PLATFORM_TILE) {
+    $("r-save").textContent = "Локальная проверка: запись сохранена на этом телефоне.";
+    return;
+  }
+  $("r-save").textContent = "Сохраняем запись и результат на платформе…";
+  $("b-retry-save").style.display = "none";
+  try {
+    rec.id = rec.id || (crypto.randomUUID ? crypto.randomUUID() : `dance-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const response = await fetch("/api/dance-attempts", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-JoyRest": "1" },
+      body: JSON.stringify({ id: rec.id, sessionId: PLATFORM_SESSION, tileId: PLATFORM_TILE, songKey: rec.song, dancer: rec.dancer, recording: uploadRecording(), result: lastResult }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    $("r-save").textContent = "Сохранено на платформе. Ведущий уже видит результат.";
+    if (PLATFORM_CODE) $("b-back").style.display = "block";
+    await loadRecords();
+  } catch (e) {
+    $("r-save").innerHTML = '<span class="warn">Не сохранилось на платформе. Запись осталась на телефоне.</span>';
+    $("b-retry-save").style.display = "block";
+  }
+}
+$("b-retry-save").onclick = () => saveAttempt();
+
 function result() {
   show("s-result"); $("r-pct").textContent = "…"; $("r-moves").innerHTML = ""; $("r-grades").innerHTML = "";
   const s = DATA.songs.find(x => x.key === rec.song) || song;
@@ -1238,7 +1341,8 @@ function result() {
     try { R = DanceRef.scoreRecording(DanceScoreV2, rec, s, DATA.rate); }
     catch (e) { $("r-pct").textContent = "—"; $("r-info").innerHTML = '<span class="warn">' + e.message + "</span>"; return; }
     if (!R.ok) { $("r-pct").textContent = "—"; $("r-info").innerHTML = '<span class="warn">' + (R.why.join(" · ") || "не получилось") + "</span>"; return; }
-    $("r-pct").textContent = R.percent + "%";
+    lastResult = R;
+    resultHero(); celebrate(R);
     $("r-pts").textContent = `${R.points} очков из ${R.max} · ${R.cards.filter(c => c.score !== null).length} движений`;
     for (const [, n] of DanceScoreV2.GRADES.concat([[0, "НЕТ СВЯЗИ"]])) {
       const el = document.createElement("div"); el.className = "g";
@@ -1265,7 +1369,9 @@ function result() {
       const tt = Math.floor(c.t / 60) + ":" + (c.t % 60).toFixed(1).padStart(4, "0");
       el.innerHTML = `<span>${i + 1}. ${tt}${c.golden ? " ★" : ""} ${c.cmd || ""}</span><span class="G-${c.grade.split(" ")[0]}">${c.grade}${c.score !== null ? " · " + c.score : ""}</span>`;
       box.appendChild(el);
+      el.style.animationDelay = `${Math.min(i * 35, 700)}ms`;
     });
+    void saveAttempt();
   }, 50);
 }
 function recFile() {

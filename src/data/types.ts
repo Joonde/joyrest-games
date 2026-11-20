@@ -1090,3 +1090,20 @@ export interface SessionSummary {
   planEnd?: number | null;
   planTitle?: string;
 }
+
+
+/** Сохранённая проверка движений «Танцуй как звезда» (без исходной записи датчиков). */
+export interface DanceAttemptSummary {
+  id: string;
+  sessionId: string;
+  tileId: string;
+  songKey: string;
+  dancer: number;
+  pid: string;
+  teamId: string | null;
+  playerName: string;
+  percent: number;
+  points: number;
+  maxPoints: number;
+  createdAt: number;
+}

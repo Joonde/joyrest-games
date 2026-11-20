@@ -11,6 +11,7 @@ import type { EditorProps } from "../types";
 import { embedUrl, type VideoSource } from "../dance/content";
 import { newCategory, newTile, STAGE_LIMITS, tilesOf, VARIANT_TITLES, type StageContent, type StageTile, type StageVariant } from "./content";
 import { DEMO_STAGE_DANCE, DEMO_STAGE_KARAOKE } from "./demo";
+import { MOTION_DANCES, motionDance } from "./dances";
 import { Dancers } from "./figures";
 import { validateStage } from "./validate";
 import { tileShort } from "./views";
@@ -287,6 +288,23 @@ function TileForm({ tile, karaoke, editable, errors, onChange, onRemove }: { til
         {karaoke ? "Песня" : "Трек"} (по желанию, видно на экране)
         <input value={tile.title} maxLength={STAGE_LIMITS.title} disabled={!editable} placeholder="Название — исполнитель" onChange={(e) => onChange({ title: e.target.value })} />
       </label>
+      {!karaoke && tile.kind === "perform" && (
+        <label className="field">
+          Проверка движений телефоном
+          <select
+            value={tile.motionSong ?? ""}
+            disabled={!editable}
+            onChange={(e) => {
+              const dance = motionDance(e.target.value);
+              onChange({ motionSong: dance?.key ?? null, title: dance && !tile.title.trim() ? dance.title : tile.title });
+            }}
+          >
+            <option value="">Без проверки — обычное выступление</option>
+            {MOTION_DANCES.map((dance) => <option key={dance.key} value={dance.key}>{dance.title} · {dance.dancers} {dance.dancers === 1 ? "танцор" : "танцора"}</option>)}
+          </select>
+          <span className="muted small">Гость откроет проверку с телефона, запись сохранится на платформе, а ведущий зачтёт процент в общие очки плитки.</span>
+        </label>
+      )}
       <label className="field">
         Задание или подсказка (по желанию)
         <input value={tile.note} maxLength={STAGE_LIMITS.note} disabled={!editable} placeholder={karaoke ? "Команда — на подпевках" : "Повторяйте движения за экраном"} onChange={(e) => onChange({ note: e.target.value })} />

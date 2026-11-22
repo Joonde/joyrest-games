@@ -1,6 +1,6 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { tracksRepo } from "../../data";
-import { pauseFragment, playChorus, playFragment, resumeFragment, stopFragment, type FragmentOptions } from "../live/sound";
+import { pauseFragment, playChorus, playFragment, resumeFragment, stopFragment, unlockSound, type FragmentOptions } from "../live/sound";
 
 const cache = new Map<string, Promise<string | null>>();
 
@@ -90,9 +90,33 @@ export function useFragment(
   const chorus = extra?.chorus;
   const fadeIn = options?.fadeIn ?? 0;
   const fadeOut = options?.fadeOut ?? 0;
+  const [blocked, setBlocked] = useState(false);
+  const alive = useRef(true);
+  const pending = useRef<{ url: string; start: number; length: number; chorus?: "cut" | "cross" | "sting"; fadeIn: number; fadeOut: number } | null>(null);
+  const playPending = useRef<() => Promise<boolean>>(async () => false);
+  playPending.current = async () => {
+    const current = pending.current;
+    if (!current) return false;
+    const ok = current.chorus
+      ? await playChorus(current.url, current.start, current.length, current.chorus)
+      : await playFragment(current.url, current.start, current.length, { fadeIn: current.fadeIn, fadeOut: current.fadeOut });
+    if (!alive.current || pending.current !== current) return false;
+    if (ok) pending.current = null;
+    setBlocked(!ok);
+    return ok;
+  };
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      pending.current = null;
+    };
+  }, []);
   useEffect(() => {
     if (playKey === last.current) return;
     last.current = playKey;
+    pending.current = null;
+    setBlocked(false);
     if (!trackId || playKey === null) {
       stopFragment();
       return;
@@ -102,13 +126,31 @@ export function useFragment(
     let cancelled = false;
     void trackUrl(trackId).then((url) => {
       if (cancelled || !url) return;
-      if (chorus) void playChorus(url, startSec, lengthSec, chorus);
-      else void playFragment(url, startSec, lengthSec, { fadeIn, fadeOut });
+      pending.current = { url, start: startSec, length: lengthSec, chorus, fadeIn, fadeOut };
+      void playPending.current();
     });
     return () => {
       cancelled = true;
+      pending.current = null;
     };
   }, [trackId, startSec, lengthSec, playKey, chorus, fadeIn, fadeOut]);
+  // Браузер не разрешил звук заранее: не теряем текущую песню — запускаем её после касания экрана.
+  useEffect(() => {
+    if (!blocked) return;
+    let timer = 0;
+    const retry = () => {
+      unlockSound();
+      void playPending.current();
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => void playPending.current(), 300);
+    };
+    const events = ["pointerup", "click", "keydown"] as const;
+    events.forEach((e) => window.addEventListener(e, retry));
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, retry));
+      window.clearTimeout(timer);
+    };
+  }, [blocked]);
   const paused = extra?.paused ?? false;
   useEffect(() => {
     if (paused) pauseFragment();

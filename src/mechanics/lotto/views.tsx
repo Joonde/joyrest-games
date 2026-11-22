@@ -77,8 +77,11 @@ function SampleTicket({ content }: { content: LottoContent }) {
  * Экран зала: заставка «Откройте карточки» до первой песни, дальше — барабан, табло и страница песни (hall.tsx).
  */
 export function LottoScreenView({ session, content }: ViewProps<LottoContent>) {
+  // Зал видел заставку — первая песня начинается при нём, а не при позднем открытии экрана посреди игры.
+  const sawIntro = useRef(session.state.stage === "ready");
+  if (session.state.stage === "ready") sawIntro.current = true;
   if (session.state.stage === "ready") return <LottoIntro content={content} />;
-  return <LottoHall session={session} content={content} />;
+  return <LottoHall session={session} content={content} startOnMount={sawIntro.current} />;
 }
 
 /** Заставка: правило, пример карточки; без барабана — заранее прогреваем ролик первой песни. */

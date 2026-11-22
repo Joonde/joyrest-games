@@ -90,6 +90,8 @@ export function GameList({ scope, profile, onToast }: Props) {
   const hostGames = scope === "agency" ? games.filter((g) => g.folder === HOST_GAMES_FOLDER) : [];
   const loose = foldersOn ? games.filter((g) => !(g.folder ?? "").trim()) : scope === "agency" ? games.filter((g) => g.folder !== HOST_GAMES_FOLDER) : games;
   const [hostOpen, setHostOpen] = useState(false);
+  // «Популярные» свёрнуты при открытии библиотеки, чтобы длинный список не занимал всю страницу.
+  const [popularOpen, setPopularOpen] = useState(false);
 
   // Владельцу на вкладке библиотеки — две странички: игры и предложения ведущих.
   const reviewing = scope === "agency" && proposalsRepo !== null && permissions.canReviewProposals(profile);
@@ -449,16 +451,27 @@ export function GameList({ scope, profile, onToast }: Props) {
         </section>
       )}
       {state.status === "ready" && scope === "agency" && popularGames(loose).length > 0 && (
-        <section className="card popular" aria-labelledby={`popular-${scope}`}>
-          <h2 id={`popular-${scope}`} className="popular__title">
-            <span aria-hidden="true">⭐</span> Популярные
-          </h2>
-          <p className="muted small">Самые востребованные игры JoyRest — они же есть в своих разделах ниже.</p>
-          <ul className="cards">
-            {popularGames(loose).map((game) => (
-              <li key={game.id}>{card(game)}</li>
-            ))}
-          </ul>
+        <section className={popularOpen ? "card popular category is-open" : "card popular category"}>
+          <button type="button" className="category-row" aria-expanded={popularOpen} aria-controls={`popular-games-${scope}`} onClick={() => setPopularOpen((value) => !value)}>
+            <span className="category-row__icon" aria-hidden="true">
+              ⭐
+            </span>
+            <span className="category-row__text">
+              <span className="category-row__title">Популярные</span>
+              <span className="category-row__hint">Самые востребованные игры JoyRest — они же есть в своих разделах ниже.</span>
+            </span>
+            <span className="category-row__count" aria-label={`игр: ${popularGames(loose).length}`}>
+              {popularGames(loose).length}
+            </span>
+            <span className="category-row__chevron" aria-hidden="true" />
+          </button>
+          {popularOpen && (
+            <ul className="cards category__games" id={`popular-games-${scope}`}>
+              {popularGames(loose).map((game) => (
+                <li key={game.id}>{card(game)}</li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
       {state.status === "ready" && loose.length > 0 && (scope === "agency" || loose.length >= GROUP_FROM) && (

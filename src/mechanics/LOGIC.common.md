@@ -422,7 +422,11 @@ flowchart TD
 - Телефон и физическая кнопка одного участника — два входа в одну очередь; первый принятый сервером ответ побеждает.
 - Локальный путь события: `hardware-companion` → SSE на `127.0.0.1` → `HardwarePanel` → host-only `hardware-buzz`.
   Сопряжение одноразовое, токен только в `sessionStorage`; браузерный клиент экспортируется через `src/data/index.ts`.
-- Первый реальный адаптер: Flic 2 / Flic Duo через Flic Hub (`hardware-companion/adapters/flic-hub`). События идут
-  через официальный Hub SDK, стабильный идентификатор — Bluetooth-адрес; `buttonUp` не создаёт ответ.
-- Прямые Bluetooth- и USB-адаптеры ещё не подключены. Эмулятор в `HardwarePanel` работает через настоящий API и доступен
+- Реальные адаптеры: Flic 2 / Flic Duo через Flic Hub (`hardware-companion/adapters/flic-hub`) и беспроводной приёмник
+  через USB Serial (`hardware-companion/src/usb-serial.mjs`). У Flic события идут через официальный Hub SDK, стабильный
+  идентификатор — Bluetooth-адрес; `buttonUp` не создаёт ответ. USB Serial запускается с `JOYREST_SERIAL_PORT=COM5`
+  (Windows) или `/dev/ttyUSB0` (macOS/Linux), скорость 9600 baud; `BUTTON_PRESS:<id>` создаёт событие `usb-<id>`.
+  Поддержаны heartbeat, подготовка кнопки, разблокировка и LED по протоколу приёмника. Фактический обмен с конкретной
+  прошивкой нужно проверить на устройстве: совпадение протокола установлено по коду Quizzly, не физическим испытанием.
+- Прямой Bluetooth-адаптер ещё не подключён. Эмулятор в `HardwarePanel` работает через настоящий API.
   На время пилота эмулятор включён по умолчанию, `VITE_HARDWARE_EMULATOR=false` скрывает его. Firebase физические кнопки не поддерживает.

@@ -1323,3 +1323,24 @@ POST /api/sessions/:id/hardware-buzz
 Проверки: **5/5 тестов локальной программы**, `node --check adapters/flic-hub/main.js`, `npm run typecheck`, `npm run build`, `npm run build:server`.
 
 **Ограничение:** физическое испытание требует Flic Hub и кнопку. Это вариант через Hub, а не прямое BLE-подключение кнопки к компьютеру и не USB-приёмник. USB-адаптер остаётся следующим этапом.
+
+
+## 36. USB Serial-адаптер (22 ноября 2026)
+
+По публичному коду Quizzly подтверждён протокол USB-приёмника:
+
+- `9600` baud;
+- `BUTTON_PRESS:<buttonId>` — нажатие;
+- `HEARTBEAT:<buttonId>` — присутствие устройства;
+- `BUTTON:<id>:ENABLE`, `UNBLOCK`, `LED_ON`, `LED_OFF` — команды;
+- `BROADCAST:ENABLE` — включение всех кнопок.
+
+Добавлено:
+
+- `src/usb-serial.mjs` через пакет `serialport`;
+- `POST /api/adapters/usb/events` с общим ключом адаптера;
+- `hardwareId = usb-<buttonId>` и уникальный `eventId` со временем и счётчиком, чтобы перезапуск не создавал ложный duplicate;
+- запуск `JOYREST_SERIAL_PORT=COM5` (Windows) или путь устройства на macOS/Linux;
+- подготовка кнопки и управление подсветкой через `prepare` и `setLed`.
+
+Проверки: **8/8 тестов**, включая разбор протокола, USB-нажатие в SSE, duplicate, Flic и одновременные события. Физическое испытание остаётся за приёмником: код совместимости подтверждён по протоколу, а не присутствием устройства у разработчика.

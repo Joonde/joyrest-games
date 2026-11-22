@@ -6,9 +6,12 @@
   "description": "Локальный канал физических кнопок JoyRest: сопряжение, виртуальные устройства и поток нажатий.",
   "scripts": {
     "start": "node src/main.mjs",
-    "test": "node --test src/main.test.mjs"
+    "test": "node --test src/main.test.mjs src/usb-serial.test.mjs"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "serialport": "^13.0.0"
   }
 }

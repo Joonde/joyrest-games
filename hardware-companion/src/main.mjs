@@ -1,6 +1,7 @@
 import http from "node:http";
 import { randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
+import { startUsbSerialAdapter } from "./usb-serial.mjs";
 
 const JSON_LIMIT = 4096;
 const SESSION_MS = 12 * 60 * 60 * 1000;
@@ -117,6 +118,52 @@ export async function startHardwareCompanion({ port = 43127, host = "127.0.0.1",
         sessions.set(token, now() + SESSION_MS);
         pairingCode = null;
         json(res, 200, { token, expiresAt: now() + SESSION_MS }, origin);
+      } catch {
+        json(res, 400, { error: "invalid-json" }, origin);
+      }
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/adapters/usb/events") {
+      if (req.headers["x-joyrest-adapter-key"] !== adapterKey) {
+        json(res, 401, { error: "adapter-key-invalid" }, origin);
+        return;
+      }
+      try {
+        const body = await bodyOf(req);
+        const hardwareId = typeof body.hardwareId === "string" ? body.hardwareId : "";
+        if (!/^usb-[A-Za-z0-9_-]{1,32}$/.test(hardwareId)) {
+          json(res, 400, { error: "invalid-button-id" }, origin);
+          return;
+        }
+        let device = devices.find((item) => item.hardwareId === hardwareId);
+        if (!device && body.type !== "disconnected") {
+          device = { source: "usb", hardwareId, alias: typeof body.alias === "string" && body.alias.trim() ? body.alias.trim().slice(0, 40) : hardwareId, connected: true, battery: null, features: ["press"] };
+          devices.push(device);
+        }
+        if (body.type === "disconnected") {
+          if (device) device.connected = false;
+          json(res, 200, { ok: true }, origin);
+          return;
+        }
+        if (device) device.connected = true;
+        if (body.type !== "down" || !device) {
+          json(res, 200, { ok: true, device }, origin);
+          return;
+        }
+        const sequence = typeof body.sequence === "string" || typeof body.sequence === "number" ? String(body.sequence) : randomBytes(8).toString("hex");
+        if (!/^[A-Za-z0-9_-]{1,40}$/.test(sequence)) {
+          json(res, 400, { error: "invalid-event-sequence" }, origin);
+          return;
+        }
+        const eventId = `${hardwareId}-${sequence}`;
+        if (adapterEvents.has(eventId)) {
+          json(res, 200, { result: "duplicate" }, origin);
+          return;
+        }
+        adapterEvents.add(eventId);
+        const event = emitPress(device, eventId);
+        json(res, 200, event, origin);
       } catch {
         json(res, 400, { error: "invalid-json" }, origin);
       }
@@ -257,11 +304,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   void (async () => {
     const host = process.env.JOYREST_HARDWARE_HOST ?? "127.0.0.1";
     const companion = await startHardwareCompanion({ host });
+    const serialPath = process.env.JOYREST_SERIAL_PORT;
+    const serialAdapter = serialPath
+      ? await startUsbSerialAdapter({ portPath: serialPath, adapterUrl: `http://127.0.0.1:${companion.port}`, adapterKey: companion.adapterKey, onError: (error) => console.error("USB Serial:", error.message) })
+      : null;
     console.log(`JoyRest Кнопки: http://${host}:${companion.port}`);
     console.log(`Код сопряжения: ${companion.pairingCode}`);
-    console.log("Адаптеры: virtual и Flic Hub");
-    if (host !== "127.0.0.1") console.log(`Ключ адаптера Flic Hub: ${companion.adapterKey}`);
+    console.log(`Адаптеры: virtual, Flic Hub${serialAdapter ? `, USB Serial ${serialPath}` : ""}`);
+    if (host !== "127.0.0.1") console.log(`Ключ адаптера: ${companion.adapterKey}`);
     const stop = async () => {
+      await serialAdapter?.close();
       await companion.close();
       process.exit(0);
     };

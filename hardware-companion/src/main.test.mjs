@@ -165,3 +165,34 @@ test("Flic Hub: устройство появляется по адресу, but
     await companion.close();
   }
 });
+
+
+test("USB Serial: BUTTON_PRESS становится USB-событием, heartbeat не создаёт ответ", async () => {
+  const { companion, base } = await fixture();
+  const controller = new AbortController();
+  try {
+    const send = (type, sequence = "0") => fetch(`${base}/api/adapters/usb/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-JoyRest-Adapter-Key": companion.adapterKey },
+      body: JSON.stringify({ type, hardwareId: "usb-7", alias: "USB 7", sequence }),
+    });
+    assert.equal((await send("connected")).status, 200);
+    const token = await pair(base, companion.pairingCode);
+    const stream = await fetch(`${base}/api/events`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
+    const reader = stream.body.getReader();
+    await reader.read();
+    const press = await send("down", "press-7");
+    assert.equal(press.status, 200);
+    const event = await press.json();
+    assert.equal(event.source, "usb");
+    assert.equal(event.hardwareId, "usb-7");
+    assert.equal(event.eventId, "usb-7-press-7");
+    const delivered = new TextDecoder().decode((await reader.read()).value);
+    assert.match(delivered, /usb-7-press-7/);
+    assert.deepEqual((await (await send("down", "press-7")).json()).result, "duplicate");
+    await reader.cancel();
+  } finally {
+    controller.abort();
+    await companion.close();
+  }
+});

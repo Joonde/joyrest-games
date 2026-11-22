@@ -73,3 +73,25 @@ npm test
 - Каждая кнопка идентифицируется по Bluetooth-адресу; повтор `eventId` не создаёт второе событие.
 
 Физическое испытание пока не выполнено: нужен Flic Hub и кнопка. Это не прямое подключение Flic к Bluetooth-компьютеру и не USB-вариант.
+
+
+## USB Serial-приёмник
+
+Поддержан приёмник с протоколом, совместимым с Quizzly: `9600` baud, `BUTTON_PRESS`, `HEARTBEAT`, команды `ENABLE`, `UNBLOCK`, `LED_ON`, `LED_OFF`.
+
+### Windows PowerShell
+
+```powershell
+$env:JOYREST_SERIAL_PORT="COM5"
+npm start
+```
+
+### macOS / Linux
+
+```bash
+JOYREST_SERIAL_PORT=/dev/ttyUSB0 npm start
+```
+
+Путь и название порта зависят от приёмника. Запуск с `JOYREST_HARDWARE_HOST=0.0.0.0` дополнительно печатает ключ адаптера для локальной сети.
+
+Событие `BUTTON_PRESS:<id>` преобразуется в нажатие USB-кнопки с идентификатором `usb-<id>`. `eventId` включает время и счётчик, поэтому после перезапуска программы новое нажатие не будет ошибочно отклонено как старый duplicate.

@@ -252,7 +252,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
               await Promise.race([arrived, new Promise<void>((resolve) => window.setTimeout(resolve, 300))]);
               continue;
             }
-            // Три отказа подряд: гости всё ещё отвечают или игру меняет второй пульт. Молчать нельзя — ведущий
+            // Попытки кончились (из-за новых ответов — пять, иначе три): гости всё ещё отвечают или игру меняет второй пульт. Молчать нельзя — ведущий
             // решил бы, что кнопка не работает.
             setError("Игра изменилась — нажмите ещё раз.");
             return;

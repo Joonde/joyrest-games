@@ -6,7 +6,7 @@ import { HIDDEN_MECHANICS } from "../hidden";
 import { allDemoGames, demoGames, getMechanic, selectableMechanics } from "../registry";
 import { catalogThemes, createRoulette, mediaIds, parseRoulette, trackIds } from "./content";
 import { DEMO_ROULETTE, DEMO_ROULETTE_RAW } from "./demo";
-import { backToThemes, effectiveChoices, hostChoose, hostToggleAdded, openThemes, parseRouletteResult, parseThemesAnswer, planWheel, queueWithLate, rouletteAction, syncThemes, themesNeeded } from "./logic";
+import { backToThemes, effectiveChoices, hostChoose, hostSetAdded, openThemes, parseRouletteResult, parseThemesAnswer, planWheel, queueWithLate, rouletteAction, syncThemes, themesNeeded } from "./logic";
 import { validateRoulette } from "./validate";
 
 const team = (id: string, i: number): Participant => ({ id, name: "Команда " + id, kind: "team", teamId: null, captainUid: "u" + id, joinedAt: i + 1 });
@@ -138,18 +138,19 @@ describe("рулетка: выбор тем (п. 3.1)", () => {
 
   it("выбор считается только подтверждённым и с нужным числом тем; «Изменить» снимает готовность", () => {
     const r = parseRouletteResult(onThemes(teams).state.result);
-    expect(effectiveChoices(content, r, [ans("a", { themes: ["music"], confirmed: true }, 10)])).toEqual({});
-    expect(effectiveChoices(content, r, [ans("a", { themes: ["music", "dance"], confirmed: false }, 10)])).toEqual({});
+    const notReady = { a: { themes: [], by: "captain", at: 10 } };
+    expect(effectiveChoices(content, r, [ans("a", { themes: ["music"], confirmed: true }, 10)])).toEqual(notReady);
+    expect(effectiveChoices(content, r, [ans("a", { themes: ["music", "dance"], confirmed: false }, 10)])).toEqual(notReady);
     const ready = effectiveChoices(content, r, [ans("a", { themes: ["dance", "music"], confirmed: true }, 10)]);
     expect(ready).toEqual({ a: { themes: ["music", "dance"], by: "captain", at: 10 } });
     const withChoice = { ...r, choices: ready };
-    expect(effectiveChoices(content, withChoice, [ans("a", { themes: ["music", "dance"], confirmed: false }, 20)])).toEqual({});
+    expect(effectiveChoices(content, withChoice, [ans("a", { themes: ["music", "dance"], confirmed: false }, 20)])).toEqual({ a: { themes: [], by: "captain", at: 20 } });
   });
 
   it("ведущий выбирает за команду; более поздний ответ капитана заменяет выбор ведущего, более ранний — нет (Р-6)", () => {
     let s = onThemes(teams);
     const early = [ans("a", { themes: ["music", "dance"], confirmed: false }, 50)];
-    s = applyChange(s, hostChoose(s, content, early, "a", ["cinema", "karaoke"])!, 1100);
+    s = applyChange(s, hostChoose(s, content, teams, early, "a", ["cinema", "karaoke"])!, 1100);
     const r = parseRouletteResult(s.state.result);
     expect(r.choices.a).toEqual({ themes: ["cinema", "karaoke"], by: "host", at: 50 });
     expect(s.state.answered).toBe(1);
@@ -158,18 +159,19 @@ describe("рулетка: выбор тем (п. 3.1)", () => {
     // Капитан ответил после — его выбор.
     expect(effectiveChoices(content, r, [ans("a", { themes: ["music", "dance"], confirmed: true }, 60)]).a).toEqual({ themes: ["music", "dance"], by: "captain", at: 60 });
     // Снять выбор.
-    s = applyChange(s, hostChoose(s, content, early, "a", [])!, 1200);
-    expect(parseRouletteResult(s.state.result).choices).toEqual({});
+    s = applyChange(s, hostChoose(s, content, teams, early, "a", [])!, 1200);
+    expect(parseRouletteResult(s.state.result).choices).toEqual({ a: { themes: [], by: "host", at: 50 } });
+    expect(s.state.answered).toBe(0);
   });
 
   it("пульт переносит выбор в сессию один раз и с отпечатком итогов (второй пульт не затрёт)", () => {
     let s = onThemes(teams);
     const answers = [ans("a", { themes: ["music", "dance"], confirmed: true }, 10)];
-    const change = syncThemes(s, content, answers)!;
+    const change = syncThemes(s, content, teams, answers)!;
     expect(change.expect).toEqual({ phase: "playing", step: 0, stage: "question", result: resultKey(s.state.result) });
     s = applyChange(s, change, 1100);
     expect(s.state.answered).toBe(1);
-    expect(syncThemes(s, content, answers)).toBeNull();
+    expect(syncThemes(s, content, teams, answers)).toBeNull();
   });
 
   it("«К колесу»: 2–8 команд, у всех выбор, в колесе ≥ 3 темы; секторы — в порядке каталога без повторов (Р-7, Р-9)", () => {
@@ -185,7 +187,8 @@ describe("рулетка: выбор тем (п. 3.1)", () => {
     const plan = planWheel(s, content, teams, fresh);
     expect(plan.ok).toBe(true);
     if (!plan.ok) return;
-    expect(plan.change.expect).toEqual({ phase: "playing", step: 0, stage: "question", answers: { step: 0, count: 3, last: 12, sum: 33 } });
+    // Сверка ответов и отпечаток итогов: выбор ведущего со второго пульта — не ответ, его ловит отпечаток.
+    expect(plan.change.expect).toEqual({ phase: "playing", step: 0, stage: "question", result: resultKey(s.state.result), answers: { step: 0, count: 3, last: 12, sum: 33 } });
     const next = applyChange(s, plan.change, 2000);
     const r = parseRouletteResult(next.state.result);
     expect(next.state).toMatchObject({ step: 1, stage: "question", startedAt: 2000, timeLimit: null });
@@ -202,12 +205,14 @@ describe("рулетка: выбор тем (п. 3.1)", () => {
     s = onThemes(two);
     const answers = [...a, ans("b", { themes: ["music", "dance"], confirmed: true }, 11)];
     expect(planWheel(s, content, two, answers).ok).toBe(false);
-    s = applyChange(s, hostToggleAdded(s, content, answers, "sport")!, 1100);
+    s = applyChange(s, hostSetAdded(s, content, two, answers, "sport", true)!, 1100);
     const ok = planWheel(s, content, two, answers);
     expect(ok.ok).toBe(true);
     if (ok.ok) expect(ok.status.sectors).toEqual(["music", "dance", "sport"]);
     // Тему не из каталога (18+ без режима) добавить нельзя.
-    expect(hostToggleAdded(s, content, answers, "adult")).toBeNull();
+    expect(hostSetAdded(s, content, two, answers, "adult", true)).toBeNull();
+    // Повтор того же действия (второй пульт уже добавил) ничего не переключает обратно.
+    expect(hostSetAdded(s, content, two, answers, "sport", true)).toBeNull();
   });
 
   it("девятая команда в очередь не попадает, её темы не идут в колесо (Р-8)", () => {
@@ -229,7 +234,7 @@ describe("рулетка: выбор тем (п. 3.1)", () => {
     const plan = planWheel(s, content, teams, fresh);
     if (!plan.ok) throw new Error("нет плана");
     const wheel = applyChange(s, plan.change, 2000);
-    const back = backToThemes(wheel)!;
+    const back = backToThemes(wheel, teams)!;
     expect(back.clearAnswers).toBe(1);
     const again = applyChange(wheel, back.change, 3000);
     expect(again.state).toMatchObject({ step: 0, stage: "question", timeLimit: null, answered: 3 });
@@ -238,8 +243,44 @@ describe("рулетка: выбор тем (п. 3.1)", () => {
     expect(Object.keys(r.choices)).toEqual(["a", "b", "c"]);
     // После вращения «Назад» к темам нет.
     const spun = { ...wheel, state: { ...wheel.state, result: { ...(wheel.state.result as object), played: { music: ["m1"] } } } };
-    expect(backToThemes(spun)).toBeNull();
-    expect(backToThemes(s)).toBeNull();
+    expect(backToThemes(spun, teams)).toBeNull();
+    expect(backToThemes(s, teams)).toBeNull();
+    const withResult = (patch: Record<string, unknown>) => ({ ...wheel, state: { ...wheel.state, result: { ...(wheel.state.result as object), ...patch } } });
+    expect(backToThemes(withResult({ spin: { id: "x", themeId: "music", taskId: "m1", rarity: "common" } }), teams)).toBeNull();
+    expect(backToThemes(withResult({ turn: { n: 2, round: 1, team: "b", extra: false } }), teams)).toBeNull();
+    expect(backToThemes(withResult({ turn: { n: 1, round: 1, team: "a", extra: true } }), teams)).toBeNull();
+  });
+
+  it("«Снять выбор» у подтверждённого выбора капитана держится, пока капитан не ответит заново (находка аудита 2)", () => {
+    let s = onThemes(teams);
+    const answers = [ans("a", { themes: ["music", "dance"], confirmed: true }, 10)];
+    s = applyChange(s, syncThemes(s, content, teams, answers)!, 1100);
+    s = applyChange(s, hostChoose(s, content, teams, answers, "a", [])!, 1200);
+    expect(syncThemes(s, content, teams, answers)).toBeNull();
+    expect(parseRouletteResult(s.state.result).choices.a?.themes).toEqual([]);
+    const again = effectiveChoices(content, parseRouletteResult(s.state.result), [ans("a", { themes: ["cinema", "music"], confirmed: true }, 30)]);
+    expect(again.a).toEqual({ themes: ["music", "cinema"], by: "captain", at: 30 });
+  });
+
+  it("второй пульт со старым списком ответов не возвращает готовность после «Изменить» (находка аудита 5)", () => {
+    let s = onThemes(teams);
+    const confirmed = [ans("a", { themes: ["music", "dance"], confirmed: true }, 10)];
+    const changed = [ans("a", { themes: ["music", "dance"], confirmed: false }, 20)];
+    s = applyChange(s, syncThemes(s, content, teams, confirmed)!, 1100);
+    // Пульт А получил «Изменить».
+    s = applyChange(s, syncThemes(s, content, teams, changed)!, 1200);
+    expect(s.state.answered).toBe(0);
+    // Пульт Б ещё видит старый ответ — записывать нечего.
+    expect(syncThemes(s, content, teams, confirmed)).toBeNull();
+  });
+
+  it("счётчик «Ответили» и очередь на выборе тем — только первые 8 команд (Р-8)", () => {
+    const nine = Array.from({ length: 9 }, (_, i) => team("t" + i, i));
+    let s = onThemes(nine);
+    expect(parseRouletteResult(s.state.result).queue).toHaveLength(8);
+    const answers = [ans("t8", { themes: ["music", "dance"], confirmed: true }, 10)];
+    s = applyChange(s, syncThemes(s, content, nine, answers)!, 1100);
+    expect(s.state.answered).toBe(0);
   });
 
   it("опоздавшая команда — в конец очереди, пока их меньше восьми; убранная выпадает (Р-10)", () => {

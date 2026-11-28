@@ -18,7 +18,7 @@ export const roulettePreview: PreviewDriver<RouletteContent> = ({ session, conte
         const themes = Array.from({ length: need }, (_, k) => catalog[(waiting * need + k) % catalog.length]!);
         return { label: "Капитан «" + name(team.id) + "» выбирает темы и жмёт «Подтвердить»", answers: [{ pid: team.id, value: { themes, confirmed: true } }] };
       }
-      const sync = syncThemes(session, content, answers);
+      const sync = syncThemes(session, content, participants, answers);
       if (sync) return { label: "Экран: все команды готовы", change: sync };
       const plan = planWheel(session, content, participants, answers);
       return plan.ok ? { label: "Пульт: «К колесу» — колесо собрано", change: plan.change } : null;

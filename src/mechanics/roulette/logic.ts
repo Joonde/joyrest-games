@@ -11,7 +11,10 @@ import type { Fallback } from "./spin";
 
 export type RouletteMode = "themes" | "spin" | "spinning" | "task" | "judged";
 
-/** Выбор тем команды: ответ капитана или выбор ведущего (Р-6). at — время ответа капитана, после которого он сделан. */
+/**
+ * Выбор тем команды: ответ капитана или выбор ведущего (Р-6). Пустой список — команда не готова (капитан нажал
+ * «Изменить» или ведущий снял выбор): запись с отметкой at, чтобы старый ответ не вернул готовность.
+ */
 export interface ThemeChoice {
   themes: string[];
   by: "captain" | "host";
@@ -57,6 +60,8 @@ export interface RouletteResult {
   choices: Record<string, ThemeChoice>;
   /** Темы, добавленные ведущим в колесо, когда выбранных меньше трёх (Р-7). */
   added: string[];
+  /** Шаг выбора тем: очередь, как её видит пульт (первые 8 команд), — для экрана и телефонов. */
+  queue: string[];
   sectors: string[];
   order: string[];
   /** Показанные задания по темам — «Назад» их не откатывает (Р-40). */
@@ -87,7 +92,6 @@ function parseChoices(raw: unknown): Record<string, ThemeChoice> {
     if (!ID.test(pid)) continue;
     const c = rec(value);
     const themes = ids(c.themes, 2);
-    if (themes.length === 0) continue;
     out[pid] = { themes, by: c.by === "host" ? "host" : "captain", at: num(c.at, 0) };
   }
   return out;
@@ -147,6 +151,7 @@ export function parseRouletteResult(raw: unknown): RouletteResult {
     changeable: d.changeable === true,
     choices: parseChoices(d.choices),
     added: ids(d.added, LIMITS.maxThemes),
+    queue: ids(d.queue, 100),
     sectors: ids(d.sectors, LIMITS.maxThemes),
     order: ids(d.order, MAX_TEAMS),
     played: parsePlayed(d.played),
@@ -220,10 +225,19 @@ export function effectiveChoices(content: RouletteContent, r: RouletteResult, an
     if (current && at <= current.at) continue;
     const parsed = parseThemesAnswer(a.value, content);
     if (!parsed) continue;
-    if (parsed.confirmed && parsed.themes.length === need) out[pid] = { themes: parsed.themes, by: "captain", at };
-    else delete out[pid];
+    out[pid] = { themes: parsed.confirmed && parsed.themes.length === need ? parsed.themes : [], by: "captain", at };
   }
   return out;
+}
+
+/** Команда готова: у неё есть выбор тем. */
+export function isReady(choice: ThemeChoice | undefined): choice is ThemeChoice & { readonly ready: true } {
+  return choice !== undefined && choice.themes.length > 0;
+}
+
+/** Сколько команд очереди готовы — счётчик «Ответили» (ownAnswered; команды сверх восьми не считаются, Р-8). */
+export function readyCount(choices: Record<string, ThemeChoice>, queue: readonly string[]): number {
+  return queue.filter((pid) => isReady(choices[pid])).length;
 }
 
 /**
@@ -260,7 +274,7 @@ export function themesStatus(content: RouletteContent, session: Session, partici
   const all = teamCandidates(session, participants);
   const queue = all.slice(0, MAX_TEAMS);
   const overflow = all.slice(MAX_TEAMS);
-  const missing = queue.filter((pid) => !choices[pid]);
+  const missing = queue.filter((pid) => !isReady(choices[pid]));
   const sectors = sectorsOf(content, choices, queue, added);
   const problems: string[] = [];
   if (queue.length < MIN_TEAMS) problems.push("Нужно хотя бы " + MIN_TEAMS + " команды.");
@@ -277,28 +291,37 @@ export function onThemes(session: Session): boolean {
 
 /** «Открыть выбор тем»: команды в таблицу, шаг 0 — приём ответов без таймера, ответ можно менять. */
 export function openThemes(session: Session, participants: Participant[]): SessionChange {
+  const queue = teamCandidates(session, participants).slice(0, MAX_TEAMS);
   return {
     leaderboard: leaderboardAdditions(session.leaderboard, participants, "teams"),
-    state: { step: 0, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { mode: "themes", changeable: true, choices: {}, added: [] } },
+    state: { step: 0, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: themesResult({}, [], queue) },
     expect: { phase: "playing", step: 0, stage: "ready" },
   };
 }
 
-function themesResult(choices: Record<string, ThemeChoice>, added: readonly string[]): Record<string, unknown> {
-  return { mode: "themes", changeable: true, choices, added: [...added] };
+function themesResult(choices: Record<string, ThemeChoice>, added: readonly string[], queue: readonly string[]): Record<string, unknown> {
+  return { mode: "themes", changeable: true, choices, added: [...added], queue: [...queue] };
+}
+
+/** Запись шага выбора тем: выбор, темы ведущего, очередь и счётчик; отпечаток итогов — второй пульт не затрёт. */
+function themesChange(session: Session, participants: readonly Participant[], choices: Record<string, ThemeChoice>, added: readonly string[]): SessionChange {
+  const queue = teamCandidates(session, participants).slice(0, MAX_TEAMS);
+  return {
+    state: { answered: readyCount(choices, queue), result: themesResult(choices, added, queue) },
+    expect: { phase: "playing", step: 0, stage: "question", result: resultKey(session.state.result) },
+  };
 }
 
 /**
  * Пульт переносит выбор капитанов в сессию (экран и телефоны видят только её) и пишет счётчик «Ответили» (ownAnswered).
  * null — писать нечего.
  */
-export function syncThemes(session: Session, content: RouletteContent, answers: readonly Answer[]): SessionChange | null {
+export function syncThemes(session: Session, content: RouletteContent, participants: readonly Participant[], answers: readonly Answer[]): SessionChange | null {
   if (!onThemes(session)) return null;
   const r = parseRouletteResult(session.state.result);
-  const choices = effectiveChoices(content, r, answers);
-  const answered = Object.keys(choices).length;
-  if (resultKey(choices) === resultKey(r.choices) && session.state.answered === answered) return null;
-  return { state: { answered, result: themesResult(choices, r.added) }, expect: { phase: "playing", step: 0, stage: "question", result: resultKey(session.state.result) } };
+  const change = themesChange(session, participants, effectiveChoices(content, r, answers), r.added);
+  if (resultKey(change.state?.result) === resultKey(session.state.result) && change.state?.answered === session.state.answered) return null;
+  return change;
 }
 
 /** Последнее время ответа команды на шаге выбора тем, которое видит пульт. */
@@ -306,34 +329,35 @@ function lastAnswerAt(answers: readonly Answer[], pid: string): number {
   return answers.filter((a) => a.step === 0 && a.pid === pid).reduce((m, a) => Math.max(m, a.submittedAt ?? 0), 0);
 }
 
-/** Ведущий выбирает темы за команду (Р-6); пустой список — снять выбор. */
-export function hostChoose(session: Session, content: RouletteContent, answers: readonly Answer[], team: string, themes: readonly string[]): SessionChange | null {
+/**
+ * Ведущий выбирает темы за команду (Р-6); пустой список — снять выбор. Снятие хранится записью с отметкой времени:
+ * подтверждённый раньше ответ капитана готовность не вернёт, вернёт только новый ответ.
+ */
+export function hostChoose(session: Session, content: RouletteContent, participants: readonly Participant[], answers: readonly Answer[], team: string, themes: readonly string[]): SessionChange | null {
   if (!onThemes(session)) return null;
   const r = parseRouletteResult(session.state.result);
-  const current = effectiveChoices(content, r, answers);
-  const clean = cleanThemes(content, themes);
-  const choices = { ...current };
-  if (clean.length === 0) delete choices[team];
-  else choices[team] = { themes: clean, by: "host", at: lastAnswerAt(answers, team) };
-  return { state: { answered: Object.keys(choices).length, result: themesResult(choices, r.added) }, expect: { phase: "playing", step: 0, stage: "question", result: resultKey(session.state.result) } };
+  const choices = { ...effectiveChoices(content, r, answers) };
+  const at = Math.max(lastAnswerAt(answers, team), choices[team]?.at ?? 0);
+  choices[team] = { themes: cleanThemes(content, themes), by: "host", at };
+  return themesChange(session, participants, choices, r.added);
 }
 
-/** Ведущий добавляет или убирает тему колеса сверх выбора команд (Р-7). */
-export function hostToggleAdded(session: Session, content: RouletteContent, answers: readonly Answer[], themeId: string): SessionChange | null {
+/** Ведущий добавляет (on) или убирает тему колеса сверх выбора команд (Р-7). Уже так — null (повтор не переключит обратно). */
+export function hostSetAdded(session: Session, content: RouletteContent, participants: readonly Participant[], answers: readonly Answer[], themeId: string, on: boolean): SessionChange | null {
   if (!onThemes(session)) return null;
   const r = parseRouletteResult(session.state.result);
   if (!catalogThemes(content).some((t) => t.id === themeId)) return null;
-  const added = r.added.includes(themeId) ? r.added.filter((t) => t !== themeId) : [...r.added, themeId];
-  const choices = effectiveChoices(content, r, answers);
-  return { state: { answered: Object.keys(choices).length, result: themesResult(choices, added) }, expect: { phase: "playing", step: 0, stage: "question", result: resultKey(session.state.result) } };
+  if (r.added.includes(themeId) === on) return null;
+  const added = on ? [...r.added, themeId] : r.added.filter((t) => t !== themeId);
+  return themesChange(session, participants, effectiveChoices(content, r, answers), added);
 }
 
 export type WheelPlan = { ok: true; change: SessionChange; status: ThemesStatus } | { ok: false; problems: string[]; status: ThemesStatus | null };
 
 /**
  * «К колесу» по свежему списку ответов (О-8): секторы и очередь фиксируются до конца игры (Р-9), ходит первая команда
- * очереди. Запись несёт отметку списка ответов шага выбора тем — пришёл или сменился ответ, сервер ответит 409,
- * пульт перечитает выбор (Р-7).
+ * очереди. Запись несёт отметку списка ответов шага выбора тем и отпечаток итогов (выбор ведущего и его темы со
+ * второго пульта — не ответы): пришёл или сменился ответ или выбор — сервер ответит 409, пульт перечитает (Р-7).
  */
 export function planWheel(session: Session, content: RouletteContent, participants: Participant[], fresh: readonly Answer[]): WheelPlan {
   if (!onThemes(session)) return { ok: false, problems: ["Выбор тем уже закрыт."], status: null };
@@ -342,10 +366,11 @@ export function planWheel(session: Session, content: RouletteContent, participan
   const status = themesStatus(content, session, participants, choices, r.added);
   if (status.problems.length > 0) return { ok: false, problems: status.problems, status };
   const first = status.queue[0] as string;
-  const result: RouletteResult = {
+  const ready = Object.fromEntries(Object.entries(choices).filter(([, c]) => isReady(c)));
+  const result: Omit<RouletteResult, "queue"> = {
     mode: "spin",
     changeable: false,
-    choices,
+    choices: ready,
     added: r.added,
     sectors: status.sectors,
     order: status.queue,
@@ -362,7 +387,7 @@ export function planWheel(session: Session, content: RouletteContent, participan
     change: {
       leaderboard: leaderboardAdditions(session.leaderboard, participants, "teams"),
       state: { step: 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result },
-      expect: { phase: "playing", step: 0, stage: "question", answers: answersMark(0, fresh) },
+      expect: { phase: "playing", step: 0, stage: "question", result: resultKey(session.state.result), answers: answersMark(0, fresh) },
     },
   };
 }
@@ -377,14 +402,14 @@ export interface RouletteBack {
  * «Назад» с первого хода к выбору тем — только пока не было ни одного вращения (Р-42). Выбор команд и темы ведущего
  * остаются; ответы шага выбора тем не стираются никогда (Р-43).
  */
-export function backToThemes(session: Session): RouletteBack | null {
+export function backToThemes(session: Session, participants: readonly Participant[]): RouletteBack | null {
   const { phase, step, stage } = session.state;
   const r = parseRouletteResult(session.state.result);
   if (phase !== "playing" || step !== 1 || stage !== "question" || r.mode !== "spin" || r.spin || r.turn?.n !== 1 || r.turn.extra) return null;
   if (Object.values(r.played).some((list) => list.length > 0)) return null;
   return {
     change: {
-      state: { step: 0, stage: "question", startedAt: null, timeLimit: null, revealed: false, answered: Object.keys(r.choices).length, result: themesResult(r.choices, r.added) },
+      state: { step: 0, stage: "question", startedAt: null, timeLimit: null, revealed: false, answered: readyCount(r.choices, r.order), result: themesResult(r.choices, r.added, teamCandidates(session, participants).slice(0, MAX_TEAMS)) },
       expect: { phase: "playing", step: 1, stage: "question", result: resultKey(session.state.result) },
     },
     clearAnswers: 1,

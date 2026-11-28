@@ -54,8 +54,9 @@ export function validateRoulette(content: RouletteContent): ValidationError[] {
   const errors: ValidationError[] = [];
   const sum = RARITIES.reduce((s, r) => s + content.weights[r], 0);
   if (sum !== 100) errors.push({ path: "rarity/weights", message: "Сумма шансов редкостей должна быть ровно 100 % (сейчас " + sum + " %)." });
-  if (content.themes.length > LIMITS.maxThemes) errors.push({ path: "themes", message: "Тем не больше " + LIMITS.maxThemes + " (сейчас " + content.themes.length + "): уберите лишние." });
+  // Предел — для каталога (что видят капитаны): выключенные и пустые темы можно держать про запас (п. 7).
   const ready = catalogThemes(content).length;
+  if (ready > LIMITS.maxThemes) errors.push({ path: "themes", message: "В каталоге не больше " + LIMITS.maxThemes + " тем (сейчас " + ready + "): выключите или уберите лишние." });
   if (ready < LIMITS.minThemes) {
     errors.push({
       path: "themes",

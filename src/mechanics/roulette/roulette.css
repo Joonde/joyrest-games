@@ -104,6 +104,12 @@
   gap: 10px;
 }
 
+.fr-host-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .fr-host-team {
   display: flex;
   flex-wrap: wrap;

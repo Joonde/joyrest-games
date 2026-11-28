@@ -124,6 +124,13 @@ describe("рулетка: отбор задания (Р-17, Р-18)", () => {
       const p = pickTask(content, content.themes[0]!, { played: ["r1"], extra: false, lastRarity: null, sameRarity: "rare", current: "r1" }, seq(r, r))!;
       expect(p.task.id).toBe("r2");
     }
+    // Сброс колоды при замене: заменённое остаётся показанным и не выпадает сразу (находка аудита 6).
+    const small = game({ a: [{ id: "a" }, { id: "b" }, { id: "c" }] });
+    for (const r of [0, 0.5, 0.99]) {
+      const reset = pickTask(small, small.themes[0]!, { played: ["a", "b", "c"], extra: false, lastRarity: null, sameRarity: "common", current: "c" }, seq(r, r))!;
+      expect(reset.task.id).not.toBe("c");
+      expect(reset.played).toEqual(["c", reset.task.id]);
+    }
     // Той же редкости больше нет — обычный отбор, но не заменённое.
     const p = pickTask(content, content.themes[0]!, { played: ["r1", "r2"], extra: false, lastRarity: null, sameRarity: "rare", current: "r2" }, seq(0.99, 0.5))!;
     expect(["c1", "L1"]).toContain(p.task.id);
@@ -167,7 +174,7 @@ describe("рулетка: колесо (Р-14)", () => {
 
   it("сброс колоды — только у выпавшей темы", () => {
     const content = game({ a: [{ id: "a1" }], b: [{ id: "b1" }, { id: "b2" }] });
-    const out = spinOutcome(content, { sectors: ["a"], played: { a: ["a1"], b: ["b1"] }, extra: false, lastRarity: null }, "x")!;
+    const out = spinOutcome(content, { sectors: ["a", "b"], played: { a: ["a1"], b: ["b1"] }, extra: false, lastRarity: null, forcedTheme: "a" }, "x")!;
     expect(out.themeId).toBe("a");
     expect(out.played).toEqual(["a1"]);
     expect(out.fallbacks).toContain("deckReset");

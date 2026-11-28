@@ -5,8 +5,8 @@ import { NameText } from "../../components/NameText";
 import { pointsLabel } from "../../core/results";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { catalogThemes, sectorLabel, themeById, type RouletteContent } from "./content";
-import { parseRouletteResult, parseThemesAnswer, themesNeeded, type RouletteResult, type ThemesAnswer } from "./logic";
+import { catalogThemes, MAX_TEAMS, sectorLabel, themeById, type RouletteContent } from "./content";
+import { isReady, parseRouletteResult, parseThemesAnswer, themesNeeded, type RouletteResult, type ThemesAnswer } from "./logic";
 import "./roulette.css";
 
 export type RouletteAnswerValue = ThemesAnswer | { spin: true };
@@ -15,9 +15,15 @@ const nameOf = (session: Session, pid: string | null | undefined) => (pid ? (ses
 
 const themeNames = (content: RouletteContent, ids: readonly string[]) => ids.map((id) => themeById(content, id)?.name ?? "—").join(", ");
 
-/** Команды в порядке таблицы (для выбора тем — в порядке входа это делает пульт; здесь достаточно порядка записей). */
-function teamsOf(session: Session): string[] {
-  return Object.keys(session.leaderboard);
+/** Команды на выборе тем: очередь, которую записал пульт (порядок входа, до восьми), потом остальные — «не в игре». */
+function teamsOf(session: Session, r: RouletteResult): { queue: string[]; extra: string[] } {
+  const queue = r.queue.length > 0 ? r.queue.filter((pid) => pid in session.leaderboard) : Object.keys(session.leaderboard).slice(0, MAX_TEAMS);
+  return { queue, extra: Object.keys(session.leaderboard).filter((pid) => !queue.includes(pid) && (r.queue.length >= MAX_TEAMS || queue.length >= MAX_TEAMS)) };
+}
+
+/** Команда сверх восьми — в эту игру не попадает (Р-8). */
+function outOfQueue(session: Session, r: RouletteResult, pid: string): boolean {
+  return teamsOf(session, r).extra.includes(pid);
 }
 
 function Wheelplan({ session, content, r }: { session: Session; content: RouletteContent; r: RouletteResult }) {
@@ -60,25 +66,26 @@ export function RouletteScreenView({ session, content }: ViewProps<RouletteConte
     );
   }
   if (r.mode === "themes") {
-    const teams = teamsOf(session);
+    const { queue, extra } = teamsOf(session, r);
     const need = themesNeeded(content);
     return (
       <div className="fr-screen">
         <span className="quiz-screen__badge">Рулетка судьбы · выбор тем</span>
         <h2 className="fr-screen__title">Капитаны, выберите {need === 1 ? "тему" : need + " темы"} на телефоне</h2>
         <ul className="fr-teams">
-          {teams.map((pid) => {
+          {queue.map((pid) => {
             const choice = r.choices[pid];
             return (
-              <li key={pid} className={"fr-team" + (choice ? " is-ready" : "")}>
+              <li key={pid} className={"fr-team" + (isReady(choice) ? " is-ready" : "")}>
                 <span className="fr-team__name">
                   <NameText name={nameOf(session, pid)} />
                 </span>
-                <span className="fr-team__state">{choice ? "✓ " + themeNames(content, choice.themes) : "выбирает…"}</span>
+                <span className="fr-team__state">{isReady(choice) ? "✓ " + themeNames(content, choice.themes) : "выбирает…"}</span>
               </li>
             );
           })}
         </ul>
+        {extra.length > 0 && <p className="fr-screen__note">Команд больше {MAX_TEAMS}: в этой игре не участвуют — {extra.map((pid) => nameOf(session, pid)).join(", ")}.</p>}
       </div>
     );
   }
@@ -91,25 +98,44 @@ export function RouletteScreenView({ session, content }: ViewProps<RouletteConte
   );
 }
 
-/** Выбор тем на телефоне капитана: ровно нужное число тем и «Подтвердить»; после — «Изменить» (Р-5). */
+/**
+ * Выбор тем на телефоне капитана: ровно нужное число тем и «Подтвердить»; после — «Изменить» (Р-5). Что показать,
+ * решает сессия, а не память телефона: выбор ведущего (сделан или снят) важнее своего ответа; после «Назад к выбору
+ * тем» и перезагрузки готовность видна по сессии.
+ */
 function ThemesPicker({ content, r, pid, myAnswer, sending, onAnswer }: { content: RouletteContent; r: RouletteResult; pid: string; myAnswer: ThemesAnswer | null; sending: boolean; onAnswer: (v: ThemesAnswer) => void }) {
   const catalog = catalogThemes(content);
   const need = themesNeeded(content);
   const choice = r.choices[pid];
-  const confirmed = myAnswer?.confirmed === true && myAnswer.themes.length === need;
+  const byHost = choice?.by === "host";
+  const mineReady = myAnswer?.confirmed === true && myAnswer.themes.length === need;
+  // Готово: ведущий выбрал за команду; или свой подтверждённый ответ; или своего ответа нет, а в сессии — выбор капитана.
+  const shown: string[] | null = byHost ? (isReady(choice) ? choice.themes : null) : myAnswer ? (mineReady ? myAnswer.themes : null) : isReady(choice) ? choice.themes : null;
   const [picked, setPicked] = useState<string[]>(() => myAnswer?.themes ?? choice?.themes ?? []);
-  // Ведущий выбрал за команду, а капитан ещё ничего не трогал — показываем выбор ведущего.
+  const [editing, setEditing] = useState(false);
   useEffect(() => {
-    if (!myAnswer && choice?.by === "host") setPicked(choice.themes);
+    if (byHost) setPicked(choice?.themes ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при смене выбора ведущего
-  }, [choice?.by, choice?.themes.join(",")]);
+  }, [byHost, choice?.themes.join(",")]);
+  useEffect(() => {
+    if (shown === null) setEditing(false);
+  }, [shown === null]);
 
-  if (confirmed) {
+  if (shown && !editing) {
     return (
       <div className="stack stack--tight">
-        <p className="success">Готово: {themeNames(content, myAnswer.themes)}</p>
+        <p className="success">{byHost ? "Ведущий выбрал за вас: " : "Готово: "}{themeNames(content, shown)}</p>
         <p className="muted small">Пока ведущий не собрал колесо, выбор можно поменять.</p>
-        <button type="button" className="btn btn--secondary btn--block" disabled={sending} onClick={() => onAnswer({ themes: myAnswer.themes, confirmed: false })}>
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          disabled={sending}
+          onClick={() => {
+            setPicked(shown);
+            if (byHost) setEditing(true);
+            else onAnswer({ themes: shown, confirmed: false });
+          }}
+        >
           Изменить
         </button>
       </div>
@@ -119,7 +145,7 @@ function ThemesPicker({ content, r, pid, myAnswer, sending, onAnswer }: { conten
   return (
     <div className="stack stack--tight">
       <h2>Выберите {need === 1 ? "тему" : need + " темы"}</h2>
-      {choice?.by === "host" && <p className="muted small">Ведущий выбрал за вас: {themeNames(content, choice.themes)}. Можно оставить или выбрать свои.</p>}
+      {byHost && !isReady(choice) && <p className="muted small">Ведущий снял выбор — выберите заново.</p>}
       <div className="fr-pick" role="group" aria-label="Темы">
         {catalog.map((t) => {
           const on = picked.includes(t.id);
@@ -133,7 +159,15 @@ function ThemesPicker({ content, r, pid, myAnswer, sending, onAnswer }: { conten
           );
         })}
       </div>
-      <button type="button" className="btn btn--block" disabled={sending || picked.length !== need} onClick={() => onAnswer({ themes: picked, confirmed: true })}>
+      <button
+        type="button"
+        className="btn btn--block"
+        disabled={sending || picked.length !== need}
+        onClick={() => {
+          setEditing(false);
+          onAnswer({ themes: picked, confirmed: true });
+        }}
+      >
         Подтвердить
       </button>
     </div>
@@ -161,13 +195,22 @@ export function RoulettePlayerView({ session, content, pid, role, myAnswer, send
   if (r.mode === "themes") {
     const choice = r.choices[pid];
     const mine = myAnswer ? parseThemesAnswer(myAnswer.value, content) : null;
+    if (outOfQueue(session, r, pid)) {
+      return (
+        <div className="quiz-phone quiz-phone--center">
+          {head}
+          <h2>Команд уже {MAX_TEAMS}</h2>
+          <p className="muted">В этой игре ваша команда не участвует — попросите ведущего объединить команды.</p>
+        </div>
+      );
+    }
     return (
       <div className="quiz-phone">
         {head}
         {role === "member" ? (
           <>
             <h2>Капитан выбирает темы</h2>
-            <p className="muted">{choice ? "Выбрано: " + themeNames(content, choice.themes) : "Подскажите капитану, что вам по душе."}</p>
+            <p className="muted">{isReady(choice) ? "Выбрано: " + themeNames(content, choice.themes) : "Подскажите капитану, что вам по душе."}</p>
           </>
         ) : (
           <ThemesPicker key={step} content={content} r={r} pid={pid} myAnswer={mine} sending={sending} onAnswer={onAnswer} />

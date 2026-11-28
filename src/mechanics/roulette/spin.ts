@@ -137,7 +137,8 @@ export function pickTask(content: RouletteContent, theme: RouletteTheme, input: 
   if (pool.length === 0) {
     // Колода темы кончилась: сброс только этой темы, но не сразу то же задание (и не заменяемое).
     const last = [...played].reverse()[0] ?? null;
-    played = [];
+    // Заменяемое задание остаётся показанным и в новой колоде (Р-18): иначе оно выпало бы снова сразу после сброса.
+    played = input.current && known.has(input.current) ? [input.current] : [];
     fallbacks.push("deckReset");
     pool = all.filter((t) => t.id !== last && t.id !== input.current);
     if (pool.length === 0) pool = all.filter((t) => t.id !== input.current);

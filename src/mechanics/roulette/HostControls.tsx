@@ -8,7 +8,7 @@ import { resultKey } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { catalogThemes, MAX_TEAMS, themeById, type RouletteContent } from "./content";
-import { backToThemes, effectiveChoices, hostChoose, hostToggleAdded, openThemes, parseRouletteResult, planWheel, rouletteAction, syncThemes, themesNeeded, themesStatus } from "./logic";
+import { backToThemes, effectiveChoices, hostChoose, hostSetAdded, isReady, onThemes, openThemes, parseRouletteResult, planWheel, rouletteAction, syncThemes, themesNeeded, themesStatus } from "./logic";
 
 const isConflict = (e: unknown) => typeof e === "object" && e !== null && "code" in e && (e as { code: unknown }).code === "failed-precondition";
 const pause = (ms: number) => new Promise<void>((done) => window.setTimeout(done, ms));
@@ -18,7 +18,12 @@ export function RouletteHostControls({ session, content, answers, participants, 
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<string[]>([]);
+  const [syncRetry, setSyncRetry] = useState(0);
   const latest = useRef<Session>(session);
+  const latestAnswers = useRef(answers);
+  latestAnswers.current = answers;
+  const latestParticipants = useRef(participants);
+  latestParticipants.current = participants;
   const waiters = useRef<Array<() => void>>([]);
   useEffect(() => {
     latest.current = session;
@@ -34,16 +39,21 @@ export function RouletteHostControls({ session, content, answers, participants, 
   const catalog = catalogThemes(content);
   const need = themesNeeded(content);
 
-  // Выбор капитанов → в сессию (экран и телефоны видят только её) и счётчик «Ответили».
+  // Выбор капитанов → в сессию (экран и телефоны видят только её) и счётчик «Ответили». Сеть подвела — повтор через 3 с.
   const own = answers.filter((a) => a.step === 0);
-  const syncKey = action === "toWheel" ? own.map((a) => a.id + ":" + (a.submittedAt ?? 0)).join(",") + "|" + resultKey(session.state.result) + "|" + session.state.answered : "";
+  const teamKey = participants.filter((p) => p.kind === "team").map((p) => p.id).join(",") + "|" + Object.keys(session.leaderboard).join(",");
+  const syncKey = action === "toWheel" ? own.map((a) => a.id + ":" + (a.submittedAt ?? 0)).join(",") + "|" + resultKey(session.state.result) + "|" + session.state.answered + "|" + teamKey : "";
   useEffect(() => {
     if (!syncKey || busy) return;
-    const change = syncThemes(latest.current, content, answers);
+    const change = syncThemes(latest.current, content, latestParticipants.current, latestAnswers.current);
     if (!change) return;
-    void control.apply(change).catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новых ответах или новой сессии
-  }, [syncKey, busy]);
+    let retry: number | undefined;
+    void control.apply(change).catch((e: unknown) => {
+      if (!isConflict(e)) retry = window.setTimeout(() => setSyncRetry((n) => n + 1), 3000);
+    });
+    return () => window.clearTimeout(retry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новых ответах, новой сессии или повторе
+  }, [syncKey, busy, syncRetry]);
 
   function nextSession(): Promise<void> {
     return new Promise((done) => {
@@ -55,20 +65,37 @@ export function RouletteHostControls({ session, content, answers, participants, 
     });
   }
 
-  async function run(make: () => SessionChange | null, clear?: number) {
-    if (busy) return;
-    const change = make();
-    if (!change) return;
+  /**
+   * Запись пульта. make строит изменение по свежей сессии и ответам (latest): отказ 409 из-за второго пульта или нового
+   * ответа — дождаться свежей сессии и построить заново (до трёх попыток); игра ушла дальше (make вернул null) — молча.
+   * true — записано.
+   */
+  async function run(make: () => SessionChange | null, clear?: number): Promise<boolean> {
+    if (busy) return false;
     setBusy(true);
     setError(null);
     try {
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      await control.apply(change);
-      // Ответы покидаемого шага — только после записи шага назад (Р-43, Н-3).
-      if (clear !== undefined) await control.clearAnswers(clear).catch(() => control.clearAnswers(clear).catch(() => undefined));
-      await arrived;
-    } catch (e) {
-      if (!isConflict(e)) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const change = make();
+        if (!change) return false;
+        const arrived = rehearsal ? Promise.resolve() : nextSession();
+        try {
+          await control.apply(change);
+        } catch (e) {
+          if (!isConflict(e)) throw e;
+          await arrived;
+          continue;
+        }
+        // Ответы покидаемого шага — только после записи шага назад (Р-43, Н-3).
+        if (clear !== undefined) await control.clearAnswers(clear).catch(() => control.clearAnswers(clear).catch(() => undefined));
+        await arrived;
+        return true;
+      }
+      setError("Игра изменилась — нажмите ещё раз.");
+      return false;
+    } catch {
+      setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -81,20 +108,23 @@ export function RouletteHostControls({ session, content, answers, participants, 
     setError(null);
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
+        // Колесо уже собрал второй пульт — молча.
+        if (!onThemes(latest.current)) return;
         const fresh = await control.freshAnswers(0);
-        const plan = planWheel(latest.current, content, participants, fresh);
+        const plan = planWheel(latest.current, content, latestParticipants.current, fresh);
         if (!plan.ok) {
-          setError(plan.problems.join(" "));
+          if (onThemes(latest.current)) setError(plan.problems.join(" "));
           return;
         }
+        const arrived = rehearsal ? Promise.resolve() : nextSession();
         try {
-          const arrived = rehearsal ? Promise.resolve() : nextSession();
           await control.apply(plan.change);
           await arrived;
           return;
         } catch (e) {
           if (!isConflict(e)) throw e;
-          await pause(300);
+          // Пришёл ответ (сессия не меняется) или выбор со второго пульта (меняется): ждём недолго и пересчитываем.
+          await Promise.race([arrived, pause(600)]);
         }
       }
       setError("Игра изменилась — нажмите ещё раз.");
@@ -121,7 +151,7 @@ export function RouletteHostControls({ session, content, answers, participants, 
               Завершить игру
             </button>
           ) : (
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => podiumNext(session))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => (latest.current.state.stage === "podium" ? podiumNext(latest.current) : null))}>
               Открыть следующее место
             </button>
           )}
@@ -145,7 +175,7 @@ export function RouletteHostControls({ session, content, answers, participants, 
         )}
         <div className="actions">
           {teams === 0 && <p className="muted small">Ждём команды.</p>}
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || teams === 0} onClick={() => void run(() => openThemes(latest.current, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || teams === 0} onClick={() => void run(() => (rouletteAction(latest.current) === "openThemes" ? openThemes(latest.current, latestParticipants.current) : null))}>
             Открыть выбор тем
           </button>
         </div>
@@ -160,7 +190,7 @@ export function RouletteHostControls({ session, content, answers, participants, 
     return (
       <div className="stack host-quiz">
         <p className="eyebrow">Рулетка судьбы · выбор тем</p>
-        <ul className="stack stack--tight">
+        <ul className="stack stack--tight fr-host-list">
           {status.queue.map((pid) => {
             const choice = choices[pid];
             return (
@@ -169,7 +199,7 @@ export function RouletteHostControls({ session, content, answers, participants, 
                   <strong>
                     <NameText name={name(pid)} />
                   </strong>
-                  <span className={choice ? "success" : "muted"}>{choice ? (choice.by === "host" ? "выбрал ведущий: " : "✓ ") + choice.themes.map(themeName).join(", ") : "выбирает…"}</span>
+                  <span className={isReady(choice) ? "success" : "muted"}>{isReady(choice) ? (choice.by === "host" ? "выбрал ведущий: " : "✓ ") + choice.themes.map(themeName).join(", ") : choice?.by === "host" ? "выбор снят — выбирает…" : "выбирает…"}</span>
                   {editing !== pid && (
                     <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => startEdit(pid, choice?.themes ?? [])}>
                       За команду
@@ -201,20 +231,19 @@ export function RouletteHostControls({ session, content, answers, participants, 
                         className="btn"
                         disabled={busy || draft.length !== need}
                         onClick={() => {
-                          setEditing(null);
-                          void run(() => hostChoose(latest.current, content, answers, pid, draft));
+                          const themes = draft;
+                          void run(() => hostChoose(latest.current, content, latestParticipants.current, latestAnswers.current, pid, themes)).then((ok) => ok && setEditing(null));
                         }}
                       >
                         Сохранить
                       </button>
-                      {choice && (
+                      {isReady(choice) && (
                         <button
                           type="button"
                           className="btn btn--quiet"
                           disabled={busy}
                           onClick={() => {
-                            setEditing(null);
-                            void run(() => hostChoose(latest.current, content, answers, pid, []));
+                            void run(() => hostChoose(latest.current, content, latestParticipants.current, latestAnswers.current, pid, [])).then((ok) => ok && setEditing(null));
                           }}
                         >
                           Снять выбор
@@ -246,7 +275,7 @@ export function RouletteHostControls({ session, content, answers, participants, 
                   .map((t) => {
                     const on = r.added.includes(t.id);
                     return (
-                      <button key={t.id} type="button" className={on ? "btn" : "btn btn--secondary"} aria-pressed={on} disabled={busy} onClick={() => void run(() => hostToggleAdded(latest.current, content, answers, t.id))}>
+                      <button key={t.id} type="button" className={on ? "btn" : "btn btn--secondary"} aria-pressed={on} disabled={busy} onClick={() => void run(() => hostSetAdded(latest.current, content, latestParticipants.current, latestAnswers.current, t.id, !on))}>
                         {on ? "✓ " : "+ "}
                         {t.name}
                       </button>
@@ -271,7 +300,7 @@ export function RouletteHostControls({ session, content, answers, participants, 
     );
   }
 
-  const back = backToThemes(session);
+  const back = backToThemes(session, participants);
   return (
     <div className="stack host-quiz">
       <p className="eyebrow">Рулетка судьбы{r.turn ? " · ход " + r.turn.n + " · круг " + r.turn.round + " из " + content.rounds : ""}</p>
@@ -293,7 +322,7 @@ export function RouletteHostControls({ session, content, answers, participants, 
         </p>
       )}
       <div className="actions">
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || back === null} onClick={() => back && void run(() => back.change, back.clearAnswers)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || back === null} onClick={() => back && void run(() => backToThemes(latest.current, latestParticipants.current)?.change ?? null, back.clearAnswers)}>
           Назад к выбору тем
         </button>
       </div>

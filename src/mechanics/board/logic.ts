@@ -636,7 +636,18 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
         : result.buzz;
     // Отсчёт на ответ после «Назад» не идёт: ведущий уже слышал ответ и решает сам.
     const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...result, buzz, picker: result.pickerBefore, speakSince: null, noAuto: true }) } };
-    if (Object.keys(minus).length > 0) change.addScore = minus;
+    // Больше лимита прибавки сервера (ставка аукциона больше 100 000) — записью таблицы целиком, как в `boardReveal`:
+    // иначе сервер отклонил бы всё «Назад» (паспорт, С-Н-17).
+    const addScore: Record<string, number> = {};
+    const leaderboard: Record<string, LeaderboardEntry> = {};
+    for (const [pid, m] of Object.entries(minus)) {
+      const entry = session.leaderboard[pid];
+      if (Math.abs(m) > MAX_SCORE_DELTA) {
+        if (entry) leaderboard[pid] = { ...entry, score: entry.score + m };
+      } else addScore[pid] = m;
+    }
+    if (Object.keys(addScore).length > 0) change.addScore = addScore;
+    if (Object.keys(leaderboard).length > 0) change.leaderboard = leaderboard;
     return { change };
   }
   if (stage === "question") {

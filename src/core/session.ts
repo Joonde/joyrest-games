@@ -179,6 +179,21 @@ export function answersMark(step: number, answers: readonly Pick<Answer, "step" 
   return { step, count: own.length, last, sum };
 }
 
+/** Сколько раз пульт сразу повторяет запись, когда сервер отказал только из-за новых ответов (паспорт общей части, Н-16). */
+export const ANSWERS_RETRIES = 5;
+/** Пауза перед повтором со второго раза: гости отвечают ещё до 3 с после таймера — попытки не кончаются за секунду. */
+export const ANSWERS_RETRY_PAUSE_MS = 250;
+
+/**
+ * Сервер отказал только потому, что пока пульт считал очки, пришёл или сменился ответ (409 `reason: "answers"`):
+ * сессия от этого не меняется, поэтому пульт не ждёт её, а сразу берёт список ответов заново и повторяет.
+ */
+export function answersChanged(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const e = error as { code?: unknown; reason?: unknown };
+  return e.code === "failed-precondition" && e.reason === "answers";
+}
+
 /** Применяет запись пульта к сессии в памяти: так работает «Репетиция» без сервера. */
 export function applyChange(session: Session, change: SessionChange, now: number): Session {
   const { startedAt, ...rest } = change.state ?? {};

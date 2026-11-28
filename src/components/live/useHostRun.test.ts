@@ -77,6 +77,41 @@ describe("запись пульта (runHostChange)", () => {
     expect(h.server().leaderboard.a?.score).toBe(10);
   });
 
+  it("пока пульт считал, пришёл ещё ответ (reason answers) — запись собирается заново сразу, без ожидания сессии (Н-16)", async () => {
+    const h = harness();
+    let fails = 3;
+    let waits = 0;
+    const apply = h.deps.apply;
+    h.deps.apply = async (change) => {
+      if (fails-- > 0) throw Object.assign(new Error("answers"), { code: "failed-precondition", reason: "answers" });
+      await apply(change);
+    };
+    h.deps.nextSession = () => {
+      waits++;
+      return Promise.resolve();
+    };
+    let builds = 0;
+    const outcome = await run((s) => {
+      builds++;
+      return done(s);
+    }, h);
+    expect(outcome).toBe("done");
+    expect(builds).toBe(4);
+    expect(h.applied).toHaveLength(1);
+    // Ожидание свежей сессии — только у прошедшей записи (её возвращение), не у повторов.
+    expect(waits).toBe(4);
+    expect(h.server().leaderboard.a?.score).toBe(10);
+  });
+
+  it("ответы всё приходят — после пяти попыток «нажмите ещё раз»; готовую запись не повторяем", async () => {
+    const h = harness({ error: Object.assign(new Error("answers"), { code: "failed-precondition", reason: "answers" }) });
+    let builds = 0;
+    expect(await run((s) => (builds++, done(s)), h)).toBe("conflict");
+    expect(builds).toBe(5);
+    const g = harness({ error: Object.assign(new Error("answers"), { code: "failed-precondition", reason: "answers" }) });
+    expect(await run(done(base), g)).toBe("conflict");
+  });
+
   it("готовую запись заново не собрать — «Игра изменилась — нажмите ещё раз»", async () => {
     const h = harness({ onFirstApply: gift });
     expect(await run(done(base), h)).toBe("conflict");

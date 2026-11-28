@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { podiumPlaces } from "./podium";
 import type { Participant } from "../data/types";
 import {
+  autoCaptainAllowed,
   captainChanges,
   CAPTAIN_TIMEOUT_MS,
   leaderboardAdditions,
@@ -179,6 +180,50 @@ describe("смена капитана", () => {
 
   it("в команде один капитан — менять не на кого", () => {
     expect(captainChanges([t, phone("c1", 1, 0)], now)).toEqual({});
+  });
+
+  it("командное лобби: сначала не отметившие «Не хочу быть капитаном»; в прежнем лобби галочка не учитывается (ТЗ 6.5)", () => {
+    const stale = now - CAPTAIN_TIMEOUT_MS - 1;
+    const team = [t, phone("c1", 1, stale), { ...phone("m1", 2, now - 5_000), noCaptain: true }, phone("m2", 3, now - 5_000)];
+    expect(captainChanges(team, now, { managed: true })).toEqual({ t1: "m2" });
+    expect(captainChanges(team, now)).toEqual({ t1: "m1" });
+    // Согласных на связи нет — всё равно кто-то на связи (ведущий увидит предупреждение).
+    const unwilling = [t, phone("c1", 1, stale), { ...phone("m1", 2, now - 5_000), noCaptain: true }, phone("m2", 3, stale)];
+    expect(captainChanges(unwilling, now, { managed: true })).toEqual({ t1: "m1" });
+  });
+});
+
+describe("autoCaptainAllowed: сервер перепроверяет автосмену капитана (ТЗ 6.5)", () => {
+  const now = 1_000_000;
+  const stale = now - CAPTAIN_TIMEOUT_MS - 1;
+  const t: Participant = { id: "t1", name: "Команда", kind: "team", teamId: null, captainUid: "c1" };
+  const phone = (id: string, seenAt: number | null, noCaptain = false): Participant => ({
+    id,
+    name: id,
+    kind: "player",
+    teamId: "t1",
+    captainUid: id,
+    joinedAt: 1,
+    seenAt,
+    ...(noCaptain ? { noCaptain } : {}),
+  });
+
+  it("капитан пропал, новый на связи и согласен — можно", () => {
+    expect(autoCaptainAllowed(t, [phone("c1", stale), phone("m1", now - 1000)], "m1", now)).toBe(true);
+  });
+
+  it("капитан вернулся на связь — нельзя", () => {
+    expect(autoCaptainAllowed(t, [phone("c1", now - 1000), phone("m1", now - 1000)], "m1", now)).toBe(false);
+  });
+
+  it("новый не на связи или не в команде — нельзя", () => {
+    expect(autoCaptainAllowed(t, [phone("c1", stale), phone("m1", stale)], "m1", now)).toBe(false);
+    expect(autoCaptainAllowed(t, [phone("c1", stale), { ...phone("m1", now), teamId: "t2" }], "m1", now)).toBe(false);
+  });
+
+  it("новый успел отметить «Не хочу», а согласный на связи есть — нельзя; согласных нет — можно", () => {
+    expect(autoCaptainAllowed(t, [phone("c1", stale), phone("m1", now - 1000, true), phone("m2", now - 1000)], "m1", now)).toBe(false);
+    expect(autoCaptainAllowed(t, [phone("c1", stale), phone("m1", now - 1000, true), phone("m2", stale)], "m1", now)).toBe(true);
   });
 });
 

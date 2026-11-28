@@ -607,3 +607,42 @@ describe("быстрый канал: комнаты (только свой се�
     expect(p.canCommandRoom(ADMIN_UID, { hostId: "host-1", phase: "playing" })).toBe(false);
   });
 });
+
+describe("командное лобби (только свой сервер)", () => {
+  const lobby = { hostId: "host-1", phase: "lobby" as const };
+  const playing = { hostId: "host-1", phase: "playing" as const };
+  const done = { hostId: "host-1", phase: "finished" as const };
+  const team = { id: "t1", captainUid: "cap" };
+
+  it("распределение, исключения, перемещение — только ведущий незавершённой сессии", () => {
+    expect(p.canManageTeamFormation("host-1", lobby)).toBe(true);
+    expect(p.canManageTeamFormation("host-1", playing)).toBe(true);
+    expect(p.canManageTeamFormation("host-1", done)).toBe(false);
+    expect(p.canManageTeamFormation("guest", lobby)).toBe(false);
+    expect(p.canManageTeamFormation(ADMIN_UID, lobby)).toBe(false);
+    expect(p.canManageTeamFormation(null, lobby)).toBe(false);
+  });
+
+  it("свою команду и «Не хочу быть капитаном» меняет только сам игрок", () => {
+    expect(p.canChangeOwnLobbyState("g1", "g1")).toBe(true);
+    expect(p.canChangeOwnLobbyState("g1", "g2")).toBe(false);
+    expect(p.canChangeOwnLobbyState(null, "g1")).toBe(false);
+  });
+
+  it("название команды: капитан в лобби, ведущий до конца игры", () => {
+    expect(p.canEditTeamProfile("cap", lobby, team, { teamId: "t1" })).toBe(true);
+    expect(p.canEditTeamProfile("cap", playing, team, { teamId: "t1" })).toBe(false);
+    expect(p.canEditTeamProfile("cap", lobby, team, { teamId: null })).toBe(false);
+    expect(p.canEditTeamProfile("member", lobby, team, { teamId: "t1" })).toBe(false);
+    expect(p.canEditTeamProfile("host-1", playing, team, null)).toBe(true);
+    expect(p.canEditTeamProfile("host-1", done, team, null)).toBe(false);
+  });
+
+  it("участник по id: в управляемом лобби — свой или ведущему; в прежнем — любому вошедшему", () => {
+    expect(p.canReadParticipant("g1", { hostId: "host-1" }, "g1", true)).toBe(true);
+    expect(p.canReadParticipant("host-1", { hostId: "host-1" }, "g1", true)).toBe(true);
+    expect(p.canReadParticipant("g2", { hostId: "host-1" }, "g1", true)).toBe(false);
+    expect(p.canReadParticipant("g2", { hostId: "host-1" }, "g1", false)).toBe(true);
+    expect(p.canReadParticipant(null, { hostId: "host-1" }, "g1", false)).toBe(false);
+  });
+});

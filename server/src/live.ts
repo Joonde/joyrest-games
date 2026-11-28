@@ -21,7 +21,7 @@ import { retentionCutoff } from "../../src/core/retention";
 import { EVENING_MECHANIC, moveProgram, newProgram, NOT_IN_EVENING, parseProgram, PROGRAM_LIMITS, publicProgram, storedSnapshots, type ProgramAction, type StoredProgram } from "../../src/core/program";
 import { parseCue, parseMix, parseMusic, parsePeek, parseScreenReport, parseSlide, parseTeams, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
-import type { ChangeExpect, Leaderboard, LeaderboardEntry, LeaderboardPatch, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
+import type { ChangeExpect, Leaderboard, LeaderboardEntry, LeaderboardPatch, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
 import { awardGamePoints } from "./staff";
 import { WindowLimiter } from "./lead";
 import { randomBytes } from "node:crypto";
@@ -29,6 +29,9 @@ import { isOnline } from "../../src/core/presence";
 import { actorOf, apiGuard, deviceCookie, identityOf, tokenHash, type Identity } from "./auth";
 import { canHardwareBuzz, type HardwareSource } from "../../src/core/hardware";
 import { survivalEventFor, survivalSessionFor } from "./survivalPrivacy";
+import { PARTICIPANT_COLUMNS, participantOf, type ParticipantRow } from "./participantRows";
+import { createTeamLobby } from "./teamLobby";
+import { newFormation, parseTeamFormation, publicFormation } from "../../src/core/teamFormation";
 
 export interface LiveOptions {
   sql: Sql;
@@ -171,9 +174,11 @@ interface SessionRow {
   program?: unknown;
   /** Оформление под заказчика (миграция 0027, `src/core/branding.ts`). */
   branding?: unknown;
+  /** Управляемое командное лобби (миграция 0050, `src/core/teamFormation.ts`); null — прежнее лобби. */
+  team_formation?: unknown;
 }
 
-const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at", "event_started_at", "breaks", "program", "branding"];
+const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at", "event_started_at", "breaks", "program", "branding", "team_formation"];
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
@@ -264,6 +269,12 @@ function blockGameId(row: SessionRow): string | null {
   return program?.at === "block" ? (program.blocks[program.index]?.gameId ?? null) : null;
 }
 
+function teamFormationOf(row: SessionRow) {
+  if (row.play_mode !== "teams") return null;
+  const formation = parseTeamFormation(row.team_formation ?? null);
+  return formation ? publicFormation(formation) : null;
+}
+
 interface SessionViewer {
   uid: string | null;
   full: boolean;
@@ -290,6 +301,8 @@ function sessionOf(row: SessionRow, viewer: SessionViewer = { uid: null, full: f
     // Программа вечера без снимков игр (их знает только сервер).
     program: publicProgram(row.program ?? null),
     branding: parseBranding(row.branding ?? null),
+    // Без списка исключённых: снимок сессии уходит всем, исключения видит только пульт (поток лобби).
+    teamFormation: teamFormationOf(row),
     version: row.version,
   };
   return survivalSessionFor(session, viewer.uid, viewer.full);
@@ -491,29 +504,6 @@ export const PLAYING_RESET: CheckedChange["state"] = {
   result: null,
 };
 
-interface ParticipantRow {
-  id: string;
-  name: string;
-  kind: string;
-  team_id: string | null;
-  captain_uid: string;
-  joined_at: Date | null;
-  seen_at: Date | null;
-}
-
-const PARTICIPANT_COLUMNS = ["id", "name", "kind", "team_id", "captain_uid", "joined_at", "seen_at"];
-
-function participantOf(row: ParticipantRow): Participant {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind === "team" ? "team" : "player",
-    teamId: row.team_id,
-    captainUid: row.captain_uid,
-    joinedAt: row.joined_at ? row.joined_at.getTime() : null,
-    seenAt: row.seen_at ? row.seen_at.getTime() : null,
-  };
-}
 
 interface AnswerRow {
   step: number;
@@ -737,6 +727,27 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       return { who, row };
     }
 
+    // Управляемое командное лобби (`teamLobby.ts`): у сессий без `team_formation` прежние запросы ниже не меняются.
+    const lobby = createTeamLobby({
+      sql,
+      hub,
+      now,
+      phaseOf: (state) => normalizeState(state).phase,
+      stageOf: (state) => normalizeState(state).stage,
+      fail,
+      requireIdentity,
+      loadSession,
+      stream,
+      publishParticipant,
+      publishSession: async (sessionId) => {
+        const fresh = await loadSession(sessionId);
+        // Полный снимок существует только внутри сервера; поток сессии выдаёт каждому свою часть.
+        if (fresh) hub.publish(`session:${sessionId}`, { type: "snapshot", session: sessionOf(fresh, { uid: fresh.host_id, full: true }) });
+      },
+    });
+    lobby.register(api);
+    api.addHook("onClose", async () => lobby.close());
+
     /** Кто может завершить: ведущий игры и владелец — любую; помощник владельца — только брошенную (`staleOnly`). */
     async function finishableSession(
       request: FastifyRequest<{ Params: { id: string } }>,
@@ -868,16 +879,25 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         snapshot = program.snapshots[0] ?? null;
       }
       const branding = options.brandings === false ? null : parseBranding(body.branding ?? null);
+      // Командное лобби (ТЗ 7.1): только в режиме команд; неверные настройки — отказ, а не молчаливое прежнее лобби.
+      const playMode = body.playMode === "teams" ? "teams" : "solo";
+      let formation = null;
+      const askedFormation = isRecord(body.teamFormation) && body.teamFormation.mode === "legacy" ? null : body.teamFormation;
+      if (askedFormation !== undefined && askedFormation !== null) {
+        formation = playMode === "teams" ? newFormation(askedFormation) : null;
+        if (!formation) return fail(reply, 400, "invalid-argument");
+      }
       for (let attempt = 0; attempt < 10; attempt++) {
         const code = generateSessionCode();
         // Код занят незавершённой сессией — уникальный индекс не даст записать, пробуем другой.
         const rows = await sql`
-          insert into sessions (id, code, host_id, game_id, game_title, mechanic, game_snapshot, theme_id, play_mode, screen_mode, state, program, branding)
+          insert into sessions (id, code, host_id, game_id, game_title, mechanic, game_snapshot, theme_id, play_mode, screen_mode, state, program, branding, team_formation)
           values (${id}, ${code}, ${who.uid}, ${typeof body.gameId === "string" ? body.gameId : null}, ${text(body.gameTitle, 200)},
                   ${mechanic}, ${sql.json(snapshot as never)},
-                  ${text(body.themeId, 40) || "joyrest"}, ${body.playMode === "teams" ? "teams" : "solo"},
+                  ${text(body.themeId, 40) || "joyrest"}, ${playMode},
                   ${body.screenMode === "remote" || body.screenMode === "none" ? body.screenMode : "laptop"}, ${sql.json(state as never)},
-                  ${program ? sql.json(program as never) : null}, ${branding ? sql.json(branding as never) : null})
+                  ${program ? sql.json(program as never) : null}, ${branding ? sql.json(branding as never) : null},
+                  ${formation ? sql.json(formation as never) : null})
           on conflict do nothing returning id`;
         if (rows.length > 0) return { id, code };
         const again = await loadSession(id);
@@ -1228,13 +1248,27 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     api.get<{ Params: { id: string; pid: string } }>("/api/sessions/:id/participants/:pid", async (request, reply) => {
       const who = await requireIdentity(request, reply);
       if (!who) return reply;
+      const session = await loadSession(request.params.id);
+      const managed = session ? lobby.formationOf(session) !== null : false;
+      // Управляемое лобби: чужие составы и связь не раскрываются — только свой участник или ведущему (ТЗ 13.1).
+      if (session && !permissions.canReadParticipant(who.uid, { hostId: session.host_id }, request.params.pid, managed)) {
+        return fail(reply, 403, "permission-denied");
+      }
       const row = await loadParticipant(request.params.id, request.params.pid);
-      return row ? participantOf(row) : fail(reply, 404, "not-found");
+      if (!row) return fail(reply, 404, "not-found");
+      const participant = participantOf(row);
+      // «Не хочу быть капитаном» видят только сам гость и ведущий.
+      if (participant.noCaptain && who.uid !== row.id && !(session && permissions.canControlSession(who.uid, { hostId: session.host_id }))) {
+        delete participant.noCaptain;
+      }
+      return participant;
     });
 
     api.get<{ Params: { id: string } }>("/api/sessions/:id/teams", async (request, reply) => {
       const who = await requireIdentity(request, reply);
       if (!who) return reply;
+      const session = await loadSession(request.params.id);
+      if (session && lobby.formationOf(session)) return lobby.listTeams(session.id);
       const rows = await sql<ParticipantRow[]>`
         select ${sql(PARTICIPANT_COLUMNS)} from participants where session_id = ${request.params.id} and kind = 'team'`;
       return rows.map(participantOf).sort((a, b) => a.name.localeCompare(b.name, "ru"));
@@ -1256,6 +1290,14 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!session) return fail(reply, 404, "not-found");
       if (normalizeState(session.state).phase === "finished") return fail(reply, 403, "permission-denied");
       const body = isRecord(request.body) ? request.body : {};
+      if (lobby.formationOf(session)) {
+        const joined = await lobby.join(reply, who, session.id, body);
+        if (!("created" in joined)) return joined;
+        // Первый гость — начало вечера (CLAUDE.md, «Время вечера»); дальше не перезаписывается.
+        if (joined.created) await sql`update sessions set event_started_at = now() where id = ${id} and event_started_at is null`;
+        // `teamId: null` во время игры — мест нет, гость ждёт ведущего (ТЗ 9.2).
+        return { ok: true, teamId: joined.teamId };
+      }
       const teamId = typeof body.teamId === "string" ? body.teamId : null;
       if (!validName(body.name) || (teamId !== null && !(await isTeam(id, teamId)))) return fail(reply, 400, "invalid-argument");
       const existing = await loadParticipant(id, pid);
@@ -1280,12 +1322,16 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const teamId = typeof body.id === "string" && ID.test(body.id) ? body.id : null;
       if (session.play_mode !== "teams" || normalizeState(session.state).phase === "finished") return fail(reply, 403, "permission-denied");
       if (!teamId || !validName(body.name)) return fail(reply, 400, "invalid-argument");
+      if (lobby.formationOf(session)) return lobby.createTeam(reply, who, session.id, teamId, body.name as string);
       // Одно устройство — одна команда; в сессии — не больше MAX_TEAMS команд (спам на большом экране).
       // Подсчёт и вставка — в одной транзакции под замком сессии: две вкладки или повтор после
       // обрыва не создадут вторую команду с тем же капитаном и не пробьют лимит.
       const teamName = body.name as string;
       const outcome = await sql.begin(async (tx) => {
         await tx`select pg_advisory_xact_lock(hashtext(${`teams:${session.id}`}::text))`;
+        // Ведущий как раз включил управляемое лобби — команда по старым правилам (без лимитов и проверки дублей) не создаётся.
+        const [mode] = await tx<{ managed: boolean }[]>`select team_formation is not null and team_formation->>'mode' <> 'legacy' as managed from sessions where id = ${session.id}`;
+        if (mode?.managed) return { error: 409 as const };
         const [counts] = await tx<{ mine: number; total: number }[]>`
           select count(*) filter (where captain_uid = ${who.uid} and id <> ${teamId})::int as mine, count(*)::int as total
           from participants where session_id = ${session.id} and kind = 'team'`;
@@ -1312,6 +1358,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!hosted) return reply;
       const name = isRecord(request.body) ? request.body.name : null;
       if (!validName(name)) return fail(reply, 400, "invalid-argument");
+      // Управляемое лобби: название команды — без дублей (ТЗ 6.1.10).
+      if (lobby.formationOf(hosted.row) && (await loadParticipant(hosted.row.id, request.params.pid))?.kind === "team") {
+        return lobby.renameByHost(reply, hosted.who, hosted.row.id, request.params.pid, name);
+      }
       const [row] = await sql<ParticipantRow[]>`
         update participants set name = ${name} where session_id = ${hosted.row.id} and id = ${request.params.pid}
         returning ${sql(PARTICIPANT_COLUMNS)}`;
@@ -1325,6 +1375,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!hosted) return reply;
       const uid = isRecord(request.body) ? request.body.uid : null;
       if (typeof uid !== "string" || !ID.test(uid)) return fail(reply, 400, "invalid-argument");
+      // Управляемое лобби: новый капитан — член этой команды; автосмена (`auto`) перепроверяется под замком (ТЗ 6.5).
+      if (lobby.formationOf(hosted.row)) {
+        const auto = isRecord(request.body) && request.body.auto === true;
+        return lobby.setCaptain(reply, hosted.row.id, request.params.pid, uid, auto);
+      }
       const [row] = await sql<ParticipantRow[]>`
         update participants set captain_uid = ${uid} where session_id = ${hosted.row.id} and id = ${request.params.pid}
         returning ${sql(PARTICIPANT_COLUMNS)}`;
@@ -1365,7 +1420,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const session = await loadSession(request.params.id);
       if (!session || normalizeState(session.state).phase === "finished") return fail(reply, 404, "not-found");
       const rows = await sql<ParticipantRow[]>`select ${sql(PARTICIPANT_COLUMNS)} from participants where session_id = ${session.id}`;
-      const teams = new Map(rows.filter((r) => r.kind === "team").map((r) => [r.id, r.name]));
+      // Управляемое лобби: без названия команды — только имена (решение владельца 28 ноября 2026, ТЗ 13.1).
+      const teams = lobby.formationOf(session) ? new Map<string, string>() : new Map(rows.filter((r) => r.kind === "team").map((r) => [r.id, r.name]));
       const at = now();
       return rows
         .filter((r) => r.kind === "player" && r.id !== who.uid && !isOnline(participantOf(r), at))
@@ -1509,6 +1565,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     api.delete<{ Params: { id: string; pid: string } }>("/api/sessions/:id/participants/:pid", async (request, reply) => {
       const hosted = await hostedSession(request, reply);
       if (!hosted) return reply;
+      if (lobby.formationOf(hosted.row)) return lobby.remove(reply, hosted.row.id, request.params.pid);
       await sql`delete from participants where session_id = ${hosted.row.id} and id = ${request.params.pid}`;
       publishParticipant(hosted.row.id, null, request.params.pid);
       return { ok: true };

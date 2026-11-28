@@ -479,3 +479,37 @@ export function canReadAnswer(
   if (canControlSession(uid, session)) return true;
   return answer.uid === uid || (myPhone?.teamId !== null && myPhone?.teamId === answer.pid);
 }
+
+// Командное лобби (docs/TEAM_LOBBY_AND_COLLABORATION_TZ_2026-11-22.md): только свой сервер, как комнаты и
+// «Новый временный пароль». У Firebase-версии управляемого лобби нет, firestore.rules не меняются (ТЗ 16.3).
+
+/** Настройки, распределение, исключения, перемещение, сброс — только ведущий сессии и только у незавершённой. */
+export function canManageTeamFormation(uid: string | null, session: Pick<Session, "hostId"> & { phase: SessionPhase }): boolean {
+  return canControlSession(uid, session) && session.phase !== "finished";
+}
+
+/** Свою команду (создать, вступить, выйти) и «Не хочу быть капитаном» меняет только сам игрок — свой участник. */
+export function canChangeOwnLobbyState(uid: string | null, pid: string): boolean {
+  return uid !== null && uid === pid;
+}
+
+/** Название команды: ведущий — пока игра не завершена; капитан, который сейчас в команде, — только в лобби. */
+export function canEditTeamProfile(
+  uid: string | null,
+  session: Pick<Session, "hostId"> & { phase: SessionPhase },
+  team: Pick<Participant, "id" | "captainUid">,
+  myPhone: Pick<Participant, "teamId"> | null,
+): boolean {
+  if (session.phase === "finished" || uid === null) return false;
+  if (canControlSession(uid, session)) return true;
+  return session.phase === "lobby" && team.captainUid === uid && myPhone?.teamId === team.id;
+}
+
+/**
+ * Участник по id: в управляемом лобби — только свой или ведущему (чужие составы и связь не раскрываются, ТЗ 13.1);
+ * в прежнем лобби — любому вошедшему, как раньше.
+ */
+export function canReadParticipant(uid: string | null, session: Pick<Session, "hostId">, pid: string, managed: boolean): boolean {
+  if (uid === null) return false;
+  return !managed || uid === pid || canControlSession(uid, session);
+}

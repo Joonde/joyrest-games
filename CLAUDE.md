@@ -307,6 +307,14 @@ Firebase удаляются, Firebase-код удаляется отдельны
   снимок. Поиск по коду: 20 промахов за 10 минут на устройство и 200 на адрес (429); команда — одна на
   телефон капитана, не больше 100 в сессии (повтор после обрыва — та же команда). Автосохранение на своём
   сервере шлёт пачки по одной (без `keepalive`: его лимит 64 КБ на все запросы страницы).
+- **Командное лобби (часть 1а — сервер, ноябрь 2026; ТЗ `docs/TEAM_LOBBY_AND_COLLABORATION_TZ_2026-11-22.md`, паспорт общей части, 5.1):**
+  только у сессий с `sessions.team_formation` (миграция `0050`: ещё `participants.no_captain` и `team_formation_actions`);
+  у остальных запросы не меняются. Режимы «Сами» и «Случайно», 1–20 команд × 2–10 мест ≤ 100. Запросы — `server/src/teamLobby.ts`
+  (`/team-formation`, `/exclude`, `/distribute`, `/auto-assign`, `/reset`, `/team`, `/participants/:pid/move|leave|captain-pref`,
+  `/teams/:teamId/profile`, `GET /team-lobby`, поток `/api/stream/team-lobby/:id`), чистые правила — `src/core/teamFormation.ts`.
+  Всё под замком `teams:<сессия>` и блокировкой строки сессии; действия ведущего — `actionId` (повтор) и `revision` (409).
+  Права — `canManageTeamFormation`, `canChangeOwnLobbyState`, `canEditTeamProfile`, `canReadParticipant` (только свой сервер,
+  `firestore.rules` не меняются). Тесты — `server/src/teamLobby.test.ts` (нужна `TEST_DATABASE_URL`).
 - **PR 4.2 — уборка:** при входе admin в `/admin` — `POST /api/sessions/cleanup` (`canCleanupSessions`):
   сессии старше 30 дней (сервер не берёт срок свежее `retentionCutoff`, что бы ни прислал браузер)
   удаляются с участниками и ответами, до 100 за вход (`more`); незавершённая игра с таблицей лидеров

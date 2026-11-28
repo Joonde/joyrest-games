@@ -145,13 +145,36 @@ export function placeOf(leaderboard: Leaderboard, pid: string): { place: number;
 /** Капитан, от которого так долго нет сигнала, считается вышедшим. */
 export const CAPTAIN_TIMEOUT_MS = 90_000;
 
+/** На связи по правилу смены капитана (90 с, а не 75 с из `presence.ts`). */
+export function captainOnline(p: Pick<Participant, "seenAt" | "joinedAt">, now: number): boolean {
+  const seen = p.seenAt ?? p.joinedAt ?? null;
+  return seen === null || now - seen < CAPTAIN_TIMEOUT_MS;
+}
+
+/**
+ * Сервер проверяет автосмену капитана с пульта (`/captain` с `auto`, ТЗ 6.5): пульт считал по снимку, а гость мог
+ * вернуться на связь или поставить «Не хочу быть капитаном». Можно, только если прежний капитан не на связи (или уже не
+ * в команде), новый — член команды и на связи, и он согласен либо согласных на связи нет. Связь — по 90 с.
+ */
+export function autoCaptainAllowed(team: Participant, members: readonly Participant[], candidateId: string, now: number): boolean {
+  const candidate = members.find((m) => m.id === candidateId && m.kind === "player" && m.teamId === team.id);
+  if (!candidate || !captainOnline(candidate, now)) return false;
+  const captain = members.find((m) => m.id === team.captainUid && m.kind === "player" && m.teamId === team.id);
+  if (captain && (captain.seenAt ?? captain.joinedAt ?? null) === null) return false;
+  if (captain && captainOnline(captain, now)) return false;
+  if (!candidate.noCaptain) return true;
+  return !members.some((m) => m.kind === "player" && m.teamId === team.id && m.id !== team.captainUid && !m.noCaptain && captainOnline(m, now));
+}
+
 /**
  * Если капитан команды вышел (нет его телефона или нет сигнала «на связи» дольше 90 с),
  * капитаном становится следующий по времени входа участник команды, который сам на связи.
  * Не на связи никто — капитан не меняется: иначе он менялся бы по кругу каждые 15 с (паспорт общей части, Н-9).
+ * `managed` — управляемое командное лобби (ТЗ 6.5): среди тех, кто на связи, сначала не отметившие «Не хочу быть
+ * капитаном», потом все. Без него (прежнее лобби) галочка не учитывается — поведение ровно как раньше.
  * Возвращает команды, которым нужен новый капитан: teamId → uid.
  */
-export function captainChanges(participants: Participant[], now: number): Record<string, string> {
+export function captainChanges(participants: Participant[], now: number, options: { managed?: boolean } = {}): Record<string, string> {
   const changes: Record<string, string> = {};
   const phones = participants.filter((p) => p.kind === "player");
   for (const team of participants.filter((p) => p.kind === "team")) {
@@ -170,7 +193,8 @@ export function captainChanges(participants: Participant[], now: number): Record
       const seen = m.seenAt ?? m.joinedAt ?? null;
       return seen === null || now - seen < CAPTAIN_TIMEOUT_MS;
     };
-    const next = [...members.slice(start + 1), ...members.slice(0, Math.max(0, start))].find(online);
+    const order = [...members.slice(start + 1), ...members.slice(0, Math.max(0, start))].filter(online);
+    const next = (options.managed ? order.find((m) => !m.noCaptain) : undefined) ?? order[0];
     if (next && next.id !== team.captainUid) changes[team.id] = next.id;
   }
   return changes;

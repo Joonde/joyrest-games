@@ -479,6 +479,11 @@ export interface Session {
   program?: SessionProgram | null;
   /** Свой сервер: оформление под заказчика — логотип и цвета (`src/core/branding.ts`). */
   branding?: SessionBranding | null;
+  /**
+   * Свой сервер, режим команд: управляемое командное лобби (`src/core/teamFormation.ts`). Нет или null — прежнее лобби
+   * (legacy). Здесь — без списка исключённых: его видит только пульт (`TeamLobbyPublic`).
+   */
+  teamFormation?: TeamFormation | null;
 }
 
 export interface Participant {
@@ -492,6 +497,53 @@ export interface Participant {
   joinedAt?: number | null;
   /** Последний сигнал «я на связи» от телефона капитана. */
   seenAt?: number | null;
+  /** Управляемое командное лобби: гость отметил «Не хочу быть капитаном» (видят пульт и сам гость). */
+  noCaptain?: boolean;
+}
+
+// ------------------------------------------------------------ командное лобби (свой сервер)
+// docs/TEAM_LOBBY_AND_COLLABORATION_TZ_2026-11-22.md: как собираются команды. Логика — `src/core/teamFormation.ts`.
+
+/** «Сами» — гости создают команды и вступают; «Случайно» — ведущий делит всех на связи. */
+export type TeamFormationMode = "self" | "randomTeams";
+
+export interface TeamFormation {
+  mode: TeamFormationMode;
+  /** «Сами» — сколько команд можно создать; «Случайно» — сколько команд создаётся. */
+  teamCount: number;
+  /** Наибольшее число телефонов в команде, вместе с капитаном. */
+  maxMembers: number;
+  /** Растёт от каждой настройки и каждого действия ведущего, меняющего составы. */
+  revision: number;
+  /** Случайное распределение уже прошло (до «Сбросить команды»). */
+  distributed: boolean;
+  /** Кого ведущий исключил из распределения — только пульту. */
+  excluded?: string[];
+}
+
+export interface PublicLobbyTeam {
+  id: string;
+  name: string;
+  memberCount: number;
+  captainName: string | null;
+}
+
+/** Общая часть лобби: одинакова для всех телефонов (поток `/api/stream/team-lobby/:id`). */
+export interface TeamLobbyPublic {
+  formation: TeamFormation;
+  teams: PublicLobbyTeam[];
+  /** Игроков с телефонами. */
+  joinedCount: number;
+  /** Из них на связи. */
+  onlineCount: number;
+  /** Без команды. */
+  waitingCount: number;
+}
+
+/** Лобби глазами одного телефона: плюс своё положение и состав только своей команды. */
+export interface TeamLobbySnapshot extends TeamLobbyPublic {
+  me: { teamId: string | null; isCaptain: boolean; noCaptain: boolean } | null;
+  ownTeamMembers?: Array<{ name: string; isCaptain: boolean; online: boolean }>;
 }
 
 // ------------------------------------------------------------ быстрый канал (комнаты)

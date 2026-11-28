@@ -110,7 +110,11 @@ function ThemesPicker({ content, r, pid, myAnswer, sending, onAnswer }: { conten
   const byHost = choice?.by === "host";
   const mineReady = myAnswer?.confirmed === true && myAnswer.themes.length === need;
   // Готово: ведущий выбрал за команду; или свой подтверждённый ответ; или своего ответа нет, а в сессии — выбор капитана.
-  const shown: string[] | null = byHost ? (isReady(choice) ? choice.themes : null) : myAnswer ? (mineReady ? myAnswer.themes : null) : isReady(choice) ? choice.themes : null;
+  // Капитан подтвердил свой выбор поверх выбора ведущего: показываем его, пока пульт не перенёс ответ в сессию.
+  const choiceKey = (choice?.by ?? "") + ":" + (choice?.at ?? 0) + ":" + (choice?.themes.join(",") ?? "");
+  const [over, setOver] = useState<{ key: string; themes: string[] } | null>(null);
+  const overHost = over && over.key === choiceKey && myAnswer?.confirmed ? over.themes : null;
+  const shown: string[] | null = overHost ?? (byHost ? (isReady(choice) ? choice.themes : null) : myAnswer ? (mineReady ? myAnswer.themes : null) : isReady(choice) ? choice.themes : null);
   const [picked, setPicked] = useState<string[]>(() => myAnswer?.themes ?? choice?.themes ?? []);
   const [editing, setEditing] = useState(false);
   useEffect(() => {
@@ -124,7 +128,7 @@ function ThemesPicker({ content, r, pid, myAnswer, sending, onAnswer }: { conten
   if (shown && !editing) {
     return (
       <div className="stack stack--tight">
-        <p className="success">{byHost ? "Ведущий выбрал за вас: " : "Готово: "}{themeNames(content, shown)}</p>
+        <p className="success">{byHost && !overHost ? "Ведущий выбрал за вас: " : "Готово: "}{themeNames(content, shown)}</p>
         <p className="muted small">Пока ведущий не собрал колесо, выбор можно поменять.</p>
         <button
           type="button"
@@ -132,6 +136,7 @@ function ThemesPicker({ content, r, pid, myAnswer, sending, onAnswer }: { conten
           disabled={sending}
           onClick={() => {
             setPicked(shown);
+            setOver(null);
             if (byHost) setEditing(true);
             else onAnswer({ themes: shown, confirmed: false });
           }}
@@ -165,6 +170,7 @@ function ThemesPicker({ content, r, pid, myAnswer, sending, onAnswer }: { conten
         disabled={sending || picked.length !== need}
         onClick={() => {
           setEditing(false);
+          if (byHost) setOver({ key: choiceKey, themes: picked });
           onAnswer({ themes: picked, confirmed: true });
         }}
       >

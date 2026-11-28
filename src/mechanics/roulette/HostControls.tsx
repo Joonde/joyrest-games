@@ -47,11 +47,17 @@ export function RouletteHostControls({ session, content, answers, participants, 
     if (!syncKey || busy) return;
     const change = syncThemes(latest.current, content, latestParticipants.current, latestAnswers.current);
     if (!change) return;
+    let alive = true;
     let retry: number | undefined;
     void control.apply(change).catch((e: unknown) => {
-      if (!isConflict(e)) retry = window.setTimeout(() => setSyncRetry((n) => n + 1), 3000);
+      // Повтор — только при сбое сети: постоянный отказ сервера повторять незачем.
+      const code = typeof e === "object" && e !== null && "code" in e ? (e as { code: unknown }).code : null;
+      if (alive && code === "unavailable") retry = window.setTimeout(() => setSyncRetry((n) => n + 1), 3000);
     });
-    return () => window.clearTimeout(retry);
+    return () => {
+      alive = false;
+      window.clearTimeout(retry);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новых ответах, новой сессии или повторе
   }, [syncKey, busy, syncRetry]);
 

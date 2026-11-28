@@ -303,9 +303,20 @@ function themesResult(choices: Record<string, ThemeChoice>, added: readonly stri
   return { mode: "themes", changeable: true, choices, added: [...added], queue: [...queue] };
 }
 
+/**
+ * Очередь шага выбора тем: записанная остаётся (кроме команд, которых нет ни в таблице, ни у этого пульта), новые
+ * команды — в конец. Так два пульта с чуть разными списками команд не перезаписывают друг друга по кругу.
+ */
+function themesQueue(session: Session, participants: readonly Participant[]): string[] {
+  const r = parseRouletteResult(session.state.result);
+  const candidates = teamCandidates(session, participants);
+  const kept = r.queue.filter((pid) => pid in session.leaderboard || candidates.includes(pid));
+  return [...kept, ...candidates.filter((pid) => !kept.includes(pid))].slice(0, MAX_TEAMS);
+}
+
 /** Запись шага выбора тем: выбор, темы ведущего, очередь и счётчик; отпечаток итогов — второй пульт не затрёт. */
 function themesChange(session: Session, participants: readonly Participant[], choices: Record<string, ThemeChoice>, added: readonly string[]): SessionChange {
-  const queue = teamCandidates(session, participants).slice(0, MAX_TEAMS);
+  const queue = themesQueue(session, participants);
   return {
     state: { answered: readyCount(choices, queue), result: themesResult(choices, added, queue) },
     expect: { phase: "playing", step: 0, stage: "question", result: resultKey(session.state.result) },
@@ -366,11 +377,11 @@ export function planWheel(session: Session, content: RouletteContent, participan
   const status = themesStatus(content, session, participants, choices, r.added);
   if (status.problems.length > 0) return { ok: false, problems: status.problems, status };
   const first = status.queue[0] as string;
-  const ready = Object.fromEntries(Object.entries(choices).filter(([, c]) => isReady(c)));
+  // Все записи выбора, в том числе «не готова»: после «Назад к выбору тем» старый ответ не вернёт снятый выбор.
   const result: Omit<RouletteResult, "queue"> = {
     mode: "spin",
     changeable: false,
-    choices: ready,
+    choices,
     added: r.added,
     sectors: status.sectors,
     order: status.queue,

@@ -274,6 +274,16 @@ describe("рулетка: выбор тем (п. 3.1)", () => {
     expect(syncThemes(s, content, teams, confirmed)).toBeNull();
   });
 
+  it("два пульта с разными списками команд не перезаписывают очередь по кругу (повторная проверка, №1)", () => {
+    const four = [...teams, team("d", 3)];
+    let s = onThemes(four);
+    // Пульт Б ещё не видит команду «d» среди участников, но она уже в таблице — очередь не меняется.
+    expect(syncThemes(s, content, teams, [])).toBeNull();
+    s = applyChange(s, syncThemes(s, content, four, [ans("a", { themes: ["music", "dance"], confirmed: true }, 10)])!, 1100);
+    expect(parseRouletteResult(s.state.result).queue).toEqual(["a", "b", "c", "d"]);
+    expect(syncThemes(s, content, teams, [ans("a", { themes: ["music", "dance"], confirmed: true }, 10)])).toBeNull();
+  });
+
   it("счётчик «Ответили» и очередь на выборе тем — только первые 8 команд (Р-8)", () => {
     const nine = Array.from({ length: 9 }, (_, i) => team("t" + i, i));
     let s = onThemes(nine);

@@ -8,7 +8,7 @@ import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
 import { loadLocalVideo, saveLocalVideo } from "../../components/media/localVideo";
-import { useFragment } from "../../components/music/useFragment";
+import { preloadTrack, useFragment } from "../../components/music/useFragment";
 import { NameText } from "../../components/NameText";
 import { rankedLeaderboard } from "../../core/leaderboard";
 import { pointsLabel } from "../../core/results";
@@ -18,12 +18,12 @@ import { videosRepo } from "../../data";
 import type { Leaderboard, Session } from "../../data/types";
 import { teamColorVar } from "../../themes/registry";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { embedUrl, KIND_EMOJI, KIND_TITLES, type DanceCard, type DanceContent, type DanceKind } from "./content";
+import { DANCE_MODIFIERS, embedUrl, isTeamBattle, KIND_EMOJI, KIND_TITLES, type DanceCard, type DanceContent, type DanceKind, type DanceModifier } from "./content";
 import { styleById } from "./styles";
-import { canVote, cardOf, parseDanceResult, turnPid, type DanceResult } from "./logic";
+import { canVote, cardOf, parseDanceResult, performanceElapsed, remixAt, remixDuration, turnPid, type DanceResult } from "./logic";
 
-/** Ответ: выбор карточки, оценка или голос за команду в батле. */
-export type DanceAnswerValue = { card: string } | { rate: number } | { team: string };
+/** Ответ: выбор карточки, оценка, усложнение или голос за команду в батле. */
+export type DanceAnswerValue = { card: string } | { rate: number } | { team: string } | { modifier: DanceModifier };
 
 const nameOf = (session: Session, p: string | null) => (p ? (session.leaderboard[p]?.name ?? "") : "");
 
@@ -236,18 +236,30 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
   const r = parseDanceResult(session.state.result);
   const { stage, step } = session.state;
   const card = cardOf(content, r.card);
-  const now = useServerNow(250, r.mode === "vote" && stage === "question");
-  const left = r.mode === "vote" && stage === "question" ? secondsLeft(session.state, now) : null;
   const performing = r.mode === "perform";
-  // Трек играет, только если видео нет (иначе звучали бы оба сразу).
-  const battleTrack = card && card.trackId && (card.video.source === "none" || (card.video.source === "server" && !card.video.url)) ? card : null;
-  useFragment(
-    battleTrack?.trackId ?? null,
-    battleTrack?.trackStart ?? 0,
-    Math.max(battleTrack?.trackLength ?? 60, 30),
-    battleTrack && performing ? `d:${step}:${r.replay}` : null,
-    { options: { fadeIn: battleTrack?.fadeIn ?? 0, fadeOut: battleTrack?.fadeOut ?? 0 }, paused: r.paused },
-  );
+  const specialPerform = performing && card?.kind === "special";
+  const timedVote = (r.mode === "vote" || r.mode === "modifier") && stage === "question";
+  const now = useServerNow(250, timedVote || specialPerform);
+  const left = timedVote ? secondsLeft(session.state, now) : null;
+  const elapsed = specialPerform ? performanceElapsed(session, content, now) : 0;
+  const remixLeft = specialPerform && card ? Math.max(0, Math.ceil(remixDuration(card) - elapsed)) : null;
+  const segment = specialPerform && card ? remixAt(card, elapsed) : null;
+  useEffect(() => {
+    if (card?.kind === "special") for (const clip of card.remix) preloadTrack(clip.trackId);
+  }, [card]);
+  // Обычный трек играет только если видео нет. У специальной карточки всегда ремикс, не обычный трек.
+  const battleTrack = card && card.kind !== "special" && card.trackId && (card.video.source === "none" || (card.video.source === "server" && !card.video.url)) ? card : null;
+  const fragmentTrack = segment?.clip.trackId ?? battleTrack?.trackId ?? null;
+  const fragmentStart = segment ? segment.clip.start + segment.offset : (battleTrack?.trackStart ?? 0);
+  const fragmentLength = segment ? Math.max(0, segment.clip.length - segment.offset) : Math.max(battleTrack?.trackLength ?? 60, 30);
+  const fragmentKey = segment && specialPerform
+    ? segment.offset < segment.clip.length ? `remix:${step}:${r.replay}:${segment.index}` : null
+    : battleTrack && performing ? `d:${step}:${r.replay}` : null;
+  useFragment(fragmentTrack, fragmentStart, fragmentLength, fragmentKey, {
+    options: { fadeIn: segment?.clip.fadeIn ?? battleTrack?.fadeIn ?? 0, fadeOut: segment?.clip.fadeOut ?? battleTrack?.fadeOut ?? 0 },
+    paused: r.paused,
+    startOnMount: specialPerform,
+  });
   const previous = useRef(`${step}:${r.mode}`);
   useEffect(() => {
     const key = `${step}:${r.mode}`;
@@ -339,42 +351,79 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
   const performer = nameOf(session, r.performer);
   const st = styleById(card.style);
 
+  // Специальный раунд: сначала капитаны выбирают усложнение, распределение голосов до запуска скрыто.
+  if (r.mode === "modifier") {
+    const answered = session.state.answered ?? 0;
+    const voters = r.order.filter((p) => session.leaderboard[p]);
+    return (
+      <div className="dance-screen db-stage db-vote db-modifier">
+        <span className="db-kicker">Танцуй иначе · голосование капитанов</span>
+        <h2 className="db-h">Как усложнить этот батл?</h2>
+        <div className="db-modifiers">
+          {DANCE_MODIFIERS.map((item, index) => (
+            <div key={item.id} className="db-modifier-card">
+              <span className="db-modifier-card__n">0{index + 1}</span>
+              <b>{item.title}</b>
+              <span>{item.hint}</span>
+            </div>
+          ))}
+        </div>
+        <div className="db-status">
+          <Ring part={voters.length > 0 ? answered / voters.length : 0}>{answered}</Ring>
+          <span>Проголосовали {answered} из {voters.length} · участники подсказывают капитанам</span>
+          {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="calc(9 * var(--u))" stopText="Голосование закрыто" />}
+        </div>
+      </div>
+    );
+  }
+
   // 3. Выступление: видео (или сцена с треком) в рамке, справа — кто на сцене.
   if (performing) {
-    const noVideo = card.video.source === "none" || ((card.video.source === "link" || card.video.source === "server") && !card.video.url.trim());
+    const noVideo = card.kind === "special" || card.video.source === "none" || ((card.video.source === "link" || card.video.source === "server") && !card.video.url.trim());
+    const activeModifier = DANCE_MODIFIERS.find((item) => item.id === r.modifier);
     return (
       <div className="dance-screen db-stage db-perform">
         <div className={noVideo ? "db-video db-video--art" : "db-video"}>
           {noVideo ? (
             <div className={`db-video__art db-video__art--${card.kind}`}>
-              <span className="db-video__title">{card.title || KIND_TITLES[card.kind]}</span>
+              <span className="db-video__title">{card.kind === "special" ? activeModifier?.title ?? "Танцуй иначе" : card.title || KIND_TITLES[card.kind]}</span>
             </div>
           ) : (
             <CardVideo card={card} paused={r.paused} replay={r.replay} />
+          )}
+          {card.kind === "special" && (
+            <div className="db-remix" aria-label="Участки ремикса">
+              {card.remix.map((clip, index) => (
+                <span key={index} className={segment?.index === index ? "db-remix__segment is-current" : segment && segment.index > index ? "db-remix__segment is-past" : "db-remix__segment"}>
+                  <b>0{index + 1}</b> {index === 0 ? "Начало" : index === 1 ? "Смена стиля" : "Финал"} · {clip.length} с
+                </span>
+              ))}
+            </div>
           )}
           <span className="db-live">{r.paused ? "❚❚ ПАУЗА" : "● ИДЁТ ВЫСТУПЛЕНИЕ"}</span>
         </div>
         <div className="db-side">
           <div>
             <span className="db-kicker">На сцене</span>
-            <div className="db-who" style={teamStyle(session, card.kind === "battle" ? null : r.performer)}>
-              {card.kind === "battle" ? "Все команды" : <NameText name={performer} />}
+            <div className="db-who" style={teamStyle(session, isTeamBattle(card) ? null : r.performer)}>
+              {isTeamBattle(card) ? "Все команды" : <NameText name={performer} />}
             </div>
           </div>
           <div className="db-mini">
             <ArtCard kind={card.kind} className="db-card--mini" />
             <div className="db-mini__text">
               <b>{KIND_TITLES[card.kind]}</b>
-              <span>{[st?.title, !noVideo ? card.title : ""].filter(Boolean).join(" · ") || "Своя музыка"}</span>
+              <span>{[st?.title, !noVideo ? card.title : ""].filter(Boolean).join(" · ") || (card.kind === "special" ? activeModifier?.hint : "Своя музыка")}</span>
             </div>
           </div>
+          {card.kind === "special" && <div className="db-remix__timer">{remixLeft === 0 ? "Ремикс завершён" : `Осталось ${remixLeft} с`}</div>}
           <div className={r.paused ? "db-eq is-paused" : "db-eq"} aria-hidden="true">
             {Array.from({ length: 12 }, (_, i) => (
               <i key={i} />
             ))}
           </div>
           <p className="db-hint">
-            {card.note || (card.kind === "battle" ? "После батла капитаны выберут победителя на телефонах" : "После выступления зал оценит с телефонов — готовьте аплодисменты!")}
+            {card.note || (isTeamBattle(card) ? "После батла капитаны выберут победителя на телефонах" : "После выступления зал оценит с телефонов — готовьте аплодисменты!")}
           </p>
         </div>
       </div>
@@ -386,7 +435,7 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
     const answered = session.state.answered ?? 0;
     const voters = r.order.filter((p) => canVote(r, card, p) && session.leaderboard[p]);
     const timer = left === null ? (stage === "question" ? null : "Голосование закрыто") : left === 0 ? "Голосование закрыто" : `${left} с`;
-    if (card.kind === "battle") {
+    if (isTeamBattle(card)) {
       // Все команды: в большом зале (до 25) — плотной сеткой в 4–5 колонок, имя в одну строку.
       const sides = r.order.filter((p) => session.leaderboard[p]);
       return (
@@ -467,8 +516,8 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
             <b className="db-team-ink" style={teamStyle(session, winner)}>
               <NameText name={nameOf(session, winner)} />
             </b>{" "}
-            {card.kind === "battle" ? "побеждает в батле" : "за"} «{kindLabel(card)}»
-            {card.kind !== "battle" && <span className="db-for__hint"> · средняя оценка зала</span>}
+            {isTeamBattle(card) ? "побеждает в батле" : "за"} «{kindLabel(card)}»
+            {!isTeamBattle(card) && <span className="db-for__hint"> · средняя оценка зала</span>}
           </p>
         </>
       ) : (
@@ -590,6 +639,28 @@ function MiniPerf({ session, card, who, flip = false }: { session: Session; card
   );
 }
 
+/** Выбор усложнения: капитан голосует, участник видит те же варианты и подсказывает ему. */
+function ModifierVote({ sending, onVote }: { sending: boolean; onVote?: (modifier: DanceModifier) => void }) {
+  const [sel, setSel] = useState<DanceModifier | null>(null);
+  return (
+    <div className="db-modifier-phone">
+      {DANCE_MODIFIERS.map((item) => (
+        <div key={item.id} className={sel === item.id ? "db-modifier-phone__item is-on" : "db-modifier-phone__item"}>
+          {onVote ? (
+            <button type="button" className="db-modifier-phone__pick" aria-pressed={sel === item.id} disabled={sending} onClick={() => setSel(item.id)}>
+              <b>{item.title}</b>
+              <span>{item.hint}</span>
+            </button>
+          ) : (
+            <><b>{item.title}</b><span>{item.hint}</span></>
+          )}
+        </div>
+      ))}
+      {onVote && <button type="button" className="btn btn--block" disabled={!sel || sending} onClick={() => sel && onVote(sel)}>{sel ? `Голос: ${DANCE_MODIFIERS.find((item) => item.id === sel)?.title}` : "Выберите усложнение"}</button>}
+    </div>
+  );
+}
+
 /** Батл: «За кого вы?» — команды столбиком (своей среди них нет), выбор и «Голос за …» (`{ team }`). */
 function BattleVote({ session, card, others, sending, onVote }: { session: Session; card: DanceCard; others: string[]; sending: boolean; onVote?: (team: string) => void }) {
   const [sel, setSel] = useState<string | null>(null);
@@ -672,15 +743,41 @@ export function DancePlayerView({ session, content, pid, role, myAnswer, sending
 
   if (!card) return null;
 
+  if (r.mode === "modifier") {
+    if (!captain) {
+      return (
+        <div className="quiz-phone db-phone">
+          {head}
+          <h2 className="db-phone__title">Выберите усложнение вместе</h2>
+          <p className="muted">Голосует капитан — подскажите ему, какой вариант выбрать.</p>
+          <ModifierVote sending={sending} />
+        </div>
+      );
+    }
+    if (myAnswer) {
+      return <div className="quiz-phone quiz-phone--center db-phone">{head}<div className="buzz__plate buzz__plate--glow" role="status"><strong>Голос принят</strong><span>Правило появится на экране перед выступлением</span></div></div>;
+    }
+    if (!open) return <div className="quiz-phone quiz-phone--center db-phone">{head}<p className="muted">Выбор усложнения закрыт. Ведущий скоро начнёт батл.</p></div>;
+    return (
+      <div className="quiz-phone db-phone">
+        {head}
+        <h2 className="db-phone__title">Как усложнить батл?</h2>
+        <p className="muted">Ваш голос меняет правило для всех команд.</p>
+        <ModifierVote sending={sending} onVote={(modifier) => onAnswer({ modifier })} />
+      </div>
+    );
+  }
+
   if (r.mode === "perform") {
-    const ours = card.kind === "battle" || r.performer === pid;
+    const ours = isTeamBattle(card) || r.performer === pid;
+    const activeModifier = DANCE_MODIFIERS.find((item) => item.id === r.modifier);
     return (
       <div className="quiz-phone quiz-phone--center db-phone">
         {head}
-        <MiniPerf session={session} card={card} who={card.kind === "battle" ? null : r.performer} />
+        <MiniPerf session={session} card={card} who={isTeamBattle(card) ? null : r.performer} />
         <div className={ours ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
           <strong>{ours ? "Ваш выход! Смотрите на экран" : <>Выступает <NameText name={nameOf(session, r.performer)} /></>}</strong>
-          <span>{card.title || (card.kind === "battle" ? "Покажите лучшее под этот трек" : card.kind === "karaoke" ? "Пойте вместе с экраном" : "Повторяйте движения за экраном")}</span>
+          <span>{card.kind === "special" ? <><b>{activeModifier?.title}</b> · следите за сменой музыки</> : card.title || (isTeamBattle(card) ? "Покажите лучшее под этот трек" : card.kind === "karaoke" ? "Пойте вместе с экраном" : "Повторяйте движения за экраном")}</span>
         </div>
       </div>
     );
@@ -692,9 +789,9 @@ export function DancePlayerView({ session, content, pid, role, myAnswer, sending
       return (
         <div className="quiz-phone db-phone">
           {head}
-          <h2 className="db-phone__title">{card.kind === "battle" ? "Батл! За кого вы?" : "Зал оценивает"}</h2>
+          <h2 className="db-phone__title">{isTeamBattle(card) ? "Батл! За кого вы?" : "Зал оценивает"}</h2>
           <p className="muted">Голосует капитан — подскажите ему.</p>
-          {card.kind === "battle" ? <BattleVote session={session} card={card} others={others} sending={sending} /> : <MiniPerf session={session} card={card} who={r.performer} />}
+          {isTeamBattle(card) ? <BattleVote session={session} card={card} others={others} sending={sending} /> : <MiniPerf session={session} card={card} who={r.performer} />}
         </div>
       );
     }
@@ -720,7 +817,7 @@ export function DancePlayerView({ session, content, pid, role, myAnswer, sending
       );
     }
     if (!open) return <div className="quiz-phone quiz-phone--center">{head}<p className="muted">Голосование закрыто.</p></div>;
-    if (card.kind === "battle") {
+    if (isTeamBattle(card)) {
       return (
         <div className="quiz-phone db-phone">
           {head}

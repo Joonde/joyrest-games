@@ -573,7 +573,7 @@ describe.skipIf(!url)("путь клиента: уведомления по ро
     expect(r.statusCode).toBe(200);
     expect(r.json()).toMatchObject({ nextStep: "Перезвонить по меню", nextAt: day(0) });
     expect((await post(`/api/clients/${kc?.id}/next`, mgr, { text: "чужое", day: day(0) })).statusCode).toBe(409);
-    const d = new Date();
+    const d = new Date(Date.now() + 3 * 3_600_000);
     fakeNow = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 9, 0, 0);
     await bot.remindNow();
     await bot.remindNow();

@@ -3016,11 +3016,78 @@ kbd {
   right: max(16px, var(--safe-right));
   z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
   max-width: calc(100vw - 32px);
   gap: 8px;
   transition: opacity 0.3s ease;
+}
+
+.screen-controls__panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.screen-controls__toggle {
+  display: none;
+}
+
+/* На светлых самостоятельных сценах прозрачная вторичная кнопка теряла и текст, и фон. */
+.screen-controls .btn--secondary,
+.screen-controls .screen-bed {
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(10px);
+}
+
+/* Узкое окно предпросмотра: компактная кнопка вместо четырёх плашек поверх игровой шапки. */
+@media (max-width: 700px) {
+  .screen-controls {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .screen-controls__toggle {
+    display: inline-flex;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(280px, calc(100vw - 32px));
+    padding: 8px;
+    border: 1px solid var(--color-highlight);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-bg) 96%, transparent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .screen-controls.is-open .screen-controls__panel {
+    display: flex;
+  }
+
+  .screen-controls__panel .btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel .screen-bed {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .screen-controls__panel .screen-bed input[type="range"] {
+    width: 100%;
+    min-height: 24px;
+  }
 }
 
 /* Самостоятельная игра («Олимп») на телефоне: свой экран во всю высоту. */
@@ -7941,6 +8008,17 @@ ul.chips {
 
 .lotto-ticket--s5 .lotto-card__cell {
   padding-inline: 0.4cqw;
+}
+
+/* ТЗ 18 ноября 2026, уточнение после браузерной приёмки 19 ноября (`docs/lotto-5x5-phone-spec.md`):
+   минимум 12 px, а клетка растёт по высоте вместо обрезания длинного названия после четвёртой строки. */
+.lotto-ticket--s5 .lotto-card__title {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  font-size: max(12px, calc(var(--lotto-title-size) * var(--fit, 1)));
+  line-height: 1.05;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -16793,8 +16871,11 @@ button.dance-card:active {
 /* Цвета ролей — декоративные заливки; текст на картах всегда светлый на тёмном фоне карты. */
 .mf-role--mafia, .mf-art--mafia { --mf-bg1: #4a0f17; --mf-bg2: #12050a; --mf-glow: #ff3b4a; --mf-accent: #ff5a66; --mf-suit-top: #2a1c20; --mf-suit-bottom: #0a0708; }
 .mf-role--don, .mf-art--don { --mf-bg1: #2b2108; --mf-bg2: #070503; --mf-glow: #e3c68c; --mf-accent: #e9cf93; --mf-suit-top: #1c1818; --mf-suit-bottom: #050404; }
+.mf-role--advocate, .mf-art--advocate { --mf-bg1: #172d50; --mf-bg2: #060a13; --mf-glow: #e3c68c; --mf-accent: #b9ccec; --mf-suit-top: #293e61; --mf-suit-bottom: #0b1220; }
 .mf-role--commissar, .mf-art--commissar { --mf-bg1: #12285a; --mf-bg2: #050b1c; --mf-glow: #8cc7ff; --mf-accent: #e3c68c; --mf-suit-top: #6b5440; --mf-suit-bottom: #2a2018; }
 .mf-role--doctor, .mf-art--doctor { --mf-bg1: #0e4a4c; --mf-bg2: #041a1b; --mf-glow: #7df2c8; --mf-accent: #7df2c8; --mf-suit-top: #f2faf8; --mf-suit-bottom: #b9d6d2; }
+.mf-role--courtesan, .mf-art--courtesan { --mf-bg1: #6b1930; --mf-bg2: #1c060e; --mf-glow: #e88b9e; --mf-accent: #f0b3bd; --mf-suit-top: #8d2945; --mf-suit-bottom: #2b0714; }
+.mf-role--maniac, .mf-art--maniac { --mf-bg1: #35233f; --mf-bg2: #08070d; --mf-glow: #b69acb; --mf-accent: #d1b7df; --mf-suit-top: #30343b; --mf-suit-bottom: #090b0e; }
 .mf-role--civilian, .mf-art--civilian { --mf-bg1: #4a3214; --mf-bg2: #150c04; --mf-glow: #ffcf7a; --mf-accent: #ffcf7a; --mf-suit-top: #7a5a3e; --mf-suit-bottom: #3b2a1c; }
 
 .mf-art {
@@ -16978,6 +17059,8 @@ button.dance-card:active {
 .mf-card__seat { left: 5.6cqi; }
 .mf-card__side { right: 5.6cqi; color: #a3e0b8; }
 .mf-card__side.is-mafia { color: #ff9aa2; }
+.mf-card__side.is-maniac { color: #d1b7df; }
+.mf-news__victim + .mf-news__victim { margin-top: 1.5cqh; padding-top: 1.5cqh; border-top: 1px solid rgb(227 198 140 / 0.3); }
 
 .mf-card__front .mf-art {
   /* Рисунок уступает место тексту: на узкой карте он меньше, текст не вылезает за рамку. */
@@ -26944,4 +27027,366 @@ a.finale-step__aside {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+
+
+/* ---------- Физические кнопки: серверный эмулятор пульта ---------- */
+.hardware-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hardware-panel__head h2 {
+  margin-bottom: 6px;
+}
+
+.hardware-panel__status {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--success);
+  font-size: 13px;
+}
+
+.hardware-panel__actions {
+  margin: 18px 0;
+}
+
+.hardware-wizard {
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+
+.hardware-wizard h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 30px;
+}
+
+.hardware-list {
+  border-top: 1px solid var(--border);
+}
+
+.hardware-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.9fr) minmax(260px, 1.6fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.hardware-row.is-tested {
+  color: var(--success);
+}
+
+.hardware-row__team,
+.hardware-row__device {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.hardware-row__team > div,
+.hardware-row__device {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.hardware-row__color {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 34px;
+  border-radius: 5px;
+}
+
+.hardware-row__actions {
+  justify-content: flex-end;
+  margin: 0;
+}
+
+.hardware-picker {
+  grid-column: 1 / -1;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.hardware-picker__devices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hardware-test {
+  margin: 16px 0 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--success);
+}
+
+@media (max-width: 900px) {
+  .hardware-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hardware-row__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .hardware-panel__head,
+  .hardware-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hardware-row__actions {
+    justify-content: flex-start;
+  }
+}
+
+
+/* Локальный канал «JoyRest Кнопки» */
+.hardware-companion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.hardware-companion__status strong,
+.hardware-companion__status span {
+  display: block;
+}
+
+.hardware-companion__status strong {
+  font-weight: 500;
+}
+
+.hardware-companion__pair {
+  display: flex;
+  gap: 8px;
+}
+
+.hardware-companion__pair input {
+  width: 170px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hardware-companion > .error,
+.hardware-companion > details {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.hardware-companion code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .hardware-companion {
+    grid-template-columns: 1fr;
+  }
+
+  .hardware-companion__pair input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+
+/* «Танцуй иначе»: выбор усложнения и специальный музыкальный раунд. */
+.dance-card--special,
+.db-card--special {
+  background-image: url("/dance/art/web/card-battle.webp");
+  --db-tag: #efb0ce;
+}
+
+.db-video__art--special {
+  --db-art: url("/dance/art/web/card-battle.webp");
+}
+
+.db-modifier {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(2.4 * var(--u));
+}
+
+.db-modifiers {
+  width: min(100%, calc(110 * var(--u)));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(1.6 * var(--u));
+}
+
+.db-modifier-card {
+  min-height: calc(22 * var(--u));
+  padding: calc(2 * var(--u));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(0.8 * var(--u));
+  border: 1px solid color-mix(in srgb, var(--db-gold) 42%, transparent);
+  border-radius: calc(1.4 * var(--u));
+  background: rgba(20, 15, 23, 0.76);
+}
+
+.db-modifier-card__n {
+  color: var(--db-gold);
+  font-size: calc(1.2 * var(--u));
+  letter-spacing: 0.12em;
+}
+
+.db-modifier-card b {
+  color: var(--db-gold-hi);
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: calc(2.8 * var(--u));
+  line-height: 1.05;
+}
+
+.db-modifier-card > span:last-child {
+  color: var(--db-soft);
+  font-size: calc(1.25 * var(--u));
+  line-height: 1.35;
+}
+
+.db-remix {
+  position: absolute;
+  z-index: 2;
+  top: calc(1.2 * var(--u));
+  right: calc(1.2 * var(--u));
+  left: calc(26 * var(--u));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(0.7 * var(--u));
+}
+
+.db-remix__segment {
+  padding: calc(0.8 * var(--u));
+  border: 1px solid rgba(227, 198, 140, 0.2);
+  border-radius: calc(0.8 * var(--u));
+  color: var(--db-soft);
+  background: rgba(13, 11, 16, 0.75);
+  font-size: calc(1.1 * var(--u));
+  text-align: center;
+}
+
+.db-remix__segment b {
+  color: var(--db-gold);
+}
+
+.db-remix__segment.is-current {
+  border-color: var(--db-gold);
+  color: var(--db-gold-hi);
+  box-shadow: 0 0 calc(2 * var(--u)) rgba(227, 198, 140, 0.14);
+}
+
+.db-remix__segment.is-past {
+  opacity: 0.55;
+}
+
+.db-remix__timer {
+  color: var(--db-gold-hi);
+  font-size: calc(1.6 * var(--u));
+  font-weight: 700;
+  text-align: center;
+}
+
+.db-modifier-phone {
+  display: grid;
+  gap: 10px;
+}
+
+.db-modifier-phone__item {
+  overflow: hidden;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.18));
+  border-radius: 15px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.05));
+}
+
+.db-modifier-phone__item.is-on {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 2px var(--color-highlight);
+}
+
+.db-modifier-phone__pick,
+.db-modifier-phone__item > b,
+.db-modifier-phone__item > span {
+  display: block;
+}
+
+.db-modifier-phone__pick {
+  width: 100%;
+  min-height: 68px;
+  padding: 13px 15px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.db-modifier-phone__item > b,
+.db-modifier-phone__item > span {
+  margin: 0 15px;
+}
+
+.db-modifier-phone__item > b {
+  margin-top: 13px;
+}
+
+.db-modifier-phone__item > span {
+  margin-top: 4px;
+  margin-bottom: 13px;
+}
+
+.db-modifier-phone__item b {
+  font-size: 16px;
+}
+
+.db-modifier-phone__item span {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.db-modifier-phone__pick:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: -3px;
+}
+
+.db-modifier-phone > .btn {
+  margin-top: 4px;
+}
+
+@media (max-width: 700px) {
+  .db-modifiers {
+    grid-template-columns: 1fr;
+  }
 }

@@ -4,7 +4,7 @@ import type { Answer, Participant, Session } from "../../data/types";
 import { createStory, fillTemplate, parseStory, slotsOf } from "./content";
 import { endingReveal, endingStart, endingVote, endingWrite, writtenEndings } from "./ending";
 import { liesReveal, liesStart, liesWrite, writtenFacts } from "./lies";
-import { nextPart, parseStoryResult, revealAuthor, startGuessing, startWriting, storyBack, storyPrimary, withEnding, withLies, writtenStories } from "./logic";
+import { authorOfStory, nextPart, nextStory, parseStoryResult, revealAuthor, startGuessing, startWriting, storyBack, storyPrimary, withEnding, withLies, writtenStories } from "./logic";
 import { validateStory } from "./validate";
 import { finishRating, newSentence, showSentence, spinWheel, startRating, wordsIntro } from "./words";
 
@@ -230,5 +230,31 @@ describe("режим команд: голоса команды автора не
     const rv = endingReveal(s, content, vote.ending, votes, fakes, written, teamOf);
     expect(rv.ending.reveal?.right).toEqual([]);
     expect(rv.change.addScore).toEqual({ T2: content.foolPoints, T1: content.authorBonus });
+  });
+});
+
+
+describe("«Чья история?»: одинаковые тексты", () => {
+  it("два одинаковых текста сохраняют разных авторов и очки идут угадавшим", () => {
+    const content = { ...createStory(), sections: ["author" as const] };
+    let s = session();
+    s = applyChange(s, startWriting(s, players), 1);
+    const w = s.state.step;
+    const stories = [ans(w, "a", { story: "Одна и та же история" }, 1), ans(w, "b", { story: "Одна и та же история" }, 2)];
+    s = applyChange(s, startGuessing(s, content, stories, players, first) ?? {}, 2);
+    let r = parseStoryResult(s.state.result);
+    const written = writtenStories(stories, { ...r, writeStep: w });
+    expect(new Set(r.stories.map((story) => authorOfStory(story, written)))).toEqual(new Set(["a", "b"]));
+
+    const firstAuthor = r.reveal?.author ?? authorOfStory(r.stories[0]!, written);
+    s = applyChange(s, revealAuthor(s, content, [ans(s.state.step, "c", { guess: firstAuthor })], written), 3);
+    expect(s.leaderboard.c?.score).toBe(content.guessPoints);
+
+    s = applyChange(s, nextStory(s, content), 4);
+    r = parseStoryResult(s.state.result);
+    const secondAuthor = authorOfStory(r.stories[1]!, written);
+    s = applyChange(s, revealAuthor(s, content, [ans(s.state.step, "d", { guess: secondAuthor })], written), 5);
+    expect(parseStoryResult(s.state.result).reveal?.author).not.toBe(firstAuthor);
+    expect(s.leaderboard.d?.score).toBe(content.guessPoints);
   });
 });

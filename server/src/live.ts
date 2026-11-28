@@ -27,6 +27,8 @@ import { WindowLimiter } from "./lead";
 import { randomBytes } from "node:crypto";
 import { isOnline } from "../../src/core/presence";
 import { actorOf, apiGuard, deviceCookie, identityOf, tokenHash, type Identity } from "./auth";
+import { canHardwareBuzz, type HardwareSource } from "../../src/core/hardware";
+import { survivalEventFor, survivalSessionFor } from "./survivalPrivacy";
 
 export interface LiveOptions {
   sql: Sql;
@@ -262,8 +264,13 @@ function blockGameId(row: SessionRow): string | null {
   return program?.at === "block" ? (program.blocks[program.index]?.gameId ?? null) : null;
 }
 
-function sessionOf(row: SessionRow) {
-  return {
+interface SessionViewer {
+  uid: string | null;
+  full: boolean;
+}
+
+function sessionOf(row: SessionRow, viewer: SessionViewer = { uid: null, full: false }) {
+  const session = {
     id: row.id,
     code: row.code,
     hostId: row.host_id,
@@ -273,8 +280,8 @@ function sessionOf(row: SessionRow) {
     mechanic: row.mechanic,
     gameSnapshot: row.game_snapshot ?? null,
     themeId: row.theme_id,
-    playMode: row.play_mode === "teams" ? "teams" : "solo",
-    screenMode: row.screen_mode === "remote" || row.screen_mode === "none" ? row.screen_mode : "laptop",
+    playMode: (row.play_mode === "teams" ? "teams" : "solo") as "teams" | "solo",
+    screenMode: (row.screen_mode === "remote" || row.screen_mode === "none" ? row.screen_mode : "laptop") as "remote" | "none" | "laptop",
     state: normalizeState(row.state),
     leaderboard: normalizeBoard(row.leaderboard),
     createdAt: row.created_at ? row.created_at.getTime() : null,
@@ -285,6 +292,7 @@ function sessionOf(row: SessionRow) {
     branding: parseBranding(row.branding ?? null),
     version: row.version,
   };
+  return survivalSessionFor(session, viewer.uid, viewer.full);
 }
 
 /** Изменение пульта: какие поля состояния и записи таблицы меняются. */
@@ -513,6 +521,8 @@ interface AnswerRow {
   uid: string;
   value: unknown;
   submitted_at: Date | null;
+  /** Телефон по умолчанию; физический источник появляется из миграции 0049. */
+  source?: "phone" | HardwareSource;
 }
 
 function answerOf(row: AnswerRow) {
@@ -523,6 +533,29 @@ function answerOf(row: AnswerRow) {
     uid: row.uid,
     value: row.value ?? null,
     submittedAt: row.submitted_at ? row.submitted_at.getTime() : null,
+    source: row.source ?? "phone",
+  };
+}
+
+interface HardwareBindingRow {
+  id: string;
+  session_id: string;
+  participant_id: string;
+  source: HardwareSource;
+  hardware_id: string;
+  alias: string;
+}
+
+const HARDWARE_COLUMNS = ["id", "session_id", "participant_id", "source", "hardware_id", "alias"];
+
+function hardwareBindingOf(row: HardwareBindingRow) {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    participantId: row.participant_id,
+    source: row.source,
+    hardwareId: row.hardware_id,
+    alias: row.alias,
   };
 }
 
@@ -677,6 +710,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     }
 
     const actor = (who: Identity) => (who.user ? actorOf(who.user) : null);
+    const viewer = (who: Identity, hostId: string): SessionViewer => ({
+      uid: who.uid,
+      full: permissions.canControlSession(who.uid, { hostId }) || permissions.isAdmin(actor(who)),
+    });
 
     async function loadSession(id: string): Promise<SessionRow | null> {
       if (!ID.test(id)) return null;
@@ -862,7 +899,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const rows = await sql<SessionRow[]>`
           select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
           where code = ${code} and host_id = ${host} order by (phase <> 'finished') desc, created_at desc limit 1`;
-        return rows[0] ? sessionOf(rows[0]) : fail(reply, 404, "not-found");
+        return rows[0] ? sessionOf(rows[0], viewer(who, rows[0].host_id)) : fail(reply, 404, "not-found");
       }
       // Гости и экран зала: по коду — только незавершённая сессия. Перебор кодов ограничен числом
       // промахов: 20 за 10 минут на устройство, 200 на адрес (весь зал за одним Wi‑Fi не промахивается).
@@ -873,7 +910,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const rows = await sql<SessionRow[]>`
         select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
         where code = ${code} and phase in ('lobby', 'playing') order by created_at desc limit 1`;
-      if (rows[0]) return sessionOf(rows[0]);
+      if (rows[0]) return sessionOf(rows[0], viewer(who, rows[0].host_id));
       codeMissesByDevice.take(who.uid, at);
       codeMissesByIp.take(request.ip, at);
       return fail(reply, 404, "not-found");
@@ -887,7 +924,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (host !== who.uid && !permissions.isAdmin(actor(who))) return fail(reply, 403, "permission-denied");
       const rows = await sql<SessionRow[]>`
         select ${sql(SESSION_COLUMNS)}, version::int as version from sessions where host_id = ${host} order by created_at desc limit 50`;
-      return rows.map(sessionOf);
+      return rows.map((row) => sessionOf(row, viewer(who, row.host_id)));
     });
 
     // «Игры сейчас»: идущие и ждущие гостей игры плюс две последние завершённые у каждого ведущего —
@@ -973,7 +1010,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!row) return fail(reply, 404, "not-found");
       // Опрос без потока: не изменилось — пустой ответ.
       if (request.query.since !== undefined && Number(request.query.since) === row.version) return reply.code(204).send();
-      return sessionOf(row);
+      return sessionOf(row, viewer(who, row.host_id));
     });
 
     api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/apply", { bodyLimit: SMALL_BODY * 8 }, async (request, reply) => {
@@ -1127,7 +1164,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
           where id = ${row.id}`;
         const steps = [...new Set(archived.map((x) => -(x.step + 100_000 * (parsed.index + 1)) - 1))];
         const fresh = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${row.id}`;
-        return { session: fresh[0] ? sessionOf(fresh[0]) : null, steps };
+        // Внутренний полный снимок: перед отправкой каждый поток персонализирует его отдельно.
+        return { session: fresh[0] ? sessionOf(fresh[0], { uid: row.host_id, full: true }) : null, steps };
       });
       if (outcome === "missing" || outcome === "conflict" || outcome === "active") return outcome;
       // Голоса «помощи зала» прошлого блока не переходят в новый (шаги снова с нуля).
@@ -1479,6 +1517,113 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       return { ok: true };
     });
 
+    // ---------------------------------------------------------------- физические кнопки
+
+    api.get<{ Params: { id: string } }>("/api/sessions/:id/hardware-bindings", async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      const rows = await sql<HardwareBindingRow[]>`
+        select ${sql(HARDWARE_COLUMNS)} from hardware_bindings where session_id = ${hosted.row.id} order by created_at, id`;
+      return rows.map(hardwareBindingOf);
+    });
+
+    api.put<{ Params: { id: string; bindingId: string }; Body: unknown }>("/api/sessions/:id/hardware-bindings/:bindingId", { bodyLimit: SMALL_BODY }, async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      if (normalizeState(hosted.row.state).phase === "finished") return fail(reply, 409, "failed-precondition");
+      const body = isRecord(request.body) ? request.body : {};
+      const { source, hardwareId, participantId } = body;
+      const alias = typeof body.alias === "string" ? body.alias.trim().slice(0, 40) : "";
+      if (
+        !ID.test(request.params.bindingId) ||
+        (source !== "bluetooth" && source !== "usb") ||
+        typeof hardwareId !== "string" ||
+        !ID.test(hardwareId) ||
+        typeof participantId !== "string" ||
+        !ID.test(participantId) ||
+        !alias
+      ) return fail(reply, 400, "invalid-argument");
+      const participant = await loadParticipant(hosted.row.id, participantId);
+      if (!participant) return { result: "rejected" };
+      const row = await sql.begin(async (tx) => {
+        // Замена кнопки участника и перенос кнопки другому участнику — одна транзакция.
+        await tx`
+          delete from hardware_bindings
+          where session_id = ${hosted.row.id} and participant_id = ${participantId} and id <> ${request.params.bindingId}`;
+        await tx`
+          delete from hardware_bindings
+          where session_id = ${hosted.row.id} and source = ${source} and hardware_id = ${hardwareId} and id <> ${request.params.bindingId}`;
+        const [saved] = await tx<HardwareBindingRow[]>`
+          insert into hardware_bindings (id, session_id, participant_id, source, hardware_id, alias, updated_at)
+          values (${request.params.bindingId}, ${hosted.row.id}, ${participantId}, ${source}, ${hardwareId}, ${alias}, now())
+          on conflict (id) do update set participant_id = excluded.participant_id, source = excluded.source,
+            hardware_id = excluded.hardware_id, alias = excluded.alias, updated_at = now()
+          returning ${tx(HARDWARE_COLUMNS)}`;
+        return saved;
+      });
+      return hardwareBindingOf(row);
+    });
+
+    api.delete<{ Params: { id: string; bindingId: string } }>("/api/sessions/:id/hardware-bindings/:bindingId", async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      await sql`delete from hardware_bindings where session_id = ${hosted.row.id} and id = ${request.params.bindingId}`;
+      return { ok: true };
+    });
+
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/hardware-buzz", { bodyLimit: SMALL_BODY }, async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const { bindingId, eventId } = body;
+      if (typeof bindingId !== "string" || !ID.test(bindingId) || typeof eventId !== "string" || !ID.test(eventId)) {
+        return fail(reply, 400, "invalid-argument");
+      }
+      const time = now();
+      type BuzzOutcome = { status: "rejected" | "duplicate" } | { status: "sent"; answer: AnswerRow };
+      let outcome: BuzzOutcome;
+      try {
+        outcome = await sql.begin<BuzzOutcome>(async (tx) => {
+          const [fresh] = await tx<{ state: unknown; mechanic: string | null; game_snapshot: unknown }[]>`
+            select state, mechanic, game_snapshot from sessions where id = ${hosted.row.id} for share`;
+          if (!fresh) return { status: "rejected" };
+          const [binding] = await tx<(HardwareBindingRow & { captain_uid: string })[]>`
+            select ${tx(HARDWARE_COLUMNS.map((column) => `b.${column}`))}, p.captain_uid
+            from hardware_bindings b
+            join participants p on p.session_id = b.session_id and p.id = b.participant_id
+            where b.session_id = ${hosted.row.id} and b.id = ${bindingId}`;
+          if (!binding) return { status: "rejected" };
+          const state = normalizeState(fresh.state);
+          if (!permissions.canSubmitAnswer(state, state.step, now())) return { status: "rejected" };
+          if (!canHardwareBuzz(fresh.mechanic, fresh.game_snapshot, state, binding.participant_id)) return { status: "rejected" };
+          const [previous] = await tx<{ hardware_binding_id: string | null }[]>`
+            select hardware_binding_id from answers where session_id = ${hosted.row.id} and hardware_event_id = ${eventId}`;
+          if (previous) return { status: previous.hardware_binding_id === binding.id ? "duplicate" : "rejected" };
+          const step = state.step;
+          const staleBefore = new Date(state.startedAt ?? 0);
+          const [answer] = await tx<AnswerRow[]>`
+            insert into answers (session_id, step, pid, uid, value, submitted_at, source, hardware_event_id, hardware_binding_id)
+            values (${hosted.row.id}, ${step}, ${binding.participant_id}, ${binding.captain_uid}, ${tx.json({ buzz: true })},
+              ${new Date(time)}, ${binding.source}, ${eventId}, ${binding.id})
+            on conflict (session_id, step, pid) do update set uid = excluded.uid, value = excluded.value,
+              submitted_at = excluded.submitted_at, source = excluded.source,
+              hardware_event_id = excluded.hardware_event_id, hardware_binding_id = excluded.hardware_binding_id
+            where answers.submitted_at < ${staleBefore}
+            returning step, pid, uid, value, submitted_at, source`;
+          return answer ? { status: "sent", answer } : { status: "rejected" };
+        });
+      } catch (error) {
+        // Два одинаковых eventId могли встретиться на уникальном индексе одновременно.
+        if (isRecord(error) && error.code === "23505") return { result: "duplicate" };
+        throw error;
+      }
+      if (outcome.status === "sent") {
+        hub.publish(`answers:${hosted.row.id}`, { type: "answer", answer: answerOf(outcome.answer) });
+        return { result: "sent" };
+      }
+      return { result: outcome.status };
+    });
+
     // ---------------------------------------------------------------- ответы
 
     api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/answers", { bodyLimit: SMALL_BODY }, async (request, reply) => {
@@ -1538,7 +1683,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const hosted = await hostedSession(request, reply);
       if (!hosted) return reply;
       const rows = await sql<AnswerRow[]>`
-        select step, pid, uid, value, submitted_at from answers where session_id = ${hosted.row.id} and step = ${Number(request.params.step) || 0}`;
+        select step, pid, uid, value, submitted_at, source from answers where session_id = ${hosted.row.id} and step = ${Number(request.params.step) || 0}`;
       return rows.map(answerOf);
     });
 
@@ -1548,7 +1693,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const session = await loadSession(request.params.id);
       if (!session) return fail(reply, 404, "not-found");
       const rows = await sql<AnswerRow[]>`
-        select step, pid, uid, value, submitted_at from answers
+        select step, pid, uid, value, submitted_at, source from answers
         where session_id = ${session.id} and step = ${Number(request.params.step) || 0} and pid = ${request.params.pid}`;
       const row = rows[0];
       if (!row) return fail(reply, 404, "not-found");
@@ -1592,7 +1737,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
      * «Я жив» — событие `ping` раз в keepAliveMs: прокси и мобильные сети не рвут тихое соединение,
      * а браузер по нему видит, что поток жив.
      */
-    async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
+    async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>, transform: (event: object) => object = (event) => event) {
       // Приложение останавливается (вход проверяли, пока шла остановка): поток не открываем — браузер повторит.
       if (!openStreams.admit()) {
         reply.code(503).send({ error: "unavailable" });
@@ -1618,7 +1763,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
           res.destroy();
           return;
         }
-        res.write(sseFrame(event));
+        res.write(sseFrame(transform(event)));
       };
       let ready = false;
       const queued: object[] = [];
@@ -1660,10 +1805,12 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!who) return reply;
       const row = await loadSession(request.params.id);
       if (!row) return fail(reply, 404, "not-found");
+      const own = viewer(who, row.host_id);
       return stream(request, reply, `session:${row.id}`, () => true, async () => {
         const fresh = await loadSession(row.id);
-        return { type: "snapshot", session: fresh ? sessionOf(fresh) : null };
-      });
+        // Полный снимок существует только внутри сервера; transform выдаёт каждому свою часть.
+        return { type: "snapshot", session: fresh ? sessionOf(fresh, { uid: row.host_id, full: true }) : null };
+      }, (event) => survivalEventFor(event, own.uid, own.full));
     });
 
     api.get<{ Params: { id: string } }>("/api/stream/participants/:id", async (request, reply) => {
@@ -1685,7 +1832,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       };
       return stream(request, reply, `answers:${hosted.row.id}`, onStep, async () => {
         const rows = await sql<AnswerRow[]>`
-          select step, pid, uid, value, submitted_at from answers where session_id = ${hosted.row.id} and step = ${step}`;
+          select step, pid, uid, value, submitted_at, source from answers where session_id = ${hosted.row.id} and step = ${step}`;
         return { type: "snapshot", answers: rows.map(answerOf) };
       });
     });

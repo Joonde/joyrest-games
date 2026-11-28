@@ -41,6 +41,7 @@ import { SoundPad } from "../components/live/SoundPad";
 import { AddTimeButton } from "../components/live/AddTimeButton";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { useServerNow } from "../components/live/useServerNow";
+import { HardwarePanel } from "../components/live/HardwarePanel";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
 import { joinSlide, thanksSlide } from "../core/slides";
@@ -131,6 +132,8 @@ function Console({ session }: { session: Session }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  /** Подготовка комнаты после общего подтверждения, но до sessionsRepo.finish; у обычных игр отсутствует. */
+  const finishPrepare = useRef<(() => Promise<void>) | undefined>(undefined);
   const [confirmAward, setConfirmAward] = useState(false);
   // Мероприятие из блоков: «Завершить игру» в блоке — конец блока (перерыв), а не конец вечера.
   const [confirmBlock, setConfirmBlock] = useState(false);
@@ -163,13 +166,15 @@ function Console({ session }: { session: Session }) {
   // через таблицу лидеров (с номером при одинаковых именах и с капитаном команды).
   useEffect(() => {
     if (session.state.phase === "finished") return;
+    // У «Матрёшки» таблицу ведёт пульт комнаты: опоздавшие болельщики не должны возвращаться сюда с нулём очков.
+    if (session.mechanic === "matryoshka") return;
     const additions = leaderboardAdditions(session.leaderboard, participants, session.playMode);
     // Только что убранного ведущим не возвращаем: событие «участник удалён» может прийти позже таблицы.
     for (const pid of Object.keys(additions)) if (Date.now() - (removedRecently.get(pid) ?? 0) < 15_000) delete additions[pid];
     if (Object.keys(additions).length > 0) {
       sessionsRepo.upsertLeaderboard(session.id, additions).catch(() => setError("Не удалось обновить список игроков."));
     }
-  }, [participants, session.id, session.leaderboard, session.playMode, session.state.phase]);
+  }, [participants, session.id, session.mechanic, session.leaderboard, session.playMode, session.state.phase]);
 
   // Капитан команды вышел (телефон давно молчит) — капитаном становится следующий участник.
   const participantsRef = useRef(participants);
@@ -238,10 +243,13 @@ function Console({ session }: { session: Session }) {
       apply: (change: SessionChange) => sessionsRepo.apply(session.id, change),
       clearAnswers: (step: number) => answersRepo.clearStep(session.id, step),
       freshAnswers: (step: number) => answersRepo.list(session.id, step),
-      requestFinish: () => {
+      requestFinish: (prepare) => {
         const p = latest.current.program;
         if (p?.at === "block" && latest.current.state.phase === "playing") setConfirmBlock(true);
-        else setConfirmFinish(true);
+        else {
+          finishPrepare.current = prepare;
+          setConfirmFinish(true);
+        }
       },
     }),
     [session.id],
@@ -268,8 +276,11 @@ function Console({ session }: { session: Session }) {
     setBusy(true);
     setError(null);
     try {
+      // Комнатная игра сначала подтверждает свой finish и записывает итоги; отмена окна не запускает prepare.
+      if (finishPrepare.current) await finishPrepare.current();
       // Завершение сразу сохраняет компактные итоги для «Истории игр».
       await sessionsRepo.finish(latest.current, phones);
+      finishPrepare.current = undefined;
       setConfirmFinish(false);
       // После награждения — «Спасибо»: чаевые ведущему, отзыв и канал (решение владельца 15 октября 2026).
       // Ведущий может убрать слайд — под ним итоги игры.
@@ -453,7 +464,7 @@ function Console({ session }: { session: Session }) {
                   {program ? `Начать вечер: «${program.blocks[0]?.title ?? ""}»` : "Начать игру"}
                 </button>
                 {/* Передумали или сессия создана по ошибке — закрыть, не начиная игру. */}
-                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => setConfirmFinish(true)}>
+                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => { finishPrepare.current = undefined; setConfirmFinish(true); }}>
                   Завершить сессию без игры
                 </button>
               </>
@@ -514,7 +525,7 @@ function Console({ session }: { session: Session }) {
             {phase === "playing" && (
               <>
                 <JoinCard session={session} link={link} compact onCopy={() => void copyLink()} />
-                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => (inBlock ? setConfirmBlock(true) : setConfirmFinish(true))}>
+                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => { finishPrepare.current = undefined; if (inBlock) setConfirmBlock(true); else setConfirmFinish(true); }}>
                   {inBlock ? "Завершить блок досрочно" : program ? "Завершить вечер досрочно" : "Завершить игру досрочно"}
                 </button>
               </>
@@ -555,6 +566,7 @@ function Console({ session }: { session: Session }) {
         {tab === "music" && <MusicPanel session={session} onApply={apply} />}
         {tab === "slides" && <SlidesPanel session={session} onApply={apply} />}
         {tab === "people" && <PeopleCard session={session} participants={participants} phones={phones} onToast={showToast} />}
+        {tab === "hardware" && <HardwarePanel session={session} onToast={showToast} />}
         {(error ?? dataError) && (
           <p className="error" role="alert">
             {error ?? dataError}
@@ -586,7 +598,7 @@ function Console({ session }: { session: Session }) {
         busy={busy}
         error={error}
         onConfirm={() => void finish()}
-        onCancel={() => setConfirmFinish(false)}
+        onCancel={() => { finishPrepare.current = undefined; setConfirmFinish(false); }}
       >
         <p>
           {session.state.phase === "lobby"
@@ -729,7 +741,7 @@ function LobbyNames({ session, onMore }: { session: Session; onMore: () => void 
   );
 }
 
-type PultTab = "game" | "sounds" | "music" | "slides" | "people";
+type PultTab = "game" | "sounds" | "music" | "slides" | "people" | "hardware";
 
 const PULT_TABS: Array<{ id: PultTab; label: string; icon: IconName; screenOnly?: boolean }> = [
   { id: "game", label: "Игра", icon: "game" },
@@ -737,6 +749,7 @@ const PULT_TABS: Array<{ id: PultTab; label: string; icon: IconName; screenOnly?
   { id: "music", label: "Музыка", icon: "music", screenOnly: true },
   { id: "slides", label: "Слайды", icon: "slides", screenOnly: true },
   { id: "people", label: "Гости", icon: "people" },
+  { id: "hardware", label: "Кнопки", icon: "game" },
 ];
 
 /**

@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import { runPreview } from "./preview";
 import { allDemoGames, mechanics } from "./registry";
 
-const WITHOUT = new Set(["olymp", "evening"]);
+// «Игры Матрёшки» — предпросмотр с ботами в комнате в памяти появится в Блоке 3d (сейчас игра скрыта).
+const WITHOUT = new Set(["olymp", "evening", "matryoshka"]);
 
 describe("предпросмотр игры", () => {
   it("есть у всех игр", () => {

@@ -21,6 +21,8 @@ export type StoryMode = "write" | "guess";
 export interface StoryItem {
   id: string;
   text: string;
+  /** Порядковый индекс в исходном списке ответов: различает одинаковые тексты, не раскрывая автора. */
+  source?: number;
 }
 
 export interface StoryReveal {
@@ -93,7 +95,7 @@ export function parseStoryResult(raw: unknown): StoryResult {
     hidden: ids(d.hidden),
     stories: (Array.isArray(d.stories) ? d.stories : []).flatMap((x) => {
       const s = rec(x);
-      return typeof s.id === "string" && typeof s.text === "string" ? [{ id: s.id, text: cleanText(s.text, STORY_LIMITS.story) }] : [];
+      return typeof s.id === "string" && typeof s.text === "string" ? [{ id: s.id, text: cleanText(s.text, STORY_LIMITS.story), ...(typeof s.source === "number" && Number.isInteger(s.source) && s.source >= 0 ? { source: s.source } : {}) }] : [];
     }),
     current: typeof d.current === "number" && d.current >= 0 ? Math.floor(d.current) : 0,
     reveal: parseReveal(d.reveal),
@@ -132,9 +134,15 @@ export function writtenStories(answers: Answer[], r: StoryResult): Array<{ id: s
     });
 }
 
-/** Автор истории — по тексту среди ответов шага записи. */
+/** Автор истории — по тексту среди ответов шага записи (совместимость со старыми сессиями). */
 export function authorOf(text: string, written: Array<{ pid: string; text: string }>): string | null {
   return written.find((w) => sameText(w.text, text))?.pid ?? null;
+}
+
+/** Автор по исходному индексу ответа: одинаковые тексты не склеиваются. Индекс не раскрывает личность. */
+export function authorOfStory(story: StoryItem, written: Array<{ pid: string; text: string }>): string | null {
+  if (story.source !== undefined && written[story.source]) return written[story.source]?.pid ?? null;
+  return authorOf(story.text, written);
 }
 
 export type StoryAction = "write" | "start" | "reveal" | "next" | "nextQuestion" | LiesAction | EndingAction | "wordsSentence" | "wordsShow" | "wordsSpin" | "wordsRate" | "wordsRated" | "nextPart" | "podium" | "podiumNext" | "finish";
@@ -253,10 +261,10 @@ export function startGuessing(session: Session, content: StoryContent, answers: 
   const r = parseStoryResult(session.state.result);
   const list = writtenStories(answers, r);
   if (list.length === 0) return null;
-  const shuffled = [...list];
+  const shuffled = list.map((item, source) => ({ ...item, source }));
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j] as (typeof list)[number], shuffled[i] as (typeof list)[number]];
+    [shuffled[i], shuffled[j]] = [shuffled[j] as (typeof shuffled)[number], shuffled[i] as (typeof shuffled)[number]];
   }
   const max = kindOf(content, r.part) === "said" ? content.saidShown : content.maxStories;
   const played = max > 0 ? shuffled.slice(0, max) : shuffled;
@@ -269,7 +277,7 @@ export function startGuessing(session: Session, content: StoryContent, answers: 
       timeLimit: content.guessSeconds,
       revealed: false,
       answered: 0,
-      result: { ...r, ...peopleOf(session, participants), mode: "guess", changeable: false, stories: played.map((s, i) => ({ id: `s${i + 1}`, text: s.text })), current: 0, reveal: null, history: [] },
+      result: { ...r, ...peopleOf(session, participants), mode: "guess", changeable: false, stories: played.map((s, i) => ({ id: `s${i + 1}`, text: s.text, source: s.source })), current: 0, reveal: null, history: [] },
     },
   };
 }
@@ -297,7 +305,7 @@ export function revealAuthor(session: Session, content: StoryContent, answers: A
   const r = parseStoryResult(session.state.result);
   const story = r.stories[r.current];
   if (!story) return {};
-  const author = authorOf(story.text, written);
+  const author = authorOfStory(story, written);
   const { counts, right } = tallyGuesses(answers, session.state.step, author, teamOf);
   const deltas: Record<string, number> = {};
   for (const p of right) {

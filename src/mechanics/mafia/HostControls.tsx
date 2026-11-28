@@ -8,12 +8,14 @@ import { awardNow, hasPodium, podiumBack, podiumDone, podiumNext } from "../../c
 import { pointsLabel } from "../../core/results";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { countsFor, MAFIA_LIMITS, ROLES, type MafiaContent, type RoleId } from "./content";
+import { activeCount, countsFor, MAFIA_LIMITS, ROLES, type MafiaContent, type RoleId } from "./content";
 import { hostKey, keysOf, loadManual, rolesFromCards, rolesFromHost, saveManual, sealDeal, sealWhispers } from "./deal";
+import { seal, unseal } from "./seal";
 import {
   abortGame,
   ACTION_LABELS,
   canHeal,
+  canVisit,
   dealRoles,
   dealt,
   familyVotes,
@@ -37,11 +39,12 @@ import {
   voteCandidates,
   toggleNominee,
   verdict,
+  visitHistory,
   whispers,
   type MafiaResult,
 } from "./logic";
 
-export const ROLE_ICON: Record<RoleId, string> = { mafia: "🔫", don: "🎩", commissar: "🔦", doctor: "💉", civilian: "🏠" };
+export const ROLE_ICON: Record<RoleId, string> = { mafia: "🔫", don: "🎩", advocate: "⚖️", commissar: "🔦", doctor: "💉", courtesan: "🌹", maniac: "🔪", civilian: "🏠" };
 
 /** Проверки Комиссара и Дона за ночь: засчитывается первая (сменить цель после ответа нельзя). */
 function lockChecks(locks: Map<string, string>, step: number, roles: Record<string, RoleId>, choices: Record<string, string | null>, donCheck: Record<string, string | null>) {
@@ -92,7 +95,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
   const seat = (pid: string) => r.seats.indexOf(pid) + 1;
   // Время идёт всегда: от него считаются таймеры речи, которые ставит пульт.
   const now = useServerNow(500, true);
-  const own = answers.filter((a) => a.step === step);
+  const own = useMemo(() => answers.filter((a) => a.step === step), [answers, step]);
 
   // Ключи телефонов: на раздаче — из текущих ответов, потом — один раз с сервера.
   const [keys, setKeys] = useState<Record<string, string>>({});
@@ -170,22 +173,48 @@ export function MafiaHostControls({ session, content, answers, participants, con
   }, [pastSteps.join(","), session.id]);
   const doctor = roles ? (r.alive.find((p) => roles[p] === "doctor") ?? null) : null;
   const don = roles ? (r.alive.find((p) => roles[p] === "don") ?? null) : null;
-  const history = healHistory(doctor, pastSteps.map((s) => past.current.get(s) ?? {}));
+  const advocate = roles ? (r.alive.find((p) => roles[p] === "advocate") ?? null) : null;
+  const courtesanHolder = roles ? (r.seats.find((p) => roles[p] === "courtesan") ?? null) : null;
+  const pastNights = pastSteps.map((s) => past.current.get(s) ?? {});
+  const visits = visitHistory(courtesanHolder, pastNights);
+  const history = healHistory(doctor, pastNights, visits);
 
-  // Ночь: выбор каждого, итог «если утро сейчас».
+  // Ночь: выбор каждого, блокировки, защита Адвоката и итог «если утро сейчас».
   const locks = useRef(new Map<string, string>());
+  const [locksReady, setLocksReady] = useState(false);
+  const checkLocksKey = JSON.stringify(r.checkLocks);
+  useEffect(() => {
+    let live = true;
+    setLocksReady(false);
+    void (async () => {
+      const restored = new Map(locks.current);
+      for (const [pid, text] of Object.entries(r.checkLocks)) {
+        const key = keys[pid];
+        if (!key) continue;
+        const target = await unseal(key, text);
+        if (typeof target !== "string") continue;
+        const role = roles?.[pid];
+        if (role === "commissar" || role === "don") restored.set(`${step}:${role === "commissar" ? "c" : "d"}:${pid}`, target);
+      }
+      locks.current = restored;
+      if (live) setLocksReady(true);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [checkLocksKey, keys, step, roles]);
   const night = useMemo(() => {
-    if (r.mode !== "night" || !roles) return null;
+    if (!locksReady || r.mode !== "night" || !roles) return null;
     const raw = nightChoices(own, r.alive, manual);
     const { choices, donCheck } = lockChecks(locks.current, step, roles, raw.choices, raw.donCheck);
-    return { choices, donCheck, outcome: resolveNight(roles, r.alive, choices, history, don ? (donCheck[don] ?? null) : null) };
-  }, [r.mode, roles, own, r.alive.join(","), manual, step, history.join(","), don]);
+    return { choices, donCheck, outcome: resolveNight(roles, r.alive, choices, history, don ? (donCheck[don] ?? null) : null, advocate ? (donCheck[advocate] ?? null) : null, visits) };
+  }, [locksReady, r.mode, roles, own, r.alive.join(","), manual, step, history.join(","), visits.join(","), don, advocate]);
 
-  // Ночные подсказки телефонам: голоса семьи, проверки, правило Доктора — у всех одной длины.
+  // Ночные подсказки телефонам: семья, проверки, блокировки и история ролей — у всех одной длины.
   const synced = useRef("");
   useEffect(() => {
-    if (r.mode !== "night" || stage !== "question" || !roles || !night || Object.keys(keys).length === 0) return;
-    const items = whispers(roles, r.alive, night.choices, night.donCheck, history);
+    if (!locksReady || r.mode !== "night" || stage !== "question" || !roles || !night || Object.keys(keys).length === 0) return;
+    const items = whispers(roles, r.alive, night.choices, night.donCheck, history, visits, night.outcome);
     const plain = `${step}:${JSON.stringify(items)}`;
     if (plain === synced.current) return;
     const timer = window.setTimeout(() => {
@@ -193,12 +222,18 @@ export function MafiaHostControls({ session, content, answers, participants, con
         const sealed = await sealWhispers(items, keys);
         const cur = latest.current;
         if (cur.state.step !== step || cur.state.stage !== "question") return;
-        await control.apply({ ...nightSync(cur, sealed, own.length), expect: { phase: "playing", step, stage: "question" } });
+        const sealedLocks = { ...parseMafiaResult(cur.state.result).checkLocks };
+        for (const [pid, role] of Object.entries(roles)) {
+          const key = keys[pid];
+          const target = role === "commissar" ? night.choices[pid] : role === "don" ? night.donCheck[pid] : null;
+          if (key && target && !sealedLocks[pid]) sealedLocks[pid] = await seal(key, target);
+        }
+        await control.apply({ ...nightSync(cur, sealed, own.length, sealedLocks), expect: { phase: "playing", step, stage: "question" } });
         synced.current = plain;
       })().catch(() => undefined);
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [r.mode, stage, roles, night, keys, step]);
+  }, [locksReady, r.mode, stage, roles, night, keys, step]);
 
   function nextSession(): Promise<void> {
     return new Promise((resolve) => {
@@ -266,7 +301,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
       const list = await freshOwn();
       const raw = nightChoices(list, r.alive, manual);
       const { choices, donCheck } = lockChecks(locks.current, step, roles, raw.choices, raw.donCheck);
-      const outcome = resolveNight(roles, r.alive, choices, history, don ? (donCheck[don] ?? null) : null);
+      const outcome = resolveNight(roles, r.alive, choices, history, don ? (donCheck[don] ?? null) : null, advocate ? (donCheck[advocate] ?? null) : null, visits);
       return morning(latest.current, content, outcome, roles);
     });
 
@@ -325,12 +360,12 @@ export function MafiaHostControls({ session, content, answers, participants, con
       ) : null}
 
       {started && r.mode === "night" && (
-        <NightPanel r={r} roles={roles} night={night} history={history} label={label} doneCount={own.filter((a) => r.alive.includes(a.pid)).length} keyless={keyless} manual={manual} onManual={setManualFor} nm={nm} seat={seat} />
+        <NightPanel r={r} roles={roles} night={night} history={history} visits={visits} label={label} doneCount={own.filter((a) => r.alive.includes(a.pid)).length} keyless={keyless} manual={manual} onManual={setManualFor} nm={nm} seat={seat} />
       )}
 
       {started && (r.mode === "day" || r.mode === "morning" || r.mode === "verdict") && stage !== "podium" && (
         <section className="stack stack--tight">
-          {r.mode === "morning" && <p className="mf-host__news">{r.killed ? <>Этой ночью убит(а) {label(r.killed)}</> : "Ночь прошла спокойно — никто не погиб"}</p>}
+          {r.mode === "morning" && <p className="mf-host__news">{r.killed.length > 0 ? <>Этой ночью {r.killed.length === 1 ? "убит(а)" : "убиты"} {r.killed.map((p, i) => <span key={p}>{i > 0 ? ", " : ""}{label(p)}</span>)}</> : "Ночь прошла спокойно — никто не погиб"}</p>}
           {r.mode === "verdict" && (
             <div className="card stack stack--tight">
               <p className="eyebrow">Итог голосования{r.revote ? " (переголосование)" : ""}</p>
@@ -344,19 +379,24 @@ export function MafiaHostControls({ session, content, answers, participants, con
               <p className="mf-host__news">{r.out ? <>Город выгоняет {label(r.out)}</> : mafiaPrimary(session) === "revote" ? "Ничья — можно переголосовать между равными" : "Никто не уходит"}</p>
             </div>
           )}
-          {r.mode !== "day" && (r.killed ?? r.out) && !r.winner && !(r.speakKind === "last" && r.speakEndsAt !== null) && (
-            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(giveWord(session, r.mode === "morning" ? r.killed : r.out, content.lastWordSeconds, now, "last"))}>
-              Последнее слово ({content.lastWordSeconds} с)
+          {r.mode === "morning" && !r.winner && !(r.speakKind === "last" && r.speakEndsAt !== null) && r.killed.map((p) => (
+            <button key={p} type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(giveWord(session, p, content.lastWordSeconds, now, "last"))}>
+              Последнее слово: {label(p)} ({content.lastWordSeconds} с)
+            </button>
+          ))}
+          {r.mode === "verdict" && r.out && !r.winner && !(r.speakKind === "last" && r.speakEndsAt !== null) && (
+            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(giveWord(session, r.out, content.lastWordSeconds, now, "last"))}>
+              Последнее слово: {label(r.out)} ({content.lastWordSeconds} с)
             </button>
           )}
           {r.mode === "day" && (
             <>
               <p className="muted small">«Слово» — таймер речи на экране. «На голосование» — выставить кандидата. Никого не выставили — голосуют против любого живого.</p>
-              {r.killed && r.speakKind !== "last" && (
-                <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(giveWord(session, r.killed, content.lastWordSeconds, now, "last"))}>
-                  Последнее слово убитого ({content.lastWordSeconds} с)
+              {r.speakKind !== "last" && r.killed.map((p) => (
+                <button key={p} type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(giveWord(session, p, content.lastWordSeconds, now, "last"))}>
+                  Последнее слово убитого: {label(p)} ({content.lastWordSeconds} с)
                 </button>
-              )}
+              ))}
               <ol className="mf-host__seats">
                 {r.seats.map((p) => {
                   const dead = !r.alive.includes(p);
@@ -427,7 +467,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
       )}
 
       {started && r.mode === "over" && stage !== "podium" && (
-        <p className="mf-host__news">{r.winner === "city" ? "Победил город!" : "Победила мафия!"} Роли открыты на экране и телефонах.</p>
+        <p className="mf-host__news">{r.winner === "city" ? "Победил город!" : r.winner === "mafia" ? "Победила мафия!" : r.winner === "maniac" ? "Победил Маньяк!" : "Партия окончена"} Роли открыты на экране и телефонах.</p>
       )}
 
       {started && r.mode !== "deal" && roles && stage !== "podium" && (
@@ -586,8 +626,17 @@ export function MafiaHostControls({ session, content, answers, participants, con
 
 function rolesLine(content: MafiaContent, players: number): string {
   const c = countsFor(content, Math.max(players, MAFIA_LIMITS.minPlayers));
-  const civ = Math.max(0, players - c.mafia - c.don - c.commissar - c.doctor);
-  return [c.don ? `Дон` : "", c.mafia ? `мафия ×${c.mafia}` : "", c.commissar ? "Комиссар" : "", c.doctor ? "Доктор" : "", `мирные ×${civ}`].filter(Boolean).join(", ");
+  const civ = Math.max(0, players - activeCount(c));
+  return [
+    c.don ? "Дон" : "",
+    c.mafia ? `мафия ×${c.mafia}` : "",
+    c.advocate ? "Адвокат" : "",
+    c.commissar ? "Комиссар" : "",
+    c.doctor ? "Доктор" : "",
+    c.courtesan ? "Красотка" : "",
+    c.maniac ? "Маньяк" : "",
+    `мирные ×${civ}`,
+  ].filter(Boolean).join(", ");
 }
 
 function NightPanel({
@@ -595,6 +644,7 @@ function NightPanel({
   roles,
   night,
   history,
+  visits,
   label,
   doneCount,
   keyless,
@@ -607,6 +657,7 @@ function NightPanel({
   roles: Record<string, RoleId> | null;
   night: { choices: Record<string, string | null>; donCheck: Record<string, string | null>; outcome: ReturnType<typeof resolveNight> } | null;
   history: Array<string | null>;
+  visits: Array<string | null>;
   label: (pid: string) => ReactNode;
   doneCount: number;
   keyless: string[];
@@ -623,52 +674,37 @@ function NightPanel({
   const doctor = actor("doctor");
   const commissar = actor("commissar");
   const don = actor("don");
+  const advocate = actor("advocate");
+  const courtesan = actor("courtesan");
+  const maniac = actor("maniac");
   const show = (pid: string | null | undefined) => (pid ? label(pid) : <span className="muted">ещё не выбрал(а)</span>);
+  const blocked = (pid: string) => (night.outcome.courtesanTarget === pid ? " — заблокирован(а) Красоткой" : "");
   const manualActors = keyless.filter((p) => r.alive.includes(p) && roles[p] && roles[p] !== "civilian");
-  const options = (exclude: string | null) =>
-    r.alive
-      .filter((p) => p !== exclude)
-      .map((p) => (
-        <option key={p} value={p}>
-          №{seat(p)} {nm(p)}
-        </option>
-      ));
+  const options = (exclude: string | null, filter: (p: string) => boolean = () => true) =>
+    r.alive.filter((p) => p !== exclude && filter(p)).map((p) => (
+      <option key={p} value={p}>№{seat(p)} {nm(p)}</option>
+    ));
+  const actionOptions = (pid: string) => {
+    const role = roles[pid] as RoleId;
+    if (role === "doctor") return options(null);
+    return options(pid, (p) => !isMafia(role) || !isMafia(roles[p]));
+  };
   return (
     <section className="stack stack--tight">
-      <p>
-        Ночь {r.round}: сделали ход {doneCount} из {r.alive.length - keyless.filter((p) => r.alive.includes(p)).length} с телефонами. Пока ночь идёт, выбор можно менять.
-      </p>
+      <p>Ночь {r.round}: сделали ход {doneCount} из {r.alive.length - keyless.filter((p) => r.alive.includes(p)).length} с телефонами. Пока ночь идёт, выбор можно менять.</p>
       <div className="card stack stack--tight mf-host__night">
-        <p>
-          {ROLE_ICON.mafia} <strong>Мафия</strong>:{" "}
-          {family.map((p, i) => (
-            <span key={p}>
-              {i > 0 ? "; " : ""}
-              {label(p)} → {show(night.choices[p])}
-            </span>
-          ))}
+        <p>{ROLE_ICON.mafia} <strong>Семья мафии</strong>: {family.map((p, i) => <span key={p}>{i > 0 ? "; " : ""}{label(p)} → {show(night.choices[p])}</span>)}</p>
+        <p className={unanimous ? "success" : "muted"}>
+          {night.outcome.familyBlocked ? "Красотка посетила члена семьи — выстрела не будет" : unanimous ? <>Единогласно — выстрел в {label(unanimous)}</> : Object.keys(votes).length > 1 ? "Голоса семьи расходятся — выстрела не будет" : "Выстрел состоится, только если все мафиози выберут одного"}
         </p>
-        <p className={unanimous ? "success" : "muted"}>{unanimous ? <>Единогласно — выстрел в {label(unanimous)}</> : Object.keys(votes).length > 1 ? "Голоса семьи расходятся — выстрела не будет" : "Выстрел состоится, только если все мафиози выберут одного"}</p>
-        {doctor && (
-          <p>
-            {ROLE_ICON.doctor} <strong>Доктор</strong> ({label(doctor)}) лечит: {show(night.choices[doctor])}
-            {night.choices[doctor] && !canHeal(doctor, night.choices[doctor] as string, history) ? " — нельзя (то же, что прошлой ночью, или себя второй раз): лечение не сработает" : ""}
-          </p>
-        )}
-        {commissar && (
-          <p>
-            {ROLE_ICON.commissar} <strong>Комиссар</strong> ({label(commissar)}) проверяет: {show(night.choices[commissar])}
-            {night.outcome.comCheck ? (night.outcome.comCheck.yes ? " — мафия" : " — не мафия") : ""}
-          </p>
-        )}
-        {don && (
-          <p>
-            {ROLE_ICON.don} <strong>Дон</strong> ищет Комиссара: {show(night.donCheck[don])}
-            {night.outcome.donCheck ? (night.outcome.donCheck.yes ? " — Комиссар!" : " — не Комиссар") : ""}
-          </p>
-        )}
+        {courtesan && <p>{ROLE_ICON.courtesan} <strong>Красотка</strong> ({label(courtesan)}) посещает: {show(night.choices[courtesan])}{night.choices[courtesan] && !canVisit(courtesan, night.choices[courtesan] as string, visits) ? " — нельзя посещать того же две ночи подряд" : ""}</p>}
+        {maniac && <p>{ROLE_ICON.maniac} <strong>Маньяк</strong> ({label(maniac)}) выбирает: {show(night.choices[maniac])}{blocked(maniac)}</p>}
+        {doctor && <p>{ROLE_ICON.doctor} <strong>Доктор</strong> ({label(doctor)}) лечит: {show(night.choices[doctor])}{blocked(doctor)}{night.choices[doctor] && !canHeal(doctor, night.choices[doctor] as string, history) ? " — лечение не сработает по правилу повтора" : ""}</p>}
+        {commissar && <p>{ROLE_ICON.commissar} <strong>Комиссар</strong> ({label(commissar)}) проверяет: {show(night.choices[commissar])}{blocked(commissar)}{night.outcome.comCheck ? (night.outcome.comCheck.yes ? " — мафия" : " — не мафия") : ""}</p>}
+        {don && <p>{ROLE_ICON.don} <strong>Дон</strong> ищет Комиссара: {show(night.donCheck[don])}{blocked(don)}{night.outcome.donCheck ? (night.outcome.donCheck.yes ? " — Комиссар!" : " — не Комиссар") : ""}</p>}
+        {advocate && <p>{ROLE_ICON.advocate} <strong>Адвокат</strong> ({label(advocate)}) защищает от проверки: {show(night.outcome.advocateProtect ?? night.donCheck[advocate])}{blocked(advocate)}</p>}
         <p className="mf-host__news">
-          Если утро сейчас: {night.outcome.victim ? <>погибнет {label(night.outcome.victim)}</> : night.outcome.mafiaTarget && night.outcome.healed === night.outcome.mafiaTarget ? "Доктор спасёт — тихая ночь" : "тихая ночь"}
+          Если утро сейчас: {night.outcome.victims.length > 0 ? <>{night.outcome.victims.length === 1 ? "погибнет" : "погибнут"} {night.outcome.victims.map((p, i) => <span key={p}>{i > 0 ? ", " : ""}{label(p)}</span>)}</> : night.outcome.healed ? "Доктор спасёт — тихая ночь" : "тихая ночь"}
         </p>
       </div>
       {manualActors.length > 0 && (
@@ -677,22 +713,17 @@ function NightPanel({
           {manualActors.map((p) => (
             <div key={p} className="stack stack--tight">
               <label className="field mf-host__manual">
-                <span>
-                  {label(p)} · {ROLES[roles[p] as RoleId].title}
-                </span>
+                <span>{label(p)} · {ROLES[roles[p] as RoleId].title}</span>
                 <select value={manual[p] ?? ""} onChange={(e) => onManual(p, e.target.value)}>
                   <option value="">не выбрал(а)</option>
-                  {options(roles[p] === "doctor" ? null : p)}
+                  {actionOptions(p)}
                 </select>
               </label>
               {roles[p] === "don" && (
-                <label className="field mf-host__manual">
-                  <span>Проверка Дона</span>
-                  <select value={manual[`${p}#check`] ?? ""} onChange={(e) => onManual(`${p}#check`, e.target.value)}>
-                    <option value="">не проверяет</option>
-                    {options(p)}
-                  </select>
-                </label>
+                <label className="field mf-host__manual"><span>Проверка Дона</span><select value={manual[`${p}#check`] ?? ""} onChange={(e) => onManual(`${p}#check`, e.target.value)}><option value="">не проверяет</option>{options(p, (t) => !isMafia(roles[t]))}</select></label>
+              )}
+              {roles[p] === "advocate" && (
+                <label className="field mf-host__manual"><span>Защита Адвоката</span><select value={manual[`${p}#check`] ?? ""} onChange={(e) => onManual(`${p}#check`, e.target.value)}><option value="">не защищает</option>{options(null, (t) => isMafia(roles[t]))}</select></label>
               )}
             </div>
           ))}

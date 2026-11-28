@@ -501,3 +501,56 @@ describe("время на ответ", () => {
     expect(apply(old.s, showQuestion(old.s, old.content)).state.timeLimit).toBeNull();
   });
 });
+
+
+describe("Миллион на кону: «Назад» отменяет наказание", () => {
+  function wrongAt(level = 6, players: "one" | "all" = "all") {
+    const content = { ...game(), players };
+    let s = session();
+    s = apply(s, startMillionaire(s, everyone, content));
+    const r0 = parseMillionaireResult(s.state.result);
+    s = { ...s, state: { ...s.state, result: { ...r0, levels: { A: level, B: 0, C: 0 } } } };
+    s = apply(s, showQuestion(s, content));
+    s = apply(s, markPick(s, 3));
+    s = apply(s, revealAnswer(s, content, [], everyone));
+    expect(millionairePrimary(s)).toBe("wrongChoice");
+    return { s, content, step: s.state.step };
+  }
+
+  it("«Выбывает»: возвращает участника, очки и прежний исход ошибки", () => {
+    let { s, content, step } = wrongAt();
+    s = apply(s, wrongChoice(s, content, everyone, "out"));
+    const back = millionaireBack(s, content, everyone);
+    expect(back?.clear).toEqual([s.state.step]);
+    s = apply(s, back?.change ?? null);
+    const r = parseMillionaireResult(s.state.result);
+    expect(s.state.step).toBe(step);
+    expect(r).toMatchObject({ mode: "reveal", outcome: "wrong", turn: "A", out: [], wrongBefore: null });
+    expect(s.leaderboard.A?.score).toBe(5000);
+  });
+
+  it("«Сначала»: возвращает прежние ступень и счёт", () => {
+    let { s, content } = wrongAt();
+    s = apply(s, wrongChoice(s, content, everyone, "restart"));
+    expect(s.leaderboard.A?.score).toBe(0);
+    s = apply(s, millionaireBack(s, content, everyone)?.change ?? null);
+    const r = parseMillionaireResult(s.state.result);
+    expect(r.levels.A).toBe(4);
+    expect(r.turn).toBe("A");
+    expect(r.outcome).toBe("wrong");
+    expect(s.leaderboard.A?.score).toBe(5000);
+  });
+
+  it("«Пропустить ход»: снимает пропуск, а с последнего выбывания возвращает итог ошибки даже после over", () => {
+    let { s, content } = wrongAt();
+    s = apply(s, wrongChoice(s, content, everyone, "skip"));
+    s = apply(s, millionaireBack(s, content, everyone)?.change ?? null);
+    expect(parseMillionaireResult(s.state.result)).toMatchObject({ turn: "A", skip: [], outcome: "wrong" });
+
+    ({ s, content } = wrongAt(6, "one"));
+    s = apply(s, wrongChoice(s, content, everyone, "out"));
+    expect(parseMillionaireResult(s.state.result).mode).toBe("over");
+    s = apply(s, millionaireBack(s, content, everyone)?.change ?? null);
+    expect(parseMillionaireResult(s.state.result)).toMatchObject({ mode: "reveal", outcome: "wrong", out: [], wrongBefore: null });
+  });
+});

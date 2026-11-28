@@ -4,7 +4,7 @@
 import { leaderboardAdditions } from "../../core/leaderboard";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
-import { ROLES, type MafiaContent, type RoleCounts, type RoleId } from "./content";
+import { MAFIA_LIMITS, ROLES, type MafiaContent, type RoleCounts, type RoleId, type Winner } from "./content";
 
 export type MafiaMode = "deal" | "roles" | "meet" | "day" | "vote" | "verdict" | "night" | "morning" | "over";
 
@@ -33,12 +33,14 @@ export interface MafiaResult {
   hostSeal: string | null;
   /** Ночные подсказки — у всех живых одинаковой длины, чтобы никого не выдать. */
   whisper: Record<string, string>;
-  /** Шаги прошлых ночей с действиями: по ним пульт знает, кого лечил Доктор. */
+  /** Первая цель проверки Комиссара/Дона за ночь — зашифрована ключом соответствующего телефона. */
+  checkLocks: Record<string, string>;
+  /** Шаги прошлых ночей с действиями: по ним пульт знает историю Доктора и Красотки. */
   nights: number[];
   /** Сколько живых уже нажали ночью или проголосовали (для экрана; без имён). */
   done: number;
-  /** Утро: кого убили ночью (null — ночь прошла спокойно). */
-  killed: string | null;
+  /** Утро: все погибшие за ночь; мафия и Маньяк могут убить двух разных людей. */
+  killed: string[];
   /** Кто говорит и до какого времени (часы сервера). */
   speaker: string | null;
   speakEndsAt: number | null;
@@ -51,7 +53,7 @@ export interface MafiaResult {
   /** Кого выгнали днём. */
   out: string | null;
   deaths: Death[];
-  winner: "city" | "mafia" | null;
+  winner: Winner | null;
   /** Все роли — открываются в конце. */
   reveal: Record<string, RoleId> | null;
   /** Ночью ответ можно менять (семья договаривается) — сервер перезаписывает ответ. */
@@ -77,7 +79,7 @@ function stringMap(value: unknown): Record<string, string> {
 }
 
 const MODES: MafiaMode[] = ["deal", "roles", "meet", "day", "vote", "verdict", "night", "morning", "over"];
-const ROLE_IDS: RoleId[] = ["mafia", "don", "commissar", "doctor", "civilian"];
+const ROLE_IDS: RoleId[] = ["mafia", "don", "advocate", "commissar", "doctor", "courtesan", "maniac", "civilian"];
 
 export function isRole(value: unknown): value is RoleId {
   return typeof value === "string" && (ROLE_IDS as string[]).includes(value);
@@ -94,9 +96,10 @@ export function emptyResult(): MafiaResult {
     sealed: {},
     hostSeal: null,
     whisper: {},
+    checkLocks: {},
     nights: [],
     done: 0,
-    killed: null,
+    killed: [],
     speaker: null,
     speakEndsAt: null,
     speakKind: null,
@@ -135,9 +138,11 @@ export function parseMafiaResult(raw: unknown): MafiaResult {
     sealed: stringMap(d.sealed),
     hostSeal: typeof d.hostSeal === "string" ? d.hostSeal : null,
     whisper: stringMap(d.whisper),
+    checkLocks: stringMap(d.checkLocks),
     nights: Array.isArray(d.nights) ? d.nights.filter((n): n is number => typeof n === "number") : [],
     done: typeof d.done === "number" ? d.done : 0,
-    killed: typeof d.killed === "string" ? d.killed : null,
+    // Старые сохранённые партии хранили одну жертву строкой — превращаем её в список.
+    killed: typeof d.killed === "string" ? [d.killed] : strings(d.killed),
     speaker: typeof d.speaker === "string" ? d.speaker : null,
     speakEndsAt: typeof d.speakEndsAt === "number" ? d.speakEndsAt : null,
     speakKind: d.speakKind === "speech" || d.speakKind === "last" ? d.speakKind : null,
@@ -154,7 +159,7 @@ export function parseMafiaResult(raw: unknown): MafiaResult {
           return [death];
         })
       : [],
-    winner: d.winner === "city" || d.winner === "mafia" ? d.winner : null,
+    winner: d.winner === "city" || d.winner === "mafia" || d.winner === "maniac" ? d.winner : null,
     reveal: Object.keys(reveal).length > 0 ? reveal : null,
     changeable: d.changeable === true,
     undo: typeof undo.step === "number" && typeof undo.stage === "string" ? { step: undo.step, stage: undo.stage, result: withoutUndo(parseMafiaResult(undo.result)) } : null,
@@ -176,7 +181,7 @@ export function seatsOf(session: Session, participants: Participant[]): string[]
   const players = participants.filter((p) => p.kind === "player");
   const joined = new Map(players.map((p) => [p.id, p.joinedAt ?? 0]));
   const ids = new Set([...Object.keys(session.leaderboard), ...players.map((p) => p.id)]);
-  return [...ids].sort((a, b) => (joined.get(a) ?? Number.MAX_SAFE_INTEGER) - (joined.get(b) ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b));
+  return [...ids].sort((a, b) => (joined.get(a) ?? Number.MAX_SAFE_INTEGER) - (joined.get(b) ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b)).slice(0, MAFIA_LIMITS.maxPlayers);
 }
 
 /** Случайная раздача ролей. `random` — 0..1 (в тестах — свой). */
@@ -187,8 +192,11 @@ export function dealRoles(seats: string[], counts: RoleCounts, random: () => num
   };
   add("don", counts.don);
   add("mafia", counts.mafia);
+  add("advocate", counts.advocate);
   add("commissar", counts.commissar);
   add("doctor", counts.doctor);
+  add("courtesan", counts.courtesan);
+  add("maniac", counts.maniac);
   const shuffled = [...seats];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -202,7 +210,7 @@ export function dealRoles(seats: string[], counts: RoleCounts, random: () => num
 }
 
 export function isMafia(role: RoleId | undefined): boolean {
-  return role === "mafia" || role === "don";
+  return role === "mafia" || role === "don" || role === "advocate";
 }
 
 /** Что лежит в карте роли (шифруется ключом телефона). */
@@ -210,19 +218,25 @@ export interface RoleCard {
   role: RoleId;
   /** Номер за столом. */
   seat: number;
-  /** Мафии и Дону — своя семья: id, имена, роли. */
+  /** Мафии, Дону и Адвокату — своя семья: id, имена, роли. */
   family: Array<{ pid: string; name: string; role: RoleId }>;
 }
 
 /** Ночная подсказка (шифруется): что видит телефон после своего выбора. */
 export interface Whisper {
-  /** Мафии и Дону — кого выбрал каждый из семьи (голоса над игроками). */
+  /** Членам семьи — кого выбрал каждый мафиози (голоса над игроками). */
   family?: Record<string, string | null>;
   /** Дону — проверка на Комиссара, Комиссару — на мафию. */
   check?: { target: string; yes: boolean } | null;
   /** Доктору — кого лечил прошлой ночью и лечил ли себя. */
   lastHeal?: string | null;
   selfHealed?: boolean;
+  /** Красотке — кого она посещала прошлой ночью. */
+  lastVisit?: string | null;
+  /** Красотка заблокировала именно это действие. */
+  blocked?: boolean;
+  /** Красотка посетила члена семьи — общий выстрел отменён. */
+  familyBlocked?: boolean;
 }
 
 /** Длина, до которой добиваются все карты и подсказки: по размеру шифра роль не угадать. */
@@ -255,13 +269,21 @@ export function roleCard(pid: string, roles: Record<string, RoleId>, seats: stri
 // ---------------------------------------------------------------- ночь
 
 export interface NightOutcome {
-  /** Выбор мафии (до лечения). */
+  /** Фактический выбор мафии после блокировки Красотки (до лечения). */
   mafiaTarget: string | null;
+  /** Фактический выбор Маньяка после блокировки (до лечения). */
+  maniacTarget: string | null;
   healed: string | null;
-  /** Кто убит (выбор мафии, если Доктор не спас). */
+  /** Первая жертва — сохранено для старых вызовов и тестов. */
   victim: string | null;
+  /** Все жертвы ночи без повторов и спасённого Доктором игрока. */
+  victims: string[];
   donCheck: { target: string; yes: boolean } | null;
   comCheck: { target: string; yes: boolean } | null;
+  /** Кого посетила Красотка и чью проверку скрыл Адвокат. */
+  courtesanTarget: string | null;
+  advocateProtect: string | null;
+  familyBlocked: boolean;
 }
 
 /** Цель ночного действия из ответа. */
@@ -270,7 +292,7 @@ export function targetOf(value: unknown): string | null {
   return typeof t === "string" ? t : null;
 }
 
-/** Проверка Дона (вторая цель в его ответе). */
+/** Вторая цель: проверка Дона или защита Адвоката. */
 export function checkOf(value: unknown): string | null {
   const t = record(value).check;
   return typeof t === "string" ? t : null;
@@ -282,20 +304,17 @@ export function familyVotes(roles: Record<string, RoleId>, alive: string[], choi
   for (const pid of alive) {
     if (!isMafia(roles[pid])) continue;
     const t = choices[pid];
-    if (t && alive.includes(t)) counts[t] = (counts[t] ?? 0) + 1;
+    if (t && alive.includes(t) && !isMafia(roles[t])) counts[t] = (counts[t] ?? 0) + 1;
   }
   return counts;
 }
 
-/**
- * Выбор мафии: убийство состоится, только если все живые мафиози (с Доном) выбрали одного и того же.
- * Разошлись или кто-то не выбрал — промах.
- */
+/** Убийство состоится, только если вся семья выбрала одного живого игрока вне семьи. */
 export function mafiaChoice(roles: Record<string, RoleId>, alive: string[], choices: Record<string, string | null>): string | null {
   const family = alive.filter((p) => isMafia(roles[p]));
   if (family.length === 0) return null;
   const first = choices[family[0] as string];
-  if (!first || !alive.includes(first)) return null;
+  if (!first || !alive.includes(first) || isMafia(roles[first])) return null;
   return family.every((p) => choices[p] === first) ? first : null;
 }
 
@@ -307,34 +326,68 @@ export function canHeal(doctor: string, target: string, history: Array<string | 
   return true;
 }
 
+/** Красотка не посещает себя и одного игрока две ночи подряд. */
+export function canVisit(courtesan: string, target: string, history: Array<string | null>): boolean {
+  return target !== courtesan && target !== (history[history.length - 1] ?? null);
+}
+
 /**
- * Итог ночи. `choices` — цель каждого живого (мафия — выстрел, Доктор — лечение, Комиссар — проверка),
- * `donCheck` — отдельная проверка Дона (его `target` — голос в семье).
+ * Итог ночи. Сначала Красотка блокирует цель, затем Адвокат скрывает своего от Комиссара,
+ * мафия и Маньяк выбирают жертв, а Доктор спасает одного игрока от любого выстрела.
  */
-export function resolveNight(roles: Record<string, RoleId>, alive: string[], choices: Record<string, string | null>, healHistory: Array<string | null>, donCheck: string | null = null): NightOutcome {
+export function resolveNight(
+  roles: Record<string, RoleId>,
+  alive: string[],
+  choices: Record<string, string | null>,
+  healHistory: Array<string | null>,
+  donCheck: string | null = null,
+  advocateProtect: string | null = null,
+  visitHistory: Array<string | null> = [],
+): NightOutcome {
   const living = (role: RoleId) => alive.find((p) => roles[p] === role) ?? null;
-  const mafiaTarget = mafiaChoice(roles, alive, choices);
+  const courtesan = living("courtesan");
+  const visitWanted = courtesan ? choices[courtesan] : null;
+  const courtesanTarget = courtesan && visitWanted && alive.includes(visitWanted) && canVisit(courtesan, visitWanted, visitHistory) ? visitWanted : null;
+  const familyBlocked = courtesanTarget !== null && isMafia(roles[courtesanTarget]);
+
+  const mafiaTarget = familyBlocked ? null : mafiaChoice(roles, alive, choices);
+  const maniac = living("maniac");
+  const maniacWanted = maniac ? choices[maniac] : null;
+  const maniacTarget = maniac && maniac !== courtesanTarget && maniacWanted && maniacWanted !== maniac && alive.includes(maniacWanted) ? maniacWanted : null;
+
   const doctor = living("doctor");
-  const healWanted = doctor ? choices[doctor] : null;
+  const healWanted = doctor && doctor !== courtesanTarget ? choices[doctor] : null;
   const healed = doctor && healWanted && alive.includes(healWanted) && canHeal(doctor, healWanted, healHistory) ? healWanted : null;
+
   const don = living("don");
-  const donT = don ? donCheck : null;
+  const donT = don && don !== courtesanTarget ? donCheck : null;
+  const advocate = living("advocate");
+  const protectWanted = advocate && advocate !== courtesanTarget ? advocateProtect : null;
+  const protectedPid = protectWanted && alive.includes(protectWanted) && isMafia(roles[protectWanted]) ? protectWanted : null;
   const commissar = living("commissar");
-  const comT = commissar ? choices[commissar] : null;
+  const comT = commissar && commissar !== courtesanTarget ? choices[commissar] : null;
+  const victims = [...new Set([mafiaTarget, maniacTarget].filter((p): p is string => p !== null && p !== healed))];
   return {
     mafiaTarget,
+    maniacTarget,
     healed,
-    victim: mafiaTarget && mafiaTarget !== healed ? mafiaTarget : null,
+    victim: victims[0] ?? null,
+    victims,
     donCheck: donT && alive.includes(donT) && donT !== don ? { target: donT, yes: roles[donT] === "commissar" } : null,
-    comCheck: comT && alive.includes(comT) && comT !== commissar ? { target: comT, yes: isMafia(roles[comT]) } : null,
+    comCheck: comT && alive.includes(comT) && comT !== commissar ? { target: comT, yes: isMafia(roles[comT]) && comT !== protectedPid } : null,
+    courtesanTarget,
+    advocateProtect: protectedPid,
+    familyBlocked,
   };
 }
 
-/** Победа: мафии не осталось — город; мафии не меньше остальных — мафия. */
-export function winnerOf(roles: Record<string, RoleId>, alive: string[]): "city" | "mafia" | null {
+/** Маньяк побеждает один на один; город — без мафии и Маньяка; мафия — при численном паритете. */
+export function winnerOf(roles: Record<string, RoleId>, alive: string[]): Winner | null {
+  const maniacAlive = alive.some((p) => roles[p] === "maniac");
+  if (maniacAlive && alive.length <= 2) return "maniac";
   const family = alive.filter((p) => isMafia(roles[p])).length;
-  if (family === 0) return "city";
-  if (family >= alive.length - family) return "mafia";
+  if (family === 0 && !maniacAlive) return "city";
+  if (family > 0 && family >= alive.length - family) return "mafia";
   return null;
 }
 
@@ -401,37 +454,61 @@ export function nightChoices(answers: Array<{ pid: string; value: unknown }>, al
  * «себя — один раз». Считаются только принятые лечения: недопустимый выбор (тот же, что прошлой ночью, или себя
  * второй раз — например, ввод ведущего) в ту ночь не сработал и следующую ночь не запрещает.
  */
-export function healHistory(doctor: string | null, pastNights: Array<Record<string, string | null>>): Array<string | null> {
+export function healHistory(doctor: string | null, pastNights: Array<Record<string, string | null>>, blocked: Array<string | null> = []): Array<string | null> {
   if (!doctor) return [];
   const out: Array<string | null> = [];
-  for (const c of pastNights) {
+  pastNights.forEach((c, i) => {
     const want = c[doctor] ?? null;
-    out.push(want && canHeal(doctor, want, out) ? want : null);
+    out.push(want && blocked[i] !== doctor && canHeal(doctor, want, out) ? want : null);
+  });
+  return out;
+}
+
+/** Принятые посещения Красотки: повтор прошлой ночи не срабатывает и не запрещает следующую. */
+export function visitHistory(courtesan: string | null, pastNights: Array<Record<string, string | null>>): Array<string | null> {
+  if (!courtesan) return [];
+  const out: Array<string | null> = [];
+  for (const c of pastNights) {
+    const want = c[courtesan] ?? null;
+    out.push(want && canVisit(courtesan, want, out) ? want : null);
   }
   return out;
 }
 
-/** Подсказка каждому живому с телефоном: мафии — голоса семьи, Дону и Комиссару — проверка, Доктору — прошлое лечение. */
-export function whispers(roles: Record<string, RoleId>, alive: string[], choices: Record<string, string | null>, donChecks: Record<string, string | null>, history: Array<string | null>): Record<string, Whisper> {
+/** Подсказки телефонам: семья, проверки, история ролей и точный результат блокировки. */
+export function whispers(
+  roles: Record<string, RoleId>,
+  alive: string[],
+  choices: Record<string, string | null>,
+  donChecks: Record<string, string | null>,
+  history: Array<string | null>,
+  visits: Array<string | null> = [],
+  outcome: NightOutcome | null = null,
+): Record<string, Whisper> {
   const out: Record<string, Whisper> = {};
   const familyChoice: Record<string, string | null> = {};
   for (const p of alive) if (isMafia(roles[p])) familyChoice[p] = choices[p] ?? null;
   for (const pid of alive) {
     const role = roles[pid];
     const w: Whisper = {};
-    if (isMafia(role)) w.family = familyChoice;
+    if (isMafia(role)) {
+      w.family = familyChoice;
+      if (outcome?.familyBlocked) w.familyBlocked = true;
+    }
+    if (outcome?.courtesanTarget === pid) w.blocked = true;
     if (role === "don") {
       const t = donChecks[pid];
-      w.check = t && alive.includes(t) && t !== pid ? { target: t, yes: roles[t] === "commissar" } : null;
+      w.check = outcome ? outcome.donCheck : t && alive.includes(t) && t !== pid ? { target: t, yes: roles[t] === "commissar" } : null;
     }
     if (role === "commissar") {
       const t = choices[pid];
-      w.check = t && alive.includes(t) && t !== pid ? { target: t, yes: isMafia(roles[t]) } : null;
+      w.check = outcome ? outcome.comCheck : t && alive.includes(t) && t !== pid ? { target: t, yes: isMafia(roles[t]) } : null;
     }
     if (role === "doctor") {
       w.lastHeal = history[history.length - 1] ?? null;
       w.selfHealed = history.includes(pid);
     }
+    if (role === "courtesan") w.lastVisit = visits[visits.length - 1] ?? null;
     out[pid] = w;
   }
   return out;
@@ -449,6 +526,9 @@ export function parseWhisper(raw: unknown): Whisper {
   if (typeof c.target === "string") w.check = { target: c.target, yes: c.yes === true };
   if (typeof d.lastHeal === "string") w.lastHeal = d.lastHeal;
   if (d.selfHealed === true) w.selfHealed = true;
+  if (typeof d.lastVisit === "string") w.lastVisit = d.lastVisit;
+  if (d.blocked === true) w.blocked = true;
+  if (d.familyBlocked === true) w.familyBlocked = true;
   return w;
 }
 
@@ -530,7 +610,7 @@ export function startDay(session: Session): SessionChange {
     state: {
       stage: "reveal",
       revealed: true,
-      result: { ...r, changeable: false, mode: "day", round: r.mode === "roles" || r.mode === "meet" ? 1 : r.round + (r.mode === "morning" ? 1 : 0), nominees: [], tally: null, out: null, revote: false, speaker: null, speakEndsAt: null, speakKind: null, killed: r.mode === "morning" ? r.killed : null, whisper: {}, done: 0, undo: snapshot(session, r) },
+      result: { ...r, changeable: false, mode: "day", round: r.mode === "roles" || r.mode === "meet" ? 1 : r.round + (r.mode === "morning" ? 1 : 0), nominees: [], tally: null, out: null, revote: false, speaker: null, speakEndsAt: null, speakKind: null, killed: r.mode === "morning" ? r.killed : [], whisper: {}, done: 0, undo: snapshot(session, r) },
     },
   };
 }
@@ -605,34 +685,34 @@ export function startNight(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: { ...r, mode: "night", changeable: true, nights: [...r.nights, step], whisper: {}, done: 0, killed: null, out: null, tally: null, nominees: [], speaker: null, speakEndsAt: null, speakKind: null, undo: snapshot(session, r) },
+      result: { ...r, mode: "night", changeable: true, nights: [...r.nights, step], whisper: {}, checkLocks: {}, done: 0, killed: [], out: null, tally: null, nominees: [], speaker: null, speakEndsAt: null, speakKind: null, undo: snapshot(session, r) },
     },
   };
 }
 
 /** Ночные подсказки и счётчик нажатий (пишет пульт по мере ответов). */
-export function nightSync(session: Session, whisper: Record<string, string>, done: number): SessionChange {
+export function nightSync(session: Session, whisper: Record<string, string>, done: number, checkLocks?: Record<string, string>): SessionChange {
   const r = parseMafiaResult(session.state.result);
-  return { state: { result: { ...r, whisper, done } } };
+  return { state: { result: { ...r, whisper, done, checkLocks: checkLocks ?? r.checkLocks } } };
 }
 
-/** «Наступает утро»: кто убит (или тихая ночь), проверка победы. */
+/** «Наступает утро»: все жертвы ночи (или тихая ночь), проверка победы трёх сторон. */
 export function morning(session: Session, content: MafiaContent, outcome: NightOutcome, roles: Record<string, RoleId>): SessionChange {
   const r = parseMafiaResult(session.state.result);
-  const victim = outcome.victim;
-  const alive = victim ? r.alive.filter((p) => p !== victim) : r.alive;
-  const deaths = victim ? [...r.deaths, death(victim, r.round, "night", roles, content)] : r.deaths;
+  const victims = outcome.victims.filter((p) => r.alive.includes(p));
+  const alive = victims.length > 0 ? r.alive.filter((p) => !victims.includes(p)) : r.alive;
+  const deaths = [...r.deaths, ...victims.map((pid) => death(pid, r.round, "night", roles, content))];
   return {
     state: {
       stage: "reveal",
       revealed: true,
-      result: { ...r, changeable: false, mode: "morning", killed: victim, alive, deaths, winner: winnerOf(roles, alive), whisper: {}, undo: snapshot(session, r) },
+      result: { ...r, changeable: false, mode: "morning", killed: victims, alive, deaths, winner: winnerOf(roles, alive), whisper: {}, undo: snapshot(session, r) },
     },
   };
 }
 
 /** Конец игры: роли всем, очки победителям (выжившим — бонус). */
-export function finishGame(session: Session, content: MafiaContent, roles: Record<string, RoleId>, winner: "city" | "mafia"): SessionChange {
+export function finishGame(session: Session, content: MafiaContent, roles: Record<string, RoleId>, winner: Winner): SessionChange {
   const r = parseMafiaResult(session.state.result);
   const leaderboard: Record<string, LeaderboardEntry> = {};
   for (const pid of r.seats) {

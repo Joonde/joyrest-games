@@ -7,7 +7,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSPropertie
 import { Logo } from "../../components/Logo";
 import { NameText } from "../../components/NameText";
 import { preloadTrack, useFragment } from "../../components/music/useFragment";
-import { drumRattle, fadeOutFragment, fragmentLevel, fragmentTime, playSound } from "../../components/live/sound";
+import { drumRattle, fadeOutFragment, fragmentLevel, fragmentTime, playSound, useSoundReady } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
 import { clock } from "../../data";
 import type { Session } from "../../data/types";
@@ -121,8 +121,10 @@ function DrumStage({ content, numbers, pick, startedAt, onTick }: { content: Lot
   }, [startedAt]);
 
   // Звук: треск барабана, хлопок крышки, звон номера — по расписанию от начала.
+  // Если браузер ждал касания, после разрешения звука продолжаем текущий барабан, а не ждём следующий.
+  const soundOn = useSoundReady();
   useEffect(() => {
-    if (!live.current) return;
+    if (!live.current || !soundOn) return;
     const start = (Date.now() + clock.offset() - startedAt) / 1000;
     const timers: number[] = [];
     const at = (sec: number, fn: () => void) => timers.push(window.setTimeout(fn, Math.max(0, (sec - start) * 1000)));
@@ -136,8 +138,8 @@ function DrumStage({ content, numbers, pick, startedAt, onTick }: { content: Lot
     if (!noGl) at(M.pop, () => playSound("pop"));
     at(M.big, () => playSound("ding"));
     return () => timers.forEach((id) => window.clearTimeout(id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- один раз на барабан
-  }, [startedAt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- один раз на барабан и после разрешения звука
+  }, [startedAt, soundOn]);
 
   const big = t >= M.big;
   const showRing = Math.max(0, Math.min(1, (t - M.big - 0.5) / (M.end - M.big - 0.5)));
@@ -227,7 +229,7 @@ function useTrackTime(enabled: boolean): number | null {
 }
 
 /** Экран зала лото во время игры (заставка «Откройте карточки» — в views.tsx). */
-export function LottoHall({ session, content }: { session: Session; content: LottoContent }) {
+export function LottoHall({ session, content, startOnMount = false }: { session: Session; content: LottoContent; startOnMount?: boolean }) {
   const { stage, step } = session.state;
   const result = parseLottoResult(session.state.result);
   const order = useMemo(() => orderOf(content, result.order), [content, result.order]);
@@ -258,7 +260,13 @@ export function LottoHall({ session, content }: { session: Session; content: Lot
   // для этого на пульте «Повторить песню».
   const musicOn = lottoMusicOn({ stage, inDrum, hush: result.hush, quiet: quietFor === songKey, sounded: sounded.current === songKey });
   if (stage === "question" && musicOn) sounded.current = songKey;
-  const playKey = musicOn ? songKey : null;
+  // Первая песня без барабана монтирует зал уже с ключом трека: даём один кадр с null, чтобы плеер увидел запуск.
+  // Экран, открытый посреди игры без заставки, по-прежнему не включает песню сам.
+  const [mountPassed, setMountPassed] = useState(!startOnMount);
+  useEffect(() => {
+    if (!mountPassed) setMountPassed(true);
+  }, [mountPassed]);
+  const playKey = musicOn && mountPassed ? songKey : null;
   useFragment(track, song?.trackStart ?? 0, songLength(content, song), playKey);
   const seenStage = useRef(stage);
   useEffect(() => {

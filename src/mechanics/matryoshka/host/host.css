@@ -1,0 +1,85 @@
+/* Пульт «Игр Матрёшки» (3d): платформенные кнопки и токены; компоновка — как у пульта «Бубликатора». */
+.math { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.math h2 { margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+.math-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: start; }
+.math-head .eyebrow { margin: 0 0 4px; }
+.math-status { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; color: var(--color-text-muted); font-size: 0.9rem; }
+.math-status .is-warn { color: var(--color-text); font-weight: 600; }
+.math-players-button { min-height: 44px; white-space: nowrap; }
+.math-sec { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.math-sec > p { margin: 0; }
+.math-footer { display: flex; flex-wrap: wrap; gap: 8px; }
+.math-footer .btn { flex: 1 1 160px; }
+.math-footer .is-on, .math-filters .is-on { border-color: var(--color-highlight); }
+.math-timer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-radius: 16px; background: var(--color-surface-alt); border: 1px solid var(--color-border); }
+.math-timer span { color: var(--color-text-muted); }
+.math-timer strong { font-family: "Cormorant Garamond", serif; font-size: 2.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.math-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.math-metrics > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--color-surface-alt); min-width: 0; }
+.math-metrics span { color: var(--color-text-muted); font-size: 0.82rem; }
+.math-metrics strong { font-family: "Cormorant Garamond", serif; font-size: 1.8rem; line-height: 1; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.math-progress { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; color: var(--color-text-muted); font-size: 0.9rem; }
+.math-rule { padding: 16px; border-radius: 16px; border: 1px solid var(--color-border); background: var(--color-surface-alt); }
+.math-rule p { margin: 6px 0 0; line-height: 1.5; }
+.math-note { margin: 0; padding: 13px 14px; border-radius: 14px; background: var(--color-surface-alt); line-height: 1.45; }
+.math-note p { margin: 4px 0 0; }
+.math-button-meta { color: var(--color-text-muted); font-weight: 400; }
+.math-lobby { display: flex; align-items: baseline; gap: 12px; }
+.math-lobby strong { font-family: "Cormorant Garamond", serif; font-size: 3.6rem; line-height: 1; color: var(--color-highlight); }
+.math-lobby span { color: var(--color-text-muted); }
+.math-names { display: flex; flex-direction: column; gap: 6px; }
+.math-names span { padding: 8px 12px; border-radius: 10px; background: var(--color-surface-alt); }
+.math-pause { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 16px; border: 2px solid var(--color-highlight); background: var(--color-surface-alt); }
+.math-pause p { margin: 0; }
+.math-duel { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.math-duel > strong { font-family: "Cormorant Garamond", serif; font-size: 1.8rem; white-space: nowrap; }
+.math-duelist { display: flex; flex-direction: column; gap: 5px; padding: 12px; border: 1px solid var(--color-border); border-radius: 12px; min-width: 0; }
+.math-duelist strong { overflow-wrap: anywhere; }
+.math-duelist span { color: var(--color-text-muted); font-size: 0.82rem; }
+.math-forfeit { display: flex; flex-direction: column; gap: 6px; }
+.math-forfeit > span { color: var(--color-text-muted); font-size: 0.85rem; text-align: center; }
+.math-forfeit > div { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.math-forfeit .btn { min-width: 0; white-space: normal; color: var(--color-danger, #a43b32); line-height: 1.25; }
+.math-bracket { display: flex; flex-direction: column; gap: 12px; }
+.math-bracket-round { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.math-bracket-round > span { grid-column: 1 / -1; color: var(--color-text-muted); font-size: 0.85rem; font-weight: 600; }
+.math-match { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 12px; }
+.math-match small { color: var(--color-text-muted); }
+.math-match strong { font-size: 0.9rem; overflow-wrap: anywhere; }
+.math-match .is-winner { color: var(--color-highlight); }
+.math-champion { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 16px; border-radius: 16px; background: var(--color-surface-alt); text-align: center; }
+.math-champion span { color: var(--color-text-muted); font-size: 0.85rem; }
+.math-champion strong { font-family: "Cormorant Garamond", serif; font-size: 2rem; }
+.math-podium { list-style: none; margin: 0; padding: 0; }
+.math-podium li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 4px; border-bottom: 1px solid var(--color-border); }
+.math-podium li > span { font-family: "Cormorant Garamond", serif; font-size: 1.6rem; font-weight: 700; color: var(--color-highlight); }
+.math-podium strong { overflow-wrap: anywhere; }
+.math-podium small { color: var(--color-text-muted); }
+.math-panel-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.math-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.math-filters .btn { min-width: 0; min-height: 44px; padding-inline: 6px; white-space: normal; font-size: 0.85rem; }
+.math-player-list { display: flex; flex-direction: column; gap: 7px; }
+.math-player { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--color-surface-alt); }
+.math-player > span { color: var(--color-highlight); font-size: 0.82rem; font-weight: 600; }
+.math-player > div { display: flex; flex-direction: column; min-width: 0; }
+.math-player strong { overflow-wrap: anywhere; }
+.math-player small { color: var(--color-text-muted); overflow-wrap: anywhere; }
+.math-player > .btn { grid-column: 2; min-height: 44px; }
+.math-danger { color: var(--color-danger, #a43b32); }
+.math .field input { min-height: 48px; width: 100%; }
+.math .btn { white-space: normal; line-height: 1.25; }
+
+@media (min-width: 440px) {
+  .math-metrics { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+  .math-player { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .math-player > .btn { grid-column: 3; }
+}
+
+@media (max-width: 420px) {
+  .math-head { grid-template-columns: minmax(0, 1fr); }
+  .math-players-button { grid-row: 2; width: 100%; }
+  .math-status { grid-row: 3; }
+  .math-duel { grid-template-columns: minmax(0, 1fr); }
+  .math-duel > strong { text-align: center; }
+  .math-forfeit > div { grid-template-columns: 1fr; }
+}

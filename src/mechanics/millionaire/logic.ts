@@ -70,6 +70,8 @@ export interface MillionaireResult {
   qrBig: boolean;
   /** Сколько раз команда ошиблась (для «Попыток после ошибки»). */
   misses: Record<string, number>;
+  /** Состояние до выбора наказания — чтобы «Назад» мог отменить его и на следующем ходу. */
+  wrongBefore: { step: number; result: Omit<MillionaireResult, "wrongBefore">; score: number } | null;
 }
 
 /** Что делать с командой после неверного ответа (решение владельца 14 октября 2026, выбирает ведущий). */
@@ -127,6 +129,11 @@ export function parseMillionaireResult(raw: unknown): MillionaireResult {
       const out: Record<string, number> = {};
       for (const [k, n] of Object.entries(rec(d.misses))) if (ID.test(k) && typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 100) out[k] = n;
       return out;
+    })(),
+    wrongBefore: (() => {
+      const before = rec(d.wrongBefore);
+      if (typeof before.step !== "number" || !Number.isInteger(before.step) || before.step < 0 || typeof before.score !== "number" || !Number.isFinite(before.score)) return null;
+      return { step: before.step, result: parseMillionaireResult(before.result), score: before.score };
     })(),
   };
 }
@@ -365,6 +372,7 @@ export function wrongChoice(session: Session, content: MillionaireContent, parti
     board = scoreChange(session, participants, content, team, 0, r.levels[team] ?? 0);
   }
   if (choice === "skip") after = { ...r, skip: [...new Set([...r.skip, team])] };
+  after = { ...after, wrongBefore: { step: session.state.step, result: r, score: session.leaderboard[team]?.score ?? 0 } };
   const moved = nextTurn({ ...session, state: { ...session.state, result: write(after) } }, content, participants);
   return { ...moved, leaderboard: { ...(moved.leaderboard ?? {}), ...(board ?? {}) } };
 }
@@ -550,6 +558,13 @@ export function millionaireBack(session: Session, content: MillionaireContent, p
   const { stage, step } = session.state;
   const r = parseMillionaireResult(session.state.result);
   if (stage === "podium") return { change: podiumBack(session) };
+  if (r.wrongBefore) {
+    const before = r.wrongBefore;
+    const team = before.result.turn;
+    const change: SessionChange = { state: { step: before.step, stage: "reveal", revealed: true, result: write({ ...before.result, wrongBefore: null }) } };
+    if (team) change.leaderboard = scoreChange(session, participants, content, team, before.result.levels[team] ?? 0, r.levels[team] ?? 0);
+    return { change, clear: [step] };
+  }
   if (r.mode === "over" || !r.turn) return null;
   if (stage === "reveal" && r.outcome) {
     const team = r.turn;

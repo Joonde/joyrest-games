@@ -8,6 +8,8 @@ import { Podium } from "../../components/live/Podium";
 import { PeekCard } from "../../components/live/PeekCard";
 import { Scene } from "../../components/live/Scene";
 import { useSoundUnlock } from "../../components/live/sound";
+import { useHallMusic } from "../../components/music/useHallMusic";
+import { builtinMusicOf } from "../../components/music/builtinMusic";
 import { BoardView } from "../../components/live/BoardView";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
@@ -76,6 +78,10 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
   const demo: Participant[] = useMemo(() => rehearsalParticipants(game.mechanic, session.playMode), [game.mechanic, session.playMode]);
   // Звуки и фрагменты «Узнай по нотам» на репетиции — после первого касания, как на экране зала.
   useSoundUnlock();
+  // Тот же фон, что на настоящем экране: лобби, заставки и музыка момента игры. Раньше репетиция его не запускала.
+  const moment = mechanic?.music && content !== null ? mechanic.music(session, content) : null;
+  const builtin = mechanic?.ownMusic ? null : builtinMusicOf(session, moment);
+  useHallMusic(session.state.music, session.state.mix, builtin);
   const control: SessionControl = useMemo(
     () => ({
       apply: async (change) => setSession((s) => applyChange(s, change, Date.now())),

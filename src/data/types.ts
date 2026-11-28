@@ -6,6 +6,7 @@ import type { EventProgram } from "../core/eventProgram";
  */
 import type { SavedBranding, SessionBranding } from "../core/branding";
 import type { SessionProgram } from "../core/program";
+import type { AnswerSource } from "../core/hardware";
 import type { OfferData, RequestData, RequestStatus, VenueData, VenueFileKind, VenueStatus } from "../core/venues";
 
 export type { SavedBranding, SessionBranding };
@@ -574,6 +575,8 @@ export interface Answer {
   uid: string;
   value: unknown;
   submittedAt: number | null;
+  /** Источник ответа: телефон или физическая кнопка (у старых записей — phone). */
+  source?: AnswerSource;
 }
 
 export interface NewSessionOptions {

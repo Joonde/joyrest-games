@@ -5,6 +5,7 @@
  * а остальной код не меняется. Firebase-типы сюда не попадают.
  */
 import type { ProgramAction } from "../core/program";
+import type { HardwareBinding } from "../core/hardware";
 import type {
   Deck,
   DeckPage,
@@ -236,12 +237,25 @@ export interface AnswersRepository {
   list(sessionId: string, step: number): Promise<Answer[]>;
 }
 
+export type HardwareBuzzResult = "sent" | "duplicate" | "rejected";
+
+/** Физические кнопки — только свой сервер и только пульт ведущего. */
+export interface HardwareRepository {
+  list(sessionId: string): Promise<HardwareBinding[]>;
+  save(sessionId: string, binding: HardwareBinding): Promise<HardwareBinding>;
+  remove(sessionId: string, bindingId: string): Promise<void>;
+  buzz(sessionId: string, bindingId: string, eventId: string): Promise<HardwareBuzzResult>;
+}
+
 /** Часы сервера: синхронный таймер на экране зала, пульте и телефонах. */
 export interface ClockService {
   /** На сколько миллисекунд часы сервера впереди часов устройства (0, пока не измерено). */
   offset(): number;
-  /** Измеряет смещение один раз за загрузку страницы (одна запись и одно чтение). */
-  sync(): Promise<number>;
+  /**
+   * Измеряет смещение один раз за загрузку страницы (одна запись и одно чтение). `maxAgeMs` — только свой сервер: последний замер
+   * старше — измерить заново («Игры Матрёшки»: телефон сверяет часы раз в 2 минуты, окно «Замри!» — 0,3 с).
+   */
+  sync(options?: { maxAgeMs?: number }): Promise<number>;
 }
 
 /**

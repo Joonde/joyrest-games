@@ -9,6 +9,7 @@ import {
   permissions,
   roomsAvailable,
   sessionsRepo,
+  teamLobbyRepo,
   useLoad,
   type Game,
   type PlayMode,
@@ -29,6 +30,7 @@ import { BrandingPicker } from "../../components/BrandingPicker";
 import { ClientLogo } from "../../components/ClientLogo";
 import type { SessionBranding } from "../../core/branding";
 import { brandTheme } from "../../themes/branding";
+import { DEFAULT_FORMATION, TeamFormationPicker, type FormationChoice } from "../../components/TeamFormationPicker";
 
 const AGE_ORDER = ["0+", "12+", "18+"];
 
@@ -37,9 +39,23 @@ const SCREEN_MODES: Array<{ id: ScreenMode; title: string; hint: string }> = [
   { id: "none", title: "Без экрана", hint: "Вопросы на телефонах гостей, вы читаете вслух." },
 ];
 
+/**
+ * Управляемое командное лобби — только свой сервер (у Firebase — прежнее, «отвечает капитан»). Пока телефон гостя
+ * (часть 1в) прежний, выбор виден только при разработке на этом компьютере: гости в такую сессию не вошли бы. Сервер
+ * отдельно принимает его только с TEAM_LOBBY=on или на test (`teamLobbyEnabled`).
+ */
+const TEAM_LOBBY_UI = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const MANAGED_TEAMS = teamLobbyRepo !== null && TEAM_LOBBY_UI;
+/** Где управляемое лобби не включается (ТЗ 11): «Олимп» — запрет владельца. */
+const NO_TEAM_LOBBY = new Set(["olymp"]);
+
 const PLAY_MODES: Array<{ id: PlayMode; title: string; hint: string }> = [
   { id: "solo", title: "Каждый сам за себя", hint: "Каждый гость играет со своего телефона." },
-  { id: "teams", title: "Команды", hint: "Отвечает капитан, остальные видят вопрос." },
+  {
+    id: "teams",
+    title: "Команды",
+    hint: MANAGED_TEAMS ? "Команды собираются в лобби; что делает каждый — зависит от задания." : "Отвечает капитан, остальные видят вопрос.",
+  },
 ];
 
 export function Launch() {
@@ -217,6 +233,9 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
   const standalone = getMechanic(game.mechanic)?.standalone ?? null;
   const [themeId, setThemeId] = useState(standalone?.themeId ?? getTheme(game.themeId).id);
   const [branding, setBranding] = useState<SessionBranding | null>(null);
+  const [formation, setFormation] = useState<FormationChoice>(DEFAULT_FORMATION);
+  const lobbyMechanic = !(blocks ?? [game]).some((g) => NO_TEAM_LOBBY.has(g.mechanic));
+  const managed = MANAGED_TEAMS && lobbyMechanic && playMode === "teams" && formation.mode !== "legacy";
   const pickBranding = useCallback((b: SessionBranding | null) => setBranding(b), []);
   const previewTheme = brandTheme(getTheme(themeId), branding);
   const [busy, setBusy] = useState(false);
@@ -229,7 +248,7 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
     event.preventDefault();
     setBusy(true);
     setError(null);
-    const key = JSON.stringify([themeId, playMode, screenMode, branding]);
+    const key = JSON.stringify([themeId, playMode, screenMode, branding, managed ? formation : null]);
     const attempt = sessionId.current && sessionId.current.key === key ? sessionId.current : { id: newSessionId(), key };
     sessionId.current = attempt;
     try {
@@ -244,6 +263,9 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
         playMode,
         screenMode,
         ...(branding && !standalone ? { branding } : {}),
+        ...(managed && formation.mode !== "legacy"
+          ? { teamFormation: { mode: formation.mode, teamCount: formation.teamCount, maxMembers: formation.maxMembers } }
+          : {}),
         ...(blocks
           ? { program: { title: game.title, blocks: blocks.map((g) => ({ title: g.title, mechanic: g.mechanic, gameId: g.id, snapshot: gameSnapshot(g) })) } }
           : {}),
@@ -305,6 +327,7 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
             </label>
           ))}
         </fieldset>
+        {MANAGED_TEAMS && lobbyMechanic && playMode === "teams" && <TeamFormationPicker value={formation} onChange={setFormation} />}
         {/* У самостоятельной игры («Олимп») свой вид — выбирать оформление не нужно. */}
         {!standalone && (
           <>

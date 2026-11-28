@@ -10,6 +10,7 @@ import { parseProgram } from "../../core/program";
 import type { Leaderboard, LeaderboardEntry, ScreenMode, Session, SessionPhase, SessionState, SessionSummary, StepStage } from "../types";
 import { api, asRecord, asText, newId } from "./api";
 import { openStream } from "./stream";
+import { parseFormation } from "./teamLobby";
 
 type Versioned = Session & { version: number };
 
@@ -87,6 +88,7 @@ export function parseSession(value: unknown): Versioned | null {
     eventStartedAt: typeof d.eventStartedAt === "number" ? d.eventStartedAt : null,
     program: parseProgram(d.program ?? null),
     branding: parseBranding(d.branding ?? null),
+    teamFormation: parseFormation(d.teamFormation),
     version: num(d.version),
   };
 }

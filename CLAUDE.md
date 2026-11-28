@@ -315,6 +315,9 @@ Firebase удаляются, Firebase-код удаляется отдельны
   Всё под замком `teams:<сессия>` и блокировкой строки сессии; действия ведущего — `actionId` (повтор) и `revision` (409).
   Права — `canManageTeamFormation`, `canChangeOwnLobbyState`, `canEditTeamProfile`, `canReadParticipant` (только свой сервер,
   `firestore.rules` не меняются). Тесты — `server/src/teamLobby.test.ts` (нужна `TEST_DATABASE_URL`).
+  Часть 1б — пульт: выбор при запуске `src/components/TeamFormationPicker.tsx`, карточка `src/components/live/TeamFormationCard.tsx`
+  (`teamLobbyRepo` — `src/data/server/teamLobby.ts`, у Firebase `null`), проверки «Начать игру» — `startBlockers`. Телефон гостя
+  (часть 1в) ещё прежний: такие сессии на test — только вместе с 1в.
 - **PR 4.2 — уборка:** при входе admin в `/admin` — `POST /api/sessions/cleanup` (`canCleanupSessions`):
   сессии старше 30 дней (сервер не берёт срок свежее `retentionCutoff`, что бы ни прислал браузер)
   удаляются с участниками и ответами, до 100 за вход (`more`); незавершённая игра с таблицей лидеров

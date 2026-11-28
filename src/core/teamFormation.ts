@@ -3,7 +3,7 @@
  * базы и сети. Ими пользуются сервер (`server/src/teamLobby.ts`) и пульт. Случайность — аргументом: сервер передаёт
  * криптостойкий `randomInt`, тесты — свой.
  */
-import type { Participant, TeamFormation, TeamFormationMode } from "../data/types";
+import type { Leaderboard, Participant, TeamFormation, TeamFormationMode } from "../data/types";
 
 export const TEAM_LIMITS = {
   minTeams: 1,
@@ -233,4 +233,47 @@ export function unwillingCaptains(participants: readonly Participant[]): string[
       return captain?.kind === "player" && captain.teamId === t.id && captain.noCaptain === true;
     })
     .map((t) => t.id);
+}
+
+/** Состав глазами пульта: реальные команды, кто в какой, кто ждёт (ссылка на удалённую команду — «без команды»). */
+export function lobbyRoster(participants: readonly Participant[]) {
+  const teams = participants.filter((p) => p.kind === "team");
+  const teamIds = new Set(teams.map((t) => t.id));
+  const players = participants.filter((p) => p.kind === "player");
+  const teamOf = (p: Participant) => (p.teamId && teamIds.has(p.teamId) ? p.teamId : null);
+  const members = (teamId: string) => players.filter((p) => teamOf(p) === teamId);
+  return { teams, players, teamOf, members, waiting: players.filter((p) => teamOf(p) === null) };
+}
+
+/**
+ * Почему «Начать игру» нельзя (ТЗ 7.3): пусто — можно. Люди без команды старт не блокируют — о них спрашивает пульт
+ * («Распределить, где есть места» или «Начать — подключатся позже»). Команда без телефона (только в таблице) — тоже
+ * получатель очков.
+ */
+export function startBlockers(formation: TeamFormation, participants: readonly Participant[], leaderboard: Leaderboard): string[] {
+  const { teams, members } = lobbyRoster(participants);
+  const real = new Set(teams.map((t) => t.id));
+  // Ручная команда «без телефона» — запись без капитана; запись с капитаном без участника — уже убранная команда.
+  const manual = Object.entries(leaderboard).filter(([id, e]) => e.kind === "team" && e.captainUid === undefined && !real.has(id)).length;
+  const out: string[] = [];
+  if (teams.length === 0 && manual === 0) {
+    out.push(formation.mode === "randomTeams" ? "Сначала разделите гостей на команды." : "Пока нет ни одной команды.");
+  }
+  if (teams.length > formation.teamCount) out.push(`Команд больше, чем разрешено (${teams.length} из ${formation.teamCount}).`);
+  for (const team of teams) {
+    const crew = members(team.id);
+    if (crew.length === 0) out.push(`В команде «${team.name}» никого нет — уберите её.`);
+    else if (!crew.some((m) => m.id === team.captainUid)) out.push(`У команды «${team.name}» нет капитана — назначьте его.`);
+    if (crew.length > formation.maxMembers) out.push(`В команде «${team.name}» больше ${formation.maxMembers} человек.`);
+  }
+  return out;
+}
+
+/** Склонение: 1 гость, 2 гостя, 5 гостей. */
+export function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
 }

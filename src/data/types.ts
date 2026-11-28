@@ -648,6 +648,8 @@ export interface NewSessionOptions {
   program?: { title: string; blocks: Array<{ title: string; mechanic: string; gameId: string; snapshot: unknown }> };
   /** Оформление под заказчика (только свой сервер). */
   branding?: SessionBranding | null;
+  /** Управляемое командное лобби (только свой сервер, режим команд); нет — прежнее лобби. */
+  teamFormation?: { mode: TeamFormationMode; teamCount: number; maxMembers: number } | null;
 }
 
 /** Строка итоговой таблицы: игрок (solo) или команда (teams). */

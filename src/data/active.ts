@@ -34,6 +34,7 @@ import type {
   UsersRepository,
   VenuesRepository,
   HardwareRepository,
+  TeamLobbyRepository,
 } from "./contracts";
 import { answersRepository } from "./answers";
 import { authService as firebaseAuthService } from "./auth";
@@ -55,6 +56,7 @@ import { serverGameFolders, serverGamesRepository } from "./server/games";
 import { serverMediaRepository } from "./server/media";
 import { serverAnswersRepository } from "./server/answers";
 import { serverHardwareRepository } from "./server/hardware";
+import { serverTeamLobbyRepository } from "./server/teamLobby";
 import { serverClock } from "./server/clock";
 import { serverParticipantsRepository } from "./server/participants";
 import { serverProposalsRepository } from "./server/proposals";
@@ -95,6 +97,8 @@ export const participantsRepo: ParticipantsRepository = server ? serverParticipa
 export const answersRepo: AnswersRepository = server ? serverAnswersRepository : answersRepository;
 /** Физические кнопки доступны только на своём сервере; Firebase скрывает настройку. */
 export const hardwareRepo: HardwareRepository | null = server ? serverHardwareRepository : null;
+/** Управляемое командное лобби — только свой сервер; у Firebase — только прежнее лобби. */
+export const teamLobbyRepo: TeamLobbyRepository | null = server ? serverTeamLobbyRepository : null;
 export const resultsRepo: ResultsRepository = server ? serverResultsRepository : resultsRepository;
 export const clock: ClockService = server ? serverClock : firestoreClock;
 /** Быстрый канал (игровые комнаты) — только свой сервер; у Firebase — `unimplemented`. */

@@ -19,6 +19,7 @@ import {
   participantsRepo,
   permissions,
   sessionsRepo,
+  teamLobbyRepo,
   useSessionByCode,
   type Answer,
   type AuthUser,
@@ -57,6 +58,8 @@ import { NameText } from "../components/NameText";
 import { finaleSlides, getMechanic } from "../mechanics/registry";
 import type { SessionControl } from "../mechanics/types";
 import { teamColorVar, useTheme } from "../themes/registry";
+import { TeamFormationCard, teamLobbyError, useLobbyFormation, useRemovedTeamsCleanup } from "../components/live/TeamFormationCard";
+import { lobbyRoster, plural, startBlockers } from "../core/teamFormation";
 
 /** Счётчик ответов на экране обновляется не чаще раза в 2 секунды: экономим записи и чтения. */
 const ANSWERED_THROTTLE_MS = 2000;
@@ -107,15 +110,21 @@ function HostConsoleContent({ code, user }: { code: string; user: AuthUser }) {
 }
 
 /** Пульт слушает участников и ответы на текущий шаг — гости и экран зала их не слушают. */
-function useHostData(session: Session): { participants: Participant[]; answers: Answer[]; error: string | null } {
-  const [participants, setParticipants] = useState<Participant[]>([]);
+function useHostData(session: Session): { participants: Participant[]; answers: Answer[]; error: string | null; loaded: boolean } {
+  const [participants, setParticipantsState] = useState<Participant[]>([]);
+  // Пришёл первый список участников (до него пустой список — «ещё не знаем», а не «никого нет»).
+  const [loaded, setLoaded] = useState(false);
+  const setParticipants = useCallback((list: Participant[]) => {
+    setParticipantsState(list);
+    setLoaded(true);
+  }, []);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const playing = session.state.phase === "playing";
 
   useEffect(
     () => participantsRepo.watch(session.id, setParticipants, () => setError("Нет доступа к участникам сессии.")),
-    [session.id],
+    [session.id, setParticipants],
   );
 
   useEffect(() => {
@@ -124,11 +133,11 @@ function useHostData(session: Session): { participants: Participant[]; answers: 
     return answersRepo.watch(session.id, session.state.step, setAnswers, () => setError("Нет доступа к ответам."));
   }, [session.id, session.state.step, playing]);
 
-  return { participants, answers, error };
+  return { participants, answers, error, loaded };
 }
 
 function Console({ session }: { session: Session }) {
-  const { participants, answers, error: dataError } = useHostData(session);
+  const { participants, answers, error: dataError, loaded: participantsLoaded } = useHostData(session);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
@@ -137,6 +146,22 @@ function Console({ session }: { session: Session }) {
   const [confirmAward, setConfirmAward] = useState(false);
   // Мероприятие из блоков: «Завершить игру» в блоке — конец блока (перерыв), а не конец вечера.
   const [confirmBlock, setConfirmBlock] = useState(false);
+  // Управляемое командное лобби (свой сервер): настройки — из потока лобби (с исключёнными) или снимка сессии.
+  const { formation } = useLobbyFormation(session);
+  const managed = formation !== null;
+  const managedRef = useRef(managed);
+  managedRef.current = managed;
+  useRemovedTeamsCleanup(session, participants, managed, participantsLoaded);
+  // «Начать игру», а гости без команды: распределить, где есть места, или начать — подключатся позже (ТЗ 7.3).
+  const [confirmStart, setConfirmStart] = useState(false);
+  // Идёт действие формирования (разделить, перевести…) — «Начать игру» ждёт (ТЗ 7.3).
+  const [formationBusy, setFormationBusy] = useState(false);
+  const roster = useMemo(() => lobbyRoster(participants), [participants]);
+  const waitingNow = roster.waiting.length;
+  // Все ожидающие ушли в команды, пока открыт вопрос «N гостей без команды», — закрываем его, а не пишем «0 гостей».
+  useEffect(() => {
+    if (confirmStart && waitingNow === 0 && !busy) setConfirmStart(false);
+  }, [confirmStart, waitingNow, busy]);
   const program = session.program ?? null;
   const inBlock = program?.at === "block" && session.state.phase === "playing";
   const [toast, showToast] = useToast();
@@ -182,9 +207,11 @@ function Console({ session }: { session: Session }) {
   useEffect(() => {
     if (session.playMode !== "teams" || session.state.phase === "finished") return;
     const check = () => {
-      const changes = captainChanges(participantsRef.current, Date.now() + clock.offset());
+      // Управляемое лобби: сначала согласные быть капитаном; сервер перепроверяет автосмену (ТЗ 6.5).
+      const auto = managedRef.current;
+      const changes = captainChanges(participantsRef.current, Date.now() + clock.offset(), { managed: auto });
       for (const [teamId, uid] of Object.entries(changes)) {
-        void participantsRepo.setCaptain(session.id, teamId, uid).catch(() => undefined);
+        void participantsRepo.setCaptain(session.id, teamId, uid, auto).catch(() => undefined);
       }
     };
     const timer = window.setInterval(check, CAPTAIN_CHECK_MS);
@@ -254,6 +281,54 @@ function Console({ session }: { session: Session }) {
     }),
     [session.id],
   );
+
+  /** «Начать игру»: в управляемом лобби — сначала проверки ТЗ 7.3 и вопрос о гостях без команды. */
+  function requestStart() {
+    if (formationBusy || busy) return;
+    if (formation && session.playMode === "teams") {
+      const blockers = startBlockers(formation, participants, session.leaderboard);
+      if (blockers.length > 0) {
+        setError(blockers.join(" "));
+        return;
+      }
+      if (waitingNow > 0) {
+        setError(null);
+        setConfirmStart(true);
+        return;
+      }
+    }
+    void start();
+  }
+
+  const formationRef = useRef(formation);
+  formationRef.current = formation;
+
+  /** «Распределить, где есть места» и начать: гости не на связи остаются ждать (их подключит ведущий потом). */
+  async function assignAndStart() {
+    if (!formation || !teamLobbyRepo) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // Сразу после действия в карточке поток мог ещё не принести новую revision: один повтор со свежей через секунду.
+      const repo = teamLobbyRepo;
+      const assign = () => repo.autoAssign(session.id, formationRef.current?.revision ?? formation.revision, []);
+      const result = await assign().catch(async (e: unknown) => {
+        if (errorCodeOf(e) !== "formation-changed") throw e;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return assign();
+      });
+      const placed = Object.keys(result.assigned ?? {}).length;
+      const left = waitingNow - placed;
+      showToast(left > 0 ? `Распределили: ${placed}. Ждут ведущего: ${left} (не на связи, исключены или нет мест).` : `Распределили: ${placed}.`);
+    } catch (e) {
+      setError(teamLobbyError(e));
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    setConfirmStart(false);
+    await start();
+  }
 
   async function start() {
     starting.current = true;
@@ -453,14 +528,17 @@ function Console({ session }: { session: Session }) {
             {phase === "lobby" && (
               <>
                 <JoinCard session={session} link={link} compact={false} onCopy={() => void copyLink()} />
-                {session.playMode === "teams" && <TeamsCard session={session} onApply={apply} onStart={() => void start()} starting={busy || !mechanic} />}
-                <LobbyNames session={session} onMore={() => setTab("people")} />
+                {formation && session.playMode === "teams" && (
+                  <TeamFormationCard session={session} participants={participants} formation={formation} onToast={showToast} onBusy={setFormationBusy} />
+                )}
+                {session.playMode === "teams" && <TeamsCard session={session} onApply={apply} onStart={requestStart} starting={busy || formationBusy || !mechanic} />}
+                {!managed && <LobbyNames session={session} onMore={() => setTab("people")} />}
                 {program && (
                   <p className="muted small">
                     Вечер из {program.blocks.length} {program.blocks.length === 1 ? "блока" : "блоков"}: {program.blocks.map((b, i) => `${i + 1}. ${b.title}`).join(" · ")}
                   </p>
                 )}
-                <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
+                <button className="btn btn--block" disabled={busy || formationBusy || !mechanic} onClick={requestStart}>
                   {program ? `Начать вечер: «${program.blocks[0]?.title ?? ""}»` : "Начать игру"}
                 </button>
                 {/* Передумали или сессия создана по ошибке — закрыть, не начиная игру. */}
@@ -565,6 +643,9 @@ function Console({ session }: { session: Session }) {
         {tab === "sounds" && <SoundPad onCue={(cue) => apply({ state: { cue } })} />}
         {tab === "music" && <MusicPanel session={session} onApply={apply} />}
         {tab === "slides" && <SlidesPanel session={session} onApply={apply} />}
+        {tab === "people" && formation && session.playMode === "teams" && session.state.phase === "playing" && (
+          <TeamFormationCard session={session} participants={participants} formation={formation} onToast={showToast} onBusy={setFormationBusy} />
+        )}
         {tab === "people" && <PeopleCard session={session} participants={participants} phones={phones} onToast={showToast} />}
         {tab === "hardware" && <HardwarePanel session={session} onToast={showToast} />}
         {(error ?? dataError) && (
@@ -620,6 +701,39 @@ function Console({ session }: { session: Session }) {
             ? `На экране — победители блока и общий счёт вечера. Дальше — «${program.blocks[program.index + 1]?.title ?? ""}»: начнёте кнопкой, когда гости будут готовы.`
             : "Это последний блок: дальше итоги вечера и награждение по сумме всех блоков."}
         </p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmStart}
+        title={`${waitingNow} ${plural(waitingNow, "гость", "гостя", "гостей")} пока без команды`}
+        confirmLabel={roster.teams.length > 0 ? "Распределить, где есть места" : "Начать — подключатся позже"}
+        busy={busy}
+        error={confirmStart ? error : null}
+        onConfirm={() => {
+          if (roster.teams.length > 0) void assignAndStart();
+          else {
+            setConfirmStart(false);
+            void start();
+          }
+        }}
+        onCancel={() => setConfirmStart(false)}
+      >
+        <p>
+          Ждать их не обязательно: кто придёт позже, попадёт в команду со свободным местом.
+          {roster.teams.length > 0 ? " Распределим тех, кто на связи; остальные подождут ведущего." : ""}
+        </p>
+        {roster.teams.length > 0 && (
+          <button
+            type="button"
+            className="btn btn--secondary btn--block"
+            disabled={busy}
+            onClick={() => {
+              setConfirmStart(false);
+              void start();
+            }}
+          >
+            Начать — подключатся позже
+          </button>
+        )}
       </ConfirmDialog>
       <ConfirmDialog
         open={confirmAward}

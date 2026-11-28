@@ -9,6 +9,8 @@ import {
   pickCaptain,
   planAutoAssign,
   planDistribution,
+  plural,
+  startBlockers,
   publicFormation,
   settingsError,
   shuffled,
@@ -144,5 +146,35 @@ describe("командное лобби: выбор капитана (ТЗ 6.5)"
     const team = (id: string, captainUid: string): Participant => ({ id, name: id, kind: "team", teamId: null, captainUid });
     const phone = (id: string, teamId: string, noCaptain = false): Participant => ({ id, name: id, kind: "player", teamId, captainUid: id, ...(noCaptain ? { noCaptain } : {}) });
     expect(unwillingCaptains([team("t1", "a"), phone("a", "t1", true), team("t2", "b"), phone("b", "t2"), phone("c", "t2", true)])).toEqual(["t1"]);
+  });
+});
+
+describe("командное лобби: когда можно начать игру (ТЗ 7.3)", () => {
+  const formation = { mode: "self" as const, teamCount: 2, maxMembers: 2, revision: 1, distributed: false };
+  const team = (id: string, captainUid: string): Participant => ({ id, name: id, kind: "team", teamId: null, captainUid });
+  const phone = (id: string, teamId: string | null): Participant => ({ id, name: id, kind: "player", teamId, captainUid: id });
+
+  it("нет команд — нельзя; команда без телефона из таблицы — можно", () => {
+    expect(startBlockers(formation, [phone("a", null)], {})).toEqual(["Пока нет ни одной команды."]);
+    expect(startBlockers({ ...formation, mode: "randomTeams" }, [], {})).toEqual(["Сначала разделите гостей на команды."]);
+    expect(startBlockers(formation, [], { m1: { name: "Ручная", kind: "team", score: 0 } })).toEqual([]);
+    // Запись убранной команды (с капитаном, без участника) — не получатель очков.
+    expect(startBlockers(formation, [], { gone: { name: "Лисы", kind: "team", score: 0, captainUid: "a" } })).toEqual(["Пока нет ни одной команды."]);
+  });
+
+  it("пустая команда, капитан не в команде, переполнение, лишние команды", () => {
+    expect(startBlockers(formation, [team("t1", "a")], {})).toEqual(["В команде «t1» никого нет — уберите её."]);
+    expect(startBlockers(formation, [team("t1", "x"), phone("a", "t1")], {})).toEqual(["У команды «t1» нет капитана — назначьте его."]);
+    expect(startBlockers(formation, [team("t1", "a"), phone("a", "t1"), phone("b", "t1"), phone("c", "t1")], {})).toEqual(["В команде «t1» больше 2 человек."]);
+    const three = [team("t1", "a"), phone("a", "t1"), team("t2", "b"), phone("b", "t2"), team("t3", "c"), phone("c", "t3")];
+    expect(startBlockers(formation, three, {})).toEqual(["Команд больше, чем разрешено (3 из 2)."]);
+  });
+
+  it("люди без команды старт не блокируют", () => {
+    expect(startBlockers(formation, [team("t1", "a"), phone("a", "t1"), phone("late", null)], {})).toEqual([]);
+  });
+
+  it("склонение", () => {
+    expect([1, 2, 5, 11, 21, 22, 25].map((n) => plural(n, "гость", "гостя", "гостей"))).toEqual(["гость", "гостя", "гостей", "гостей", "гость", "гостя", "гостей"]);
   });
 });

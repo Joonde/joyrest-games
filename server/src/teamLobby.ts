@@ -93,6 +93,20 @@ function validName(value: unknown): value is string {
 const newId = () => randomBytes(12).toString("base64url");
 const secureInt = (max: number) => randomInt(max);
 
+/**
+ * Включено ли управляемое лобби на этом сервере: `TEAM_LOBBY=on|off`; без настройки — только на test (все адреса сайта
+ * `test.*`), как проверочная комната. Пока телефон гостя (часть 1в) не готов и владелец не сказал «да», основная версия
+ * создаёт только прежнее лобби, что бы ни прислал браузер.
+ */
+export function teamLobbyEnabled(value: string | undefined, siteHosts: readonly string[]): boolean {
+  const setting = value?.trim().toLowerCase();
+  if (setting) return setting === "on";
+  return siteHosts.length > 0 && siteHosts.every((host) => host.startsWith("test."));
+}
+
+/** Механики, где управляемое лобби не включается без отдельного решения (ТЗ 11): «Олимп» — запрет владельца. */
+export const NO_TEAM_LOBBY = new Set(["olymp"]);
+
 /** Канал Hub общего лобби: снимок карточек команд всем телефонам сессии. */
 export const lobbyChannel = (sessionId: string) => `teamlobby:${sessionId}`;
 
@@ -561,6 +575,8 @@ export function createTeamLobby(deps: TeamLobbyDeps) {
         async (ctx, body) => {
           const formation = ctx.formation as TeamFormation;
           const { teams, members } = roster(ctx.rows);
+          // Составы во время игры меняются только между вопросами (ТЗ 7.4).
+          if (ctx.phase === "playing" && deps.stageOf(ctx.session.state) === "question") throw new LobbyError(409, "failed-precondition");
           if (teams.length === 0 || (formation.mode === "randomTeams" && ctx.phase === "lobby" && !formation.distributed)) {
             throw new LobbyError(409, "failed-precondition");
           }
@@ -650,6 +666,7 @@ export function createTeamLobby(deps: TeamLobbyDeps) {
         async (ctx, body) => {
           const formation = ctx.formation as TeamFormation;
           const { teams, waiting } = roster(ctx.rows);
+          if (ctx.phase === "playing" && deps.stageOf(ctx.session.state) === "question") throw new LobbyError(409, "failed-precondition");
           if (formation.mode === "randomTeams" && ctx.phase === "lobby" && !formation.distributed) throw new LobbyError(409, "failed-precondition");
           if (teams.length >= formation.teamCount) throw new LobbyError(409, "team-limit");
           const captain = waiting.find((p) => p.id === body.captainPid);

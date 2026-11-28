@@ -9,6 +9,7 @@ import { isOn, siteMode } from "./site";
 import { venueFormsOpen } from "./venues";
 import { parseEdition } from "./edition";
 import { roomCheckEnabled } from "./rooms/registry";
+import { teamLobbyEnabled } from "./teamLobby";
 
 const port = Number(process.env.PORT ?? 8080);
 const databaseUrl = process.env.DATABASE_URL;
@@ -86,6 +87,8 @@ const app = buildApp({
   venues: { formsOpen: venueFormsOpen(process.env.VENUE_FORMS, siteHosts) },
   // Проверочная игра быстрого канала (тесты и нагрузка) — только на тестовой версии (ROOM_CHECK=on или адреса test.*).
   rooms: { check: roomCheckEnabled(process.env.ROOM_CHECK, siteHosts) },
+  // Управляемое командное лобби — только TEAM_LOBBY=on или на тестовой версии (адреса test.*), пока владелец не сказал «да».
+  live: { teamLobby: teamLobbyEnabled(process.env.TEAM_LOBBY, siteHosts) },
   checkDatabase: async () => {
     if (!sql) return false;
     await sql`select 1`;

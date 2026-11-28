@@ -17,6 +17,7 @@ export function parseParticipant(value: unknown): Participant | null {
     captainUid: asText(d.captainUid),
     joinedAt: typeof d.joinedAt === "number" ? d.joinedAt : null,
     seenAt: typeof d.seenAt === "number" ? d.seenAt : null,
+    ...(d.noCaptain === true ? { noCaptain: true } : {}),
   };
 }
 
@@ -58,8 +59,8 @@ export const serverParticipantsRepository: ParticipantsRepository = {
     await api("DELETE", one(sessionId, pid));
   },
 
-  async setCaptain(sessionId, teamId, uid) {
-    await api("POST", `${one(sessionId, teamId)}/captain`, { uid });
+  async setCaptain(sessionId, teamId, uid, auto) {
+    await api("POST", `${one(sessionId, teamId)}/captain`, auto ? { uid, auto: true } : { uid });
   },
 
   async touch(sessionId, uid) {

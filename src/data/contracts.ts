@@ -63,6 +63,9 @@ import type {
   Session,
   SessionChange,
   SessionPhase,
+  TeamFormationMode,
+  TeamLobbyPublic,
+  TeamLobbySnapshot,
   TeamMember,
   Track,
   TrackCategory,
@@ -211,8 +214,11 @@ export interface ParticipantsRepository {
   rename(sessionId: string, pid: string, name: string): Promise<void>;
   /** Только пульт: убрать игрока или команду из игры. */
   remove(sessionId: string, pid: string): Promise<void>;
-  /** Только пульт: новый капитан команды. */
-  setCaptain(sessionId: string, teamId: string, uid: string): Promise<void>;
+  /**
+   * Только пульт: новый капитан команды. `auto` — автосмена ушедшего капитана (свой сервер, управляемое лобби): сервер
+   * перепроверяет её и может отказать (`formation-changed`).
+   */
+  setCaptain(sessionId: string, teamId: string, uid: string, auto?: boolean): Promise<void>;
   /** Телефон капитана: «я на связи» (раз в 30 секунд). */
   touch(sessionId: string, uid: string): Promise<void>;
   /** Только свой сервер: игроки не на связи — новый телефон может войти за себя прежнего. */
@@ -238,6 +244,53 @@ export interface AnswersRepository {
 }
 
 export type HardwareBuzzResult = "sent" | "duplicate" | "rejected";
+
+/** Ответ сервера на действие ведущего в командном лобби (ТЗ 13.2): только id, без имён. */
+export interface TeamFormationResult {
+  revision: number;
+  /** Игрок → команда. */
+  assigned?: Record<string, string>;
+  /** Не хватило мест. */
+  rest?: string[];
+  skippedOffline?: string[];
+  skippedExcluded?: string[];
+  /** Отмеченные «не на связи», которые не подошли (уже в команде или не из этой игры). */
+  ignored?: string[];
+  /** Созданные распределением команды: капитан и «не хотел быть капитаном». */
+  teams?: Array<{ id: string; captain: string; unwilling: boolean }>;
+}
+
+/**
+ * Управляемое командное лобби (docs/TEAM_LOBBY_AND_COLLABORATION_TZ_2026-11-22.md) — только свой сервер. Действия ведущего
+ * несут `expectedRevision` (настройки, которые видел пульт): игра ушла вперёд — `formation-changed`, пульт берёт свежее.
+ * Повтор после обрыва связи идёт с тем же `actionId` — сервер не перемешивает людей второй раз.
+ */
+export interface TeamLobbyRepository {
+  /** Общее лобби: карточки команд и счётчики; у пульта — с исключёнными. `null` — лобби вернули в прежнее. */
+  watch(sessionId: string, onChange: (lobby: TeamLobbyPublic | null) => void, onError: (error: Error) => void): Unsubscribe;
+  /** Лобби глазами этого устройства (своя команда, капитанство). */
+  get(sessionId: string): Promise<TeamLobbySnapshot | null>;
+  settings(
+    sessionId: string,
+    expectedRevision: number,
+    settings: { mode: TeamFormationMode | "legacy"; teamCount?: number; maxMembers?: number },
+  ): Promise<TeamFormationResult>;
+  /** Исключить игрока из распределения или вернуть (значение, а не переключение). Возвращает весь список. */
+  exclude(sessionId: string, pid: string, excluded: boolean): Promise<string[]>;
+  distribute(sessionId: string, expectedRevision: number, includeOffline: string[]): Promise<TeamFormationResult>;
+  autoAssign(sessionId: string, expectedRevision: number, includeOffline: string[]): Promise<TeamFormationResult>;
+  reset(sessionId: string, expectedRevision: number): Promise<TeamFormationResult>;
+  /** Перевести игрока в команду (`null` — без команды). */
+  move(sessionId: string, pid: string, teamId: string | null, expectedRevision: number): Promise<TeamFormationResult>;
+  /** Новая команда с капитаном из ожидающих. */
+  addTeam(sessionId: string, expectedRevision: number, captainPid: string, name?: string): Promise<TeamFormationResult>;
+  /** Телефон: выйти из своей команды («Гости сами», лобби). */
+  leave(sessionId: string, pid: string): Promise<void>;
+  /** Телефон: «Не хочу быть капитаном». */
+  captainPreference(sessionId: string, pid: string, noCaptain: boolean): Promise<void>;
+  /** Название команды: капитан в лобби или ведущий. */
+  renameTeam(sessionId: string, teamId: string, name: string): Promise<void>;
+}
 
 /** Физические кнопки — только свой сервер и только пульт ведущего. */
 export interface HardwareRepository {

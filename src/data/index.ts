@@ -18,6 +18,7 @@ export {
   eventsRepo,
   gamesRepo,
   hardwareRepo,
+  teamLobbyRepo,
   mediaRepo,
   participantsRepo,
   proposalsRepo,

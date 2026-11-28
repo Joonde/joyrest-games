@@ -30,7 +30,7 @@ import { actorOf, apiGuard, deviceCookie, identityOf, tokenHash, type Identity }
 import { canHardwareBuzz, type HardwareSource } from "../../src/core/hardware";
 import { survivalEventFor, survivalSessionFor } from "./survivalPrivacy";
 import { PARTICIPANT_COLUMNS, participantOf, type ParticipantRow } from "./participantRows";
-import { createTeamLobby } from "./teamLobby";
+import { createTeamLobby, NO_TEAM_LOBBY } from "./teamLobby";
 import { newFormation, parseTeamFormation, publicFormation } from "../../src/core/teamFormation";
 
 export interface LiveOptions {
@@ -40,6 +40,8 @@ export interface LiveOptions {
   now?: () => number;
   /** Пауза между «я жив» в потоке, мс. */
   keepAliveMs?: number;
+  /** Управляемое командное лобби (`teamLobbyEnabled`); выключено — сессии только с прежним лобби. По умолчанию да (тесты). */
+  teamLobby?: boolean;
   /**
    * Оформление под заказчика в сессиях (по умолчанию да). В Лайте нет: это платный «Фирменный шаблон», в тариф не
    * входит — сервер такое оформление не сохраняет, что бы ни прислал браузер.
@@ -882,7 +884,9 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       // Командное лобби (ТЗ 7.1): только в режиме команд; неверные настройки — отказ, а не молчаливое прежнее лобби.
       const playMode = body.playMode === "teams" ? "teams" : "solo";
       let formation = null;
-      const askedFormation = isRecord(body.teamFormation) && body.teamFormation.mode === "legacy" ? null : body.teamFormation;
+      // Выключено на этом сервере или «Олимп» (ТЗ 11) — прежнее лобби, что бы ни прислал браузер (старая вкладка).
+      const lobbyAllowed = options.teamLobby !== false && !NO_TEAM_LOBBY.has(mechanic ?? "");
+      const askedFormation = !lobbyAllowed || (isRecord(body.teamFormation) && body.teamFormation.mode === "legacy") ? null : body.teamFormation;
       if (askedFormation !== undefined && askedFormation !== null) {
         formation = playMode === "teams" ? newFormation(askedFormation) : null;
         if (!formation) return fail(reply, 400, "invalid-argument");

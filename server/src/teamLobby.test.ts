@@ -5,6 +5,17 @@ import { join, resolve } from "node:path";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { teamNameKey } from "../../src/core/teamFormation";
+import { teamLobbyEnabled } from "./teamLobby";
+
+describe("командное лобби: где включено", () => {
+  it("TEAM_LOBBY=on|off решает; без настройки — только на test", () => {
+    expect(teamLobbyEnabled("on", [])).toBe(true);
+    expect(teamLobbyEnabled(" OFF ", ["test.games.joy-rest.ru"])).toBe(false);
+    expect(teamLobbyEnabled(undefined, ["test.games.joy-rest.ru", "test.joy-rest.ru"])).toBe(true);
+    expect(teamLobbyEnabled(undefined, ["games.joy-rest.ru", "joy-rest.ru"])).toBe(false);
+    expect(teamLobbyEnabled(undefined, [])).toBe(false);
+  });
+});
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { migrate } from "./migrate";
@@ -362,6 +373,7 @@ describe.skipIf(!url)("командное лобби на PostgreSQL", () => {
     expect(Object.keys(auto.assigned)).toEqual([c!.uid]);
     await call("POST", "/api/sessions/play1/apply", host, { state: { stage: "question", startedAt: "server", timeLimit: null } });
     expect((await hostAct("play1", "team-formation", { mode: "self", maxMembers: 5 })).json()).toEqual({ error: "failed-precondition" });
+    expect((await hostAct("play1", "team-formation/auto-assign")).json()).toEqual({ error: "failed-precondition" });
     await call("POST", "/api/sessions/play1/apply", host, { state: { stage: "reveal" } });
     expect((await hostAct("play1", "team-formation", { mode: "self", maxMembers: 5 })).statusCode).toBe(200);
     // Ведущий убрал единственного члена «Сов» (он и капитан): команда осталась без капитана в составе.
@@ -462,6 +474,10 @@ describe.skipIf(!url)("командное лобби на PostgreSQL", () => {
     // Снова управляемое: revision продолжается, запоздалый запрос старого лобби не проходит (ABA).
     expect((await call("POST", "/api/sessions/set1/team-formation", host, { actionId: actionId(), expectedRevision: 1, mode: "self" })).json()).toEqual({ error: "formation-changed" });
     expect((await hostAct("set1", "team-formation", { mode: "self", teamCount: 3, maxMembers: 4 })).json()).toMatchObject({ revision: oldRevision + 2 });
+    // «Олимп» — только прежнее лобби, что бы ни прислал браузер (ТЗ 11).
+    const olymp = await call("POST", "/api/sessions", host, { id: "olymp1", gameId: null, gameTitle: "Олимп", playMode: "teams", screenMode: "laptop", themeId: "joyrest", mechanic: "olymp", gameSnapshot: { title: "Олимп", content: {} }, teamFormation: { mode: "self" } });
+    expect(olymp.statusCode).toBe(200);
+    expect((await call("GET", "/api/sessions/olymp1", host)).json().teamFormation).toBeNull();
     // При запуске «legacy» — просто прежнее лобби.
     expect((await newSession("set2", { mode: "legacy" })).statusCode).toBe(200);
     expect((await call("GET", "/api/sessions/set2", host)).json().teamFormation).toBeNull();

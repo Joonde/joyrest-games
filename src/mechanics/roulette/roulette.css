@@ -1,0 +1,119 @@
+/* «Рулетка судьбы»: экран и телефоны этапа 1 (выбор тем, план колеса). Классы — с префиксом fr-. */
+.fr-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(12px, 2.4vh, 28px);
+  padding: clamp(16px, 4vh, 48px);
+  text-align: center;
+}
+
+.fr-screen__title {
+  font-size: clamp(28px, 5vh, 56px);
+  margin: 0;
+}
+
+.fr-screen__note {
+  font-size: clamp(18px, 2.6vh, 30px);
+  opacity: 0.85;
+  margin: 0;
+}
+
+.fr-teams {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: clamp(8px, 1.6vh, 18px);
+  width: min(100%, 1400px);
+}
+
+.fr-team {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: clamp(12px, 2vh, 22px);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface-alt);
+  font-size: clamp(18px, 2.6vh, 30px);
+}
+
+.fr-team.is-ready {
+  border-color: var(--color-success, #2e9e5b);
+}
+
+.fr-team__name {
+  font-weight: 700;
+}
+
+.fr-plan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 2vh, 24px);
+  width: min(100%, 1400px);
+}
+
+.fr-plan__sectors,
+.fr-plan__queue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.fr-sector {
+  padding: 10px 18px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 700;
+  font-size: clamp(16px, 2.4vh, 28px);
+  letter-spacing: 0.04em;
+}
+
+.fr-sector--0 { background: #6e1832; }
+.fr-sector--1 { background: #0d5b4c; }
+.fr-sector--2 { background: #223f78; }
+.fr-sector--3 { background: #8b5a12; }
+.fr-sector--4 { background: #51265e; }
+.fr-sector--5 { background: #155d6b; }
+
+.fr-plan__turn {
+  font-size: clamp(22px, 3.4vh, 40px);
+  margin: 0;
+}
+
+.fr-plan__queue > li {
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+}
+
+.fr-plan__queue > li.is-now {
+  border-color: currentColor;
+  font-weight: 700;
+}
+
+.fr-pick {
+  display: grid;
+  gap: 10px;
+}
+
+.fr-host-team {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fr-host-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

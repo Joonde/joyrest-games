@@ -36,6 +36,7 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   hundred: "tv",
   survival: "tv",
   quest: "adventure",
+  roulette: "adventure",
   checkers: "adventure",
   dragon: "adventure",
   olymp: "olymp",

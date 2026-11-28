@@ -44,6 +44,8 @@ import { createMafia } from "./mafia/content";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
 import { evening } from "./evening";
+import { roulette } from "./roulette";
+import { DEMO_ROULETTE_RAW } from "./roulette/demo";
 import { DEMO_MELODY, DEMO_QUIZ, DEMO_QUIZ_FORMATS } from "./quiz/demo";
 import { questionsLabel } from "../core/results";
 import type { AnyMechanic, Mechanic, Step, ValidationError } from "./types";
@@ -58,7 +60,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(aquarium), register(bublikator), register(matryoshka), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(aquarium), register(bublikator), register(matryoshka), register(roulette), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -89,6 +91,7 @@ const HINTS: Record<string, string> = {
   bublikator: "Экипажи кораблей: у каждого гостя приборы с дурацкими названиями и приказы про приборы товарищей — кричите и крутите. Три перелёта, события, тайный диверсант.",
   matryoshka: "Дворовые игры на вылет: «Замри!», «Пряник», «Стулья», «Канат», «Классики». Выбывшие болеют и угадывают, финалисты играют «Камень, ножницы, бумага». 20–25 минут, 6–100 гостей.",
   aquarium: "Перерыв с раскраской: гости раскрашивают на телефонах рыбок или ёлочные игрушки — рисунки оживают в 3D-аквариуме или на ёлке на экране зала. По мотивам Paper Aquarium (MrMoT9I).",
+  roulette: "Капитаны выбирают темы, из них собирается общее колесо: команды по очереди крутят его и выполняют задания разной редкости — вопросы, танцы, караоке, батлы, бонусы.",
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
 
@@ -267,6 +270,8 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   { mechanic: bublikator.id, title: `${bublikator.title}: для детей`, hint: "Детская сложность: приборы — картинки (лягушка, банан, ракета), всегда 3 прибора, без диверсанта, 2 перелёта по 3 минуты.", content: { ...bublikator.create(), difficulty: "kids", legs: 2, legMinutes: 3 }, playMode: "teams", ageRating: "0+" },
   { mechanic: matryoshka.id, title: `${matryoshka.title}: Солнечный двор`, hint: "Дети и дневные праздники: 2 сердечка, широкая полоса у «Пряника», пять испытаний, «Второй шанс», финал на 4.", content: { ...matryoshka.create(), style: "sunny" }, playMode: "solo", ageRating: "0+" },
   { mechanic: matryoshka.id, title: `${matryoshka.title}: Ночной двор`, hint: "Взрослые: неоновый двор, 1 сердечко, узкая полоса у «Пряника», пять испытаний, «Второй шанс», финал на 4.", content: { ...matryoshka.create(), style: "night", lives: 1 }, playMode: "solo", ageRating: "12+" },
+  { mechanic: roulette.id, title: roulette.title, hint: "12 тем по 3–4 задания: вопросы, танцы, караоке, батлы, вызовы и бонус «Ещё вращение». 3 круга, 2–8 команд.", content: DEMO_ROULETTE_RAW, playMode: "teams" },
+  { mechanic: roulette.id, title: roulette.title + " 18+", hint: "Тот же набор и тема «18+» с тостами (у напитков — безалкогольная замена).", content: { ...DEMO_ROULETTE_RAW, adult: true }, playMode: "teams", ageRating: "18+" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
 

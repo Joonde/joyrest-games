@@ -23,6 +23,7 @@ import { GUIDE_STAGE } from "./editorGuide/stage";
 import { GUIDE_STORY } from "./editorGuide/story";
 import { GUIDE_SURVIVAL } from "./editorGuide/survival";
 import { GUIDE_TRUTH } from "./editorGuide/truth";
+import { GUIDE_ROULETTE } from "./editorGuide/roulette";
 import { GUIDE_WAGER } from "./editorGuide/wager";
 import { GUIDE_WINE } from "./editorGuide/wine";
 
@@ -355,5 +356,6 @@ export const EDITOR_GUIDES: EditorGuide[] = [
   GUIDE_WINE,
   GUIDE_BUBLIKATOR,
   GUIDE_MATRYOSHKA,
+  GUIDE_ROULETTE,
   GUIDE_EVENING,
 ];
